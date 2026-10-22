@@ -89,6 +89,11 @@ static int session_engine_blocked(SessionContext c) {
     if (!c.pc || !c.world || !c.manager || c.mode != 0) return 1;
     uint32_t flags = 0; read_at(c.pc + 0x77c, &flags, 4);
     if (flags & 0x20000) return 1; /* PlayerController.bCinematicMode */
+    /* Exact-build native message-box paths can set WorldInfo.bPlayersOnly;
+       the mesh animation tick then deliberately stops. Yield through normal
+       lease cleanup until the engine restores control. Never clear this bit. */
+    uint32_t world_flags=0;
+    if(!read_at(c.world+0x7c0,&world_flags,4)||(world_flags&0x400))return 1;
     uintptr_t conversation = read_ptr(c.world + 0x948);
     if (conversation) {
         int32_t active = 0; uint32_t activating = 0;
@@ -96,6 +101,21 @@ static int session_engine_blocked(SessionContext c) {
         if (active > 0 || (activating & 1)) return 1;
     }
     return 0;
+}
+static int session_gate_selftest(void) {
+    unsigned char pc[0x800]={0},world[0x960]={0},manager[16]={0},conversation[0xf0]={0};
+    SessionContext c={0};c.pc=(uintptr_t)pc;c.world=(uintptr_t)world;c.manager=(uintptr_t)manager;c.mode=0;
+    if(session_engine_blocked(c))return 0;
+    uint32_t value=0x400;memcpy(world+0x7c0,&value,4);if(!session_engine_blocked(c))return 0;
+    value=0;memcpy(world+0x7c0,&value,4);if(session_engine_blocked(c))return 0;
+    uintptr_t original=c.world;c.world=1;if(!session_engine_blocked(c))return 0;c.world=original;
+    c.mode=8;if(!session_engine_blocked(c))return 0;c.mode=0;
+    value=0x20000;memcpy(pc+0x77c,&value,4);if(!session_engine_blocked(c))return 0;
+    value=0;memcpy(pc+0x77c,&value,4);
+    uintptr_t cm=(uintptr_t)conversation;memcpy(world+0x948,&cm,8);
+    value=1;memcpy(conversation+0xd0,&value,4);if(!session_engine_blocked(c))return 0;
+    value=0;memcpy(conversation+0xd0,&value,4);value=1;memcpy(conversation+0xe8,&value,4);
+    return session_engine_blocked(c);
 }
 static void session_gate(int blocked, int synthetic, unsigned char mode, DWORD now) {
     if (blocked == session_gate_last && synthetic == session_gate_source && mode == session_gate_mode) return;

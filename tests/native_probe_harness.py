@@ -42,6 +42,8 @@ probe.SquadGuestCameraSelfTest.restype = ctypes.c_int
 assert probe.SquadGuestCameraSelfTest() == 1, "guest camera identity and restoration guards failed"
 probe.SquadGuestCinematicSelfTest.restype = ctypes.c_int
 assert probe.SquadGuestCinematicSelfTest() == 1, "cinematic reciprocal membership transaction/rollback guards failed"
+probe.SquadSessionGateSelfTest.restype = ctypes.c_int
+assert probe.SquadSessionGateSelfTest() == 1, "session gate accepted PlayersOnly, unreadable, cinematic or conversation control"
 probe.SquadSessionHandleSelfTest.restype = ctypes.c_int
 assert probe.SquadSessionHandleSelfTest() == 1, "stale/reused object identity guard failed"
 probe.SquadProbeMutexTest.restype = ctypes.c_int

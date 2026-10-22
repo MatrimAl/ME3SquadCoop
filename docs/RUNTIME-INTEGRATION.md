@@ -55,6 +55,15 @@ verification. Offline fixtures cover parsing and extraction invariants only;
 real combat, cross-PC Radmin and reversible Mod Manager use remain independent
 evidence requirements. Do not label an unverified integration as a release.
 
+The session control gate now also treats the exact-build `WorldInfo.bPlayersOnly`
+bit as unavailable control, including an unreadable value. Native message-box
+paths were observed to set this bit while mesh animation ticking stopped. The
+gate yields via existing lease cleanup and waits for normal engine restoration;
+it never clears the bit or dismisses UI. This detects the demonstrated engine
+freeze, not every UI overlay or its owner. Its new gate has offline native and
+compiled-negative-control coverage; in-game release/reacquisition remains to
+be verified separately.
+
 Run `python tests/native_runtime_harness.py <zig.exe>` after the normal native
 build to compile the inert entry fixture, exercise both shared headers and
 verify that QA-only environment and missing/disabled DLC remain inert. No game

@@ -677,6 +677,7 @@ __declspec(dllexport) int SquadFireRpcTraceSelfTest(void) { return fire_rpc_self
 __declspec(dllexport) int SquadNativeFireTraceSelfTest(void) { return native_fire_selftest(); }
 __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_adapter_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
+__declspec(dllexport) int SquadSessionGateSelfTest(void) { return session_gate_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {
     unsigned char fake[0x60] = {0}; int32_t index = 27; uint64_t name = 0x1234567800000021ULL;
     memcpy(fake + 8, &index, 4); memcpy(fake + 0x48, &name, 8);
