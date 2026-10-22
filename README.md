@@ -35,7 +35,7 @@ Equipment results remain mixed. One audit produced no eligible fire pulses; late
 
 ## Current work
 
-Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. A measured discovery-cache change reduced repeated function-lookup stalls; the subsequent paired run recorded two 250 ms firing pulses and stopping, but ammunition counts still differed after the second pulse. Read-only telemetry records actual weapon-channel identities and sampled update state. Startup repeatability and equipment synchronization remain immediate blockers. See [progress notes](docs/PROGRESS.md).
+Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. Measured changes reduced repeated function discovery and cold channel-lookup stalls. The latest pair retained control/handoff/disconnect behavior and observed firing and stopping, but ammunition counts still differed after the second pulse. Read-only telemetry records actual weapon-channel identities and sampled update state. Startup repeatability and equipment synchronization remain immediate blockers. See [progress notes](docs/PROGRESS.md).
 
 1. Make equipment initialization repeatable, including inventory links and action-state readiness.
 2. Verify both firing and stopping, with matching host/guest ammunition observations.

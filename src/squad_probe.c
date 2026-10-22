@@ -558,6 +558,7 @@ static void possession_test(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
 }
 #include "pair_control.h"
 #include "network_actor_identity.h"
+#include "network_actor_identity_selftest.h"
 #include "actor_channel_diagnostics.h"
 #include "render_capture.h"
 #include "scene_readiness_diagnostics.h"
@@ -799,6 +800,7 @@ __declspec(dllexport) int SquadStateReaderSelfTest(void) { return native_state_r
 __declspec(dllexport) int SquadCatchupGroundSelfTest(void) { return catchup_ground_selftest(); }
 __declspec(dllexport) int SquadAmmoTraceSelfTest(void) { return ammo_trace_selftest(); }
 __declspec(dllexport) int SquadFunctionLookupSelfTest(void) { return function_lookup_selftest(); }
+__declspec(dllexport) int SquadNetworkActorSelfTest(void) { return network_actor_identity_selftest(); }
 __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_adapter_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {

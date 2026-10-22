@@ -115,63 +115,55 @@ static int network_actor_scan_driver(uintptr_t base, uintptr_t pawn, uintptr_t d
     return matches == 1 ? result->index : -1;
 }
 
+typedef struct NetworkActorScope {
+    uintptr_t world,level,info,driver;
+    GameArray actors;
+    unsigned char mode;
+} NetworkActorScope;
+
+/* Exact-build native references: GWorld load, its NetDriver selection and
+ * UWorld's PersistentLevel/Actors[0]/NetMode getter. No native call is made.
+ * Bind the actor to this current world, rather than choosing a pending or
+ * similarly named driver from GObjects. Recheck the chain after enumeration.
+ */
+static int network_actor_world_pins(uintptr_t base) {
+    static const unsigned char global[]={0x4c,0x8b,0x05,0x55,0xc6,0xfe,0x00};
+    static const unsigned char driver[]={0x49,0x8b,0x98,0x20,0x01,0x00,0x00};
+    static const unsigned char mode[]={0x48,0x8b,0x81,0x88,0x00,0x00,0x00,0x48,0x8b,0x48,0x60,0x48,0x8b,0x01,0x0f,0xb6,0x80,0xc8,0x07,0x00,0x00,0xc3};
+    unsigned char a[sizeof global],b[sizeof driver],c[sizeof mode];
+    return read_at(base+0x8c9fdc,a,sizeof a)&&!memcmp(a,global,sizeof a)&&
+        read_at(base+0x8ca012,b,sizeof b)&&!memcmp(b,driver,sizeof b)&&
+        read_at(base+0x8c1e90,c,sizeof c)&&!memcmp(c,mode,sizeof c);
+}
+static int network_actor_read_scope(uintptr_t base,uintptr_t actor,NetworkActorScope *s) {
+    memset(s,0,sizeof *s);
+    if(!network_actor_world_pins(base)||
+       !read_at(base+0x18b6638,&s->world,8)||!is_live(base,s->world)||!is_kind_of(base,s->world,"World")||
+       !read_at(s->world+0x88,&s->level,8)||!is_live(base,s->level)||!is_kind_of(base,s->level,"Level")||
+       !identity_array(s->level+0x60,&s->actors,100000)||
+       !read_at(s->actors.data,&s->info,8)||!is_live(base,s->info)||!is_kind_of(base,s->info,"WorldInfo")||
+       read_ptr(actor+0x198)!=s->info||!read_at(s->info+0x7c8,&s->mode,1)||s->mode!=(test_action==5?3:2)||
+       !read_at(s->world+0x120,&s->driver,8)||!is_live(base,s->driver)||!is_kind_of(base,s->driver,"NetDriver"))return 0;
+    return test_action==5||(test_action==6&&s->driver==identity_host_driver);
+}
+
 static int network_actor_channel_id_core(uintptr_t base, uintptr_t pawn) {
-    NetworkActorIdentityEntry candidate = {0}, found = {0};
-    GameArray array = {0}; uintptr_t *objects; int matches = 0;
+    NetworkActorIdentityEntry found = {0};NetworkActorScope before,after;
     if ((test_action != 5 && test_action != 6) || !network_actor_layout_matches(base) ||
         !is_live(base, pawn) || !is_kind_of(base, pawn, "Actor")) return -1;
-    unsigned char mode=255;uintptr_t world=read_ptr(pawn+0x198);
-    if(!world||!read_at(world+0x7c8,&mode,1)||mode!=(test_action==5?3:2))return -1;
-    if(test_action==6) { GameArray peers={0};if(!identity_array(identity_host_driver+0x70,&peers,64))return -1; }
-    for (unsigned int i = 0; i < 4; ++i) {
-        NetworkActorIdentityEntry *cached = &network_actor_identity_cache[i];
-        if (cached->base != base || cached->pawn != pawn) continue;
-        if (network_actor_channel_valid(base, pawn, cached->channel, cached->driver, &candidate) &&
-            candidate.index == cached->index && candidate.connection == cached->connection) {
-            int index = network_actor_scan_driver(base, pawn, cached->driver, &found);
-            if (index >= 0) { *cached = found; return index; }
-            memset(cached, 0, sizeof *cached);
-            return -1;
-        }
-        memset(cached, 0, sizeof *cached);
-    }
-    /* Cold path discovers actual channels/drivers from the bounded GObjects
-     * snapshot. It never infers a counterpart from Ashley's class or path.
+    /* Consumers may use the published cache between calls, but resolution
+     * always checks every current peer. A failed lookup invalidates its hint.
      */
-    objects = identity_object_list(base, &array);
-    if (!objects) return -1;
-    for (int i = 0; i < array.count; ++i) {
-        uintptr_t channel = objects[i], connection, driver = 0;
-        if (!channel || read_ptr(channel) != base + 0x11a2150 || read_ptr(channel + 0xa0) != pawn) continue;
-        connection = read_ptr(channel + 0x60);
-        if (test_action == 6) driver = identity_host_driver;
-        else {
-            int driver_matches = 0;
-            /* Only a channel's owning connection can identify the client-side
-             * driver; a similarly named live/pending driver is insufficient.
-             */
-            for (int j = 0; j < array.count; ++j) {
-                uintptr_t object = objects[j];
-                if (object && read_ptr(object + 0x80) == connection &&
-                    is_live(base, object) && is_kind_of(base, object, "NetDriver")) {
-                    driver = object; driver_matches++;
-                }
-            }
-            if (driver_matches != 1) continue;
-        }
-        if (!network_actor_channel_valid(base, pawn, channel, driver, &candidate)) continue;
-        found = candidate;
-        if (++matches > 1) break;
+    unsigned int slot=4;
+    for(unsigned int i=0;i<4;++i)if(network_actor_identity_cache[i].base==base&&network_actor_identity_cache[i].pawn==pawn){
+        slot=i;memset(&network_actor_identity_cache[i],0,sizeof network_actor_identity_cache[i]);
     }
-    HeapFree(GetProcessHeap(), 0, objects);
-    if (matches != 1) return -1;
-    /* Runtime validation includes both connection collections, not just one
-     * coincidental pawn pointer somewhere in an object of the right class.
-     */
-    if (network_actor_scan_driver(base, pawn, found.driver, &candidate) < 0 ||
-        candidate.channel != found.channel || candidate.connection != found.connection) return -1;
-    network_actor_identity_cache[network_actor_identity_next++ % 4] = candidate;
-    return candidate.index;
+    if(!network_actor_read_scope(base,pawn,&before)||
+       network_actor_scan_driver(base,pawn,before.driver,&found)<0||
+       !network_actor_read_scope(base,pawn,&after)||memcmp(&before,&after,sizeof before))return -1;
+    if(slot==4)slot=network_actor_identity_next++%4;
+    network_actor_identity_cache[slot]=found;
+    return found.index;
 }
 
 /* Preserve the pawn-only contract for existing ownership/camera consumers. */

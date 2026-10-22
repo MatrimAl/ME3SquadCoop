@@ -1,5 +1,16 @@
 # Progress
 
+## 2026-10-22: bounded current-world channel discovery
+
+- Replaced the channel resolver's full object snapshot and nested guest driver scan with the current world's native NetDriver and bounded peer/channel lists. Exact-build instruction pins, live World/Level/WorldInfo identities, actor/world binding and matching before/after scope snapshots authorize this path. No native method is called and no engine state is written by the resolver.
+- Kept all-peer ambiguity rejection, connection/driver reciprocity, exact channel vtable checks, channel-index bounds and reciprocal table membership. Missing or malformed scope returns unknown. Pawn-only and weapon-only public entry points remain distinct; published cache hints cannot bypass enumeration.
+- Built all three native outputs. The native harness passed valid/invalid scope, public-type, duplicate peer/channel, native-pin and membership fixtures plus existing safety checks. Three separately compiled mutation twins removing world binding, reciprocal table validation or ambiguity rejection were caught. Python discovery: 178 tests, OK, 2 skipped.
+- In a protected normal-duration paired Mars run, the last cumulative channel snapshots fell from host 3.696 seconds over 439 calls to 0.224 seconds over 564 calls, and guest 2.762 seconds over 2,654 calls to 1.244 seconds over 2,071 calls. Maximum calls fell from 318/668 ms to 24/27 ms. Counts, scene timing and machine scheduling differ, so this is measured resolver cost rather than a controlled FPS/GPU benchmark; remaining peaks are not zero. See [LOOKUP-PERFORMANCE.md](LOOKUP-PERFORMANCE.md).
+- Both sides matched pawn channel 27 and weapon channel 24 within this connection. Two ownership epochs, synthetic scene release/reacquisition, preserved host story authority and native disconnect/AI restoration passed. Recorded firing intervals were 250 and 312 ms. Both pulses consumed ammunition and stopped; counts matched at 3/3, then differed at 7/8, with reserves 210/210. The ammunition problem remains open.
+- Original-file locks covered 8,210 game/profile files. The report recorded unchanged original profiles, zero native exceptions, no forced orphan cleanup, a disabled probe and no remaining game processes. Distinct run/build/trace/profile evidence remains private. No real conversation, mission completion, two-PC Radmin or player-installation claim was added.
+
+Next: inspect authoritative ammunition field transmission and client prediction/correction for the matched weapon channel. Startup repeatability, stranded-companion catch-up, real dialogue, sustained progression, cross-PC Radmin and installation/rollback remain open.
+
 ## 2026-10-22: measured function-discovery stall reduction
 
 - Added explicitly opted-in, bounded wall-clock profiling for function discovery, channel resolution and Tick/diagnostic scopes. GPU timing is not measured. A protected 100-second Mars baseline found repeated function discovery dominating diagnostic cost: 54 `GetHealthPct` resolutions accumulated 20.537 seconds, with an 829 ms maximum. The diagnostic scope accumulated 38.836 seconds in its last emitted snapshot.
