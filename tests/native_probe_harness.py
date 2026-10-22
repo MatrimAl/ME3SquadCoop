@@ -39,6 +39,8 @@ probe.SquadFireRpcTraceSelfTest.restype = ctypes.c_int
 assert probe.SquadFireRpcTraceSelfTest() == 1, "weapon script observer changed forwarding, receive classification or its record limit"
 probe.SquadNativeFireTraceSelfTest.restype = ctypes.c_int
 assert probe.SquadNativeFireTraceSelfTest() == 1, "native fire observer changed forwarding, accepted another identity/native body or exceeded its record limit"
+probe.SquadGuestHitTraceSelfTest.restype = ctypes.c_int
+assert probe.SquadGuestHitTraceSelfTest() == 1, "hit observer changed forwarding/nesting, admitted stale targets/callbacks, or exceeded its paired record budget"
 probe.SquadDirectIPSelfTest.restype = ctypes.c_int
 assert probe.SquadDirectIPSelfTest() == 1, "native endpoint validation failed"
 probe.SquadGuestCameraSelfTest.restype = ctypes.c_int

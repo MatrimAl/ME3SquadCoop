@@ -249,6 +249,7 @@ static const GuestEquipmentName guest_equipment_notify_names[]={
 };
 
 
+#include "weapon_process_event_guard.h"
 static int guest_equipment_dispatch_pins(uintptr_t base) {
     unsigned char got[64];
     static const unsigned char p0[16]={0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x6c,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x57};
@@ -463,7 +464,7 @@ static void guest_equipment_bootstrap_tick(uintptr_t base,uintptr_t host,uintptr
     if(!guest_camera_stamp_matches(base,&ps,1)||!guest_camera_stamp_matches(base,&ws,1)||!guest_camera_stamp_matches(base,&is,1)||
        !guest_camera_stamp_matches(base,&rs,1)||!guest_camera_stamp_matches(base,&cs,1)||
        read_ptr(remote+0x3bc)!=pawn||read_ptr(pawn+0x374)!=remote||!guest_equipment_methods_valid(base))return guest_equipment_reject("pre-dispatch-identity-or-method",epoch,pawn,weapon,inventory,now);
-    uintptr_t pe=read_ptr(read_ptr(weapon)+0x230);if(pe!=base+0x40d450||read_ptr(read_ptr(weapon)+0x248)!=base+0x70a250||
+    uintptr_t pe=read_ptr(read_ptr(weapon)+0x230);if(!guest_equipment_weapon_pe_valid(base,weapon,pe)||read_ptr(read_ptr(weapon)+0x248)!=base+0x70a250||
        read_ptr(read_ptr(weapon)+0x710)!=base+0x15caa0||!guest_equipment_dispatch_pins(base))return guest_equipment_reject("ordinary-native-routing-pins",epoch,pawn,weapon,inventory,now);
     struct __attribute__((packed)) { uintptr_t pawn; uint32_t do_not_activate; } parms={pawn,0};
     _Static_assert(sizeof parms==12,"ClientGivenTo ABI12");

@@ -429,12 +429,15 @@ static int native_session_role(void) {return test_action;}
 #include "guest_player_context_adapter.h"
 #include "guest_cinematic_registration_adapter.h"
 #include "combat_fire_bot.h"
+#define ME3_SQUAD_COOP_PROTECTED_HIT_TRACE 1
 #include "guest_equipment_bootstrap.h"
 #include "ammo_change_trace.h"
 #include "ammo_wire_trace.h"
 #include "ammo_reconcile.h"
 #include "fire_rpc_trace.h"
 #include "native_fire_trace.h"
+#include "guest_hit_trace.h"
+#include "guest_hit_trace_selftest.h"
 #include "initial_actor_trace.h"
 #include "session_control.h"
 #include "combat_route_qa.h"
@@ -558,6 +561,7 @@ static void game_tick(void *self,float delta) {
     ammo_reconcile_tick();
     fire_rpc_trace_prepare();
     native_fire_trace_prepare();
+    guest_hit_trace_prepare();
     lookup_record("Probe","PostTick",part,0,0);part=lookup_clock();
     game_tick_diagnostics(self,base);lookup_record("Probe","Diagnostics",part,0,0);
     lookup_record("Probe","TotalTick",whole,0,0);
@@ -735,6 +739,7 @@ __declspec(dllexport) int SquadAmmoWireSelfTest(void) { return ammo_wire_selftes
 __declspec(dllexport) int SquadAmmoReconcileSelfTest(void) { return ammo_rpc_selftest(); }
 __declspec(dllexport) int SquadFireRpcTraceSelfTest(void) { return fire_rpc_selftest(); }
 __declspec(dllexport) int SquadNativeFireTraceSelfTest(void) { return native_fire_selftest(); }
+__declspec(dllexport) int SquadGuestHitTraceSelfTest(void) { return guest_hit_selftest(); }
 __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_adapter_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
 __declspec(dllexport) int SquadSessionGateSelfTest(void) { return session_gate_selftest(); }
