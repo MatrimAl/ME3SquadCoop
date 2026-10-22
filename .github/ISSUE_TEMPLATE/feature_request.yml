@@ -1,0 +1,48 @@
+name: Feature request
+description: Describe a player or contributor need and a testable outcome.
+title: '[Feature]: '
+labels:
+- enhancement
+- needs-triage
+body:
+- type: markdown
+  attributes:
+    value: 'Please write public reports in English. Research prototype: no complete gameplay release yet.
+      Do not include game assets, saves, private logs, paths, VPN addresses or credentials.'
+- type: textarea
+  id: problem
+  attributes:
+    label: Problem or need
+    description: Who needs this, and what is difficult today?
+  validations:
+    required: true
+- type: textarea
+  id: proposal
+  attributes:
+    label: Proposed behavior
+    description: Concrete example of the proposed result. More guests are planned, not currently supported.
+  validations:
+    required: true
+- type: textarea
+  id: acceptance
+  attributes:
+    label: Acceptance criteria
+    description: How can we verify this works? Separate synthetic checks from in-game evidence.
+  validations:
+    required: true
+- type: textarea
+  id: alternatives
+  attributes:
+    label: Alternatives and scope
+    description: Consider simpler approaches, risks, dependencies and what is outside scope.
+  validations:
+    required: false
+- type: checkboxes
+  id: confirmation
+  attributes:
+    label: Before submitting
+    options:
+    - label: I searched existing issues and PRs.
+      required: true
+    - label: This report contains no private data, game assets or credentials.
+      required: true

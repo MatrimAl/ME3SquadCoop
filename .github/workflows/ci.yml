@@ -1,0 +1,51 @@
+name: CI
+on:
+  push:
+    branches: [main, dev/campaign-coop, 'chore/**', 'fix/**', 'feat/**']
+  pull_request:
+    branches: [main, dev/campaign-coop]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  python-tests:
+    name: Python tests
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.10'
+      - name: Synthetic Python tests (no game)
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+  windows-build:
+    name: Windows build
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.10'
+      - name: Fetch verified Zig 0.15.2
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'zig.zip'
+          Invoke-WebRequest 'https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip' -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne '3a0ed1e8799a2f8ce2a6e6290a9ff22e6906f8227865911fb7ddedc3cc14cb0c') { throw 'Zig checksum mismatch' }
+          Expand-Archive -LiteralPath $archive -DestinationPath $env:RUNNER_TEMP
+      - name: Build native research outputs (no game)
+        shell: pwsh
+        run: python build.py (Join-Path $env:RUNNER_TEMP 'zig-x86_64-windows-0.15.2/zig.exe')
+      - name: Synthetic tests with built ASI and archive integration
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+# No game, secrets, deployment, self-hosted runner or pull_request_target.
+# Low-integrity OS harness remains a separate local Windows check.
