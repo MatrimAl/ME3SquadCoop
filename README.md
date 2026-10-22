@@ -103,6 +103,21 @@ python tests/native_probe_harness.py
 
 The harness exercises DLL guards and temporary fixtures. Neither command establishes in-game campaign support.
 
+## Packaging and reversible installation
+
+Packaging tools support authored-component manifests, reversible fixture installation, and staged replacement with rollback/recovery. A generated `.7z` is a **non-installable format fixture** containing unvalidated DLC headers and the native gate scaffold; it contains no campaign runtime.
+
+- Build format fixture: `python tools/build_shareable.py build outputs/ME3SquadCoop-format-fixture.7z`
+- Check installation status: `python tools/build_shareable.py status <test_game_root>`
+- Safe install into test copy: `python tools/build_shareable.py install <package_root> <test_game_root> --qa-candidate`
+- Safe reinstall: `python tools/build_shareable.py reinstall <package_root> <test_game_root> --qa-candidate`
+- Clean remove: `python tools/build_shareable.py remove <package_root> <test_game_root>`
+- Recover interrupted replacement: `python tools/build_shareable.py recover <old_package_root> <test_game_root>`
+
+The install/reinstall/remove commands apply to actual authored components packaged through the specification-based builder. Generated fixtures are blocked from public installation. See [docs/PACKAGING.md](docs/PACKAGING.md) for ownership checks, trusted hashes, staging and recovery limits.
+
+ME3Tweaks import, engine parsing, real installation/disable behavior and a playable campaign package remain unverified.
+
 ## Running research experiments
 
 The launch scripts currently expect a sibling `coop-anything/local/me3-le/` private workspace with independently verified copy manifests, private profile configuration and isolated runtime files. A fresh clone does not include or manufacture those prerequisites. Do not launch the game until every protection is set up and verified. See [development and safety](docs/DEVELOPMENT.md).
