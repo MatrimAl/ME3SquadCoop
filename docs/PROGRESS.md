@@ -7,6 +7,7 @@
 - Candidate classification now uses exact archetype/controller ancestry. It remains explicitly a candidate classification, not a verified relationship to Shepard. CDO pointer/name and actor lifecycle checks are present; exact UObject flag meanings and unobserved complete identity reuse remain limitations.
 - The CLI handles unavailable worlds, verifies exact sandbox executable path and supported SHA, rejects reparse/hardlink ambiguity and refuses output overwrites or output inside the game sandbox.
 - Focused offline tests cover the original false positives, valid decreases, regeneration, component replacement, invalid gaps, authority and inventory/array races. No live game was launched for this review; live hostile damage and guest attribution remain unverified. See [sampler scope and validation](AUTHORITATIVE-COMBAT-SAMPLER.md).
+- A later 20-second read-only attachment to the separately protected host verified the sandbox executable and SHA and produced 22 host-NetMode-2 records. Twenty-one snapshots were valid and one rejected actual actor-array/streaming changes. It enumerated 1,488 to 1,618 actors with no hostile candidates; this verifies attachment and schema, not hostile health or damage.
 
 ## 2026-10-23: observer-off repeat identifies port-arms deferral
 
