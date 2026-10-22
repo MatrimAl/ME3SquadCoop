@@ -277,6 +277,7 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
                 env["ME3_SQUAD_COOP_SESSION_TEST"] = "1" if session_test else "0"
                 host_started_ns = time.time_ns()
                 host_started = time.monotonic()
+                print(f"Starting protected host (native limit {host_seconds}s)", flush=True)
                 host = subprocess.Popen([sys.executable, str(ROOT / "boot_probe.py"),
                                          "--action", "host-pair", "--seconds", str(host_seconds)],
                                         cwd=ROOT, env=env, stdout=host_stream, stderr=subprocess.STDOUT)
@@ -289,11 +290,13 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
                                              for log in logs for row in log["rows"]):
                         ready = True
                         report["host_ready_after_seconds"] = round(time.monotonic() - host_started, 3)
+                        print(f"Host listen readiness observed after {report['host_ready_after_seconds']}s", flush=True)
                         break
                     if host.poll() is not None:
                         break
                     time.sleep(0.25)
                 if not ready:
+                    print("Host readiness failed; waiting for protected host cleanup", flush=True)
                     raise RuntimeError(f"host did not report a two-player listen server within {READY_SECONDS} seconds")
                 for name in ("Documents-host", "Documents-client"):
                     directory = RUNTIME / name
@@ -302,6 +305,7 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
                 # Budget from host script start (before native launch) and keep
                 # ten seconds for guest job closure before the host's limit.
                 if time.monotonic() - host_started > host_seconds - client_seconds - 10:
+                    print("Guest not started: insufficient bounded host lifetime remains", flush=True)
                     raise RuntimeError("not enough host lifetime remains for bounded guest")
                 guest_started_ns = time.time_ns()
                 guest_started = time.monotonic()
@@ -310,10 +314,12 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
                 env["ME3_SQUAD_COOP_PREWARM_MARS"] = "1" if prewarm_mars else "0"
                 env["ME3_SQUAD_COOP_PAIR_CONTROL"] = "1" if pair_control else "0"
                 env["ME3_SQUAD_COOP_SESSION_TEST"] = "1" if session_test else "0"
+                print(f"Starting protected guest (native limit {client_seconds}s)", flush=True)
                 guest = subprocess.Popen([str(BUILD / "sandbox_launch.exe"), "--boot-probe-sharelock",
                                           str(SANDBOX), str(proof), str(client_seconds)],
                                          cwd=ROOT, env=env, stdout=guest_stream, stderr=subprocess.STDOUT)
                 report["client_launcher_exit"] = await_exit(guest, guest_started + client_seconds + 15)
+                print(f"Guest launcher ended ({report['client_launcher_exit']}); waiting for host cleanup", flush=True)
                 report["host_launcher_exit"] = await_exit(host, host_started + host_seconds + 45)
             finally:
                 # Guest job closes first. Host boot script gets its full cleanup
