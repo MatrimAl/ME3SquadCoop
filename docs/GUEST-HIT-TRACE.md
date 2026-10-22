@@ -49,5 +49,9 @@ Offline fixtures exercise forwarding and NULLs, `LastError`, nested invalid
 calls, exact caller/function filtering, ownership generation changes, target
 and module reuse, shield/inventory replacement, failed memory reads, paired
 record limits, and restricted equipment-bootstrap admission. Compiled mutants
-exercise selected unsafe changes. Successful installation and real target
-damage still require a protected in-game observation.
+exercise selected unsafe changes. A later protected game experiment installed
+the observer and captured two actual drained calls, both with null hit actors
+and zero hits. Their original forwarding completed with valid source scope.
+That experiment was interrupted before its final paired report. It establishes
+dispatch coverage in the retained logs, not target damage or a completed session.
+Real target health/shield observations and damage still require verification.

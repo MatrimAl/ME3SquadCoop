@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-10-23: actual drained-hit dispatch and landing obstruction
+
+- The numbered-name correction allowed the protected input route to start. The host moved about 126 units, then stopped against landing-shuttle geometry before the first road node. The four-second stuck guard released the injected input. No jump-down action, hostile encounter or mission progress was established.
+- The default-off hit observer installed in the actual supported weapon dispatch and captured two native drained `ProcessInstantHit_Internal` calls for the leased guest weapon. Both original calls returned with valid source scope. Both had a null hit actor and zero hits, so there is no target health/shield or damage evidence. See [hit observation scope](GUEST-HIT-TRACE.md).
+- The first ownership epoch received start/stop firing and settled at host/guest consumed counts 2/2, reserves 210/210. After synthetic reacquisition, the guest pawn's position diverged severely and its equipment chain was ineligible. This is an additional unresolved replication/control-return failure; the first epoch does not establish reliable combat or reacquisition.
+- The experiment ended before its final paired report was written. Its launcher handle and processes were absent when checked; the enabled research marker was recovered to disabled. Both saved logs contain zero recorded native exceptions and the 16 original profile files match the preserved baseline. This recovery is not a completed lifecycle or clean-shutdown pass, and the preceding run's final report was not reused.
+- The separate ordinary entry now has an explicit one-shot guest join request. A protected guards-only probe mode retains profile/file protection without owning Tick, preparing actual ordinary-entry testing. These are source/offline checks; ordinary host startup and actual-entry game validation remain unfinished. The integrated Python suite passed 238 tests with two skipped.
+
+Next: use the measured shuttle exit anchors for ordinary movement, diagnose the second-epoch guest fall, and complete native ordinary host startup. Real enemy damage, full conversations, sustained mission travel, two-PC Radmin and player installation/rollback remain open.
+
 ## 2026-10-23: numbered route discovery and separate runtime entry
 
 - A completed protected pair started the listen host after 43.6 seconds and connected a real guest. The route never started and no squadmate lease was acquired, so the run establishes no traversal, firing, dialogue or combat pass. Original-file locks covered 8,210 files; profiles were unchanged, native exceptions were zero, no forced cleanup was needed, the probe was disabled, and no game processes remained.

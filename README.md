@@ -39,6 +39,8 @@ Protected runs have both failed before squadmate acquisition and exercised synth
 
 A subsequent route attempt measured frozen animation-node ticking while the world's `bPlayersOnly` flag was enabled. Normal message boxes can own and restore this flag; the active UI owner still needs identification. That run never acquired a guest, so this observation alone does not explain or fix the earlier firing failure. The guarded input route and separate player runtime are still being developed.
 
+The latest interrupted experiment started the route but stopped against landing-shuttle geometry. Two actual drained guest hit calls had no hit actor, so they prove no damage. Its first ownership epoch settled at host/guest ammunition counts 2/2; after synthetic reacquisition the guest pawn fell while its host counterpart remained at the landing. Control return therefore also needs repair. The experiment has no final paired report and is not counted as a completed lifecycle test.
+
 1. Make equipment initialization repeatable, including inventory links and action-state readiness.
 2. Verify both firing and stopping, with matching host/guest ammunition observations.
 3. Test a real full conversation while the guest owns a squadmate, then verify camera/control restoration.
@@ -81,7 +83,6 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `tests/` | Synthetic Python tests and separate Windows native harness |
 
 `src/squad_coop.c` is now a separate experimental ordinary runtime entry, sharing ownership/cleanup and camera/context adapters with the protected probe. It attaches to an existing native host/client world by default and has an explicit one-shot guest join request; host startup, local bind selection and protected actual-entry verification remain unfinished. `build.py` compiles each ASI from its own entry. See [runtime integration](docs/RUNTIME-INTEGRATION.md); an output filename does not establish release readiness.
-See [runtime integration](docs/RUNTIME-INTEGRATION.md) for the distinct artifact paths, shared foundation and remaining gameplay initialization.
 
 ## Build from source
 
