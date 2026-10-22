@@ -25,8 +25,38 @@ FIXED_TARGETS = {
     "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/Mount.dlc": "dlc",
 }
 DLC_PREFIX = "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/"
+MOUNT_TARGET = DLC_PREFIX + "Mount.dlc"
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?\Z")
+
+
+def make_activation_mount(priority=5100):
+    """Author our native-only activation container's LE3 mount metadata.
+
+    Binary layout provenance: docs/DLC-PACKAGING.md. There are no startup
+    packages, config changes, copied GUIDs or game assets in this container.
+    Readback validates the authored format; it does not prove engine loading.
+    """
+    if type(priority) is not int or not 1 <= priority <= 65535:
+        raise ValueError("LE3 mount priority must be an integer from 1 to 65535")
+    raw = struct.pack("<9I", 1, 0x2AD, 0xCD, 0x3006B, priority, 0, 0x0C, 0, 0) + bytes(0x48)
+    read_activation_mount(raw)
+    return raw
+
+
+def read_activation_mount(raw):
+    """Strict bounded readback for this project's asset-free activation DLC."""
+    if not isinstance(raw, bytes) or len(raw) != 0x6C:
+        raise ValueError("activation Mount.dlc must contain exactly 108 bytes")
+    version, package, licensee, cooked, priority, build, flags, content, name = struct.unpack_from("<9I", raw)
+    if (version, package, licensee, cooked) != (1, 0x2AD, 0xCD, 0x3006B):
+        raise ValueError("Mount.dlc is not the supported LE3 mount format")
+    if not 1 <= priority <= 65535:
+        raise ValueError("invalid LE3 mount priority")
+    if build or flags != 0x0C or content or name or any(raw[0x24:]):
+        raise ValueError("unexpected activation mount flags, TLK IDs or reserved build/GUID bytes")
+    return {"game": "LE3", "mount_priority": priority, "loads_in_singleplayer": True,
+            "loads_in_multiplayer": True, "save_dependency": False, "tlk_id": 0}
 
 
 def digest(path):
@@ -147,10 +177,12 @@ def validate_manifest(manifest, *, allow_fixture=False, allow_candidate=False, i
             raise ValueError("invalid authored file size/hash")
     if not fixture:
         kinds = {item["kind"] for item in files}
-        if kinds != {"native", "dlc"} or not any(item["path"].endswith(".pcc") for item in files):
+        if kinds != {"native", "dlc"}:
             raise ValueError("release requires real authored DLC and a release native companion")
-        if not any(item["path"].endswith("/Mount.dlc") for item in files):
+        if not any(item["path"] == MOUNT_TARGET for item in files):
             raise ValueError("authored DLC mount is missing")
+        if any(item["kind"] == "dlc" and item["path"] != MOUNT_TARGET for item in files):
+            raise ValueError("native-only activation DLC must contain only its authored Mount.dlc")
     return manifest
 
 
@@ -194,6 +226,8 @@ def verify_payload(package_root, manifest, *, allow_fixture=False, allow_candida
         if item["kind"] == "native":
             # Source-name checks alone are insufficient: reject the actual diagnostic binary marker too.
             validate_native(path, fixture=manifest.get("channel") == "fixture")
+        elif manifest.get("channel") != "fixture" and item["path"] == MOUNT_TARGET:
+            read_activation_mount(path.read_bytes())
     return root
 
 
