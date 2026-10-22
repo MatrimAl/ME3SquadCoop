@@ -1,5 +1,12 @@
 # Progress
 
+## 2026-10-23: numbered route discovery and separate runtime entry
+
+- A completed protected pair started the listen host after 43.6 seconds and connected a real guest. The route never started and no squadmate lease was acquired, so the run establishes no traversal, firing, dialogue or combat pass. Original-file locks covered 8,210 files; profiles were unchanged, native exceptions were zero, no forced cleanup was needed, the probe was disabled, and no game processes remained.
+- A read-only capture found all ten intended route nodes uniquely in the current world, with the expected classes and coordinates. The discovery code compared bare FName strings such as `PathNode` with numbered names such as `PathNode_103`, which could never match. Discovery now reconstructs the suffix from the separate native FName Number field. The native fixture covers the captured numbers, and a compiled off-by-one mutation is rejected. The corrected route still needs a protected game rerun.
+- The separate ordinary ASI now builds from its own entry and shares the actual companion ownership, camera and AI-restoration core with the probe. It checks the full executable SHA-256 and has no QA movement, synthetic scene timer, forced map selection or timed disconnect. It currently attaches only to an already established native session: normal listen/join bootstrap and protected validation of this entry remain unfinished. See [runtime integration](RUNTIME-INTEGRATION.md).
+- After integrating the reviewed sampler and runtime changes, all three native outputs built, both native harnesses passed, and Python discovery passed 238 tests with two skipped. These offline checks do not establish a playable mod. Actual enemy damage, full conversations, sustained mission travel, two-PC Radmin and player installation/rollback remain open.
+
 ## 2026-10-23: read-only combat sampler reviewed and corrected
 
 - An external contribution added the read-only health/shield reader, CLI and 26 fixtures. Review reproduced false decreases when reads failed or different worlds/pawns reused an address; the original evaluator was not reliable damage evidence.
