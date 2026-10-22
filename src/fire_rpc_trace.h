@@ -6,6 +6,9 @@
  * execScriptFunction has the already pinned void(self,FFrame*,result) ABI.
  * No call is consumed, redirected or manufactured. Entry is not delivery:
  * only an exact native receive/frame/channel match labels an incoming RPC.
+ * Internal VM calls may bypass UFunction.Func; missing entries do not prove
+ * that a script method was never invoked. Observe the incoming frame cursor
+ * separately rather than inferring execution from a dispatch entry alone.
  */
 typedef void (*FireRpcExec)(void*,void*,void*);
 typedef struct FireRpcDefinition { const char *path;uint32_t flags;int length; } FireRpcDefinition;
@@ -41,8 +44,13 @@ static int fire_rpc_receive_matches(uintptr_t channel,uintptr_t expected,uintptr
                                     uintptr_t object,uintptr_t self,int net) {
     return net&&channel&&channel==expected&&node==fn&&object==self;
 }
+static int fire_rpc_code_offset(uintptr_t code,uintptr_t script,int length) {
+    if(!code||!script||length<0||length>4096||script>UINTPTR_MAX-(uintptr_t)length||
+       code<script||code>script+(uintptr_t)length)return -1;
+    return (int)(code-script);
+}
 static void fire_rpc_snapshot(int k,const char *stage,unsigned id,unsigned parent,int incoming,
-                              int frame_matches,int object_matches,unsigned long generation) {
+                              int frame_matches,int object_matches,unsigned long generation,uintptr_t frame) {
     if(!fire_rpc_take())return;
     AmmoWireScope *s=&ammo_wire_scope;int valid=s->generation==generation&&ammo_wire_scope_valid();
     int used=-1,spare=-1;uint32_t nofire=0;unsigned char bfire=255,mode=255,role=255;char state[96]={0},safe[200];
@@ -52,12 +60,17 @@ static void fire_rpc_snapshot(int k,const char *stage,unsigned id,unsigned paren
             read_at(s->weapon.pointer+0x3b0,&mode,1)&&read_at(s->weapon.pointer+0x26a,&role,1);
     }
     int state_known=valid&&native_state_name(s->base,s->weapon.pointer,state,sizeof state);
-    identity_quote(state,safe,sizeof safe);char row[1400];
-    snprintf(row,sizeof row,"{\"fire_rpc_trace\":\"%s\",\"side\":\"%s\",\"call\":%u,\"parent_call\":%u,\"function\":\"%s\",\"generation\":%lu,\"channel_index\":%d,\"incoming_native_rpc\":%s,\"frame_node_matches\":%s,\"frame_object_matches\":%s,\"snapshot_valid\":%s,\"used\":%d,\"spare\":%d,\"bfire\":%u,\"pawn_no_weapon_firing\":%s,\"fire_mode\":%u,\"weapon_role\":%u,\"state_known\":%s,\"state\":\"%s\",\"original_forwarded\":%s,\"monotonic_ms\":%lu}\r\n",
+    GameArray script={0};int offset=-1;
+    if(frame_matches&&read_ptr(frame+0x18)==fire_rpc_methods[k].function.pointer&&
+       read_at(fire_rpc_methods[k].function.pointer+0x7c,&script,sizeof script)&&
+       script.count==fire_rpc_definitions[k].length&&script.max>=script.count&&script.max<=4096)
+        offset=fire_rpc_code_offset(read_ptr(frame+0x28),script.data,script.count);
+    identity_quote(state,safe,sizeof safe);char row[1500];
+    snprintf(row,sizeof row,"{\"fire_rpc_trace\":\"%s\",\"side\":\"%s\",\"call\":%u,\"parent_call\":%u,\"function\":\"%s\",\"generation\":%lu,\"channel_index\":%d,\"incoming_native_rpc\":%s,\"frame_node_matches\":%s,\"frame_object_matches\":%s,\"snapshot_valid\":%s,\"used\":%d,\"spare\":%d,\"bfire\":%u,\"pawn_no_weapon_firing\":%s,\"fire_mode\":%u,\"weapon_role\":%u,\"state_known\":%s,\"state\":\"%s\",\"script_cursor_offset\":%d,\"original_forwarded\":%s,\"monotonic_ms\":%lu}\r\n",
         stage,test_action==6?"host":"guest",id,parent,fire_rpc_definitions[k].path,generation,s->channel.index,
         incoming?"true":"false",frame_matches?"true":"false",object_matches?"true":"false",valid?"true":"false",
         used,spare,(unsigned)bfire,valid?(nofire&0x10000?"true":"false"):"null",(unsigned)mode,(unsigned)role,
-        state_known?"true":"false",safe,!strcmp(stage,"leave")?"true":"false",GetTickCount());line(row);
+        state_known?"true":"false",safe,offset,!strcmp(stage,"leave")?"true":"false",GetTickCount());line(row);
 }
 static void fire_rpc_exec(int k,void *self,void *frame,void *result) {
     DWORD before=GetLastError();AmmoWireScope *s=&ammo_wire_scope;
@@ -71,12 +84,12 @@ static void fire_rpc_exec(int k,void *self,void *frame,void *result) {
         incoming=test_action==6&&ammo_wire_receive&&fire_rpc_receive_matches(ammo_wire_receive->channel,
             s->channel.channel,node,fire_rpc_methods[k].function.pointer,object,(uintptr_t)self,
             !!(fire_rpc_definitions[k].flags&0x40));
-        id=++fire_rpc_calls;fire_rpc_parent=id;fire_rpc_snapshot(k,"enter",id,parent,incoming,nm,om,generation);
+        id=++fire_rpc_calls;fire_rpc_parent=id;fire_rpc_snapshot(k,"enter",id,parent,incoming,nm,om,generation,(uintptr_t)frame);
     }
     SetLastError(before);
     fire_rpc_original(self,frame,result);
     DWORD after=GetLastError();
-    if(capture){fire_rpc_snapshot(k,"leave",id,parent,incoming,nm,om,generation);fire_rpc_parent=parent;}
+    if(capture){fire_rpc_snapshot(k,"leave",id,parent,incoming,nm,om,generation,(uintptr_t)frame);fire_rpc_parent=parent;}
     SetLastError(after);
 }
 #define FIRE_RPC_WRAPPER(N) static void fire_rpc_exec_##N(void *a,void *b,void *c){fire_rpc_exec(N,a,b,c);}
@@ -159,6 +172,9 @@ static int fire_rpc_selftest(void) {
     ok=ok&&fire_rpc_receive_matches(1,1,2,2,3,3,1)&&!fire_rpc_receive_matches(4,1,2,2,3,3,1)&&
         !fire_rpc_receive_matches(1,1,4,2,3,3,1)&&!fire_rpc_receive_matches(1,1,2,2,4,3,1)&&
         !fire_rpc_receive_matches(1,1,2,2,3,3,0)&&!fire_rpc_receive_matches(0,0,2,2,3,3,1);
+    ok=ok&&fire_rpc_code_offset(100,100,78)==0&&fire_rpc_code_offset(178,100,78)==78&&
+        fire_rpc_code_offset(99,100,78)==-1&&fire_rpc_code_offset(179,100,78)==-1&&
+        fire_rpc_code_offset(0,100,78)==-1&&fire_rpc_code_offset(UINTPTR_MAX,UINTPTR_MAX-10,78)==-1;
     fire_rpc_rows=rows;fire_rpc_original=saved;fire_rpc_installed=installed;SetLastError(error);return ok;
 }
 #endif

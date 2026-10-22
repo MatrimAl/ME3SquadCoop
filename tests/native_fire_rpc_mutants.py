@@ -14,4 +14,5 @@ if __name__ == "__main__":
         "original-not-forwarded": [("fire_rpc_original(self,frame,result);", "(void)self;")],
         "forwarded-self-changed": [("fire_rpc_original(self,frame,result);", "fire_rpc_original(NULL,frame,result);")],
         "wrong-incoming-channel-accepted": [("channel==expected&&", "")],
+        "outside-script-cursor-accepted": [("code>script+(uintptr_t)length", "0")],
     }, "fire_rpc_trace.h", "SquadFireRpcTraceSelfTest")
