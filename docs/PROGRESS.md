@@ -1,5 +1,14 @@
 # Progress
 
+## 2026-10-23: observer-off repeat identifies port-arms deferral
+
+- Repeated the protected pair with the unchanged native build and native firing observer disabled. RPC observations remained enabled; snapshot correction remained disabled. The one eligible 250 ms input pulse settled at host/guest consumed counts 0/3, reserves 210/210. After synthetic reacquisition, the guest inventory chain was not eligible for a second pulse. This fails the firing requirement despite passing the separate lifecycle checks.
+- The authoritative start-fire request used mode 2 and advanced its script cursor from 0 to 77. The host stayed in `SFXWeapon.Active`, storing pending fire mode 2. `BioPawn.bInPortArms` cleared, but `bPlayingPortArmsAnim` remained set. Exact `SFXWeapon.Active.IsInPortArms` bytecode checks the latter flag, so `BeginFire` defers rather than entering `WeaponFiring`. This differs from the preceding successful run, where the playing flag was clear.
+- Read-only native research maps normal flag clearing to `BioAnimNodeBlendAdditiveCover` blend-out and relevance loss. Whether the failing host's mesh/node stops ticking still needs direct measurement. A normal AI capture already had animation ticking enabled outside rendering, so setting that policy without inspecting the failing lease would not establish a fix. No animation, firing-permission or ownership flag was forced.
+- Two ownership epochs, synthetic release/reacquisition and native disconnect/AI restoration passed. Protection covered 8,210 original files; profiles were unchanged, native exceptions were zero, no forced orphan cleanup occurred, the probe was disabled, and no game processes remained. The tested native source fingerprint matched at completion. These protections do not turn the failed firing result into a combat pass.
+
+Next: capture the actual leased host mesh/node lifecycle, apply a supported normal-animation remedy, and follow the measured Mars route to a genuine encounter using ordinary player input.
+
 ## 2026-10-23: native firing and ammunition consumption observed
 
 - Added a default-off, bounded observer of the supported weapon's native `FireAmmunition` virtual dispatch. Exact native instructions, reflected method ABI, vtable/slot, game thread and current ownership/channel scope are required. Original calls are forwarded once with `LastError` preserved. Incoming RPC snapshots now also record the actual requested fire mode, script cursor, complete state path, burst counters and raw port-arms flags. See [native firing observations](NATIVE-FIRE-OBSERVATION.md).
