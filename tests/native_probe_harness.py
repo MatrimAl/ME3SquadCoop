@@ -18,6 +18,8 @@ probe.SquadCatchupGroundSelfTest.restype = ctypes.c_int
 assert probe.SquadCatchupGroundSelfTest() == 1, "catch-up ground checks accepted invalid surfaces or rejected world-floor readiness"
 probe.SquadAmmoTraceSelfTest.restype = ctypes.c_int
 assert probe.SquadAmmoTraceSelfTest() == 1, "ammo trace merged weapon contexts or exceeded its process-wide sample budget"
+probe.SquadFunctionLookupSelfTest.restype = ctypes.c_int
+assert probe.SquadFunctionLookupSelfTest() == 1, "function cache accepted a changed/reused function, owner, class or object-table entry"
 probe.SquadDirectIPSelfTest.restype = ctypes.c_int
 assert probe.SquadDirectIPSelfTest() == 1, "native endpoint validation failed"
 probe.SquadGuestCameraSelfTest.restype = ctypes.c_int

@@ -35,7 +35,7 @@ Equipment results remain mixed. One audit produced no eligible fire pulses; late
 
 ## Current work
 
-Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. Ammunition counts have disagreed in some runs and matched in another with unchanged native code. The evaluator compares reserve counts too; read-only ammunition-change telemetry now records actual weapon-channel identities and sampled update state. Startup repeatability and equipment synchronization remain immediate blockers. See [progress notes](docs/PROGRESS.md).
+Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. A measured discovery-cache change reduced repeated function-lookup stalls; the subsequent paired run recorded two 250 ms firing pulses and stopping, but ammunition counts still differed after the second pulse. Read-only telemetry records actual weapon-channel identities and sampled update state. Startup repeatability and equipment synchronization remain immediate blockers. See [progress notes](docs/PROGRESS.md).
 
 1. Make equipment initialization repeatable, including inventory links and action-state readiness.
 2. Verify both firing and stopping, with matching host/guest ammunition observations.
@@ -66,6 +66,7 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `src/session_control.h` | Guest possession leases, handoff and disconnect restoration |
 | `src/guest_*` | Player-context, camera, cinematic and equipment adapters |
 | `src/ammo_change_trace.h` | Opt-in read-only ammunition changes, channel identities and sampled update state |
+| `src/function_lookup_cache.h`, `src/lookup_profile.h` | Live-validated discovery cache and opt-in CPU-path wall-clock measurements |
 | `src/combat_*` | Equipment observations and opt-in firing test input |
 | `src/*verification.py` | Evidence evaluators; labels alone do not count as proof |
 | `src/safe_workspace.py`, `src/share_guard.py` | Independent-copy verification and original-file locks |

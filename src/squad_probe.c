@@ -379,11 +379,14 @@ static uintptr_t local_controller(uintptr_t engine) {
     uintptr_t player = read_ptr(players.data);
     return player ? read_ptr(player + 0x68) : 0;
 }
-static uintptr_t function_named(uintptr_t base, const char *owner, const char *name) {
+#include "lookup_profile.h"
+#include "function_lookup_cache.h"
+static uintptr_t function_named_scan(uintptr_t base, const char *owner, const char *name,unsigned *examined) {
     GameArray objects = {0};
     if (!read_at(base + OBJECTS_RVA, &objects, sizeof objects) ||
         !objects.data || objects.count < 1 || objects.count > 500000 || objects.max < objects.count) return 0;
     for (int i = 0; i < objects.count; ++i) {
+        *examined=(unsigned)i+1;
         uintptr_t object = read_ptr(objects.data + (SIZE_T)i * 8);
         if (!object) continue;
         char text[96]; object_name(base, object, text, sizeof text);
@@ -394,6 +397,14 @@ static uintptr_t function_named(uintptr_t base, const char *owner, const char *n
         if (strcmp(text, owner) == 0) return object;
     }
     return 0;
+}
+static uintptr_t function_named(uintptr_t base,const char *owner,const char *name) {
+    unsigned examined=0;unsigned long long started=lookup_clock();
+    uintptr_t found=function_lookup_get(base,owner,name);
+    if(found){lookup_record(owner,name,started,1,0);return found;}
+    found=function_named_scan(base,owner,name,&examined);
+    if(found)function_lookup_put(base,owner,name,found);
+    lookup_record(owner,name,started,0,examined);return found;
 }
 static int is_kind_of(uintptr_t base, uintptr_t object, const char *classname) {
     uintptr_t cls = object ? read_ptr(object + 0x50) : 0;
@@ -564,16 +575,7 @@ static void possession_test(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
 #include "ammo_change_trace.h"
 #include "initial_actor_trace.h"
 #include "session_control.h"
-static void game_tick(void *self, float delta) {
-    uintptr_t base = (uintptr_t)GetModuleHandleW(NULL);
-    initial_actor_trace_install(base);
-    install_package_trace(base);
-    input_bot(base, (uintptr_t)self);
-    progress_input(base, (uintptr_t)self);
-    if (session_enabled) session_frame(base, (uintptr_t)self, 0);
-    else pair_guest_input(base, (uintptr_t)self);
-    original_tick(self, delta);
-    if (session_enabled) session_frame(base, (uintptr_t)self, 1);
+static void game_tick_diagnostics(void *self,uintptr_t base) {
     DWORD now = GetTickCount();
     if (now - last_state < 1000) return;
     last_state = now;
@@ -676,6 +678,19 @@ static void game_tick(void *self, float delta) {
     line(test_action == 5 && !client_prewarm ? "{\"action\":\"join-loopback\",\"phase\":\"returned\"}\r\n" : "{\"action\":\"travel-mars\",\"phase\":\"returned\"}\r\n");
     /* A single diagnostic call. Any engine-owned return string lives only
        until this bounded process exits; never free it with the CRT heap. */
+}
+static void game_tick(void *self,float delta) {
+    uintptr_t base=(uintptr_t)GetModuleHandleW(NULL);
+    lookup_profile_emit();unsigned long long whole=lookup_clock(),part=lookup_clock();
+    initial_actor_trace_install(base);install_package_trace(base);
+    input_bot(base,(uintptr_t)self);progress_input(base,(uintptr_t)self);
+    if(session_enabled)session_frame(base,(uintptr_t)self,0);else pair_guest_input(base,(uintptr_t)self);
+    lookup_record("Probe","PreTick",part,0,0);part=lookup_clock();
+    original_tick(self,delta);lookup_record("Engine","OriginalTick",part,0,0);part=lookup_clock();
+    if(session_enabled)session_frame(base,(uintptr_t)self,1);
+    lookup_record("Probe","PostTick",part,0,0);part=lookup_clock();
+    game_tick_diagnostics(self,base);lookup_record("Probe","Diagnostics",part,0,0);
+    lookup_record("Probe","TotalTick",whole,0,0);
 }
 static int install_tick_bridge(uintptr_t base) {
     uintptr_t engine = read_ptr(base + 0x18b31d0);
@@ -783,6 +798,7 @@ __declspec(dllexport) int SquadDirectIPSelfTest(void) { return direct_ip_native_
 __declspec(dllexport) int SquadStateReaderSelfTest(void) { return native_state_reader_selftest(); }
 __declspec(dllexport) int SquadCatchupGroundSelfTest(void) { return catchup_ground_selftest(); }
 __declspec(dllexport) int SquadAmmoTraceSelfTest(void) { return ammo_trace_selftest(); }
+__declspec(dllexport) int SquadFunctionLookupSelfTest(void) { return function_lookup_selftest(); }
 __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_adapter_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {

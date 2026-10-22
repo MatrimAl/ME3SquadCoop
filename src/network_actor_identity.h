@@ -115,7 +115,7 @@ static int network_actor_scan_driver(uintptr_t base, uintptr_t pawn, uintptr_t d
     return matches == 1 ? result->index : -1;
 }
 
-static int network_actor_channel_id_internal(uintptr_t base, uintptr_t pawn) {
+static int network_actor_channel_id_core(uintptr_t base, uintptr_t pawn) {
     NetworkActorIdentityEntry candidate = {0}, found = {0};
     GameArray array = {0}; uintptr_t *objects; int matches = 0;
     if ((test_action != 5 && test_action != 6) || !network_actor_layout_matches(base) ||
@@ -175,6 +175,10 @@ static int network_actor_channel_id_internal(uintptr_t base, uintptr_t pawn) {
 }
 
 /* Preserve the pawn-only contract for existing ownership/camera consumers. */
+static int network_actor_channel_id_internal(uintptr_t base,uintptr_t pawn) {
+    unsigned long long started=lookup_clock();int index=network_actor_channel_id_core(base,pawn);
+    lookup_record("ActorChannel","resolve",started,0,0);return index;
+}
 static int network_actor_channel_id(uintptr_t base, uintptr_t pawn) {
     return is_live(base,pawn)&&is_kind_of(base,pawn,"Pawn") ? network_actor_channel_id_internal(base,pawn) : -1;
 }
