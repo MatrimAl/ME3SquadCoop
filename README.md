@@ -81,6 +81,7 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `tests/` | Synthetic Python tests and separate Windows native harness |
 
 `src/squad_coop.c` is an experimental DLC-gate scaffold. The current build script builds both ASI variants from `squad_probe.c`; the release-named output is not evidence of release readiness.
+See [runtime integration](docs/RUNTIME-INTEGRATION.md) for the distinct artifact paths, shared foundation and remaining gameplay initialization.
 
 ## Build from source
 

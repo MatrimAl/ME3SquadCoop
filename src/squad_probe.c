@@ -12,6 +12,8 @@
 #include <string.h>
 #include <math.h>
 #include "direct_ip_native.h"
+#include "me3_runtime_identity.h"
+#include "runtime_config.h"
 static DirectIPNativeConfig direct_ip_config;
 
 #define NAME_POOLS_RVA 0x17B33D0
@@ -151,15 +153,6 @@ static int guard_file_imports(uintptr_t base) {
     return hooked_file;
 }
 
-static int read_at(uintptr_t address, void *out, SIZE_T size) {
-    SIZE_T got = 0;
-    return ReadProcessMemory(GetCurrentProcess(), (const void*)address, out, size, &got) && got == size;
-}
-static uintptr_t read_ptr(uintptr_t address) {
-    uintptr_t result = 0;
-    read_at(address, &result, sizeof result);
-    return result;
-}
 static void name_of(uintptr_t base, uint32_t index, char *out, size_t size) {
     out[0] = 0;
     uintptr_t pool = read_ptr(base + NAME_POOLS_RVA + (index >> 29) * 8);
@@ -262,14 +255,6 @@ static int has_marker(const wchar_t *folder) {
     if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) return 0;
     _snwprintf(path, MAX_PATH, L"%ls\\ME3SquadCoop.probe.enabled", folder);
     return GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
-}
-static int supported_image(uintptr_t base) {
-    WORD mz; DWORD pe_at = 0; DWORD timestamp = 0;
-    unsigned char code[7];
-    const unsigned char expect[7] = {0x48,0x8d,0x15,0xe3,0xf9,0xbb,0x00};
-    if (!read_at(base, &mz, 2) || mz != 0x5a4d || !read_at(base + 0x3c, &pe_at, 4)) return 0;
-    if (!read_at(base + pe_at + 8, &timestamp, 4) || timestamp != 1622077636) return 0;
-    return read_at(base + 0x65fde6, code, sizeof code) && memcmp(code, expect, sizeof code) == 0;
 }
 
 /* Layouts checked against LExSDKv2 LE3. The packed return FString starts at
@@ -800,6 +785,8 @@ static DWORD WINAPI observe(void *unused) {
 }
 
 #ifndef ME3_SQUAD_COOP_RELEASE
+__declspec(dllexport) int SquadRuntimeIdentitySelfTest(void) {return me3_runtime_identity_selftest();}
+__declspec(dllexport) int SquadRuntimeConfigSelfTest(void) {return runtime_config_selftest();}
 __declspec(dllexport) int SquadProbeSelfTest(void) {
     int value = 0x13579, copy = 0;
     if (!read_at((uintptr_t)&value, &copy, sizeof copy) || copy != value) return 0;
