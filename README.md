@@ -103,19 +103,20 @@ python tests/native_probe_harness.py
 
 The harness exercises DLL guards and temporary fixtures. Neither command establishes in-game campaign support.
 
-## Packaging and Reversible Installation
+## Packaging and reversible installation
 
-A complete shareable deployment package in ME3Tweaks Mod Manager format (`.7z`) and a reversible test installer are available:
+Packaging tools support authored-component manifests, reversible fixture installation, and staged replacement with rollback/recovery. A generated `.7z` is a **non-installable format fixture** containing unvalidated DLC headers and the native gate scaffold; it contains no campaign runtime.
 
-- Build deployment archive: `python tools/build_shareable.py build outputs/ME3SquadCoop-v0.1.0.7z`
+- Build format fixture: `python tools/build_shareable.py build outputs/ME3SquadCoop-format-fixture.7z`
 - Check installation status: `python tools/build_shareable.py status <test_game_root>`
 - Safe install into test copy: `python tools/build_shareable.py install <package_root> <test_game_root> --qa-candidate`
 - Safe reinstall: `python tools/build_shareable.py reinstall <package_root> <test_game_root> --qa-candidate`
 - Clean remove: `python tools/build_shareable.py remove <package_root> <test_game_root>`
+- Recover interrupted replacement: `python tools/build_shareable.py recover <old_package_root> <test_game_root>`
 
-Detailed architecture, collision detection, and safety guarantees are documented in [docs/PACKAGING.md](docs/PACKAGING.md).
+The install/reinstall/remove commands apply to actual authored components packaged through the specification-based builder. Generated fixtures are blocked from public installation. See [docs/PACKAGING.md](docs/PACKAGING.md) for ownership checks, trusted hashes, staging and recovery limits.
 
-> **Note**: In-game ME3Tweaks Mod Manager execution has not been live tested with human players. The package is an automated QA candidate for test installations and is not offered as a playable release.
+ME3Tweaks import, engine parsing, real installation/disable behavior and a playable campaign package remain unverified.
 
 ## Running research experiments
 
