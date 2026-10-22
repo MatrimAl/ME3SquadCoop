@@ -62,6 +62,7 @@ def fire_stop_evidence(host_rows, guest_rows):
                         and _id(r.get('weapon')) == identity))
             sides[role] = {'same_weapon_observed': same, 'shot_consumption_observed': shot,
                            'post_release_counts': [r['ammo_used_count'] for r in observations],
+                           'post_release_spare_counts': [r['current_spare_ammo'] for r in observations],
                            'post_release_sample_times': [r['monotonic_ms'] for r in observations],
                            'stable_after_one_second_grace': stable}
         stable_after_release = valid_control and all(s['stable_after_one_second_grace'] is True for s in sides.values())
@@ -74,7 +75,8 @@ def fire_stop_evidence(host_rows, guest_rows):
                         'authoritative_and_guest_firing_observed': bool(firing_observed),
                         'post_release_counts_stable': bool(stable_after_release),
                         'post_release_ammo_agreement': bool(stable_after_release and
-                            sides['host-ashley']['post_release_counts'][-1] == sides['guest-local']['post_release_counts'][-1]),
+                            sides['host-ashley']['post_release_counts'][-1] == sides['guest-local']['post_release_counts'][-1] and
+                            sides['host-ashley']['post_release_spare_counts'][-1] == sides['guest-local']['post_release_spare_counts'][-1]),
                         'stop_verified': stopped, 'continued_consumption_observed': continued})
     return {'pulses': results, 'one_second_release_grace_ms': 1000,
             'fire_stop_verified': bool(results) and all(r['stop_verified'] for r in results),

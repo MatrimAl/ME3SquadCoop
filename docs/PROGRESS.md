@@ -1,5 +1,17 @@
 # Progress
 
+## 2026-10-22: ammunition condition inspection and reserve-agreement fix
+
+- Fixed a false-positive ammunition comparison: equal consumed-round counts no longer pass `post_release_ammo_agreement` when host and guest reserve counts differ. Reports now retain both sides' reserve samples. Stopping and ammunition agreement remain separate findings.
+- Added an offline, read-only reflection-capture recognizer for the observed owner/dirty/authority replication condition. Both ammunition fields matched it in a fresh private capture. The output omits addresses and script bytes and cannot claim runtime synchronization or a dirty-gate failure. See [AMMO-REPLICATION.md](AMMO-REPLICATION.md).
+- The captured condition includes the owning connection; it does not exclude the guest categorically. Static inspection also showed that `Actor.SetNetUpdateTime` only changes scheduling, rather than marking dirty state. Actual per-connection gate evaluation, field transmission and prediction reconciliation remain unverified.
+- Ran another protected two-process Mars session with unchanged native code. Two ownership epochs, synthetic handoff/reacquisition and native disconnect/AI restoration passed. The guest had 131 consecutive client-mode samples spanning 131.062 seconds before intentional exit.
+- Both firing pulses consumed host and guest ammunition and stopped within the evaluator's release grace period. This time the final consumed counts matched (1/1, then 6/6), with matching reserves (210/210). The previous run disagreed. This is a positive bounded observation, not a repeatable weapon fix or full-combat pass. The updated reserve comparison was applied offline after the run.
+- Original locks covered 8,210 game/profile files; profiles remained unchanged, native exceptions were zero, no forced orphan cleanup occurred and the probe was disabled after shutdown.
+- Python discovery: 178 tests, OK, 2 skipped. Changed expressions/operands/metadata, missing or duplicate fields and malformed private content are rejected by synthetic tests. A mutation removing reserve comparison was caught by the new regression. No native rebuild was needed because native sources were unchanged.
+
+Next: trace live authoritative ammunition changes through the owning actor channel and distinguish missed correction from later client prediction. Catch-up, real dialogue, sustained progression, cross-PC Radmin and installation/rollback remain open.
+
 ## 2026-10-22: connection interval reporting and protected rerun
 
 ### Completed reporting change

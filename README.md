@@ -31,11 +31,11 @@ These observations come from bounded tests with **two real game processes on one
 | Weapon input | Earlier runs consumed authoritative ammunition after guest firing input | Stop-firing reliability and ammo agreement failed in some runs |
 | Isolation | Independent game copy, original-file read locks and private profile routing used | These protections must be established again for every test |
 
-Equipment results remain mixed. One audit produced no eligible fire pulses; the latest observed host and guest firing followed by stopping, but their consumed-round counts disagreed. This does not prove the weapon problem solved. Recent completed audit runs recorded no native exceptions or original-profile changes.
+Equipment results remain mixed. One audit produced no eligible fire pulses; later runs observed firing and stopping with differing counts, then two pulses with matching consumed/reserve counts. This does not prove the weapon problem solved. Recent completed audit runs recorded no native exceptions or original-profile changes.
 
 ## Current work
 
-Recent isolated runs had mixed startup results: two stalled before squadmate acquisition; two later runs exercised synthetic handoffs. The latest observed authoritative firing and stopping, with mismatched host/guest ammunition counts. Connection reporting now distinguishes an earlier sustained interval from a connection still active at the end. Startup repeatability and equipment synchronization remain immediate blockers. See [progress notes](docs/PROGRESS.md).
+Recent isolated runs had mixed startup results: two stalled before squadmate acquisition; three later runs exercised synthetic handoffs. Ammunition counts disagreed in one run and matched in the next with unchanged native code. The ammunition evaluator now compares reserve counts too; a new offline inspection tool recognizes the observed replication condition without claiming runtime synchronization. Startup repeatability and equipment synchronization remain immediate blockers. See [progress notes](docs/PROGRESS.md).
 
 1. Make equipment initialization repeatable, including inventory links and action-state readiness.
 2. Verify both firing and stopping, with matching host/guest ammunition observations.
