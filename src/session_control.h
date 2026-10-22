@@ -253,6 +253,7 @@ static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     combat_fire_bot_tick(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),after,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
     guest_player_context_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
+    if(after&&!session_engine_blocked(c))ammo_change_sample(base,c.pc,c.pawn,c.world,guest_player_context_lease.token,now);
     int ashley = session_actor_live(base, c.pawn) && is_kind_of(base, c.pawn, "SFXPawn_Ashley");
     if (ashley && session_guest_last_pawn != c.pawn) {
         session_guest_epoch++; session_guest_at = now;
@@ -319,6 +320,7 @@ static void session_frame(uintptr_t base, uintptr_t engine, int after) {
         }
         if(after)guest_equipment_bootstrap_tick(base,c.pc,c.pawn,session_remote,session_connection,
             session_pawn,c.world,session_epoch,!blocked,progress_enabled&&has_marker(root),now);
+        if(after)ammo_change_sample(base,session_remote,session_pawn,c.world,session_epoch,now);
         return;
     }
     if (session_fault || blocked || !has_marker(root) || !c.pc || !c.pawn || !c.squad) { session_free_at = 0; return; }

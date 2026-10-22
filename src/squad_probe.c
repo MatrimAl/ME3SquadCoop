@@ -561,6 +561,7 @@ static void possession_test(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
 #include "guest_cinematic_registration_adapter.h"
 #include "combat_fire_bot.h"
 #include "guest_equipment_bootstrap.h"
+#include "ammo_change_trace.h"
 #include "initial_actor_trace.h"
 #include "session_control.h"
 static void game_tick(void *self, float delta) {
@@ -781,6 +782,7 @@ __declspec(dllexport) int SquadProbeSelfTest(void) {
 __declspec(dllexport) int SquadDirectIPSelfTest(void) { return direct_ip_native_selftest(); }
 __declspec(dllexport) int SquadStateReaderSelfTest(void) { return native_state_reader_selftest(); }
 __declspec(dllexport) int SquadCatchupGroundSelfTest(void) { return catchup_ground_selftest(); }
+__declspec(dllexport) int SquadAmmoTraceSelfTest(void) { return ammo_trace_selftest(); }
 __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_adapter_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {

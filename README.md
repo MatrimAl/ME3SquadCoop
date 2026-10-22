@@ -35,7 +35,7 @@ Equipment results remain mixed. One audit produced no eligible fire pulses; late
 
 ## Current work
 
-Recent isolated runs had mixed startup results: two stalled before squadmate acquisition; three later runs exercised synthetic handoffs. Ammunition counts disagreed in one run and matched in the next with unchanged native code. The ammunition evaluator now compares reserve counts too; a new offline inspection tool recognizes the observed replication condition without claiming runtime synchronization. Startup repeatability and equipment synchronization remain immediate blockers. See [progress notes](docs/PROGRESS.md).
+Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. Ammunition counts have disagreed in some runs and matched in another with unchanged native code. The evaluator compares reserve counts too; read-only ammunition-change telemetry now records actual weapon-channel identities and sampled update state. Startup repeatability and equipment synchronization remain immediate blockers. See [progress notes](docs/PROGRESS.md).
 
 1. Make equipment initialization repeatable, including inventory links and action-state readiness.
 2. Verify both firing and stopping, with matching host/guest ammunition observations.
@@ -65,6 +65,7 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `src/squad_probe.c` | Native research ASI and bounded experiment hooks |
 | `src/session_control.h` | Guest possession leases, handoff and disconnect restoration |
 | `src/guest_*` | Player-context, camera, cinematic and equipment adapters |
+| `src/ammo_change_trace.h` | Opt-in read-only ammunition changes, channel identities and sampled update state |
 | `src/combat_*` | Equipment observations and opt-in firing test input |
 | `src/*verification.py` | Evidence evaluators; labels alone do not count as proof |
 | `src/safe_workspace.py`, `src/share_guard.py` | Independent-copy verification and original-file locks |

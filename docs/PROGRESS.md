@@ -1,5 +1,18 @@
 # Progress
 
+## 2026-10-22: read-only ammunition change tracing
+
+- Added opt-in post-Tick ammunition observations for reciprocally controlled Ashley on host and guest. Baselines restart on object/context changes; subsequent records capture observed consumed/reserve changes, actual pawn/weapon channel indices, local identities, roles, actor flags and scheduling fields. Counters, replication flags and scheduling are never written by this recorder.
+- Extended the validated channel resolver with a weapon-only entry point while retaining the existing pawn-only public contract. Ambiguous/missing channels remain unknown. The recorder is limited to 128 observations plus one limit notice per process across all contexts.
+- Built all three native outputs and passed the Windows harness, including the new trace filter test and original-file write-denial fixtures. Python discovery: 178 tests, OK, 2 skipped. Separate compiled mutations exceeding the sample budget or merging new contexts were caught by the native self-test.
+- The first bounded pair did not acquire Ashley after a slow intro and generated no trace observations. This was not a successful runtime trace test. One extended bounded retry acquired twice and passed synthetic release/reacquisition plus native disconnect/AI restoration.
+- The extended run recorded three host and four guest trace observations, with two context baselines on each side and no budget exhaustion. Both sides resolved Ashley to channel 15 and her weapon to channel 9 within that connection. The first pulse changed host consumed count to 4 and guest count to 7; reserves stayed 210. Thus the differing counts were observed for the same validated weapon channel, rather than inferred from matching class names.
+- The first pulse stopped under the existing evaluator but failed ammunition agreement. The second input attempt produced no observed consumption; the overall firing/stop gate remained false. Logged press/release timestamps were 2,172 ms and 515 ms apart despite the requested 250 ms duration. These timestamps do not independently establish exactly when native input changed. Trace sample gaps reached 2,344 ms on host and 2,485 ms on guest. This is sampled evidence with significant gaps, not a complete shot history or a clean timing benchmark. Instrumentation and other diagnostic overhead have not been excluded as contributors.
+- Host and guest sampled update frequency 100; this is configured frequency, not measured delivery cadence. Host update timestamps advanced, but post-Tick flags were sampled outside replication and cannot prove whether a particular connection's owner/dirty condition passed. Packet field transmission, delivery and prediction reconciliation remain unknown.
+- Both completed runs protected 8,210 original game/profile files, recorded unchanged original profiles and zero native exceptions, required no forced orphan cleanup, and disabled the probe after shutdown. No game processes remained after the extended run. Raw evidence and build fingerprints remain private.
+
+Next: measure diagnostic/channel-lookup costs and trace actual per-connection field updates before attempting an ammunition correction. Startup repeatability, catch-up, real dialogue, sustained progression, cross-PC Radmin and installation/rollback remain open.
+
 ## 2026-10-22: ammunition condition inspection and reserve-agreement fix
 
 - Fixed a false-positive ammunition comparison: equal consumed-round counts no longer pass `post_release_ammo_agreement` when host and guest reserve counts differ. Reports now retain both sides' reserve samples. Stopping and ammunition agreement remain separate findings.
