@@ -359,6 +359,10 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
         guest_pids = set(report["client"].get("native_pids", []))
         report["distinct_native_processes"] = bool(host_pids and guest_pids and host_pids.isdisjoint(guest_pids))
         report["probe_disabled_after_run"] = not (SANDBOX / "ME3SquadCoop.probe.enabled").exists()
+        # Historical observation, not an active-at-end or lifecycle verdict.
+        report["sustained_connection_observed"] = bool(
+            report["host_listen_verified"] and report["distinct_native_processes"]
+            and report["client"].get("connection_evidence", {}).get("sustained_client_mode_observed"))
         report["connection_states_verified"] = bool(
             failed is None and report["host_listen_verified"] and report["guest_client_mode_verified"]
             and report["client"].get("connection_evidence", {}).get("persistent_client_mode_verified")
@@ -377,7 +381,7 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
         (PRIVATE / ("pair-probe-result-" + uuid.uuid4().hex[:12] + ".json")).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print(json.dumps({key: report[key] for key in (
             "host_listen_verified", "guest_client_mode_verified", "distinct_native_processes",
-            "connection_states_verified", "session_lifecycle_verified", "campaign_coop_verified", "probe_disabled_after_run")}, indent=2))
+            "sustained_connection_observed", "connection_states_verified", "session_lifecycle_verified", "campaign_coop_verified", "probe_disabled_after_run")}, indent=2))
         if failed is not None:
             print("Pair probe stopped: " + type(failed).__name__ + "; inspect private result.", file=sys.stderr)
     return 0 if (report["session_lifecycle_verified"] if session_test else report["connection_states_verified"]) else 1

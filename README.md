@@ -31,11 +31,11 @@ These observations come from bounded tests with **two real game processes on one
 | Weapon input | Earlier runs consumed authoritative ammunition after guest firing input | Stop-firing reliability and ammo agreement failed in some runs |
 | Isolation | Independent game copy, original-file read locks and private profile routing used | These protections must be established again for every test |
 
-The later equipment audit produced no eligible fire pulses. It does not supersede earlier firing observations or prove the weapon problem solved. Recent completed audit runs recorded no native exceptions or original-profile changes.
+Equipment results remain mixed. One audit produced no eligible fire pulses; the latest observed host and guest firing followed by stopping, but their consumed-round counts disagreed. This does not prove the weapon problem solved. Recent completed audit runs recorded no native exceptions or original-profile changes.
 
 ## Current work
 
-Recent isolated runs had mixed startup results: two stalled before squadmate acquisition; a later run exercised synthetic handoffs but its guest shot did not consume authoritative ammunition. Startup repeatability and authoritative firing remain immediate blockers. See [progress notes](docs/PROGRESS.md).
+Recent isolated runs had mixed startup results: two stalled before squadmate acquisition; two later runs exercised synthetic handoffs. The latest observed authoritative firing and stopping, with mismatched host/guest ammunition counts. Connection reporting now distinguishes an earlier sustained interval from a connection still active at the end. Startup repeatability and equipment synchronization remain immediate blockers. See [progress notes](docs/PROGRESS.md).
 
 1. Make equipment initialization repeatable, including inventory links and action-state readiness.
 2. Verify both firing and stopping, with matching host/guest ammunition observations.

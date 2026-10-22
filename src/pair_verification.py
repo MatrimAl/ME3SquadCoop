@@ -3,23 +3,53 @@ import math
 
 
 def connection_evidence(rows):
+    """Distinguish an observed interval from a connection still active at EOF.
+
+    Intentional disconnects must end the current interval without erasing an
+    earlier one. Neither interval proves lifecycle cleanup or cross-PC play.
+    Samples separated by more than 2.5 seconds cannot establish continuity.
+    """
     elapsed = None
     tail = []
+    longest = []
     errors = []
+    clock_valid = True
+    previous_frame = None
+
+    def duration(samples):
+        return samples[-1] - samples[0] if len(samples) > 1 else 0
+
+    def qualifies(samples):
+        return clock_valid and len(samples) >= 3 and duration(samples) >= 3000
+
     for row in rows:
-        if "game_thread" in row and type(row.get("elapsed_ms")) is int:
-            elapsed = row.get("elapsed_ms")
+        if "game_thread" in row and "elapsed_ms" in row:
+            clock = row["elapsed_ms"]
+            if (type(clock) is not int or clock < 0 or
+                    (previous_frame is not None and clock <= previous_frame)):
+                clock_valid = False
+                elapsed = None
+            else:
+                elapsed = previous_frame = clock
         if row.get("network") == "progress" and row.get("progress_kind") == 4:
             errors.append(row.get("pending_error", ""))
         if row.get("network") == "state":
-            if row.get("net_mode") == 3 and isinstance(elapsed, int):
+            if type(row.get("net_mode")) is int and row["net_mode"] == 3 and elapsed is not None:
+                if tail and not 0 < elapsed - tail[-1] <= 2500:
+                    tail = []
                 tail.append(elapsed)
+                if (duration(tail), len(tail)) > (duration(longest), len(longest)):
+                    longest = tail.copy()
             else:
                 tail = []
-    duration = tail[-1] - tail[0] if len(tail) > 1 else 0
-    return {"consecutive_client_samples": len(tail), "continuous_client_mode_ms": duration,
+    return {"consecutive_client_samples": len(tail), "continuous_client_mode_ms": duration(tail),
+            "longest_client_interval_samples": len(longest),
+            "longest_client_interval_ms": duration(longest),
+            "sampling_clock_valid": clock_valid,
+            "sustained_client_mode_observed": qualifies(longest),
+            "client_mode_at_last_sample": bool(tail),
             "failure_messages": errors,
-            "persistent_client_mode_verified": len(tail) >= 3 and duration >= 3000 and not errors}
+            "persistent_client_mode_verified": qualifies(tail) and not errors}
 
 
 def control_evidence(host, guest):

@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-10-22: connection interval reporting and protected rerun
+
+### Completed reporting change
+
+- Connection evidence now retains the longest observed client-mode interval separately from the trailing interval. An ordinary disconnect ends the active-at-end verdict without erasing an earlier observation. Failure messages remain visible; historical observation is not a disconnect-cleanup, cross-PC or campaign verdict.
+- The paired summary adds `sustained_connection_observed`. The existing `connection_states_verified` and `persistent_client_mode_verified` checks retain their active-at-end meaning. Reconnects and sample gaps over 2.5 seconds cannot be combined into one interval; invalid or non-increasing frame clocks cannot verify continuity.
+- Python discovery: 169 tests, OK, 2 skipped. Seven added regressions cover active/disconnected states, reconnect boundaries, sampling gaps, invalid clocks, errors and missing timing. An in-memory mutation that erased completed interval history was rejected by the disconnect regression.
+- Offline replay of three private guest traces distinguished one still-active connection from two intentionally disconnected sessions. The latter retained 119.641 and 124.234 seconds of observed continuous client mode while correctly failing the active-at-end check. Raw traces remain private.
+
+### Actual game rerun
+
+- Ran the native world-floor guard build in a bounded, protected two-process Mars test. Two ownership epochs, synthetic scene release/reacquisition, preserved host story control and native disconnect/AI restoration passed the lifecycle evaluator. No real full-conversation samples were observed.
+- The guest had 125 consecutive client-mode observations spanning 124.234 seconds before intentional disconnect. The new evaluator was applied offline after the run; the running orchestrator had loaded the preceding reporting code.
+- Ashley was already nearby when control was acquired. No out-of-range scenario or native catch-up call occurred. This rerun therefore **does not verify the world-floor catch-up fix**; a targeted stranded-companion scenario remains required.
+- Two guest firing pulses consumed ammunition on both host and guest, and consumption stabilized after release within the evaluator's one-second grace period. Consumed-round counts still disagreed: host/guest 4/6 after the first pulse and 8/9 after the second. This is bounded firing/stop evidence, not an equipment synchronization or full-combat pass; enemy damage remains unverified.
+- Original-file locks covered 8,194 game files plus 16 profile files. Original profiles were unchanged, native exceptions were zero, no forced orphan cleanup occurred, and the probe was disabled after shutdown. No game processes remained.
+
+Next: exercise catch-up with a genuinely stranded squadmate and diagnose authoritative/client ammunition disagreement. Real dialogue, sustained progression, cross-PC Radmin and installation/rollback remain open.
+
 ## 2026-10-22: world-floor catch-up guard and firing audit
 
 - A later bounded pair exercised two ownership epochs, synthetic scene release/reacquisition and native disconnect/AI restoration. This does not establish real dialogue or repeatable campaign progression.
