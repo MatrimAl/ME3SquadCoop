@@ -45,8 +45,7 @@ static void progress_dump_script(uintptr_t base,const char *owner,const char *na
     }
 }
 static void progress_state_name(uintptr_t base, uintptr_t object, char *out, size_t size) {
-    uint32_t result[2] = {0}; out[0] = 0;
-    if (object && invoke(base, object, "Object", "GetStateName", result)) name_of(base, result[0], out, size);
+    if(!native_state_name(base,object,out,size))snprintf(out,size,"unknown");
 }
 static int progress_pawn_ready(uintptr_t base, uintptr_t pawn, uintptr_t ai) {
     int32_t action = -1, power = -1; uint32_t a = 0, b = 0, c = 0, attach = 0;

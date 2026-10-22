@@ -552,6 +552,7 @@ static void possession_test(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
 #include "scene_readiness_diagnostics.h"
 #include "narrative_probe.h"
 #include "combat_context_probe.h"
+#include "native_state_reader.h"
 #include "combat_equipment_probe.h"
 #include "progress_probe.h"
 #include "guest_camera_adapter.h"
@@ -777,6 +778,7 @@ __declspec(dllexport) int SquadProbeSelfTest(void) {
 }
 #endif
 __declspec(dllexport) int SquadDirectIPSelfTest(void) { return direct_ip_native_selftest(); }
+__declspec(dllexport) int SquadStateReaderSelfTest(void) { return native_state_reader_selftest(); }
 __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_adapter_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {

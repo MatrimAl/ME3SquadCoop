@@ -25,6 +25,7 @@ typedef struct CombatFirePulse {
 } CombatFirePulse;
 static CombatFireMethods combat_fire_methods;
 static CombatFirePulse combat_fire_pulse;
+static const char *combat_fire_resolution_reason="not-resolved";
 
 static int combat_fire_property(uintptr_t base,uintptr_t property,const char *kind,
                                 const char *path,int offset,uint64_t flags) {
@@ -90,8 +91,11 @@ static int combat_fire_resolve(uintptr_t base,uintptr_t mode,DWORD now) {
     m->discovery_at=now;m->ready=0;
     uintptr_t f=guest_player_context_find_method(base,klass,"SFXGameModeBase","FireWeapon");
     uintptr_t s=guest_player_context_find_method(base,klass,"SFXGameModeBase","StopFiringWeapon");
-    if(!guest_player_context_method_stamp(base,f,&m->fire)||!guest_player_context_method_stamp(base,s,&m->stop)||
-       !combat_fire_method_valid(base,&m->fire,1)||!combat_fire_method_valid(base,&m->stop,0))return 0;
+    if(!guest_player_context_method_stamp(base,f,&m->fire)){combat_fire_resolution_reason="fire-method-identity";return 0;}
+    if(!guest_player_context_method_stamp(base,s,&m->stop)){combat_fire_resolution_reason="stop-method-identity";return 0;}
+    if(!combat_fire_method_valid(base,&m->fire,1)){combat_fire_resolution_reason="fire-method-abi-or-body";return 0;}
+    if(!combat_fire_method_valid(base,&m->stop,0)){combat_fire_resolution_reason="stop-method-abi-or-body";return 0;}
+    combat_fire_resolution_reason="resolved";
     m->base=base;m->mode_class=klass;m->ready=1;return 1;
 }
 static int combat_fire_dispatch(uintptr_t base,uintptr_t mode,int firing) {
@@ -204,7 +208,12 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
     if(!p->stable_at)p->stable_at=now;
     if(!p->gate_at||now-p->gate_at>=1000){p->gate_at=now;p->positive_getter=guest_player_context_gate(base,"fire-bot-baseline",now)==1;
         if(!p->positive_getter)p->stable_at=0;}
-    if(!after||!p->positive_getter||!p->stable_at||now-p->stable_at<8000||!combat_fire_resolve(base,mode,now))return;
+    if(!after||!p->positive_getter||!p->stable_at||now-p->stable_at<8000)return;
+    if(!combat_fire_resolve(base,mode,now)){
+        if(!p->report_at||now-p->report_at>=5000){p->report_at=now;
+            combat_fire_log(base,"method-unavailable",combat_fire_resolution_reason,now,1,before,0,0,0);}
+        return;
+    }
     p->attempted_token=p->token; /* One attempt per real context/ownership lease. */
     if(guest_player_context_gate(base,"fire-bot-pre-dispatch",now)!=1||
        !combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&reason)||

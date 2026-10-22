@@ -180,6 +180,17 @@ static int session_install_cleanup(uintptr_t base, uintptr_t connection) {
     line("{\"session\":\"cleanup-hook-installed\",\"vtable_rva\":\"0x12bc620\",\"slot\":808,\"target_rva\":\"0x47eae0\",\"prologue_verified\":true}\r\n");
     return 1;
 }
+static void session_acquire_wait(uintptr_t base,SessionContext c,const char *reason,uintptr_t pawn,uintptr_t ai,DWORD now) {
+    static DWORD last;static const char *previous;
+    if(previous&&!strcmp(previous,reason)&&now-last<5000)return;
+    previous=reason;last=now;
+    char ai_state[96],row[700];progress_state_name(base,ai,ai_state,sizeof ai_state);
+    int32_t action=-1,power=-1;unsigned char ignored=255;
+    read_at(pawn+0xc20,&action,4);read_at(pawn+0xc28,&power,4);read_at(c.pc+0x781,&ignored,1);
+    uintptr_t camera=read_ptr(c.pc+0x684);
+    snprintf(row,sizeof row,"{\"session\":\"acquisition-wait\",\"reason\":\"%s\",\"ai_state\":\"%s\",\"action\":%d,\"power_action\":%d,\"ignore_move\":%u,\"camera_targets_host\":%s,\"host_walk_started\":%s,\"read_only\":true,\"monotonic_ms\":%lu}\r\n",
+        reason,ai_state,action,power,ignored,read_ptr(camera+0x3f4)==c.pawn?"true":"false",progress_walk_at?"true":"false",now);line(row);
+}
 static void session_acquire(uintptr_t base, SessionContext c, DWORD now) {
     if (!session_actor_live(base, c.pawn) || !is_kind_of(base, c.pawn, "SFXPawn_Player") || !is_live(base, c.squad)) return;
     if (!session_peer_connected(base, session_remote, c.world) || read_ptr(session_remote + 0x3bc)) return;
@@ -188,7 +199,9 @@ static void session_acquire(uintptr_t base, SessionContext c, DWORD now) {
         line("{\"session\":\"cleanup-hook-refused\",\"acquisition_skipped\":true}\r\n"); return;
     }
     uint32_t allows = 0;
-    if (!invoke(base, c.manager, "SFXGameModeManager", "AllowsMovement", &allows) || !(allows & 1)) return;
+    if (!invoke(base, c.manager, "SFXGameModeManager", "AllowsMovement", &allows) || !(allows & 1)) {
+        session_acquire_wait(base,c,"movement-not-allowed",0,0,now);return;
+    }
     GameArray members = {0}; if (!identity_array(c.squad + 0x270, &members, 4)) return;
     uintptr_t ashley = 0;
     for (int i = 0; i < members.count; ++i) {
@@ -196,14 +209,21 @@ static void session_acquire(uintptr_t base, SessionContext c, DWORD now) {
         if (candidate != c.pawn && is_kind_of(base, candidate, "SFXPawn_Ashley")) ashley = candidate;
     }
     uintptr_t ai = ashley ? read_ptr(ashley + 0x374) : 0;
-    if (!session_actor_live(base, ashley) || !session_actor_live(base, ai) || !is_kind_of(base, ai, "BioAiController") || read_ptr(ai + 0x3bc) != ashley) return;
-    if (!progress_pawn_ready(base, ashley, ai)) return;
+    if (!session_actor_live(base, ashley) || !session_actor_live(base, ai) || !is_kind_of(base, ai, "BioAiController") || read_ptr(ai + 0x3bc) != ashley) {
+        session_acquire_wait(base,c,"companion-or-ai-not-ready",ashley,ai,now);return;
+    }
+    if (!progress_pawn_ready(base, ashley, ai)) {
+        session_acquire_wait(base,c,"companion-action-or-physics",ashley,ai,now);return;
+    }
     if (!progress_companion_near(c.pawn, ashley)) {
         progress_follow(base,c.pc,ashley);
         progress_native_catchup(base,c.pc,ashley,ai);
+        session_acquire_wait(base,c,"companion-out-of-range",ashley,ai,now);
         return; /* An actor stranded in an intro set is not a playable guest. */
     }
-    if (progress_enabled && (!progress_walk_at || now - progress_walk_at < 14000)) return;
+    if (progress_enabled && (!progress_walk_at || now - progress_walk_at < 14000)) {
+        session_acquire_wait(base,c,"host-input-warmup",ashley,ai,now);return;
+    }
     session_host = c.pc; session_shepard = c.pawn; session_world = c.world; session_squad = c.squad;
     session_story_player = read_ptr(c.squad + 0x2cc); session_story_initial = read_ptr(c.squad + 0x2d4);
     session_pawn = ashley; session_ai = ai; session_connection = read_ptr(session_remote + 0x67c);

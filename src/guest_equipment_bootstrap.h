@@ -407,18 +407,9 @@ static int guest_equipment_member(uintptr_t base,uintptr_t connection) {
     for(int i=0;i<peers.count;++i){uintptr_t peer=0;if(!read_at(peers.data+(SIZE_T)i*8,&peer,8))return 0;found+=peer==connection;}
     return found==1;
 }
-/* A PE attempt is not a state getter result. Intrinsic-index getters remain
- * explicitly unknown until their ordinary native read implementation is pinned. */
+/* Query only the pinned, read-only native state layout. */
 static int guest_equipment_state(uintptr_t base,uintptr_t object,char *state,size_t size) {
-    state[0]=0;uintptr_t fn=guest_equipment_find_first(base,read_ptr(object+0x50),"GetStateName"),native=0;
-    uint16_t index=65535,parms=0,result=65535;uint32_t flags=0;uint32_t value[2]={UINT32_MAX,UINT32_MAX};
-    if(!narrative_probe_object(base,fn,"Function")||!read_at(fn+0xe4,&index,2)||index||
-       !read_at(fn+0xe6,&parms,2)||parms!=8||!read_at(fn+0xe8,&result,2)||result||
-       !read_at(fn+0xe0,&flags,4)||(flags&0x40)||!read_at(fn+0xd8,&native,8)||native<base||native>=base+0x1300000)return 0;
-    uintptr_t pe=read_ptr(read_ptr(object)+0x230);if(pe!=base+0x40d450)return 0;
-    ((ProcessEvent)pe)((void*)object,(void*)fn,value,NULL);
-    if(value[0]==UINT32_MAX||value[1]==UINT32_MAX)return 0;
-    name_of(base,value[0],state,size);return state[0]!=0;
+    return native_state_name(base,object,state,size);
 }
 static DWORD guest_equipment_reject_at;
 static uint32_t guest_equipment_reject_epoch;

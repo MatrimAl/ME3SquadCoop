@@ -21,6 +21,8 @@ from direct_ip_config import DirectIPConfig, validate_port
 from progress_verification import progress_evidence
 from guest_context_verification import guest_context_evidence
 from cinematic_verification import cinematic_motion_evidence
+from fire_stop_verification import fire_stop_evidence
+from real_dialogue_verification import real_dialogue_evidence
 
 PRIVATE = ROOT.parent / "coop-anything" / "local" / "me3-le"
 SANDBOX = PRIVATE / "test-install" / "ME3"
@@ -333,6 +335,8 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
                 report["progress_evidence"] = progress_evidence(host_raw, guest_raw)
                 report["guest_context_evidence"] = guest_context_evidence(host_raw, guest_raw)
                 report["cinematic_motion_evidence"] = cinematic_motion_evidence(host_raw, guest_raw)
+                report["fire_stop_evidence"] = fire_stop_evidence(host_raw, guest_raw)
+                report["real_dialogue_evidence"] = real_dialogue_evidence(host_raw, guest_raw)
                 report["native_exception_count"] = sum("exception" in row for row in host_raw + guest_raw)
                 # The parent retains locks while the before/after snapshot is read.
                 report["original_profile_unchanged"] = before == profile_snapshot(profile)

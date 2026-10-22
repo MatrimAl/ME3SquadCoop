@@ -2,6 +2,8 @@
 
 Status snapshot: 2026-10-22. Private raw logs and profiles are not published.
 
+Latest iteration: see [PROGRESS.md](PROGRESS.md). Two new public-source paired runs connected but did not acquire the squadmate; the diagnostic run reported the companion out of range. The earlier possession/lifecycle results below are bounded observations, not a repeatability guarantee.
+
 Observed: native two-process connection on one PC, short guest squadmate movement, guest shoulder-camera correction, actual intro Matinee camera motion and reciprocal-registration cleanup, local player-context registration/cleanup, synthetic scene release/reacquire, and ordinary disconnect restoring AI. Earlier weapon input caused authoritative ammo consumption.
 
 Not established: real full conversation control return, reliable equipment/firing/stop-firing, full combat, sustained mission travel, save/load, cross-PC Radmin, more than one guest, or end-user Mod Manager installation/disable/rollback.

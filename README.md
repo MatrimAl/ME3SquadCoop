@@ -35,6 +35,8 @@ The later equipment audit produced no eligible fire pulses. It does not supersed
 
 ## Current work
 
+The latest isolated runs connected but stalled before squadmate acquisition during the Mars intro transition. Making this route repeatable is the immediate prerequisite for the combat and dialogue work below. See [progress notes](docs/PROGRESS.md).
+
 1. Make equipment initialization repeatable, including inventory links and action-state readiness.
 2. Verify both firing and stopping, with matching host/guest ammunition observations.
 3. Test a real full conversation while the guest owns a squadmate, then verify camera/control restoration.

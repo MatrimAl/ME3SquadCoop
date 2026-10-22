@@ -12,6 +12,8 @@ BUILD = ROOT / "local" / "build"
 probe = ctypes.CDLL(str(BUILD / "ME3SquadCoopProbe.asi"))
 probe.SquadProbeSelfTest.restype = ctypes.c_int
 assert probe.SquadProbeSelfTest() == 1, "safe memory-read positive/negative controls failed"
+probe.SquadStateReaderSelfTest.restype = ctypes.c_int
+assert probe.SquadStateReaderSelfTest() == 1, "state reader accepted missing, invalid or special native state nodes"
 probe.SquadDirectIPSelfTest.restype = ctypes.c_int
 assert probe.SquadDirectIPSelfTest() == 1, "native endpoint validation failed"
 probe.SquadGuestCameraSelfTest.restype = ctypes.c_int

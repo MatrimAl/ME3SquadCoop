@@ -17,7 +17,21 @@ def real_dialogue_evidence(host_rows, guest_rows):
         if release.get('session') != 'released' or release.get('reason') != 'scene':
             continue
         at, epoch = release['monotonic_ms'], release.get('epoch')
-        actual = [r for r in observed if abs(r['monotonic_ms'] - at) <= 1500]
+        if type(epoch) is not int or epoch < 1:
+            continue
+        acquired = max((r['monotonic_ms'] for r in host_rows
+                        if r.get('session') == 'acquired' and r.get('epoch') == epoch
+                        and r.get('remote_owns_ashley') is True
+                        and r.get('host_story_preserved') is True
+                        and r.get('monotonic_ms', at) < at), default=None)
+        if acquired is None:
+            continue
+        actual = [r for r in observed if acquired <= r['monotonic_ms']
+                  and abs(r['monotonic_ms'] - at) <= 1500]
+        owned_before = any(r.get('session') == 'guest-observation'
+                           and r.get('reciprocal_controller') is True
+                           and r.get('camera_targets_ashley') is True
+                           and acquired <= r.get('monotonic_ms', at) < at for r in guest_rows)
         engine_gate = any(r.get('session') == 'gate-observation' and r.get('source') == 'engine'
                           and r.get('blocked') is True and r.get('mode') == 7
                           and abs(r['monotonic_ms'] - at) <= 1500 for r in host_rows)
@@ -31,7 +45,7 @@ def real_dialogue_evidence(host_rows, guest_rows):
                                          and r.get('reciprocal_controller') is True
                                          and r.get('camera_targets_ashley') is True
                                          and reacquire <= r.get('monotonic_ms', -1) <= reacquire + 5000 for r in guest_rows))
-        if (actual and engine_gate and release.get('ai_restored') is True
+        if (actual and owned_before and engine_gate and release.get('ai_restored') is True
                 and release.get('host_story_preserved') is True and detached and returned):
             successes.append(epoch)
     return {'full_conversation_mode7_samples': len(observed),
