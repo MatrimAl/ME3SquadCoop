@@ -11,4 +11,5 @@ if __name__ == "__main__":
         "route-stale-identity": [("p->identity==1&&", "")],
         "route-excess-input": [("||gain>0.45f", "")],
         "route-off-corridor": [("<=180&&fabsf", "<=2000&&fabsf")],
+        "route-unbounded-start": [("<=350&&", "<=3500&&")],
     }, "combat_route_qa.h", "SquadCombatRouteSelfTest")
