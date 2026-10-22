@@ -35,7 +35,7 @@ Equipment results remain mixed. One audit produced no eligible fire pulses; late
 
 ## Current work
 
-Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. Measured changes reduced function discovery and channel-lookup stalls. A new opt-in observer captured native ammunition encoding/decoding: the latest pair showed a local increment after the last observed correction, leaving counts 2/3 after the first pulse; a later native receive corrected 4 to 3, and final counts matched at 5/5. Firing stopped and bounded lifecycle checks passed, but reliable ammunition reconciliation remains unresolved. See [progress notes](docs/PROGRESS.md).
+Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. Measured changes reduced function discovery and channel-lookup stalls. Native field observations exposed guest prediction after the last received ammunition value. A new default-off research adapter now requests a settled host snapshot through existing owner-controller RPCs and applies a fresh, matching reply to the idle guest weapon. In its first protected pair, two complete roundtrips corrected guest consumed count 1 to host count 0. **The host consumed no ammunition in that run: counter correction works in this observation, but authoritative guest firing remains unresolved.** This is not a combat fix or player-ready transport. See [progress notes](docs/PROGRESS.md).
 
 1. Make equipment initialization repeatable, including inventory links and action-state readiness.
 2. Verify both firing and stopping, with matching host/guest ammunition observations.
@@ -67,6 +67,7 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `src/guest_*` | Player-context, camera, cinematic and equipment adapters |
 | `src/ammo_change_trace.h` | Opt-in read-only ammunition changes, channel identities and sampled update state |
 | `src/ammo_wire_trace.h`, `src/ammo_wire_verification.py` | Opt-in native field encoding/decoding observations and conservative evidence summaries |
+| `src/ammo_reconcile.h`, `src/ammo_reconcile_protocol.h`, `src/ammo_reconcile_verification.py` | Default-off owner-controller snapshot requests, guarded guest counter correction and separate roundtrip evidence |
 | `src/function_lookup_cache.h`, `src/lookup_profile.h` | Live-validated discovery cache and opt-in CPU-path wall-clock measurements |
 | `src/combat_*` | Equipment observations and opt-in firing test input |
 | `src/*verification.py` | Evidence evaluators; labels alone do not count as proof |

@@ -575,6 +575,7 @@ static void possession_test(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
 #include "guest_equipment_bootstrap.h"
 #include "ammo_change_trace.h"
 #include "ammo_wire_trace.h"
+#include "ammo_reconcile.h"
 #include "initial_actor_trace.h"
 #include "session_control.h"
 static void game_tick_diagnostics(void *self,uintptr_t base) {
@@ -691,6 +692,7 @@ static void game_tick(void *self,float delta) {
     original_tick(self,delta);lookup_record("Engine","OriginalTick",part,0,0);part=lookup_clock();
     if(session_enabled)session_frame(base,(uintptr_t)self,1);
     ammo_wire_prepare(base);
+    ammo_reconcile_tick();
     lookup_record("Probe","PostTick",part,0,0);part=lookup_clock();
     game_tick_diagnostics(self,base);lookup_record("Probe","Diagnostics",part,0,0);
     lookup_record("Probe","TotalTick",whole,0,0);
@@ -804,6 +806,7 @@ __declspec(dllexport) int SquadAmmoTraceSelfTest(void) { return ammo_trace_selft
 __declspec(dllexport) int SquadFunctionLookupSelfTest(void) { return function_lookup_selftest(); }
 __declspec(dllexport) int SquadNetworkActorSelfTest(void) { return network_actor_identity_selftest(); }
 __declspec(dllexport) int SquadAmmoWireSelfTest(void) { return ammo_wire_selftest(); }
+__declspec(dllexport) int SquadAmmoReconcileSelfTest(void) { return ammo_rpc_selftest(); }
 __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_adapter_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {

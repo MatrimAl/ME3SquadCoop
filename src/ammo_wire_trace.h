@@ -17,6 +17,7 @@ typedef struct AmmoWireScope {
 } AmmoWireScope;
 typedef struct AmmoWireReceive {
     struct AmmoWireReceive *previous;
+    uintptr_t channel;
     unsigned long generation,id;unsigned mask;
     int valid,before[2],decoded[2];
 } AmmoWireReceive;
@@ -100,7 +101,7 @@ static void ammo_wire_prepare(uintptr_t base) {
     if(ammo_wire_take()){char row[500];snprintf(row,sizeof row,"{\"ammo_wire\":\"scope\",\"side\":\"%s\",\"generation\":%lu,\"epoch\":%lu,\"weapon_index\":%d,\"channel_index\":%d,\"monotonic_ms\":%lu}\r\n",test_action==6?"host":"guest",s->generation,s->epoch,s->weapon.index,ch.index,now);line(row);}
 }
 static void ammo_wire_receive_begin(AmmoWireReceive *f,uintptr_t channel) {
-    memset(f,0,sizeof *f);f->previous=ammo_wire_receive;
+    memset(f,0,sizeof *f);f->previous=ammo_wire_receive;f->channel=channel;
     if(!ammo_wire_installed||GetCurrentThreadId()!=ammo_wire_thread)return;
     /* Push invalid frames too: a nested receive for another actor must never
      * inherit the outer weapon's identity. */

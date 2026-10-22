@@ -93,7 +93,8 @@ static int initial_actor_trace_owns_slot(uintptr_t base) {
 }
 
 static int initial_actor_trace_install(uintptr_t base) {
-    if (!progress_enabled || test_action != 5 || strcmp(test_role, "client")) return 0;
+    if (!progress_enabled || !((test_action==5&&!strcmp(test_role,"client"))||
+        (test_action==6&&!strcmp(test_role,"host")&&ammo_rpc_opted()))) return 0;
     if (initial_actor_trace_installed) return initial_actor_trace_owns_slot(base);
     if (!has_marker(root)) return 0;
     if (initial_actor_trace_attempted) return 0;

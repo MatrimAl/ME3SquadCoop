@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-10-22: guarded host snapshot correction exercised
+
+- Added a default-off research adapter that requests settled authoritative ammunition through existing owner-PlayerController native RPCs. Exact method/parameter/dispatch validation and the active reciprocal native receive channel authorize control messages. Ordinary script calls retain original forwarding. No new socket or package-validation change is involved.
+- Requests/replies bind a bounded ID, guest scope generation and selected weapon channel. Only a fresh matching response can update an idle guest weapon whose ownership and local baseline still match. The host reads its actual counters and never writes them. Scope changes invalidate pending state; retries, payloads and observation counts are bounded. See [AMMO-REPLICATION.md](AMMO-REPLICATION.md) for the opt-ins, transport and limits.
+- Built all three native outputs and passed the Windows harness. Three separately compiled mutants accepting an old generation, wrong request ID or non-idle response were rejected. Python discovery passed 197 tests, with 2 skipped. New offline regressions require all four exchange stages and exact host snapshot values without assuming synchronized clocks. Successful correction cannot grant a firing/combat verdict.
+- A protected paired Mars run completed two requests and responses on weapon channel 29. Guest consumed count was corrected from 1 to authoritative 0 twice, with reserve count 210 unchanged. Guest-local roundtrip times were 281 and 375 ms. **The host consumed no ammunition during either 250 ms pulse.** This verifies bounded counter correction, while authoritative guest firing remains a failure in the same run; it is not reliable combat.
+- Two ownership epochs, synthetic scene release/reacquisition, preserved host story authority and native disconnect/AI restoration passed. Original-file locks covered 8,194 game files plus 16 profile files. Profiles were unchanged, native exceptions were zero, no forced orphan cleanup occurred, the probe was disabled and no game process remained. The tested build still matched current native sources. Raw captures, distinct build/run fingerprints and the four-stage audit remain private.
+
+Next: locate where authoritative guest firing is lost. Real conversations, stranded-companion catch-up, sustained progression, two-PC Radmin and player installation/rollback remain open. Counter correction alone does not satisfy these requirements.
+
 ## 2026-10-22: native ammunition decoding and correction observed
 
 - Added an explicit research opt-in for the actual integer-property network serializer, with exact-build send/receive instruction pins, reflected ammunition metadata, current world, object stamps, reciprocal ownership, connection and weapon channel guards. Receive scratch values are tied to a nested-safe original `ReceivedBunch` frame and compared with final weapon storage. The observer forwards original arguments, result and LastError and does not change ammunition or payloads. It is disabled by default and bounded to 256 records per process.

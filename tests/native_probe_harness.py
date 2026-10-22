@@ -24,6 +24,8 @@ probe.SquadNetworkActorSelfTest.restype = ctypes.c_int
 assert probe.SquadNetworkActorSelfTest() == 1, "channel lookup accepted a stale world, duplicate peer/channel or broken reciprocal identity"
 probe.SquadAmmoWireSelfTest.restype = ctypes.c_int
 assert probe.SquadAmmoWireSelfTest() == 1, "ammo wire observer changed forwarding, nested receive scope or its record budget"
+probe.SquadAmmoReconcileSelfTest.restype = ctypes.c_int
+assert probe.SquadAmmoReconcileSelfTest() == 1, "ammo reconciliation accepted a malformed/stale reply or changed unrelated script forwarding"
 probe.SquadDirectIPSelfTest.restype = ctypes.c_int
 assert probe.SquadDirectIPSelfTest() == 1, "native endpoint validation failed"
 probe.SquadGuestCameraSelfTest.restype = ctypes.c_int
