@@ -38,6 +38,12 @@ static int runtime_join_console_abi(uintptr_t base,uintptr_t pc) {
         read_at(fn+0xe8,&result,2)&&result==0x14&&read_at(fn+0xea,&count,1)&&count==3&&
         guest_cinematic_allocator_pins(base);
 }
+static int runtime_join_travel_idle(uintptr_t world,uintptr_t engine) {
+    uintptr_t driver=0,pending=0;
+    /* Unknown loading state must not masquerade as an absent driver/travel. */
+    return read_at(world+0x120,&driver,8)&&!driver&&
+        read_at(engine+0x9fc,&pending,8)&&!pending;
+}
 static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     if(!runtime_control_enabled||!InterlockedCompareExchange(&runtime_join_requested,0,0)||
        InterlockedCompareExchange(&runtime_join_attempted,0,0))return;
@@ -57,7 +63,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
     }
     /* Wait for ordinary native control; never clear pause, scene or mode flags.
      * Current-world driver/pending travel must both be absent before the call. */
-    if(session_engine_blocked(c)||read_ptr(before.world+0x120)||read_ptr(engine+0x9fc)||session_active)return;
+    if(session_engine_blocked(c)||!runtime_join_travel_idle(before.world,engine)||session_active)return;
     wchar_t command[64];
     if(!runtime_join_command(&g_runtime_config,command,64)||!runtime_join_console_abi(base,c.pc)) {
         InterlockedExchange(&runtime_join_attempted,1);InterlockedExchange(&runtime_join_requested,0);
@@ -89,5 +95,14 @@ static int runtime_network_start_selftest(void) {
     config.role=ME3_ROLE_HOST;if(runtime_join_command(&config,command,64))return 0;
     config.role=ME3_ROLE_GUEST;wcscpy(config.endpoint.peer_ipv4,L"127.0.0.1");
     return !runtime_join_command(&config,command,64);
+}
+static int runtime_join_travel_idle_selftest(void) {
+    unsigned char world[0x130]={0},engine[0xa10]={0};uintptr_t value=1;
+    if(!runtime_join_travel_idle((uintptr_t)world,(uintptr_t)engine)||
+       runtime_join_travel_idle(1,(uintptr_t)engine)||runtime_join_travel_idle((uintptr_t)world,1))return 0;
+    memcpy(world+0x120,&value,8);
+    if(runtime_join_travel_idle((uintptr_t)world,(uintptr_t)engine))return 0;
+    value=0;memcpy(world+0x120,&value,8);value=1;memcpy(engine+0x9fc,&value,8);
+    return !runtime_join_travel_idle((uintptr_t)world,(uintptr_t)engine);
 }
 #endif

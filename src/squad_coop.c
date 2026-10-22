@@ -111,6 +111,7 @@ __declspec(dllexport) int ME3SquadCoopConfigStatus(void) {return g_config_status
 #ifdef ME3_RUNTIME_FIXTURE
 #include "runtime_core_fixture.h"
 __declspec(dllexport) int ME3RuntimeNetworkStartSelfTest(void) {return runtime_network_start_selftest();}
+__declspec(dllexport) int ME3RuntimeTravelIdleSelfTest(void) {return runtime_join_travel_idle_selftest();}
 __declspec(dllexport) int ME3RuntimeJoinRequestSelfTest(void) {
     Me3RuntimeConfig saved=g_runtime_config;Me3RuntimeConfigStatus status=g_config_status;
     LONG enabled=g_enable_requested,requested=runtime_join_requested,attempted=runtime_join_attempted,

@@ -40,7 +40,7 @@ def main():
                  "ME3RuntimePolicySelfTest", "ME3RuntimeSessionGateSelfTest", "ME3RuntimeCameraSelfTest",
                  "ME3RuntimeCinematicSelfTest", "ME3RuntimeCoreCleanupSelfTest",
                  "ME3RuntimeTickForwardingSelfTest", "ME3RuntimeNetworkStartSelfTest",
-                 "ME3RuntimeJoinRequestSelfTest"):
+                 "ME3RuntimeJoinRequestSelfTest", "ME3RuntimeTravelIdleSelfTest"):
         fixture = getattr(entry, name)
         fixture.restype = ctypes.c_int
         assert fixture() == 1, name
