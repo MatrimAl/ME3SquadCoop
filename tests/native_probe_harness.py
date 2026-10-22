@@ -14,6 +14,8 @@ probe.SquadProbeSelfTest.restype = ctypes.c_int
 assert probe.SquadProbeSelfTest() == 1, "safe memory-read positive/negative controls failed"
 probe.SquadStateReaderSelfTest.restype = ctypes.c_int
 assert probe.SquadStateReaderSelfTest() == 1, "state reader accepted missing, invalid or special native state nodes"
+probe.SquadCatchupGroundSelfTest.restype = ctypes.c_int
+assert probe.SquadCatchupGroundSelfTest() == 1, "catch-up ground checks accepted invalid surfaces or rejected world-floor readiness"
 probe.SquadDirectIPSelfTest.restype = ctypes.c_int
 assert probe.SquadDirectIPSelfTest() == 1, "native endpoint validation failed"
 probe.SquadGuestCameraSelfTest.restype = ctypes.c_int

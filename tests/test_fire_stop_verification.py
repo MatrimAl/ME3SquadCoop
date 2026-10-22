@@ -62,6 +62,22 @@ class FireStopTests(unittest.TestCase):
         self.assertTrue(result['fire_stop_verified'])
         self.assertFalse(result['pulses'][0]['post_release_ammo_agreement'])
 
+    def test_no_shots_cannot_prove_stopping(self):
+        host,guest=fixture()
+        for row in host+guest:
+            if 'ammo_used_count' in row:row['ammo_used_count']=0
+        result=fire_stop_evidence(host,guest)
+        self.assertFalse(result['fire_stop_verified'])
+        self.assertTrue(result['pulses'][0]['post_release_counts_stable'])
+
+    def test_client_prediction_without_authoritative_shot_cannot_pass(self):
+        host,guest=fixture()
+        for row in host:
+            if 'ammo_used_count' in row:row['ammo_used_count']=0
+        result=fire_stop_evidence(host,guest)
+        self.assertFalse(result['fire_stop_verified'])
+        self.assertFalse(result['pulses'][0]['authoritative_and_guest_firing_observed'])
+
 
 if __name__ == '__main__':
     unittest.main()

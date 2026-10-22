@@ -81,9 +81,9 @@ static void progress_native_catchup(uintptr_t base,uintptr_t pc,uintptr_t pawn,u
     float health=-1,velocity[3]={0},floor[3]={0};
     if (!is_live(base,leader) || !progress_pawn_ready(base,leader,pc) || read_ptr(squad+0x2cc)!=leader ||
         read_ptr(pawn+0xba8)!=squad || read_ptr(pawn+0x198)!=world ||
-        !invoke(base,leader,"BioPawn","GetHealthPct",&health) || !isfinite(health) || health<=0 ||
-        !read_at(leader+0x138,velocity,sizeof velocity) || !isfinite(velocity[2]) || fabsf(velocity[2])>20 ||
-        !read_at(leader+0x2fc,floor,sizeof floor) || !isfinite(floor[2]) || floor[2]<0.5f || !read_ptr(leader+0x188)) return;
+        !invoke(base,leader,"BioPawn","GetHealthPct",&health) ||
+        !read_at(leader+0x138,velocity,sizeof velocity) || !read_at(leader+0x2fc,floor,sizeof floor) ||
+        !catchup_ground_allowed(health,velocity,floor)) return;
     progress_catchup_attempted=1;
     uint32_t result=0; int dispatched=invoke(base,ai,"SFXAI_Henchman","TeleportNearLeader",&result);
     char row[400];snprintf(row,sizeof row,"{\"progress\":\"native-companion-catchup\",\"function\":\"SFXAI_Henchman.TeleportNearLeader\",\"dispatched\":%s,\"engine_return\":%s,\"near_host_after_call\":%s,\"direct_position_writes\":false,\"monotonic_ms\":%lu}\r\n",dispatched?"true":"false",result&1?"true":"false",progress_companion_near(leader,pawn)?"true":"false",GetTickCount());line(row);
