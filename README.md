@@ -80,7 +80,7 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `tools/` | Configuration and packaging tooling |
 | `tests/` | Synthetic Python tests and separate Windows native harness |
 
-`src/squad_coop.c` is now a separate experimental ordinary runtime entry, sharing ownership/cleanup and camera/context adapters with the protected probe. It currently attaches only to an already established native host/client world; automatic host/join startup and protected in-game verification remain unfinished. `build.py` compiles each ASI from its own entry. See [runtime integration](docs/RUNTIME-INTEGRATION.md); an output filename does not establish release readiness.
+`src/squad_coop.c` is now a separate experimental ordinary runtime entry, sharing ownership/cleanup and camera/context adapters with the protected probe. It attaches to an existing native host/client world by default and has an explicit one-shot guest join request; host startup, local bind selection and protected actual-entry verification remain unfinished. `build.py` compiles each ASI from its own entry. See [runtime integration](docs/RUNTIME-INTEGRATION.md); an output filename does not establish release readiness.
 See [runtime integration](docs/RUNTIME-INTEGRATION.md) for the distinct artifact paths, shared foundation and remaining gameplay initialization.
 
 ## Build from source

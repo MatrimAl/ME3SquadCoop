@@ -21,10 +21,29 @@ Missing/disabled configuration or DLC at startup installs no bridge.
 
 The exact-build bridge forwards native Tick once and performs adapters on the
 game thread. Startup fingerprinting and bounded bridge discovery run on a worker,
-outside DllMain. The bridge currently **attaches only to an already established
-native host/client world**. It does not yet consume the configured endpoint to
-start listening or joining. No implicit story travel or map selection occurs.
-Thus valid configuration plus a bridge is still insufficient for playable co-op.
+outside DllMain. By default it attaches to an already established native
+host/client world. An explicit guest `ME3_SQUAD_COOP_START=join` (or exported
+`ME3SquadCoopRequestJoin`) now requests one ordinary engine `open peer:port`
+command, using the configured peer and port. It waits for validated ordinary
+standalone control, no driver and no pending travel, validates the reflected
+console ABI/allocator, then marks the request consumed before invoking travel.
+It selects no mission and never clears pause/story state. Dispatch is not proof
+of a connected guest. This path still requires protected actual-entry testing.
+A process accepts at most one join attempt; retry currently requires restart.
+
+Ordinary **host startup remains unimplemented**: `START=listen` reports an
+unsupported request and installs no bridge. It does not silently reload the
+current mission. Exact native Listen uses an owned FURL copy and selected
+transport InitListen; safe local bind selection and two-player capacity still
+need their contracts completed. Configured bind IPv4 is validated but is not yet
+applied by this ordinary entry. Existing protected launchers may separately set
+native process arguments, which is a different evidence scope. Thus valid
+configuration plus a bridge still does not establish playable co-op.
+
+`ME3SquadCoopNetworkStartStatus` reports idle (0), waiting (1), command dispatched
+(2), already networked (3), ABI refused (4), malformed request (5), or unsupported
+host startup (6). None of these means connection verified. Unknown/truncated
+startup requests also remain inert, with runtime error 4.
 
 ## Shared ownership and presentation
 
@@ -95,7 +114,7 @@ This is offline evidence; loading the two real ASIs together remains unverified.
 Any research network bootstrap must be explicitly separate and preserved in
 its evidence; it is not an ordinary-runtime host/join implementation.
 
-Still required: ordinary listen/join startup using explicit endpoints, protected
+Still required: ordinary host startup/local bind selection, protected guest-join and
 actual-entry control/camera/disconnect runs, reliable equipment and authoritative
 enemy damage, actual full conversations, mission transitions, two physical PCs
 over Radmin, authored installable DLC, and Mod Manager install/disable/rollback.

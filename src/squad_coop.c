@@ -19,6 +19,7 @@ static volatile LONG g_bridge_installed;
 static volatile LONG g_runtime_error;
 static wchar_t g_executable[MAX_PATH];
 #include "runtime_session.h"
+#include "runtime_network_bootstrap.h"
 static EngineTick runtime_original_tick;
 static DWORD runtime_last_gate;
 
@@ -46,6 +47,7 @@ static void runtime_tick(void *self,float delta) {
     }
     runtime_control_enabled=g_dlc_active&&InterlockedCompareExchange(&g_enable_requested,0,0)&&
         g_config_status==ME3_CONFIG_READY;
+    runtime_network_start_tick(base,(uintptr_t)self,now);
     runtime_session_frame(base,(uintptr_t)self,0,now);
     runtime_original_tick(self,delta);
     runtime_session_frame(base,(uintptr_t)self,1,GetTickCount());
@@ -75,7 +77,7 @@ static DWORD WINAPI runtime_start(void *unused) {
         n=_snwprintf(path,MAX_PATH,L"%ls\\ME3SquadCoopRuntime\\squad_runtime_%lu.jsonl",g_game_root,GetCurrentProcessId());
         if(n>0&&n<MAX_PATH)log_file=CreateFileW(path,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);
     }
-    line("{\"runtime\":\"validated\",\"full-executable-sha256\":true,\"network-bootstrap\":false,\"playable-campaign-verified\":false}\r\n");
+    line("{\"runtime\":\"validated\",\"full-executable-sha256\":true,\"playable-campaign-verified\":false}\r\n");
     for(int attempt=0;attempt<120;++attempt) {
         if(!check_active_dlc_gate(g_game_root)||!InterlockedCompareExchange(&g_enable_requested,0,0))return 0;
         if(runtime_install_bridge(base))return 0;
@@ -85,6 +87,10 @@ static DWORD WINAPI runtime_start(void *unused) {
 }
 __declspec(dllexport) int ME3SquadCoopBridgeInstalled(void) {return InterlockedCompareExchange(&g_bridge_installed,0,0)!=0;}
 __declspec(dllexport) int ME3SquadCoopRuntimeError(void) {return InterlockedCompareExchange(&g_runtime_error,0,0);}
+__declspec(dllexport) int ME3SquadCoopRequestJoin(void) {return runtime_request_join();}
+__declspec(dllexport) int ME3SquadCoopNetworkStartStatus(void) {
+    return InterlockedCompareExchange(&runtime_network_start_status,0,0);
+}
 /* Callers request a policy change; cleanup is deferred to the game thread.
  * Never unload the ASI while the game is running. */
 __declspec(dllexport) int ME3SquadCoopSetEnabled(int enabled) {
@@ -104,6 +110,23 @@ __declspec(dllexport) const char* ME3SquadCoopVersion(void) {
 __declspec(dllexport) int ME3SquadCoopConfigStatus(void) {return g_config_status;}
 #ifdef ME3_RUNTIME_FIXTURE
 #include "runtime_core_fixture.h"
+__declspec(dllexport) int ME3RuntimeNetworkStartSelfTest(void) {return runtime_network_start_selftest();}
+__declspec(dllexport) int ME3RuntimeJoinRequestSelfTest(void) {
+    Me3RuntimeConfig saved=g_runtime_config;Me3RuntimeConfigStatus status=g_config_status;
+    LONG enabled=g_enable_requested,requested=runtime_join_requested,attempted=runtime_join_attempted,
+        network_status=runtime_network_start_status;int control=runtime_control_enabled;
+    runtime_join_requested=runtime_join_attempted=0;g_enable_requested=1;runtime_control_enabled=1;
+    g_config_status=ME3_CONFIG_DISABLED;int ok=!runtime_request_join();
+    g_config_status=ME3_CONFIG_READY;g_runtime_config.role=ME3_ROLE_HOST;ok=ok&&!runtime_request_join();
+    g_runtime_config.role=ME3_ROLE_GUEST;g_enable_requested=0;ok=ok&&!runtime_request_join();
+    g_enable_requested=1;ok=ok&&runtime_request_join()&&!runtime_request_join()&&
+        runtime_join_requested==1&&runtime_network_start_status==RUNTIME_START_WAITING;
+    runtime_network_start_tick((uintptr_t)GetModuleHandleW(NULL),1,10);
+    ok=ok&&runtime_join_requested==1&&!runtime_join_attempted&&runtime_network_start_status==RUNTIME_START_WAITING;
+    runtime_join_requested=0;runtime_join_attempted=1;ok=ok&&!runtime_request_join();
+    g_runtime_config=saved;g_config_status=status;g_enable_requested=enabled;runtime_join_requested=requested;
+    runtime_join_attempted=attempted;runtime_network_start_status=network_status;runtime_control_enabled=control;return ok;
+}
 static unsigned runtime_fixture_tick_count;
 static uintptr_t runtime_fixture_tick_self;
 static float runtime_fixture_tick_delta;
@@ -181,6 +204,16 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved) {
     g_dlc_active = 1;
     g_config_status=runtime_config_load_environment(&g_runtime_config);
     if(g_config_status==ME3_CONFIG_READY) {
+        wchar_t start[8];int present=0;
+        int requested=-1;
+        if(direct_ip_native_read_environment(L"ME3_SQUAD_COOP_START",start,8,&present))
+            requested=runtime_network_start_parse(g_runtime_config.role,present?start:NULL);
+        if(requested==1)runtime_request_join();
+        else if(requested) {
+            InterlockedExchange(&runtime_network_start_status,
+                requested==-2?RUNTIME_START_HOST_UNAVAILABLE:RUNTIME_START_BAD_REQUEST);
+            InterlockedExchange(&g_runtime_error,4);return TRUE;
+        }
         HANDLE worker=CreateThread(NULL,0,runtime_start,NULL,0,NULL);
         if(worker)CloseHandle(worker);else InterlockedExchange(&g_runtime_error,3);
     }
