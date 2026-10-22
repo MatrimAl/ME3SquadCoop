@@ -136,7 +136,7 @@ def build_deployment_archive(archive_path, channel="candidate"):
             asi_built.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run([
                 str(zig_exe), "cc", "-target", "x86_64-windows-gnu", "-std=c17", "-O2", "-Wall",
-                str(src_c), "-shared", "-o", str(asi_built)
+                str(src_c), "-shared", "-lbcrypt", "-o", str(asi_built)
             ], check=True)
     if not asi_built.is_file():
         raise FileNotFoundError(f"ME3SquadCoop.asi not found at {asi_built}")

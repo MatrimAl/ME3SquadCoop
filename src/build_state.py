@@ -8,7 +8,8 @@ def fingerprint(root):
     root = Path(root)
     paths = [root / "build.py", *sorted((root / "src").glob("*.c")),
              *sorted((root / "src").glob("*.h"))]
-    paths += [root / "local/build/ME3SquadCoopProbe.asi", root / "local/build/sandbox_launch.exe"]
+    paths += [root / "local/build/ME3SquadCoopProbe.asi", root / "local/build/ME3SquadCoop.asi",
+              root / "local/build/sandbox_launch.exe"]
     return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
 
 

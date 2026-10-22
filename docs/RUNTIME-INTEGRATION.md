@@ -1,70 +1,94 @@
 # Runtime integration status
 
 There is no verified shareable gameplay runtime yet. Native filename and archive
-validation do not establish that co-op is initialized.
+validation do not establish playable co-op.
 
-## Current artifact paths
+## Separate native entries
 
-`build.py` compiles both `ME3SquadCoopProbe.asi` and `ME3SquadCoop.asi` from
-`squad_probe.c`. The latter uses `ME3_SQUAD_COOP_RELEASE`, which excludes some
-fixture exports. It retains the protected research entry: sandbox markers,
-private Documents and file guards, QA role/environment, `test-action.txt`, and
-automated test orchestration. It is not an ordinary player runtime.
+`build.py` now compiles `ME3SquadCoopProbe.asi` from `squad_probe.c` and
+`ME3SquadCoop.asi` from `squad_coop.c`. The packaging fallback also uses the latter
+source. The ordinary entry is no longer an inert DLC scaffold or a renamed
+protected probe. Its supported executable requires both the complete on-disk
+SHA-256 and the existing in-memory timestamp/landmark checks before hooks.
+The successful build fingerprint covers both ASIs and the protected launcher.
 
-`tools/build_shareable.py` can instead compile `squad_coop.c` when the named ASI
-does not already exist. That source is an inert DLC-file gate and does not
-initialize networking, squad possession, camera adapters or session lifecycle.
-Finding `Mount.dlc` at the enabled installation path does not prove the engine
-mounted the DLC. The two source paths must not be treated as interchangeable.
-Existing package and release-evidence validation remains required.
+The ordinary entry requires an enabled DLC file and explicit configuration:
+`ME3_SQUAD_COOP_ENABLED=1`, role `host` or `guest`, an explicit bind IPv4 and
+port, and a peer IPv4 for a guest. Configuration rejects loopback, missing
+endpoints and QA-role defaults. The endpoint parser opens no socket. DLC file
+presence is an installation gate, not proof that the engine mounted a valid DLC.
+Missing/disabled configuration or DLC at startup installs no bridge.
 
-## Shared foundation
+The exact-build bridge forwards native Tick once and performs adapters on the
+game thread. Startup fingerprinting and bounded bridge discovery run on a worker,
+outside DllMain. The bridge currently **attaches only to an already established
+native host/client world**. It does not yet consume the configured endpoint to
+start listening or joining. No implicit story travel or map selection occurs.
+Thus valid configuration plus a bridge is still insufficient for playable co-op.
 
-`me3_runtime_identity.h` preserves the research entry's safe memory reads and
-exact in-process timestamp/landmark checks. These checks supplement the complete
-executable SHA-256 required by protected launchers; they are not a full hash.
-Both native entry sources use these primitives.
+## Shared ownership and presentation
 
-`me3_game_support.h` shares the existing UE3 names, FString/parameter layouts,
-validated function discovery cache, ordinary invocation helpers and native
-package-map readiness code. These function bodies were moved unchanged from
-the protected probe. `squad_pawn_readiness.h` shares its read-only ownership,
-action and physics readiness helpers. Sharing those implementations does not
-start the co-op lifecycle or permit an unprotected game experiment.
+`squad_session_core.h` contains native peer membership, captured object identity,
+Ashley acquisition through base `PlayerController.Possess`, host-story invariants,
+scene release/reacquisition and native connection-cleanup handoff. Entry policy
+callbacks keep the protected probe's original warmup, synthetic scene gates and
+QA equipment observations outside the ordinary entry. The ordinary entry also
+uses the existing guest camera, local player-context, cinematic-registration and
+normal equipment-handoff implementations. These are shared code paths, not new
+claims that actual dialogue or combat now works.
 
-`runtime_config.h` defines an explicit future runtime role and endpoint. It
-requires `ME3_SQUAD_COOP_ENABLED=1`, `ME3_SQUAD_COOP_ROLE=host` or `guest`, an
-explicit bind IPv4 and port, and a peer IPv4 for a guest. It rejects loopback,
-implicit QA defaults, an inherited test role, truncated values and a host peer.
-Parsing opens no sockets or game sessions. This configuration is not yet a
-player launcher or proof of initialization.
+The ordinary policy has no movement/firing bots, timed synthetic scene gate,
+forced disconnect, `test-action.txt`, sandbox marker, private Documents routing,
+probe role/environment fallback, ammo correction or native firing observer.
+It binds the driver through the actual current world and checks native net mode.
+A world change or ownership fault stops the lease conservatively; continuous
+mission travel is not yet verified or promised.
 
-## Remaining integration
+`WorldInfo.bPlayersOnly`, unreadable pause state, native cinematic mode and active
+conversation state prevent host control. The PlayersOnly pause also disables
+guest adapters, letting their existing cleanup run. The code waits for normal
+engine restoration and never clears this flag or dismisses message boxes.
+Cleanup now also requires the captured pawn identity before calling UnPossess;
+an unchanged PC pointer alone cannot justify touching a reused pawn.
 
-The production entry needs a complete executable fingerprint, enabled-DLC and
-configuration gates, then a game-thread bridge to a shared co-op core. Real
-host ownership and guest camera/control adapters must be separated from the
-probe's movement/firing bots, synthetic scene gates, forced Mars travel and
-timed disconnect. Keep the probe's original-file locks, private profiles and
-bounded test process lifecycle intact.
+The exported enable request defers cleanup to Tick. Removing the DLC while a
+bridge exists requests cleanup on the next gate poll (at most one second).
+The small forwarding bridge remains resident until the game closes: runtime
+unloading is unsupported. `ME3SquadCoopActive` reports the enabled-DLC file gate;
+bridge and runtime-error exports are separate, and none is a campaign verdict.
 
-The shared core must retain host story authority, restore AI and guest camera
-state on actual disconnect, stop safely on map/world changes, and clean up on
-disable. Production startup and host/join behavior require protected game
-verification. Offline fixtures cover parsing and extraction invariants only;
-real combat, cross-PC Radmin and reversible Mod Manager use remain independent
-evidence requirements. Do not label an unverified integration as a release.
+## Offline evidence and remaining verification
 
-The session control gate now also treats the exact-build `WorldInfo.bPlayersOnly`
-bit as unavailable control, including an unreadable value. Native message-box
-paths were observed to set this bit while mesh animation ticking stopped. The
-gate yields via existing lease cleanup and waits for normal engine restoration;
-it never clears the bit or dismisses UI. This detects the demonstrated engine
-freeze, not every UI overlay or its owner. Its new gate has offline native and
-compiled-negative-control coverage; in-game release/reacquisition remains to
-be verified separately.
+The native ordinary-entry harness exercises actual shared cleanup using synthetic
+objects and a fixture-owned ProcessEvent: UnPossess precedes AI Possess, story
+pointers remain unchanged, reused pawn and changed world trigger no call, and
+handoff remains pending until driver membership removal is observed. It also
+checks normal Tick forwarding, configuration policy, SHA-256 including wrong or
+missing files, camera/cinematic predicates, DLC-file gating and absence of probe
+sentinels/exports from the ordinary binary. This starts no game. Deliberately
+compiled cleanup faults must fail the same fixture; these are not engine tests.
 
-Run `python tests/native_runtime_harness.py <zig.exe>` after the normal native
-build to compile the inert entry fixture, exercise both shared headers and
-verify that QA-only environment and missing/disabled DLC remain inert. No game
-is launched by this harness.
+Run after a successful normal native build:
+
+```powershell
+python tests/native_probe_harness.py
+python tests/native_runtime_harness.py <zig.exe>
+python tests/native_runtime_mutants.py <zig.exe>
+python tests/native_session_gate_mutants.py <zig.exe>
+```
+
+Actual-entry game validation still requires the independent copy, original-file
+locks, private profiles and bounded cleanup. The protected probe and ordinary
+entry both own the same Tick slot, so loading them both in their normal modes is
+invalid. A future explicit probe **guards-only** mode must retain its existing
+isolation checks, then skip action-plan/client-role orchestration and Tick
+installation. Only the ordinary entry would own Tick. Current stage zero alone
+is insufficient because the client test role forces the probe's join stage.
+Any research network bootstrap must be explicitly separate and preserved in
+its evidence; it is not an ordinary-runtime host/join implementation.
+
+Still required: ordinary listen/join startup using explicit endpoints, protected
+actual-entry control/camera/disconnect runs, reliable equipment and authoritative
+enemy damage, actual full conversations, mission transitions, two physical PCs
+over Radmin, authored installable DLC, and Mod Manager install/disable/rollback.
+Do not label the offline integration as a release.
