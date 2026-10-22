@@ -31,18 +31,47 @@ It selects no mission and never clears pause/story state. Dispatch is not proof
 of a connected guest. This path still requires protected actual-entry testing.
 A process accepts at most one join attempt; retry currently requires restart.
 
-Ordinary **host startup remains unimplemented**: `START=listen` reports an
-unsupported request and installs no bridge. It does not silently reload the
-current mission. Exact native Listen uses an owned FURL copy and selected
-transport InitListen; safe local bind selection and two-player capacity still
-need their contracts completed. Configured bind IPv4 is validated but is not yet
-applied by this ordinary entry. Existing protected launchers may separately set
-native process arguments, which is a different evidence scope. Thus valid
-configuration plus a bridge still does not establish playable co-op.
+An explicit host `ME3_SQUAD_COOP_START=listen` (or exported
+`ME3SquadCoopRequestListen`) now requests one **in-place native Listen** on the
+current standalone campaign world. It waits for ordinary on-foot control, no
+pause/conversation, no driver and no pending travel. It validates the current
+world's root package against engine LastURL, pins the native selected driver,
+and passes an engine-allocated deep FURL copy to the original Listen. The game
+consumes that copy. There is no implicit mission reload, fabricated `listen`
+console command, package GUID rewrite or validation bypass.
+
+Both explicit starts require the native process argument
+`-MULTIHOME=<configured bind IPv4>` before dispatch. The exact socket provider
+reads the engine's own command-line buffer; setting an environment variable or
+FURL.Host alone cannot select the local interface. The supported argument form
+is one plain, unquoted argument, with canonical IPv4 matching the configuration.
+Missing, conflicting, duplicate or ambiguous forms are refused. Existing-session
+attachment also checks the native driver endpoint: exact configured host bind
+and port, or configured guest bind with a nonzero ephemeral local port. A guest's
+configured port is the remote server port, not its ephemeral local port.
+
+Host startup leases reflected `GameInfo` capacity for two participants and checks
+the actual bound endpoint. Native bind can advance an occupied port; a different
+bound port fails startup. Before companion admission, the code invokes the same
+original master package-map Init used by Listen with zero clients and verifies
+the registered core package identities and unchanged native GUIDs. Disable or
+failure restores capacity only for captured object identities and values still
+owned by the lease; disable cleanup waits until no companion lease/clients remain.
+A changed/disposed world never authorizes writes into a reused GameInfo.
+
+A native failure or post-start verification failure is terminal for this mod
+instance: companion admission stays closed and restart is required. A listener
+already created by the engine remains engine-owned until the game exits; the mod
+does not invent a teardown method. In-session listen retry is unsupported.
+**The new host/guest startup paths still require protected actual-entry game
+verification.** Their offline fixtures do not establish playable co-op or Radmin
+reachability.
 
 `ME3SquadCoopNetworkStartStatus` reports idle (0), waiting (1), command dispatched
-(2), already networked (3), ABI refused (4), malformed request (5), or unsupported
-host startup (6). None of these means connection verified. Unknown/truncated
+(2), already networked (3), ABI refused (4), malformed request (5), reserved (6),
+native bind argument refused (7), native host setup verified (8), capacity refused
+(9), native Listen failed (10), or post-start verification failed (11).
+None means a guest connection is verified. Unknown/truncated
 startup requests also remain inert, with runtime error 4.
 
 ## Shared ownership and presentation
@@ -87,6 +116,14 @@ missing files, camera/cinematic predicates, DLC-file gating and absence of probe
 sentinels/exports from the ordinary binary. This starts no game. Deliberately
 compiled cleanup faults must fail the same fixture; these are not engine tests.
 
+Host startup fixtures run the actual checked startup pipeline on allocated
+synthetic objects using fixture-owned deep-copy/Listen/Init callbacks. They
+exercise successful admission, native failure, occupied-port fallback, GUID
+mutation refusal, one-time FURL consumption, capacity restoration, changed values
+and reused object refusal. Compiled faults must be rejected by the same fixture.
+These callbacks do not run the real engine, create sockets or verify a native
+Listen call in a game process.
+
 Run after a successful normal native build:
 
 ```powershell
@@ -94,6 +131,7 @@ python tests/native_probe_harness.py
 python tests/native_runtime_harness.py <zig.exe>
 python tests/native_runtime_mutants.py <zig.exe>
 python tests/native_session_gate_mutants.py <zig.exe>
+python tests/native_host_start_mutants.py <zig.exe>
 ```
 
 Actual-entry game validation still requires the independent copy, original-file
@@ -114,7 +152,7 @@ This is offline evidence; loading the two real ASIs together remains unverified.
 Any research network bootstrap must be explicitly separate and preserved in
 its evidence; it is not an ordinary-runtime host/join implementation.
 
-Still required: ordinary host startup/local bind selection, protected guest-join and
+Still required: protected ordinary host-start/local-bind, guest-join and
 actual-entry control/camera/disconnect runs, reliable equipment and authoritative
 enemy damage, actual full conversations, mission transitions, two physical PCs
 over Radmin, authored installable DLC, and Mod Manager install/disable/rollback.

@@ -9,6 +9,7 @@
 #include "me3_game_support.h"
 #include "runtime_config.h"
 #include "runtime_fingerprint.h"
+#include "runtime_transport.h"
 
 static int g_dlc_active = 0;
 static wchar_t g_game_root[MAX_PATH] = {0};
@@ -17,6 +18,9 @@ static Me3RuntimeConfigStatus g_config_status=ME3_CONFIG_DISABLED;
 static volatile LONG g_enable_requested=1;
 static volatile LONG g_bridge_installed;
 static volatile LONG g_runtime_error;
+/* Default existing-session attachment remains available. An explicit host
+ * startup closes admission until its whole native setup has been verified. */
+static volatile LONG runtime_host_start_gate=1;
 static wchar_t g_executable[MAX_PATH];
 #include "runtime_session.h"
 #include "runtime_network_bootstrap.h"
@@ -51,6 +55,7 @@ static void runtime_tick(void *self,float delta) {
     runtime_session_frame(base,(uintptr_t)self,0,now);
     runtime_original_tick(self,delta);
     runtime_session_frame(base,(uintptr_t)self,1,GetTickCount());
+    runtime_host_capacity_poll(base,(uintptr_t)self);
 }
 static int runtime_install_bridge(uintptr_t base) {
     uintptr_t engine=read_ptr(base+0x18b31d0),vt=read_ptr(engine);
@@ -88,6 +93,7 @@ static DWORD WINAPI runtime_start(void *unused) {
 __declspec(dllexport) int ME3SquadCoopBridgeInstalled(void) {return InterlockedCompareExchange(&g_bridge_installed,0,0)!=0;}
 __declspec(dllexport) int ME3SquadCoopRuntimeError(void) {return InterlockedCompareExchange(&g_runtime_error,0,0);}
 __declspec(dllexport) int ME3SquadCoopRequestJoin(void) {return runtime_request_join();}
+__declspec(dllexport) int ME3SquadCoopRequestListen(void) {return runtime_request_listen();}
 __declspec(dllexport) int ME3SquadCoopNetworkStartStatus(void) {
     return InterlockedCompareExchange(&runtime_network_start_status,0,0);
 }
@@ -112,6 +118,24 @@ __declspec(dllexport) int ME3SquadCoopConfigStatus(void) {return g_config_status
 #include "runtime_core_fixture.h"
 __declspec(dllexport) int ME3RuntimeNetworkStartSelfTest(void) {return runtime_network_start_selftest();}
 __declspec(dllexport) int ME3RuntimeTravelIdleSelfTest(void) {return runtime_join_travel_idle_selftest();}
+#include "runtime_transport_fixture.h"
+__declspec(dllexport) int ME3RuntimeTransportSelfTest(void) {return runtime_transport_selftest();}
+#include "runtime_host_fixture.h"
+__declspec(dllexport) int ME3RuntimeHostStartupSelfTest(void) {return runtime_host_startup_selftest();}
+__declspec(dllexport) int ME3RuntimeListenRequestSelfTest(void) {
+    Me3RuntimeConfig saved=g_runtime_config;Me3RuntimeConfigStatus status=g_config_status;
+    LONG enabled=g_enable_requested,requested=runtime_listen_requested,attempted=runtime_listen_attempted,
+        network_status=runtime_network_start_status,gate=runtime_host_start_gate;
+    runtime_listen_requested=runtime_listen_attempted=0;g_enable_requested=1;g_config_status=ME3_CONFIG_DISABLED;
+    int ok=!runtime_request_listen();g_config_status=ME3_CONFIG_READY;g_runtime_config.role=ME3_ROLE_GUEST;
+    ok=ok&&!runtime_request_listen();g_runtime_config.role=ME3_ROLE_HOST;g_enable_requested=0;
+    ok=ok&&!runtime_request_listen();g_enable_requested=1;
+    ok=ok&&runtime_request_listen()&&!runtime_request_listen()&&runtime_listen_requested==1&&
+        !runtime_host_start_gate&&runtime_network_start_status==RUNTIME_START_WAITING;
+    runtime_listen_requested=0;runtime_listen_attempted=1;ok=ok&&!runtime_request_listen();
+    g_runtime_config=saved;g_config_status=status;g_enable_requested=enabled;runtime_listen_requested=requested;
+    runtime_listen_attempted=attempted;runtime_network_start_status=network_status;runtime_host_start_gate=gate;return ok;
+}
 __declspec(dllexport) int ME3RuntimeJoinRequestSelfTest(void) {
     Me3RuntimeConfig saved=g_runtime_config;Me3RuntimeConfigStatus status=g_config_status;
     LONG enabled=g_enable_requested,requested=runtime_join_requested,attempted=runtime_join_attempted,
@@ -210,9 +234,9 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved) {
         if(direct_ip_native_read_environment(L"ME3_SQUAD_COOP_START",start,8,&present))
             requested=runtime_network_start_parse(g_runtime_config.role,present?start:NULL);
         if(requested==1)runtime_request_join();
+        else if(requested==2)runtime_request_listen();
         else if(requested) {
-            InterlockedExchange(&runtime_network_start_status,
-                requested==-2?RUNTIME_START_HOST_UNAVAILABLE:RUNTIME_START_BAD_REQUEST);
+            InterlockedExchange(&runtime_network_start_status,RUNTIME_START_BAD_REQUEST);
             InterlockedExchange(&g_runtime_error,4);return TRUE;
         }
         HANDLE worker=CreateThread(NULL,0,runtime_start,NULL,0,NULL);

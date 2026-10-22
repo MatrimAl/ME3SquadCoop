@@ -41,6 +41,7 @@ static void session_policy_held(uintptr_t base,uintptr_t pc,uintptr_t host_pawn,
  * Pending worlds and drivers with a similarly named object are insufficient.
  * Invalidation leaves captured lease identities intact for safe cleanup. */
 static int runtime_session_scope(uintptr_t base,uintptr_t engine) {
+    if(g_runtime_config.role==ME3_ROLE_HOST&&!InterlockedCompareExchange(&runtime_host_start_gate,0,0))return 0;
     CombatContextChain first,last;combat_context_read_chain(base,&first);
     if(!first.info_valid||!network_actor_world_pins(base))return 0;
     SessionContext c=session_context(engine);unsigned char mode=255;
@@ -48,7 +49,8 @@ static int runtime_session_scope(uintptr_t base,uintptr_t engine) {
     if(!session_actor_live(base,c.pc)||!is_kind_of(base,c.pc,"SFXPlayerController")||
        c.world!=first.info||!read_at(first.info+0x7c8,&mode,1)||
        mode!=(g_runtime_config.role==ME3_ROLE_HOST?2:3)||
-       !is_live(base,driver)||!is_kind_of(base,driver,"NetDriver"))return 0;
+       !is_live(base,driver)||!is_kind_of(base,driver,"NetDriver")||
+       !runtime_transport_endpoint(base,driver,&g_runtime_config))return 0;
     if(g_runtime_config.role==ME3_ROLE_HOST) {
         GameArray peers={0};
         if(read_ptr(driver+0x80)||!read_at(driver+0x70,&peers,sizeof peers)||

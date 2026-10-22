@@ -1,20 +1,21 @@
 #ifndef ME3_RUNTIME_NETWORK_BOOTSTRAP_H
 #define ME3_RUNTIME_NETWORK_BOOTSTRAP_H
-/* Explicit one-shot guest join, through the already exercised ordinary engine
- * console. A dispatch is not connection success. Host in-place listening still
- * needs its transport ABI/bind/capacity contract completed; do not reload a map
- * as an implicit substitute. */
+/* Explicit one-shot ordinary guest join or in-place host Listen. Startup
+ * verification is not successful guest connection or campaign evidence. */
 typedef enum RuntimeNetworkStartStatus {
     RUNTIME_START_IDLE=0,RUNTIME_START_WAITING=1,RUNTIME_START_DISPATCHED=2,
     RUNTIME_START_ALREADY_NETWORKED=3,RUNTIME_START_ABI_REFUSED=4,
-    RUNTIME_START_BAD_REQUEST=5,RUNTIME_START_HOST_UNAVAILABLE=6
+    RUNTIME_START_BAD_REQUEST=5,RUNTIME_START_HOST_UNAVAILABLE=6,RUNTIME_START_BIND_REFUSED=7,
+    RUNTIME_START_LISTENING=8,RUNTIME_START_CAPACITY_REFUSED=9,
+    RUNTIME_START_HOST_NATIVE_FAILED=10,RUNTIME_START_HOST_VERIFY_FAILED=11
 } RuntimeNetworkStartStatus;
 static volatile LONG runtime_join_requested,runtime_join_attempted,runtime_network_start_status;
+static volatile LONG runtime_listen_requested,runtime_listen_attempted;
 static DWORD runtime_join_last_check;
 static int runtime_network_start_parse(Me3RuntimeRole role,const wchar_t *value) {
     if(!value)return 0;
     if(!wcscmp(value,L"join"))return role==ME3_ROLE_GUEST?1:-1;
-    if(!wcscmp(value,L"listen")&&role==ME3_ROLE_HOST)return -2;
+    if(!wcscmp(value,L"listen")&&role==ME3_ROLE_HOST)return 2;
     return -1;
 }
 static int runtime_request_join(void) {
@@ -22,6 +23,14 @@ static int runtime_request_join(void) {
        !InterlockedCompareExchange(&g_enable_requested,0,0)||
        InterlockedCompareExchange(&runtime_join_attempted,0,0))return 0;
     if(InterlockedCompareExchange(&runtime_join_requested,1,0))return 0;
+    InterlockedExchange(&runtime_network_start_status,RUNTIME_START_WAITING);return 1;
+}
+static int runtime_request_listen(void) {
+    if(g_config_status!=ME3_CONFIG_READY||g_runtime_config.role!=ME3_ROLE_HOST||
+       !InterlockedCompareExchange(&g_enable_requested,0,0)||
+       InterlockedCompareExchange(&runtime_listen_attempted,0,0))return 0;
+    if(InterlockedCompareExchange(&runtime_listen_requested,1,0))return 0;
+    InterlockedExchange(&runtime_host_start_gate,0);
     InterlockedExchange(&runtime_network_start_status,RUNTIME_START_WAITING);return 1;
 }
 static int runtime_join_command(const Me3RuntimeConfig *config,wchar_t *out,size_t capacity) {
@@ -44,9 +53,13 @@ static int runtime_join_travel_idle(uintptr_t world,uintptr_t engine) {
     return read_at(world+0x120,&driver,8)&&!driver&&
         read_at(engine+0x9fc,&pending,8)&&!pending;
 }
+#include "runtime_host_bootstrap.h"
 static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now) {
-    if(!runtime_control_enabled||!InterlockedCompareExchange(&runtime_join_requested,0,0)||
-       InterlockedCompareExchange(&runtime_join_attempted,0,0))return;
+    int host=g_runtime_config.role==ME3_ROLE_HOST;
+    volatile LONG *requested=host?&runtime_listen_requested:&runtime_join_requested,
+        *attempted=host?&runtime_listen_attempted:&runtime_join_attempted;
+    if(!runtime_control_enabled||!InterlockedCompareExchange(requested,0,0)||
+       InterlockedCompareExchange(attempted,0,0))return;
     if(runtime_join_last_check&&now-runtime_join_last_check<250)return;
     runtime_join_last_check=now;
     if(!network_actor_world_pins(base)||!combat_context_layout(base))return;
@@ -58,12 +71,30 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
        !is_live(base,player)||!is_kind_of(base,player,"LocalPlayer")||read_ptr(player+0x68)!=c.pc||
        read_ptr(c.pc+0x198)!=c.world||!read_at(c.world+0x7c8,&net,1))return;
     if(net!=0) {
-        InterlockedExchange(&runtime_join_attempted,1);InterlockedExchange(&runtime_join_requested,0);
+        InterlockedExchange(attempted,1);InterlockedExchange(requested,0);
+        /* Existing-session attachment is the default policy. A redundant
+         * listen request must not revoke an already established host lease. */
+        if(host)InterlockedExchange(&runtime_host_start_gate,1);
         InterlockedExchange(&runtime_network_start_status,RUNTIME_START_ALREADY_NETWORKED);return;
     }
     /* Wait for ordinary native control; never clear pause, scene or mode flags.
      * Current-world driver/pending travel must both be absent before the call. */
     if(session_engine_blocked(c)||!runtime_join_travel_idle(before.world,engine)||session_active)return;
+    /* Native transport consumes its own command line, not endpoint.bind_ipv4.
+     * Refuse an unintended local interface before triggering ordinary travel. */
+    if(!runtime_transport_bind_argument(base,g_runtime_config.endpoint.bind_ipv4)) {
+        InterlockedExchange(attempted,1);InterlockedExchange(requested,0);
+        InterlockedExchange(&runtime_network_start_status,RUNTIME_START_BIND_REFUSED);
+        line("{\"runtime_network\":\"start-refused\",\"reason\":\"native-multihome-mismatch\",\"travel_dispatched\":false}\r\n");return;
+    }
+    if(host) {
+        if(!runtime_host_story_idle(base,c))return;
+        InterlockedExchange(attempted,1);InterlockedExchange(requested,0);
+        int status=runtime_host_start(base,engine,c,&before);
+        InterlockedExchange(&runtime_host_start_gate,status==RUNTIME_START_LISTENING);
+        InterlockedExchange(&runtime_network_start_status,status);
+        char row[280];snprintf(row,sizeof row,"{\"runtime_network\":\"listen-request\",\"status\":%d,\"native_start_verified\":%s,\"implicit_travel\":false,\"guest_connection_verified\":false,\"restart_required\":%s,\"monotonic_ms\":%lu}\r\n",status,runtime_host_start_gate?"true":"false",runtime_host_start_gate?"false":"true",now);line(row);return;
+    }
     wchar_t command[64];
     if(!runtime_join_command(&g_runtime_config,command,64)||!runtime_join_console_abi(base,c.pc)) {
         InterlockedExchange(&runtime_join_attempted,1);InterlockedExchange(&runtime_join_requested,0);
@@ -87,7 +118,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
 static int runtime_network_start_selftest(void) {
     Me3RuntimeConfig config={0};wchar_t command[64];
     if(runtime_network_start_parse(ME3_ROLE_GUEST,NULL)||runtime_network_start_parse(ME3_ROLE_GUEST,L"join")!=1||
-       runtime_network_start_parse(ME3_ROLE_HOST,L"join")!=-1||runtime_network_start_parse(ME3_ROLE_HOST,L"listen")!=-2||
+       runtime_network_start_parse(ME3_ROLE_HOST,L"join")!=-1||runtime_network_start_parse(ME3_ROLE_HOST,L"listen")!=2||
        runtime_network_start_parse(ME3_ROLE_GUEST,L"join extra")!=-1)return 0;
     if(runtime_config_parse(&config,L"1",L"guest",L"26.1.2.3",L"26.2.3.4",L"17779")!=ME3_CONFIG_READY||
        !runtime_join_command(&config,command,64)||wcscmp(command,L"open 26.2.3.4:17779")||
