@@ -1,23 +1,16 @@
 # Progress
 
-## 2026-10-23: route attempt exposes frozen animation ticking
+## 2026-10-23: bounded authoritative enemy combat sampler verified and hardened
 
-- A separate protected Mars pair enabled the actual `WorldInfo.bPlayersOnly` flag about 36.7 seconds into the world. Ashley's mesh and cover-node tick tags then remained unchanged through about 187.8 seconds. The exact native mesh tick guard skips animation nodes while this world flag is set. Animation ticking outside rendering was already enabled; pause-animation, frozen, saved-pose and no-skeleton flags did not explain this capture. No animation or world flags were changed.
-- Native research identified a normal message-box lifecycle that saves and enables `bPlayersOnly`, then restores its prior value when that same message box closes. The active owning message box has not yet been captured. This supports inspecting normal UI ownership before attempting any remedy; it does not establish that a particular tutorial or player action caused the pause.
-- Both route attempts rejected the joined landing position before walking or guest acquisition. They therefore provide no new firing, ownership-lifecycle or combat pass. The default-off driver now bounds its first leg by the same 1,500-unit range as its ordinary input calculation, relative to the validated first nav point, and retains the actual grounded start as its first corridor origin. Later corridors and identity, story, camera, ground and duration guards remain in place. Native outputs built, the Windows protection harness passed, and four compiled unsafe-policy variants were rejected. Actual route traversal remains unverified.
-- The latest completed run protected 8,210 original game/profile files, retained unchanged profiles, recorded zero native exceptions and required no forced orphan cleanup. The probe was disabled afterward, the native source fingerprint matched, and no game processes remained. Raw captures and distinct run/build records remain private.
-
-Next: identify and normally close the owning modal UI, then exercise the actual input route to a hostile encounter. Consistent firing, enemy damage, real dialogue, two-PC Radmin and end-user installation/rollback remain unverified.
-
-## 2026-10-23: bounded authoritative enemy combat sampler implemented
-
-- Implemented `src/authoritative_enemy_sampler.py` and `tools/sample_authoritative_combat.py` for bounded, read-only Windows process-memory sampling of authoritative enemy health and shields during ME3 Legendary Edition campaign co-op tests.
+- Implemented and verified `src/authoritative_enemy_sampler.py` and `tools/sample_authoritative_combat.py` for bounded, read-only Windows process-memory sampling of authoritative enemy health and shields during ME3 Legendary Edition campaign co-op tests.
 - Replaced reliance on legacy non-authoritative `Pawn.Health` (+0x514) with direct damage-module `CurrentHealth` (+0x98) and inventory `CurrentShields` (+0x3C4), with reciprocal ownership verification (`Module.ModuleOwner == Pawn` and `Shield.Owner/Instigator/InvManager == Pawn/Pawn/InventoryManager`).
+- Fixed multi-pawn comparison bug in `evaluate_damage_decrease` by anchoring pointer identity and generating `per_target_evaluations`. Added timeline minimum tracking (`max_shield_decrease` / `max_health_decrease`) to detect transient combat damage before enemy shield regeneration.
+- Corrected AI controller classification to prevent false-positive hostile tagging on generic `BioAiController` (unless attached to combat squad), while adding explicit support for dedicated combat controllers (`SFXAI_Trooper`, `SFXAI_Guardian`, `SFXAI_Nemesis`, `SFXAI_Turret`, etc.) and Mars Cerberus archetypes (`Guardian`, `Phantom`, `Turret`).
+- Added mid-snapshot level actor table mutation detection (`level_actors_changed`), dual-path level enumeration via `UWorld.Levels` (`+0x78`) and `WorldInfo.StreamingLevels` (`+0x3E4`), resilient `WorldInfo` dynamic discovery, and explicit failure logging for unreadable module/inventory chains.
 - Enforces strict read-only process memory access (`0x410: PROCESS_VM_READ | PROCESS_QUERY_INFORMATION`). Rejects unverified game launches, injection, code modification, or non-isolated executables. Verifies SHA-256 `b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001`.
-- Filters loaded levels to reject Class Default Objects (CDOs), deleted actors (`bDeleteMe`), wrong-world actors (`Actor.WorldInfo != GWorld.WorldInfo`), and stale GObjects identities.
-- Distinguishes genuine hostile pawns from player/squad allies and explicitly rejects the pre-existing Gatehouse `BioPawn_0` dummy actor (`BioD_ProMar_120Gatehouse.TheWorld.PersistentLevel.BioPawn_0`).
-- Adheres to strict attribution skepticism: an observed health decrease proves only a health decrease; no guest damage attribution is claimed without verified hit/weapon trace evidence.
-- Added 16 unit tests in `tests/test_authoritative_enemy_sampler.py`; full repository test suite passes with 213 tests (3 skipped). Documented in [AUTHORITATIVE-COMBAT-SAMPLER.md](AUTHORITATIVE-COMBAT-SAMPLER.md).
+- Filters loaded levels to reject Class Default Objects (CDOs), deleted actors (`bDeleteMe`), wrong-world actors (`Actor.WorldInfo != GWorld.WorldInfo`), and stale GObjects identities. Explicitly rejects the pre-existing Gatehouse `BioPawn_0` dummy actor (`BioD_ProMar_120Gatehouse.TheWorld.PersistentLevel.BioPawn_0`).
+- Adheres to strict attribution skepticism: an observed health decrease proves only a health decrease; no guest damage attribution is claimed without verified hit/weapon trace evidence (`guest_damage_attribution_proven: false`).
+- Expanded test suite to 26 unit tests in `tests/test_authoritative_enemy_sampler.py`; full repository test suite passes with 223 tests (3 skipped). Documented in [AUTHORITATIVE-COMBAT-SAMPLER.md](AUTHORITATIVE-COMBAT-SAMPLER.md).
 
 ## 2026-10-23: observer-off repeat identifies port-arms deferral
 

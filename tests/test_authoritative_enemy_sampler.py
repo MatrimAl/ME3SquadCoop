@@ -57,6 +57,7 @@ from authoritative_enemy_sampler import (
     OFFSET_UOBJECT_FNAME,
     OFFSET_UOBJECT_INTERNAL_INDEX,
     OFFSET_UOBJECT_OUTER,
+    OFFSET_UWORLD_LEVELS,
     OFFSET_UWORLD_PERSISTENT_LEVEL,
     OFFSET_WORLDINFO_STREAMING_LEVELS,
     SUPPORTED_EXECUTABLE_SHA256,
@@ -91,6 +92,7 @@ class TestWorldFixture:
         self.class_biopawn = self.create_class("BioPawn", super_class=self.class_pawn)
         self.class_controller = self.create_class("Controller", super_class=self.class_actor)
         self.class_aicontroller = self.create_class("AIController", super_class=self.class_controller)
+        self.class_bioaicontroller = self.create_class("BioAiController", super_class=self.class_aicontroller)
         self.class_playercontroller = self.create_class("SFXPlayerController", super_class=self.class_controller)
         self.class_henchmancontroller = self.create_class("SFXAI_Henchman", super_class=self.class_aicontroller)
         self.class_troopercontroller = self.create_class("SFXAI_Trooper", super_class=self.class_aicontroller)
@@ -116,6 +118,9 @@ class TestWorldFixture:
         self.class_playersoldier = self.create_class("SFXPawn_PlayerSoldier", super_class=self.class_biopawn)
         self.class_ashley = self.create_class("SFXPawn_Ashley", super_class=self.class_biopawn)
         self.class_trooper = self.create_class("SFXPawn_Trooper", super_class=self.class_biopawn)
+        self.class_guardian = self.create_class("SFXPawn_Guardian", super_class=self.class_biopawn)
+        self.class_phantom = self.create_class("SFXPawn_Phantom", super_class=self.class_biopawn)
+        self.class_civilian = self.create_class("SFXPawn_Civilian", super_class=self.class_biopawn)
 
         # World setup
         self.world_ptr = 0x30000000
@@ -128,6 +133,7 @@ class TestWorldFixture:
 
         self.reader.write_ptr(self.base + OFFSET_GWORLD, self.world_ptr)
         self.reader.write_ptr(self.world_ptr + OFFSET_UWORLD_PERSISTENT_LEVEL, self.level_ptr)
+        self.reader.write_tarray(self.world_ptr + OFFSET_UWORLD_LEVELS, [], 0x30007000)
 
         # Actor array in PersistentLevel
         self.level_actors: list[int] = [self.world_info_ptr]
@@ -565,6 +571,174 @@ class AuthoritativeEnemySamplerTests(unittest.TestCase):
         # CRITICAL SKEPTICISM CHECK: guest damage attribution MUST NOT be claimed!
         self.assertFalse(analysis["guest_damage_attribution_proven"])
         self.assertIn("Without observed hit/weapon attribution", analysis["attribution_note"])
+
+    def test_evaluate_damage_decrease_rejects_comparing_different_hostiles(self):
+        # Sample 0 has Hostile A at 0x60010000 with HP 500
+        obs1 = {
+            "monotonic_time_s": 10.0,
+            "hostiles": [{
+                "pointer": "0x60010000",
+                "path": "TheWorld.PersistentLevel.SFXPawn_Trooper_1",
+                "damage_modules": [{"current_health": 500.0}],
+                "shields": [{"current_shields": 200.0}],
+            }],
+        }
+        # Sample 1 has Hostile B at 0x60020000 with HP 200 (Hostile A was culled/moved)
+        obs2 = {
+            "monotonic_time_s": 10.5,
+            "hostiles": [{
+                "pointer": "0x60020000",
+                "path": "TheWorld.PersistentLevel.SFXPawn_Trooper_2",
+                "damage_modules": [{"current_health": 200.0}],
+                "shields": [{"current_shields": 0.0}],
+            }],
+        }
+        # Must NOT compare Hostile A with Hostile B and report false damage!
+        analysis = evaluate_damage_decrease([obs1, obs2])
+        self.assertFalse(analysis["decrease_observed"])
+        self.assertEqual(analysis["reason"], "insufficient samples for target")
+
+    def test_evaluate_damage_decrease_detects_transient_damage_with_regeneration(self):
+        # Hostile takes 150 shield damage in sample 2, but regenerates by sample 3
+        obs1 = {"monotonic_time_s": 1.0, "hostiles": [{"pointer": "0x60010000", "shields": [{"current_shields": 200.0}], "damage_modules": [{"current_health": 500.0}]}]}
+        obs2 = {"monotonic_time_s": 1.5, "hostiles": [{"pointer": "0x60010000", "shields": [{"current_shields": 50.0}], "damage_modules": [{"current_health": 500.0}]}]}
+        obs3 = {"monotonic_time_s": 2.0, "hostiles": [{"pointer": "0x60010000", "shields": [{"current_shields": 200.0}], "damage_modules": [{"current_health": 500.0}]}]}
+        analysis = evaluate_damage_decrease([obs1, obs2, obs3])
+        self.assertTrue(analysis["decrease_observed"])
+        self.assertEqual(analysis["shield_decrease"], 150.0)
+        self.assertEqual(analysis["per_target_evaluations"]["0x60010000"]["net_shield_decrease"], 0.0)
+
+    def test_reject_civilian_with_generic_bioaicontroller(self):
+        # Neutral/civilian pawn with generic BioAiController, no combat squad, no hostile team
+        civilian = 0x60080000
+        self.fixture.setup_object(civilian, "SFXPawn_Civilian_1", self.fixture.class_civilian, outer=self.fixture.level_ptr)
+        self.reader.write_ptr(civilian + OFFSET_ACTOR_WORLD_INFO, self.fixture.world_info_ptr)
+        ctrl = 0x60081000
+        self.fixture.setup_object(ctrl, "BioAiController_0", self.fixture.class_bioaicontroller, outer=self.fixture.level_ptr)
+        self.reader.write_ptr(civilian + OFFSET_PAWN_CONTROLLER, ctrl)
+        self.reader.write_ptr(civilian + OFFSET_BIOPAWN_SQUAD, 0)
+        self.fixture.sync_gobjects()
+
+        is_hostile, reason, _ = self.sampler.classify_pawn(civilian)
+        self.assertFalse(is_hostile, "Civilian with BioAiController must not be classified as hostile")
+        self.assertEqual(reason, "unverified_non_hostile_pawn")
+
+    def test_accept_mars_cerberus_guardian_and_phantom_archetypes(self):
+        guardian = 0x60090000
+        self.fixture.setup_object(guardian, "SFXPawn_Guardian_0", self.fixture.class_guardian, outer=self.fixture.level_ptr)
+        self.reader.write_ptr(guardian + OFFSET_ACTOR_WORLD_INFO, self.fixture.world_info_ptr)
+        is_hostile, reason, meta = self.sampler.classify_pawn(guardian)
+        self.assertTrue(is_hostile, "Cerberus Guardian must be recognized as hostile archetype")
+        self.assertEqual(reason, "genuine_hostile")
+
+        phantom = 0x60091000
+        self.fixture.setup_object(phantom, "SFXPawn_Phantom_0", self.fixture.class_phantom, outer=self.fixture.level_ptr)
+        self.reader.write_ptr(phantom + OFFSET_ACTOR_WORLD_INFO, self.fixture.world_info_ptr)
+        is_hostile, reason, meta = self.sampler.classify_pawn(phantom)
+        self.assertTrue(is_hostile, "Cerberus Phantom must be recognized as hostile archetype")
+        self.assertEqual(reason, "genuine_hostile")
+
+    def test_level_actors_changed_during_snapshot_detected(self):
+        snap1 = self.sampler.sample_snapshot()
+        self.assertIn(snap1["status"], ("ok", "no_hostiles_found"))
+
+        # Mutate level actor table memory mid-snapshot via classify_pawn hook
+        orig_classify = self.sampler.classify_pawn
+
+        def hook_classify(ptr):
+            # Mutate the level actor table in memory while actors are being scanned
+            self.reader.write_bytes(self.fixture.level_ptr + OFFSET_ULEVEL_ACTORS, b"\xff" * 16)
+            return orig_classify(ptr)
+
+        self.sampler.classify_pawn = hook_classify
+        snap2 = self.sampler.sample_snapshot()
+        self.sampler.classify_pawn = orig_classify
+        self.assertEqual(snap2["status"], "level_actors_changed")
+        self.assertTrue(any("actor table changed during snapshot" in f for f in snap2["read_failures"]))
+
+    def test_damage_modules_array_unreadable_records_failure(self):
+        trooper = 0x600A0000
+        self.fixture.setup_object(trooper, "SFXPawn_Trooper_5", self.fixture.class_trooper, outer=self.fixture.level_ptr)
+        self.reader.set_fail_address(trooper + OFFSET_ACTOR_MODULES)
+
+        modules, failures = self.sampler.sample_damage_modules(trooper)
+        self.assertEqual(len(modules), 0)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("Modules array at +0x70 is unreadable", failures[0])
+
+    def test_inventory_chain_corrupted_pointer_records_failure(self):
+        trooper = 0x600B0000
+        self.fixture.setup_object(trooper, "SFXPawn_Trooper_6", self.fixture.class_trooper, outer=self.fixture.level_ptr)
+        inv_man = 0x600B1000
+        self.fixture.setup_object(inv_man, "SFXInventoryManager_3", self.fixture.class_sfx_inv_manager, outer=trooper)
+        self.reader.write_ptr(trooper + OFFSET_PAWN_INVENTORY, inv_man)
+        # Write corrupted item pointer that is not a live object in GObjects
+        self.reader.write_ptr(inv_man + OFFSET_INVENTORY_CHAIN, 0xBAADF00D)
+
+        shields, failures = self.sampler.sample_inventory_shields(trooper)
+        self.assertEqual(len(shields), 0)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("not a valid live Inventory object", failures[0])
+
+    def test_enumerate_levels_with_world_levels_and_worldinfo_streaming(self):
+        # Level in StreamingLevels
+        stream_lvl = 0x30020000
+        self.fixture.setup_object(stream_lvl, "StreamingLevel_1", self.fixture.class_level, outer=self.fixture.world_ptr)
+        self.fixture.sync_level_actors(stream_lvl, [], data_ptr=0x30021000)
+
+        stream_obj = 0x30022000
+        self.fixture.setup_object(stream_obj, "LevelStreaming_1", self.fixture.class_levelstreaming, outer=self.fixture.world_info_ptr)
+        self.reader.write_ptr(stream_obj + OFFSET_LEVELSTREAMING_LOADED_LEVEL, stream_lvl)
+        self.reader.write_uint32(stream_obj + OFFSET_LEVELSTREAMING_FLAGS, 1)  # Visible
+        self.reader.write_tarray(self.fixture.world_info_ptr + OFFSET_WORLDINFO_STREAMING_LEVELS, [stream_obj], 0x30006000)
+
+        # Additional level in World.Levels (+0x78)
+        world_lvl = 0x30030000
+        self.fixture.setup_object(world_lvl, "WorldLevel_2", self.fixture.class_level, outer=self.fixture.world_ptr)
+        self.fixture.sync_level_actors(world_lvl, [], data_ptr=0x30031000)
+        self.reader.write_tarray(self.fixture.world_ptr + OFFSET_UWORLD_LEVELS, [world_lvl], 0x30007000)
+
+        levels, world_info, failures = self.sampler.enumerate_levels(self.fixture.world_ptr)
+        self.assertEqual(len(failures), 0)
+        level_ptrs = [lvl for lvl, vis in levels]
+        self.assertIn(self.fixture.level_ptr, level_ptrs)
+        self.assertIn(stream_lvl, level_ptrs)
+        self.assertIn(world_lvl, level_ptrs)
+        self.assertEqual(len(levels), 3)
+
+    def test_worldinfo_not_first_actor_still_discovered(self):
+        # Put a static actor at Actors[0], WorldInfo at Actors[1]
+        other_actor = 0x30040000
+        self.fixture.setup_object(other_actor, "StaticMeshActor_0", self.fixture.class_actor, outer=self.fixture.level_ptr)
+        self.fixture.level_actors = [other_actor, self.fixture.world_info_ptr]
+        self.fixture.sync_level_actors(self.fixture.level_ptr, self.fixture.level_actors, data_ptr=0x30005000)
+
+        levels, world_info, failures = self.sampler.enumerate_levels(self.fixture.world_ptr)
+        self.assertEqual(len(failures), 0)
+        self.assertEqual(world_info, self.fixture.world_info_ptr)
+
+    def test_evaluate_damage_decrease_single_target_filter(self):
+        obs1 = {
+            "monotonic_time_s": 1.0,
+            "hostiles": [
+                {"pointer": "0x1000", "damage_modules": [{"current_health": 500.0}], "shields": []},
+                {"pointer": "0x2000", "damage_modules": [{"current_health": 400.0}], "shields": []},
+            ],
+        }
+        obs2 = {
+            "monotonic_time_s": 2.0,
+            "hostiles": [
+                {"pointer": "0x1000", "damage_modules": [{"current_health": 500.0}], "shields": []},
+                {"pointer": "0x2000", "damage_modules": [{"current_health": 250.0}], "shields": []},
+            ],
+        }
+        res_1000 = evaluate_damage_decrease([obs1, obs2], target_pointer="0x1000")
+        self.assertFalse(res_1000["decrease_observed"])
+        self.assertEqual(res_1000["health_decrease"], 0.0)
+
+        res_2000 = evaluate_damage_decrease([obs1, obs2], target_pointer="0x2000")
+        self.assertTrue(res_2000["decrease_observed"])
+        self.assertEqual(res_2000["health_decrease"], 150.0)
 
 
 if __name__ == "__main__":

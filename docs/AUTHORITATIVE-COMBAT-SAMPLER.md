@@ -22,6 +22,7 @@ The sampler offsets were independently verified against both static executable d
 | `GNames` | Name table pool pointer | `+0x17B33D0` | Name table chunk resolution `(index >> 29) * 8` |
 | `GObjects` | Object array header (`Data`, `Count`, `Max`) | `+0x1887E40` | Live object index verification (`InternalIndex` at `+0x08`) |
 | `GWorld` | Current world pointer | `+0x18B6638` | `UWorld` pointer validation |
+| `UWorld` | `Levels` array (`TArray<ULevel*>`) | `+0x78` | Native world levels array traversal |
 | `UWorld` | `PersistentLevel` | `+0x88` | Validated `ULevel` ancestry |
 | `ULevel` | `Actors` array (`TArray<AActor*>`) | `+0x60` | Bounded actor array enumeration |
 | `WorldInfo` | `StreamingLevels` array | `+0x3E4` | Loaded level streaming enumeration |
@@ -74,8 +75,10 @@ The sampler strictly rejects this actor and only classifies pawns as genuine hos
 5. The pawn exhibits positive hostile metadata:
    - Hostile team index (`team_index > 0`), or
    - Assigned to a combat squad (`BioSquadCombat`), or
-   - Controlled by a combat AI controller (`SFXAI_Trooper`, `BioAiController` with hostile squad), or
-   - Belongs to a recognized hostile archetype class (`SFXPawn_Trooper`, `SFXPawn_Centurion`, `SFXPawn_Cannibal`, etc.).
+   - Controlled by a dedicated combat AI controller (`SFXAI_Trooper`, `SFXAI_Enemy`, `SFXAI_Combat`, `SFXAI_Guardian`, `SFXAI_Centurion`, `SFXAI_Nemesis`, `SFXAI_Turret`, `BioAiCombat`, or `BioAiController` explicitly assigned to a combat squad), or
+   - Belongs to a recognized hostile archetype class (`SFXPawn_Trooper`, `SFXPawn_Centurion`, `SFXPawn_Guardian`, `SFXPawn_Phantom`, `SFXPawn_Turret`, `SFXPawn_Cannibal`, etc.).
+
+Note: Generic `BioAiController` without a combat squad is NOT treated as a hostile indicator, preventing false-positive classification of civilian, ambient, or neutral NPCs.
 
 ---
 
@@ -157,6 +160,15 @@ python tools/sample_authoritative_combat.py --pid <HOST_PID> [--seconds 10.0] [-
   "read_failures": []
 }
 ```
+
+### Damage Decrease Evaluation & Timeline Analysis
+
+The evaluation utility (`evaluate_damage_decrease`) analyzes observations across sampling runs:
+- **Pointer Anchoring**: Evaluates each hostile pointer independently rather than comparing whatever hostile appears at index 0 across different samples.
+- **Transient Damage Detection**: In addition to net delta (`initial - final`), the evaluator tracks the timeline minimums (`initial - min`) to catch transient shield or health damage before shields regenerate.
+- **Per-Target Breakdown**: In multi-enemy combat encounters, produces `per_target_evaluations` mapping each observed hostile pointer to its individual health/shield trajectory and reports `any_hostile_decrease_observed`.
+- **Level Mutation Invalidation**: Flags `level_actors_changed` if level actor array headers (`TArray<AActor*>` at `+0x60`) mutate during a snapshot (e.g. streaming level garbage collection or spawning).
+- **Read Error Resilience**: Fast-paths null/low addresses (<0x10000), retries bounded reads on `ERROR_BAD_LENGTH` (error 24), and records explicit failure entries if damage module arrays or inventory chains cannot be traversed.
 
 ---
 
