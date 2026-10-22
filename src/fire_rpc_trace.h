@@ -60,17 +60,28 @@ static void fire_rpc_snapshot(int k,const char *stage,unsigned id,unsigned paren
             read_at(s->weapon.pointer+0x3b0,&mode,1)&&read_at(s->weapon.pointer+0x26a,&role,1);
     }
     int state_known=valid&&native_state_name(s->base,s->weapon.pointer,state,sizeof state);
-    GameArray script={0};int offset=-1;
+    int bursts[2]={0},pending=-1;unsigned char pending_byte=0;uint32_t port_flags=0;
+    int bursts_valid=valid&&read_at(s->weapon.pointer+0xef0,bursts,sizeof bursts);
+    int port_valid=valid&&read_at(s->pawn.pointer+0xe1c,&port_flags,4);
+    if(valid&&read_at(s->weapon.pointer+0x10c2,&pending_byte,1))pending=(int)pending_byte;
+    uintptr_t state_node=0;uint32_t state_name[2];char state_path[600]={0},state_safe[1200];
+    if(state_known&&native_state_fields(s->weapon.pointer,&state_node,state_name)&&is_live(s->base,state_node))
+        identity_path(s->base,state_node,state_path,sizeof state_path);
+    identity_quote(state_path,state_safe,sizeof state_safe);
+    GameArray script={0};int offset=-1,parameter=-1;
     if(frame_matches&&read_ptr(frame+0x18)==fire_rpc_methods[k].function.pointer&&
        read_at(fire_rpc_methods[k].function.pointer+0x7c,&script,sizeof script)&&
        script.count==fire_rpc_definitions[k].length&&script.max>=script.count&&script.max<=4096)
         offset=fire_rpc_code_offset(read_ptr(frame+0x28),script.data,script.count);
-    identity_quote(state,safe,sizeof safe);char row[1500];
-    snprintf(row,sizeof row,"{\"fire_rpc_trace\":\"%s\",\"side\":\"%s\",\"call\":%u,\"parent_call\":%u,\"function\":\"%s\",\"generation\":%lu,\"channel_index\":%d,\"incoming_native_rpc\":%s,\"frame_node_matches\":%s,\"frame_object_matches\":%s,\"snapshot_valid\":%s,\"used\":%d,\"spare\":%d,\"bfire\":%u,\"pawn_no_weapon_firing\":%s,\"fire_mode\":%u,\"weapon_role\":%u,\"state_known\":%s,\"state\":\"%s\",\"script_cursor_offset\":%d,\"original_forwarded\":%s,\"monotonic_ms\":%lu}\r\n",
+    if(frame_matches&&object_matches){unsigned char requested=0;uintptr_t locals=read_ptr(frame+0x30);
+        if(read_at(locals,&requested,1))parameter=(int)requested;}
+    identity_quote(state,safe,sizeof safe);char row[3000];
+    snprintf(row,sizeof row,"{\"fire_rpc_trace\":\"%s\",\"side\":\"%s\",\"call\":%u,\"parent_call\":%u,\"function\":\"%s\",\"generation\":%lu,\"channel_index\":%d,\"incoming_native_rpc\":%s,\"frame_node_matches\":%s,\"frame_object_matches\":%s,\"snapshot_valid\":%s,\"used\":%d,\"spare\":%d,\"bfire\":%u,\"pawn_no_weapon_firing\":%s,\"fire_mode\":%u,\"weapon_role\":%u,\"state_known\":%s,\"state\":\"%s\",\"state_path\":\"%s\",\"bursts_read_valid\":%s,\"remaining_burst_fire_count\":%d,\"remaining_bursts_to_fire\":%d,\"pending_fire_mode\":%d,\"pawn_port_flags_read_valid\":%s,\"pawn_port_flags_raw\":%u,\"script_cursor_offset\":%d,\"requested_fire_mode\":%d,\"original_forwarded\":%s,\"monotonic_ms\":%lu}\r\n",
         stage,test_action==6?"host":"guest",id,parent,fire_rpc_definitions[k].path,generation,s->channel.index,
         incoming?"true":"false",frame_matches?"true":"false",object_matches?"true":"false",valid?"true":"false",
         used,spare,(unsigned)bfire,valid?(nofire&0x10000?"true":"false"):"null",(unsigned)mode,(unsigned)role,
-        state_known?"true":"false",safe,offset,!strcmp(stage,"leave")?"true":"false",GetTickCount());line(row);
+        state_known?"true":"false",safe,state_safe,bursts_valid?"true":"false",bursts[0],bursts[1],pending,
+        port_valid?"true":"false",port_flags,offset,parameter,!strcmp(stage,"leave")?"true":"false",GetTickCount());line(row);
 }
 static void fire_rpc_exec(int k,void *self,void *frame,void *result) {
     DWORD before=GetLastError();AmmoWireScope *s=&ammo_wire_scope;
