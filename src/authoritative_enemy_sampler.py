@@ -39,6 +39,7 @@ OFFSET_GWORLD = 0x18B6638
 
 # UObject offsets
 OFFSET_UOBJECT_INTERNAL_INDEX = 0x08
+OFFSET_UOBJECT_FLAGS = 0x0C
 OFFSET_UOBJECT_OUTER = 0x40
 OFFSET_UOBJECT_FNAME = 0x48
 OFFSET_UOBJECT_CLASS = 0x50
@@ -69,6 +70,7 @@ OFFSET_ACTOR_INSTIGATOR = 0x190
 OFFSET_ACTOR_WORLD_INFO = 0x198
 OFFSET_ACTOR_FLAGS = 0x25C
 OFFSET_ACTOR_ROLE = 0x26A
+OFFSET_ACTOR_PENDING_FLAGS = 0x260
 
 # Pawn offsets
 OFFSET_PAWN_CONTROLLER = 0x374
@@ -136,17 +138,31 @@ def verify_isolated_executable(
 
     if not resolved.is_file():
         return False, f"target is not a regular file: {resolved}"
+    if resolved.stat().st_nlink != 1:
+        return False, "executable has multiple hardlinks; independent sandbox identity is unproven"
 
+    if sandbox_dir is None:
+        return False, "an explicit isolated sandbox directory is required"
     if sandbox_dir is not None:
         try:
             resolved_sandbox = sandbox_dir.resolve(strict=True)
             if not resolved.is_relative_to(resolved_sandbox):
                 return False, f"executable {resolved} is outside isolated sandbox {resolved_sandbox}"
+            # Reject junction/symlink ambiguity rather than blessing a resolved
+            # alias into the original game. Inspect lexical ancestors as well.
+            for target in (executable_path.absolute(), sandbox_dir.absolute()):
+                for part in (target, *target.parents):
+                    metadata = part.lstat()
+                    if part.is_symlink() or getattr(metadata, "st_file_attributes", 0) & 0x400:
+                        return False, f"reparse/symlink path is not an isolated sandbox: {part}"
         except Exception as exc:
             return False, f"sandbox verification failed: {exc}"
 
     # Verify SHA-256 hash
-    actual_sha = compute_file_sha256(resolved)
+    try:
+        actual_sha = compute_file_sha256(resolved)
+    except OSError as exc:
+        return False, f"executable hashing failed: {exc}"
     if actual_sha.lower() != expected_sha.lower():
         return False, f"executable SHA-256 mismatch (actual={actual_sha}, expected={expected_sha})"
 
@@ -313,6 +329,10 @@ class WindowsProcessMemory(MemoryReader):
         if not valid:
             self.close()
             raise RuntimeError(f"Executable verification failed: {reason}")
+        expected_path = self.sandbox_dir / "Binaries" / "Win64" / "MassEffect3.exe"
+        if Path(exe_path).resolve() != expected_path.resolve():
+            self.close()
+            raise RuntimeError("module is not the exact sandbox Binaries/Win64/MassEffect3.exe")
 
         self.base_address = base if isinstance(base, int) else int(base)
         self.module_path = exe_path
@@ -394,6 +414,25 @@ class MockMemoryReader(MemoryReader):
         return b"".join(self._memory[a] for a in range(address, address + size))
 
 
+class SamplingBudgetExceeded(RuntimeError):
+    pass
+
+
+class BudgetedReader(MemoryReader):
+    """Bound total remote reads, bytes and wall time of one snapshot."""
+
+    def __init__(self, source, deadline):
+        self.source, self.deadline = source, deadline
+        self.calls = self.bytes = 0
+
+    def read(self, address, size):
+        self.calls += 1
+        self.bytes += max(0, size)
+        if self.calls > 120000 or self.bytes > 32 * 1024 * 1024 or time.monotonic() >= self.deadline:
+            raise SamplingBudgetExceeded("snapshot exceeded read/byte/time budget")
+        return self.source.read(address, size)
+
+
 class AuthoritativeEnemySampler:
     """Bounded, read-only sampler for authoritative enemy health and shields."""
 
@@ -404,6 +443,27 @@ class AuthoritativeEnemySampler:
         self._class_ancestry_cache: Dict[int, List[str]] = {}
         self._gobjects_info_cache: Optional[Tuple[int, int]] = None
         self._level_headers: Dict[int, bytes] = {}
+        self._stable_arrays: Dict[int, Tuple[Any, Tuple[int, ...]]] = {}
+        self._stable_fields: Dict[int, bytes] = {}
+
+    def tracked_array(self, address: int, limit: int):
+        header, items = self.reader.read_tarray(address, limit)
+        self._stable_arrays[address] = (header, tuple(items))
+        return header, items
+
+    def object_identity(self, ptr: int) -> Optional[Dict[str, Any]]:
+        """Bind identity to the live index, name, class and outer, not address alone."""
+        raw = self.reader.read(ptr, 0x60)
+        if len(raw) != 0x60 or not self.is_live_object(ptr):
+            return None
+        return {
+            "pointer": hex(ptr),
+            "internal_index": struct.unpack_from("<i", raw, 8)[0],
+            "fname_index": struct.unpack_from("<I", raw, 0x48)[0],
+            "fname_number": struct.unpack_from("<I", raw, 0x4C)[0],
+            "class_pointer": hex(struct.unpack_from("<Q", raw, 0x50)[0]),
+            "outer_pointer": hex(struct.unpack_from("<Q", raw, 0x40)[0]),
+        }
 
     def get_name(self, index: int) -> str:
         """Resolve FName by index from the global names table."""
@@ -528,7 +588,7 @@ class AuthoritativeEnemySampler:
             return [], 0, ["PersistentLevel does not inherit from Level"]
 
         # Locate WorldInfo in PersistentLevel: check first 16 actors
-        _, actors = self.reader.read_tarray(persistent_level + OFFSET_ULEVEL_ACTORS)
+        _, actors = self.tracked_array(persistent_level + OFFSET_ULEVEL_ACTORS, MAX_ARRAY_ELEMENT_LIMIT)
         if not actors:
             return [], 0, ["PersistentLevel actors array is empty or unreadable"]
 
@@ -547,12 +607,21 @@ class AuthoritativeEnemySampler:
         self._level_headers[persistent_level] = self.reader.read(persistent_level + OFFSET_ULEVEL_ACTORS, 16)
 
         # 1. Enumerate streaming levels from WorldInfo.StreamingLevels (+0x3E4)
-        _, stream_ptrs = self.reader.read_tarray(world_info + OFFSET_WORLDINFO_STREAMING_LEVELS, limit=512)
+        stream_header, stream_ptrs = self.tracked_array(world_info + OFFSET_WORLDINFO_STREAMING_LEVELS, 512)
+        if stream_header is None:
+            failures.append("WorldInfo streaming levels array unreadable")
         for stream in stream_ptrs:
             if not self.is_a(stream, "LevelStreaming"):
                 continue
-            loaded_level = self.reader.read_ptr(stream + OFFSET_LEVELSTREAMING_LOADED_LEVEL)
-            flags = self.reader.read_uint32(stream + OFFSET_LEVELSTREAMING_FLAGS)
+            loaded_raw = self.reader.read(stream + OFFSET_LEVELSTREAMING_LOADED_LEVEL, 8)
+            flags_raw = self.reader.read(stream + OFFSET_LEVELSTREAMING_FLAGS, 4)
+            self._stable_fields[stream + OFFSET_LEVELSTREAMING_LOADED_LEVEL] = loaded_raw
+            self._stable_fields[stream + OFFSET_LEVELSTREAMING_FLAGS] = flags_raw
+            if len(loaded_raw) != 8 or len(flags_raw) != 4:
+                failures.append(f"stream 0x{stream:x} loaded/visible state unreadable")
+                continue
+            loaded_level = struct.unpack("<Q", loaded_raw)[0]
+            flags = struct.unpack("<I", flags_raw)[0]
             is_visible = bool(flags & 1) if flags is not None else False
             if loaded_level and loaded_level not in seen_levels and self.is_a(loaded_level, "Level"):
                 seen_levels.add(loaded_level)
@@ -560,7 +629,9 @@ class AuthoritativeEnemySampler:
                 self._level_headers[loaded_level] = self.reader.read(loaded_level + OFFSET_ULEVEL_ACTORS, 16)
 
         # 2. Also check World.Levels (+0x78) for loaded levels not in streaming list
-        _, world_level_ptrs = self.reader.read_tarray(world_ptr + OFFSET_UWORLD_LEVELS, limit=256)
+        world_levels_header, world_level_ptrs = self.tracked_array(world_ptr + OFFSET_UWORLD_LEVELS, 256)
+        if world_levels_header is None:
+            failures.append("World levels array unreadable")
         for wlvl in world_level_ptrs:
             if wlvl and wlvl not in seen_levels and self.is_a(wlvl, "Level"):
                 seen_levels.add(wlvl)
@@ -581,7 +652,7 @@ class AuthoritativeEnemySampler:
         seen_actors: Set[int] = set()
 
         for level_ptr, level_visible in levels:
-            header, actor_ptrs = self.reader.read_tarray(level_ptr + OFFSET_ULEVEL_ACTORS)
+            header, actor_ptrs = self.tracked_array(level_ptr + OFFSET_ULEVEL_ACTORS, MAX_ARRAY_ELEMENT_LIMIT)
             if header is None:
                 failures.append(f"level 0x{level_ptr:x} actors array is unreadable")
                 continue
@@ -614,6 +685,13 @@ class AuthoritativeEnemySampler:
                     failures.append(f"actor 0x{actor:x} flags unreadable")
                     continue
                 if bool(actor_flags & 8):  # bDeleteMe
+                    continue
+
+                pending_flags = self.reader.read_uint32(actor + OFFSET_ACTOR_PENDING_FLAGS)
+                if pending_flags is None:
+                    failures.append(f"actor 0x{actor:x} pending-delete flags unreadable")
+                    continue
+                if pending_flags & 0x800000:
                     continue
 
                 b_hidden = bool(actor_flags & 2)
@@ -725,7 +803,7 @@ class AuthoritativeEnemySampler:
         # d) Hostile enemy AI controller (SFXAI_Trooper, SFXAI_Guardian, SFXAI_Enemy, SFXAI_Combat, etc.)
         # NOTE: Bare BioAiController is the base class for ALL BioWare AI controllers and is NOT hostile on its own.
         is_hostile_team = team_index is not None and team_index > 0
-        is_combat_squad = bool(squad_ptr and ("BioSquadCombat" in squad_path or "Combat" in squad_class))
+        is_combat_squad = bool(squad_ptr and self.is_a(squad_ptr, "BioSquadCombat"))
         hostile_class_archetypes = (
             "Trooper", "Centurion", "Nemesis", "Engineer",
             "Atlas", "Cannibal", "Marauder", "Husk",
@@ -733,18 +811,18 @@ class AuthoritativeEnemySampler:
             "Guardian", "Phantom", "Turret", "Cerberus",
             "Reaper", "Collector", "SFXPawn_Combat", "SFXPawn_Enemy",
         )
-        is_hostile_class = any(arch.lower() in class_name.lower() for arch in hostile_class_archetypes) or self.is_a(pawn_ptr, "SFXPawn_Combat")
+        is_hostile_class = any(self.is_a(pawn_ptr, "SFXPawn_" + arch) for arch in hostile_class_archetypes if not arch.startswith("SFXPawn_"))
 
         enemy_controllers = (
             "SFXAI_Trooper", "SFXAI_Enemy", "SFXAI_Combat", "SFXAI_Guardian",
             "SFXAI_Centurion", "SFXAI_Nemesis", "SFXAI_Turret", "BioAiCombat",
         )
-        is_hostile_controller = bool(controller_ptr and any(ec.lower() in controller_class.lower() for ec in enemy_controllers))
+        is_hostile_controller = bool(controller_ptr and any(self.is_a(controller_ptr, ec) for ec in enemy_controllers))
         if not is_hostile_controller and is_combat_squad and "BioAiController" in controller_class:
             is_hostile_controller = True
 
         if is_hostile_team or is_combat_squad or is_hostile_class or is_hostile_controller:
-            return True, "genuine_hostile", {
+            return True, "hostile_candidate", {
                 "class": class_name,
                 "path": full_path,
                 "squad": squad_path,
@@ -752,6 +830,7 @@ class AuthoritativeEnemySampler:
                 "controller": controller_path,
                 "controller_class": controller_class,
                 "team_index": team_index,
+                "hostility_verified": False,
                 "hostile_indicators": {
                     "hostile_team": is_hostile_team,
                     "combat_squad": is_combat_squad,
@@ -779,8 +858,14 @@ class AuthoritativeEnemySampler:
             return [], failures
 
         for mod in mod_ptrs:
-            if not mod or not self.is_a(mod, "SFXModule_DamageNativeBase"):
+            if not mod:
                 continue
+            if not self.is_live_object(mod):
+                failures.append(f"module 0x{mod:x} is not a live object")
+                continue
+            if not self.is_a(mod, "SFXModule_DamageNativeBase"):
+                continue
+            identity = self.object_identity(mod)
 
             # VERIFY RECIPROCAL OWNERSHIP: Module.ModuleOwner (+0x60) must point back to actor_ptr
             owner_ptr = self.reader.read_ptr(mod + OFFSET_MODULE_OWNER)
@@ -805,6 +890,7 @@ class AuthoritativeEnemySampler:
 
             modules.append({
                 "pointer": hex(mod),
+                "identity": identity,
                 "class": mod_class,
                 "path": mod_path,
                 "module_owner": hex(owner_ptr),
@@ -814,6 +900,15 @@ class AuthoritativeEnemySampler:
                 "replicated_health": replicated_health,
                 "health_type": health_type,
             })
+
+            if identity is None or self.object_identity(mod) != identity or self.reader.read_ptr(mod + OFFSET_MODULE_OWNER) != actor_ptr:
+                failures.append(f"damage module 0x{mod:x} changed identity/owner during read")
+
+        final_header, final_modules = self.reader.read_tarray(actor_ptr + OFFSET_ACTOR_MODULES, limit=128)
+        if final_header != header or final_modules != mod_ptrs:
+            failures.append("damage module membership changed during read")
+        if not modules:
+            failures.append("no readable authoritative damage module")
 
         return modules, failures
 
@@ -830,15 +925,24 @@ class AuthoritativeEnemySampler:
         shields: List[Dict[str, Any]] = []
         failures: List[str] = []
 
-        inv_manager = self.reader.read_ptr(actor_ptr + OFFSET_PAWN_INVENTORY)
+        inv_raw = self.reader.read(actor_ptr + OFFSET_PAWN_INVENTORY, 8)
+        if len(inv_raw) != 8:
+            return [], ["pawn inventory manager pointer unreadable"]
+        inv_manager = struct.unpack("<Q", inv_raw)[0]
         if not inv_manager:
             return [], failures
-        if not self.is_a(inv_manager, "InventoryManager"):
+        if not self.is_a(inv_manager, "SFXInventoryManager"):
             failures.append(f"actor 0x{actor_ptr:x} inventory manager 0x{inv_manager:x} does not inherit from InventoryManager")
             return [], failures
 
-        curr_item = self.reader.read_ptr(inv_manager + OFFSET_INVENTORY_CHAIN)
+        manager_identity = self.object_identity(inv_manager)
+        head_raw = self.reader.read(inv_manager + OFFSET_INVENTORY_CHAIN, 8)
+        if len(head_raw) != 8:
+            return [], ["inventory chain head unreadable"]
+        curr_item = struct.unpack("<Q", head_raw)[0]
+        initial_head = curr_item
         seen_items: Set[int] = set()
+        links: List[Tuple[int, int, Optional[Dict[str, Any]]]] = []
 
         while curr_item and len(seen_items) < MAX_INVENTORY_CHAIN_LIMIT and curr_item not in seen_items:
             seen_items.add(curr_item)
@@ -846,6 +950,14 @@ class AuthoritativeEnemySampler:
                 if curr_item != 0:
                     failures.append(f"actor 0x{actor_ptr:x} inventory item 0x{curr_item:x} is not a valid live Inventory object")
                 break
+
+            item_identity = self.object_identity(curr_item)
+            next_raw = self.reader.read(curr_item + OFFSET_INVENTORY_NEXT, 8)
+            if len(next_raw) != 8:
+                failures.append(f"inventory item 0x{curr_item:x} next pointer unreadable")
+                break
+            next_item = struct.unpack("<Q", next_raw)[0]
+            links.append((curr_item, next_item, item_identity))
 
             if self.is_a(curr_item, "SFXShield_Base"):
                 # VERIFY RECIPROCAL OWNERSHIP LINKS
@@ -863,7 +975,7 @@ class AuthoritativeEnemySampler:
                         f"owner_matches={owner_matches}, instigator_matches={instigator_matches}, "
                         f"inv_man_matches={inv_man_matches}"
                     )
-                    curr_item = self.reader.read_ptr(curr_item + OFFSET_INVENTORY_NEXT)
+                    curr_item = next_item
                     continue
 
                 current_shields = self.reader.read_float(curr_item + OFFSET_SHIELD_CURRENT_VALUE)
@@ -872,7 +984,7 @@ class AuthoritativeEnemySampler:
 
                 if current_shields is None:
                     failures.append(f"shield 0x{curr_item:x} CurrentShields at +0x3C4 is unreadable or non-finite")
-                    curr_item = self.reader.read_ptr(curr_item + OFFSET_INVENTORY_NEXT)
+                    curr_item = next_item
                     continue
 
                 item_class = self.get_object_name(self.reader.read_ptr(curr_item + OFFSET_UOBJECT_CLASS))
@@ -880,6 +992,10 @@ class AuthoritativeEnemySampler:
 
                 shields.append({
                     "pointer": hex(curr_item),
+                    "identity": item_identity,
+                    "owner": hex(owner_ptr),
+                    "instigator": hex(instigator_ptr),
+                    "inv_manager": hex(inv_man_ptr),
                     "class": item_class,
                     "path": item_path,
                     "owner_matches": True,
@@ -889,16 +1005,52 @@ class AuthoritativeEnemySampler:
                     "max_shields": max_shields,
                     "resistance": resistance,
                 })
+                if (self.object_identity(curr_item) != item_identity or
+                    self.reader.read_ptr(curr_item + OFFSET_INVENTORY_OWNER) != owner_ptr or
+                    self.reader.read_ptr(curr_item + OFFSET_INVENTORY_INSTIGATOR) != instigator_ptr or
+                    self.reader.read_ptr(curr_item + OFFSET_INVENTORY_MANAGER) != inv_man_ptr):
+                    failures.append(f"shield 0x{curr_item:x} changed identity/owner during read")
 
-            curr_item = self.reader.read_ptr(curr_item + OFFSET_INVENTORY_NEXT)
+            curr_item = next_item
+
+        if curr_item:
+            failures.append("inventory chain cycle, invalid link or traversal limit")
+        if (self.object_identity(inv_manager) != manager_identity or
+            self.reader.read_ptr(actor_ptr + OFFSET_PAWN_INVENTORY) != inv_manager or
+            self.reader.read_ptr(inv_manager + OFFSET_INVENTORY_CHAIN) != initial_head):
+            failures.append("inventory manager or chain head changed during read")
+        for item, next_item, identity in links:
+            if self.object_identity(item) != identity or self.reader.read_ptr(item + OFFSET_INVENTORY_NEXT) != next_item:
+                failures.append("inventory chain membership/identity changed during read")
+                break
 
         return shields, failures
 
-    def sample_snapshot(self, sample_index: int = 0) -> Dict[str, Any]:
+    def sample_snapshot(self, sample_index: int = 0, deadline: Optional[float] = None) -> Dict[str, Any]:
+        source = self.reader
+        now = time.monotonic()
+        self.reader = BudgetedReader(source, min(deadline if deadline is not None else now + 3.0, now + 3.0))
+        try:
+            return self._sample_snapshot(sample_index)
+        except SamplingBudgetExceeded as exc:
+            return {"sample_index": sample_index, "monotonic_time_s": now,
+                    "monotonic_ns": time.monotonic_ns(), "read_only": True,
+                    "status": "budget_exhausted", "authoritative": False,
+                    "valid_for_decrease": False, "hostiles_count": 0,
+                    "hostiles": [], "read_failures": [str(exc)]}
+        finally:
+            self.reader = source
+            self._gobjects_info_cache = None
+
+    def _sample_snapshot(self, sample_index: int = 0) -> Dict[str, Any]:
         """Perform one authoritative sample snapshot of current world hostile health and shields."""
         now_monotonic = time.monotonic()
         now_ns = time.monotonic_ns()
         failures: List[str] = []
+        self._class_ancestry_cache.clear()
+        self._stable_arrays.clear()
+        self._stable_fields.clear()
+        self._level_headers.clear()
 
         # Cache GObjects header for the duration of this snapshot
         gobjects_header = self.reader.read(self.base + OFFSET_GOBJECTS, 16)
@@ -920,6 +1072,9 @@ class AuthoritativeEnemySampler:
                     "monotonic_ns": now_ns,
                     "read_only": True,
                     "status": "world_unavailable",
+                    "hostiles_count": 0,
+                    "authoritative": False,
+                    "valid_for_decrease": False,
                     "hostiles": [],
                     "read_failures": ["GWorld pointer is null, unreadable, or not a World"],
                 }
@@ -927,6 +1082,14 @@ class AuthoritativeEnemySampler:
             # Enumerate actors
             actors, enum_failures = self.enumerate_actors(world_ptr)
             failures.extend(enum_failures)
+            world_identity = self.object_identity(world_ptr)
+            persistent_level = self.reader.read_ptr(world_ptr + OFFSET_UWORLD_PERSISTENT_LEVEL)
+            world_info = next((a["pointer"] for a in actors if self.is_a(a["pointer"], "WorldInfo")), 0)
+            world_info_identity = self.object_identity(world_info) if world_info else None
+            netmode = self.reader.read_byte(world_info + OFFSET_WORLDINFO_NET_MODE) if world_info else None
+            authoritative = netmode in (0, 2)
+            if not authoritative:
+                failures.append(f"host authority unverified: NetMode={netmode!r}; require standalone(0) or listen host(2)")
 
             hostiles: List[Dict[str, Any]] = []
             for actor_info in actors:
@@ -934,10 +1097,22 @@ class AuthoritativeEnemySampler:
                 is_hostile, reason, meta = self.classify_pawn(actor)
                 if not is_hostile:
                     continue
+                if actor_info["hidden"] or not actor_info["level_visible"]:
+                    continue
+                identity = self.object_identity(actor)
+                actor_role = self.reader.read_byte(actor + OFFSET_ACTOR_ROLE)
+                actor_world = self.reader.read_ptr(actor + OFFSET_ACTOR_WORLD_INFO)
+                inventory_identity = self.object_identity(self.reader.read_ptr(actor + OFFSET_PAWN_INVENTORY))
+                local_failures: List[str] = []
+                if actor_role != 3:
+                    local_failures.append(f"pawn 0x{actor:x} is not authoritative Role3")
 
                 # Read location
                 loc_raw = self.reader.read(actor + OFFSET_ACTOR_LOCATION, 12)
-                location = list(struct.unpack("<3f", loc_raw)) if len(loc_raw) == 12 else [0.0, 0.0, 0.0]
+                location = list(struct.unpack("<3f", loc_raw)) if len(loc_raw) == 12 else None
+                if location is None or not all(math.isfinite(v) for v in location):
+                    location = None
+                    local_failures.append(f"pawn 0x{actor:x} location unreadable or non-finite")
 
                 # Legacy pawn health (recorded for comparison/proof only; never authoritative)
                 legacy_pawn_health = self.reader.read_int32(actor + OFFSET_PAWN_HEALTH_LEGACY)
@@ -946,18 +1121,37 @@ class AuthoritativeEnemySampler:
                 bio_dead = False
                 if self.is_a(actor, "BioPawn"):
                     dead_flags = self.reader.read_uint32(actor + OFFSET_BIOPAWN_DEAD_FLAGS)
+                    if dead_flags is None:
+                        local_failures.append(f"pawn 0x{actor:x} dead flags unreadable")
                     bio_dead = bool(dead_flags and (dead_flags & 0x200))
 
                 # Sample authoritative damage modules
                 damage_modules, mod_failures = self.sample_damage_modules(actor)
-                failures.extend(mod_failures)
+                local_failures.extend(mod_failures)
 
                 # Sample authoritative shields
                 shields, shield_failures = self.sample_inventory_shields(actor)
-                failures.extend(shield_failures)
+                local_failures.extend(shield_failures)
+                actor_flags_after = self.reader.read_uint32(actor + OFFSET_ACTOR_FLAGS)
+                pending_after = self.reader.read_uint32(actor + OFFSET_ACTOR_PENDING_FLAGS)
+                if (identity is None or self.object_identity(actor) != identity or
+                    self.reader.read_ptr(actor + OFFSET_ACTOR_WORLD_INFO) != actor_world or
+                    self.reader.read_byte(actor + OFFSET_ACTOR_ROLE) != actor_role or
+                    actor_flags_after is None or actor_flags_after & 8 or
+                    pending_after is None or pending_after & 0x800000 or
+                    self.object_identity(self.reader.read_ptr(actor + OFFSET_PAWN_INVENTORY)) != inventory_identity):
+                    local_failures.append(f"pawn 0x{actor:x} identity/lifecycle changed during sample")
+                failures.extend(local_failures)
 
                 hostiles.append({
                     "pointer": hex(actor),
+                    "identity": identity,
+                    "world_info": hex(actor_world),
+                    "role": actor_role,
+                    "inventory_identity": inventory_identity,
+                    "measurement_complete": not local_failures,
+                    "measurement_failures": local_failures,
+                    "hostility_verified": meta.get("hostility_verified", False),
                     "path": meta.get("path", ""),
                     "class": meta.get("class", ""),
                     "level_visible": actor_info["level_visible"],
@@ -982,6 +1176,23 @@ class AuthoritativeEnemySampler:
                     level_tables_changed = True
                     failures.append(f"level 0x{lev_ptr:x} actor table changed during snapshot")
                     break
+            for address, (initial_header, initial_items) in self._stable_arrays.items():
+                current_header, current_items = self.reader.read_tarray(address, MAX_ARRAY_ELEMENT_LIMIT)
+                if current_header != initial_header or tuple(current_items) != initial_items:
+                    level_tables_changed = True
+                    failures.append(f"world/level array 0x{address:x} contents changed during snapshot")
+                    break
+            for address, initial in self._stable_fields.items():
+                if self.reader.read(address, len(initial)) != initial:
+                    level_tables_changed = True
+                    failures.append("streaming loaded/visible state changed during snapshot")
+                    break
+            if (self.reader.read(self.base + OFFSET_GOBJECTS, 16) != gobjects_header or
+                self.object_identity(world_ptr) != world_identity or
+                self.object_identity(world_info) != world_info_identity or
+                self.reader.read_ptr(world_ptr + OFFSET_UWORLD_PERSISTENT_LEVEL) != persistent_level or
+                self.reader.read_byte(world_info + OFFSET_WORLDINFO_NET_MODE) != netmode):
+                failures.append("world/object table identity or authority changed during snapshot")
 
             if world_check != world_ptr:
                 failures.append(f"GWorld pointer changed during snapshot (0x{world_ptr:x} -> 0x{world_check:x})")
@@ -1001,6 +1212,11 @@ class AuthoritativeEnemySampler:
                 "monotonic_ns": now_ns,
                 "read_only": True,
                 "status": status,
+                "authoritative": authoritative,
+                "valid_for_decrease": authoritative and not failures,
+                "netmode": netmode,
+                "world_identity": world_identity,
+                "world_info_identity": world_info_identity,
                 "world_pointer": hex(world_ptr),
                 "actors_scanned": len(actors),
                 "hostiles_count": len(hostiles),
@@ -1028,10 +1244,11 @@ class AuthoritativeEnemySampler:
 
         samples: List[Dict[str, Any]] = []
         start_time = time.monotonic()
+        deadline = start_time + duration_seconds
         sample_index = 0
 
         while (time.monotonic() - start_time) < duration_seconds:
-            sample = self.sample_snapshot(sample_index=sample_index)
+            sample = self.sample_snapshot(sample_index=sample_index, deadline=deadline)
             samples.append(sample)
 
             if output_stream is not None:
@@ -1044,146 +1261,128 @@ class AuthoritativeEnemySampler:
                 callback(sample)
 
             sample_index += 1
-            time.sleep(interval_seconds)
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                time.sleep(min(interval_seconds, remaining))
 
         return samples
 
 
 def evaluate_damage_decrease(observations: List[Dict[str, Any]], target_pointer: Optional[str] = None) -> Dict[str, Any]:
-    """Analyze a sequence of observations for an authoritative health or shield decrease.
+    """Compare complete observations only within an uninterrupted identity epoch.
 
-    CRITICAL RULE (Requirement 8):
-    A health decrease proves ONLY a health decrease. Do NOT attribute damage to the guest
-    without actual hit/weapon attribution evidence.
+    Missing/unreadable data is unknown. A changed world, pawn generation, damage
+    module or shield starts a new epoch. Health deltas never establish the shooter.
     """
-    if not observations:
-        return {
-            "decrease_observed": False,
-            "reason": "no observations provided",
-            "target_pointer": target_pointer,
-            "health_decrease": 0.0,
-            "shield_decrease": 0.0,
-            "guest_damage_attribution_proven": False,
-            "unresolved_limitations": ["No observations supplied to evaluate."],
-        }
+    pointers = list(dict.fromkeys(
+        h.get("pointer", "").lower() for o in observations for h in o.get("hostiles", []) if h.get("pointer")
+    ))
 
-    # Discover all distinct hostile pointers observed
-    all_observed_pointers: List[str] = []
-    for obs in observations:
-        for h in obs.get("hostiles", []):
-            ptr_str = h.get("pointer", "").lower()
-            if ptr_str and ptr_str not in all_observed_pointers:
-                all_observed_pointers.append(ptr_str)
+    def observation_values(o, h):
+        if (o.get("status") != "ok" or not o.get("valid_for_decrease") or
+            not o.get("authoritative") or o.get("netmode") not in (0, 2) or
+            o.get("read_failures") or not h.get("measurement_complete") or
+            h.get("measurement_failures") or h.get("role") != 3):
+            return None
+        identities = [o.get("world_identity"), o.get("world_info_identity"), h.get("identity")]
+        if any(not i or not all(k in i for k in ("pointer", "internal_index", "fname_index", "fname_number", "class_pointer", "outer_pointer")) for i in identities):
+            return None
+        modules, shields = h.get("damage_modules"), h.get("shields")
+        if not isinstance(modules, list) or not modules or not isinstance(shields, list):
+            return None
+        parts, values = [], []
+        for items, value_key, link_keys in (
+            (modules, "current_health", ("module_owner",)),
+            (shields, "current_shields", ("owner", "instigator", "inv_manager")),
+        ):
+            seen, total, component_ids = set(), 0.0, []
+            for item in items:
+                identity, value = item.get("identity"), item.get(value_key)
+                pointer = item.get("pointer")
+                if (not identity or not all(k in identity for k in ("internal_index", "fname_index", "fname_number", "class_pointer", "outer_pointer")) or
+                    pointer != identity.get("pointer") or pointer in seen or
+                    not isinstance(value, (float, int)) or not math.isfinite(value) or
+                    any(k not in item for k in link_keys)):
+                    return None
+                if value_key == "current_health" and item["module_owner"] != h["pointer"]:
+                    return None
+                if value_key == "current_shields" and (item["owner"] != h["pointer"] or item["instigator"] != h["pointer"]):
+                    return None
+                seen.add(pointer)
+                total += value
+                component_ids.append((identity, tuple(item[k] for k in link_keys)))
+            parts.append(sorted(component_ids, key=lambda x: x[0]["pointer"]))
+            values.append(total)
+        stamp = json.dumps((identities, o.get("world_pointer"), o["netmode"], h.get("path"),
+                            h.get("class"), h.get("world_info"), h.get("inventory_identity"), parts), sort_keys=True)
+        timestamp = o.get("monotonic_time_s")
+        if not isinstance(timestamp, (int, float)) or not math.isfinite(timestamp):
+            return None
+        return stamp, timestamp, *values
 
-    if not all_observed_pointers:
-        return {
-            "decrease_observed": False,
-            "reason": "no hostiles found in observations",
-            "target_pointer": target_pointer,
-            "health_decrease": 0.0,
-            "shield_decrease": 0.0,
-            "guest_damage_attribution_proven": False,
-            "unresolved_limitations": ["No hostile pawns were identified in any observation."],
-        }
+    def evaluate_target(pointer):
+        epochs, current, previous_stamp, previous_time = [], [], None, None
+        qualified = 0
+        for o in observations:
+            matches = [h for h in o.get("hostiles", []) if h.get("pointer", "").lower() == pointer]
+            v = observation_values(o, matches[0]) if len(matches) == 1 else None
+            if v is None:
+                if current:
+                    epochs.append(current)
+                current, previous_stamp, previous_time = [], None, None
+                continue
+            stamp, timestamp, health, shield = v
+            if stamp != previous_stamp or (previous_time is not None and timestamp <= previous_time):
+                if current:
+                    epochs.append(current)
+                current = []
+            current.append((timestamp, health, shield, matches[0]))
+            qualified += 1
+            previous_stamp, previous_time = stamp, timestamp
+        if current:
+            epochs.append(current)
+        results = []
+        for epoch in epochs:
+            if len(epoch) < 2:
+                continue
+            health_peak, shield_peak = epoch[0][1:3]
+            health_decrease = shield_decrease = 0.0
+            for _, health, shield, _ in epoch:
+                health_decrease = max(health_decrease, health_peak - health)
+                shield_decrease = max(shield_decrease, shield_peak - shield)
+                health_peak, shield_peak = max(health_peak, health), max(shield_peak, shield)
+            first, last = epoch[0], epoch[-1]
+            results.append({
+                "target_pointer": pointer, "target_path": first[3].get("path"),
+                "samples_count": len(epoch), "initial_health": first[1], "final_health": last[1],
+                "initial_shields": first[2], "final_shields": last[2],
+                "health_decrease": health_decrease, "shield_decrease": shield_decrease,
+                "net_health_decrease": max(0.0, first[1] - last[1]),
+                "net_shield_decrease": max(0.0, first[2] - last[2]),
+                "time_window_seconds": last[0] - first[0],
+                "decrease_observed": health_decrease > 0.001 or shield_decrease > 0.001,
+            })
+        if not results:
+            return {"target_pointer": pointer, "decrease_observed": False,
+                    "health_decrease": 0.0, "shield_decrease": 0.0,
+                    "reason": "insufficient complete samples in a stable identity epoch",
+                    "samples_count": qualified, "epochs": []}
+        result = dict(max(results, key=lambda r: r["health_decrease"] + r["shield_decrease"]))
+        result["epochs"] = results
+        return result
 
-    # Determine primary target pointer
-    primary_target = target_pointer.lower() if target_pointer else all_observed_pointers[0]
-
-    def evaluate_single_target(ptr: str) -> Dict[str, Any]:
-        target_samples: List[Tuple[float, Dict[str, Any]]] = []
-        for obs in observations:
-            matched = [h for h in obs.get("hostiles", []) if h.get("pointer", "").lower() == ptr]
-            if matched:
-                target_samples.append((obs.get("monotonic_time_s", 0.0), matched[0]))
-
-        if len(target_samples) < 2:
-            return {
-                "decrease_observed": False,
-                "reason": "insufficient samples for target",
-                "samples_count": len(target_samples),
-                "target_pointer": ptr,
-                "health_decrease": 0.0,
-                "shield_decrease": 0.0,
-            }
-
-        first_time, first_h = target_samples[0]
-        last_time, last_h = target_samples[-1]
-
-        # Calculate health values across all samples for this target
-        health_timeline: List[float] = []
-        shield_timeline: List[float] = []
-
-        for _, h in target_samples:
-            h_sum = sum(m.get("current_health", 0.0) for m in h.get("damage_modules", []))
-            s_sum = sum(s.get("current_shields", 0.0) for s in h.get("shields", []))
-            health_timeline.append(h_sum)
-            shield_timeline.append(s_sum)
-
-        initial_health = health_timeline[0]
-        final_health = health_timeline[-1]
-        min_health = min(health_timeline)
-        net_health_decrease = max(0.0, initial_health - final_health)
-        max_health_decrease = max(0.0, initial_health - min_health)
-
-        initial_shields = shield_timeline[0]
-        final_shields = shield_timeline[-1]
-        min_shields = min(shield_timeline)
-        net_shield_decrease = max(0.0, initial_shields - final_shields)
-        max_shield_decrease = max(0.0, initial_shields - min_shields)
-
-        decrease_observed = (max_health_decrease > 0.001) or (max_shield_decrease > 0.001)
-
-        return {
-            "decrease_observed": decrease_observed,
-            "target_pointer": first_h.get("pointer", ptr),
-            "target_path": first_h.get("path"),
-            "target_class": first_h.get("class"),
-            "samples_count": len(target_samples),
-            "initial_health": initial_health,
-            "final_health": final_health,
-            "min_health": min_health,
-            "net_health_decrease": net_health_decrease,
-            "health_decrease": max_health_decrease,
-            "initial_shields": initial_shields,
-            "final_shields": final_shields,
-            "min_shields": min_shields,
-            "net_shield_decrease": net_shield_decrease,
-            "shield_decrease": max_shield_decrease,
-            "time_window_seconds": last_time - first_time,
-        }
-
-    # Evaluate primary target
-    primary_eval = evaluate_single_target(primary_target)
-
-    # Evaluate all targets
-    per_target = {ptr: evaluate_single_target(ptr) for ptr in all_observed_pointers}
-    any_decrease = any(res.get("decrease_observed", False) for res in per_target.values())
-
-    result = {
-        "decrease_observed": primary_eval.get("decrease_observed", False),
-        "any_hostile_decrease_observed": any_decrease,
-        "target_pointer": primary_eval.get("target_pointer", primary_target),
-        "target_path": primary_eval.get("target_path"),
-        "initial_health": primary_eval.get("initial_health", 0.0),
-        "final_health": primary_eval.get("final_health", 0.0),
-        "health_decrease": primary_eval.get("health_decrease", 0.0),
-        "initial_shields": primary_eval.get("initial_shields", 0.0),
-        "final_shields": primary_eval.get("final_shields", 0.0),
-        "shield_decrease": primary_eval.get("shield_decrease", 0.0),
-        "time_window_seconds": primary_eval.get("time_window_seconds", 0.0),
-        "per_target_evaluations": per_target,
-        "guest_damage_attribution_proven": False,
-        "attribution_note": (
-            "A health or shield decrease proves only that authoritative health/shields decreased. "
-            "Without observed hit/weapon attribution (e.g. ProcessInstantHit with guest weapon and controller), "
-            "damage cannot be attributed to the guest."
-        ),
-        "unresolved_limitations": [
-            "Hit and weapon attribution requires separate verified shot/hit trace observation.",
-            "Health decrease could be caused by host Shepard, AI companions, environment, or scripted events.",
+    primary = target_pointer.lower() if target_pointer else (pointers[0] if pointers else None)
+    per_target = {p: evaluate_target(p) for p in pointers}
+    result = dict(per_target.get(primary) or evaluate_target(primary))
+    result.update(
+        any_hostile_decrease_observed=any(r["decrease_observed"] for r in per_target.values()),
+        per_target_evaluations=per_target,
+        guest_damage_attribution_proven=False,
+        attribution_note="A stable health/shield decrease establishes only that decrease. Without observed hit/weapon attribution from actual damage processing, the shooter is unproven. ServerStartFire or queued ProcessInstantHit entry alone is insufficient.",
+        unresolved_limitations=[
+            "Candidate classification is not a verified hostile relationship to Shepard.",
+            "The shooter may be Shepard, AI, environment or script; this sampler does not instrument actual damage processing.",
+            "Object address/index/name identity cannot prove uninterrupted lifetime between observations when exact identity fields are all reused.",
         ],
-    }
-    if not primary_eval.get("decrease_observed", False) and "reason" in primary_eval:
-        result["reason"] = primary_eval["reason"]
-
+    )
     return result

@@ -125,6 +125,8 @@ def main() -> int:
     print(f"Executable SHA-256:   {SUPPORTED_EXECUTABLE_SHA256}")
 
     try:
+        if output_path.suffix.lower() != ".jsonl" or output_path.resolve().is_relative_to(sandbox_dir.resolve()):
+            raise ValueError("output must be a new private .jsonl file outside the game sandbox")
         with WindowsProcessMemory(args.pid, sandbox_dir=sandbox_dir) as memory:
             print(f"Connected to PID {args.pid}. Module base: 0x{memory.base_address:x}")
             print(f"Executable path verified: {memory.module_path}")
@@ -132,12 +134,12 @@ def main() -> int:
             sampler = AuthoritativeEnemySampler(memory, memory.base_address)
 
             samples_collected = 0
-            with output_path.open("w", encoding="utf-8") as stream:
+            with output_path.open("x", encoding="utf-8") as stream:
                 def on_sample(sample: dict):
                     nonlocal samples_collected
                     samples_collected += 1
                     status = sample["status"]
-                    hostiles = sample["hostiles_count"]
+                    hostiles = sample.get("hostiles_count", 0)
                     failures = len(sample["read_failures"])
                     print(
                         f"[{sample['sample_index']:03d}] t={sample['monotonic_time_s']:.2f}s "

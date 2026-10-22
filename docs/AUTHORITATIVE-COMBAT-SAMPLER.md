@@ -1,190 +1,70 @@
-# Authoritative Combat Sampler for ME3 Legendary Edition Co-op Tests
+# Read-only combat health sampler
 
-## 1. Overview & Purpose
+This offline-tested tool samples health and shields from an **already running**, explicitly supplied LE3 process. It does not launch, inject, execute engine methods or write process memory. A process handle requests only `PROCESS_VM_READ | PROCESS_QUERY_INFORMATION` (`0x410`).
 
-This tool implements a bounded, read-only Windows process-memory sampler to extract authoritative enemy health and shields during Mass Effect 3 Legendary Edition campaign co-op experiments.
+**Status: diagnostic tooling, not verified live combat.** The original external contribution added the reader, CLI and 26 fixtures. Independent review reproduced false health-decrease claims from missing module reads and a different pawn/world reusing an address. The follow-up changes reject those cases and add regression coverage. No live hostile damage or guest damage attribution has been established by these changes.
 
-Key engineering constraints:
-- **Strictly Read-Only**: Opens process memory with `PROCESS_VM_READ | PROCESS_QUERY_INFORMATION` (`0x0410`). It never requests write access, executes remote threads, allocates memory, injects code, or modifies the game process.
-- **Explicit Host PID**: Never launches or discovers arbitrary game processes. The host PID must be explicitly passed.
-- **Isolated Sandbox Verification**: Enforces that the target executable is located within the verified isolated sandbox directory and matches SHA-256 `b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001`.
-- **Authoritative Values over Legacy Placeholders**: Legacy `Pawn.Health` (+0x514) is not authoritative health. The sampler queries actual damage modules (`CurrentHealth` at +0x98) and inventory shields (`CurrentShields` at +0x3C4) with reciprocal ownership validation.
-- **Attribution Skepticism**: An observed decrease in enemy health or shields proves only that health/shields decreased. It does not attribute damage to the guest without independent hit/weapon attribution proof.
+## Supported build and isolation
 
----
+Only Windows x64 LE3 executable SHA-256 `b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001` is supported. The CLI locates the named executable module in the supplied PID and verifies its disk SHA and exact sandbox `Binaries/Win64/MassEffect3.exe` path. Missing sandbox configuration, path escapes, symlink/reparse ancestors and multiple executable hardlinks are rejected. This validates the sampler target; it does not independently prove that the whole game copy or original profiles are isolated. Establish the existing protected test environment before launching any game.
 
-## 2. Memory Layouts & Verified Offsets
+The `--sandbox` option designates the caller's already verified private copy. It is not an automatic isolation setup or permission to point the sampler at the original install. Source-level `expected_sha` overrides exist for hermetic filesystem fixtures; the CLI uses the supported build constant.
 
-The sampler offsets were independently verified against both static executable disassembly and live reflected `UProperty` metadata from research captures:
+## Data sources
 
-| Structure | Member | Offset | Verification Evidence |
-|---|---|---|---|
-| `GNames` | Name table pool pointer | `+0x17B33D0` | Name table chunk resolution `(index >> 29) * 8` |
-| `GObjects` | Object array header (`Data`, `Count`, `Max`) | `+0x1887E40` | Live object index verification (`InternalIndex` at `+0x08`) |
-| `GWorld` | Current world pointer | `+0x18B6638` | `UWorld` pointer validation |
-| `UWorld` | `Levels` array (`TArray<ULevel*>`) | `+0x78` | Native world levels array traversal |
-| `UWorld` | `PersistentLevel` | `+0x88` | Validated `ULevel` ancestry |
-| `ULevel` | `Actors` array (`TArray<AActor*>`) | `+0x60` | Bounded actor array enumeration |
-| `WorldInfo` | `StreamingLevels` array | `+0x3E4` | Loaded level streaming enumeration |
-| `LevelStreaming` | `LoadedLevel` | `+0xA0` | Pointer to loaded streaming `ULevel` |
-| `LevelStreaming` | `bIsVisible` flags | `+0xCC` | Bit 0: streaming level visibility |
-| `Actor` | `Modules` array (`TArray<USFXModule*>`) | `+0x70` | Native `Actor.GetModule` traversal (`RVA 0x3F36C0`) |
-| `Actor` | `Location` (`FVector`) | `+0x108` | [X, Y, Z] 32-bit floats |
-| `Actor` | `WorldInfo` | `+0x198` | Validates current-world membership |
-| `Actor` | `ActorFlags` (`uint32`) | `+0x25C` | Bit 1 = `bHidden`, Bit 3 = `bDeleteMe` |
-| `SFXModule` | `ModuleOwner` | `+0x60` | **Reciprocal ownership**: must point back to target pawn |
-| `SFXModule_DamageNativeBase` | `MaxHealth` (`float`) | `+0x90` | Reflected property offset 112 (`+0x70` + `0x20`) |
-| `SFXModule_DamageNativeBase` | `CurrentHealth` (`float`) | `+0x98` | Native `GetCurrentHealth` (`RVA 0xBE7B30`: `movss xmm0, [rcx + 0x98]; ret`) |
-| `SFXModule_DamageNativeBase` | `ReplicatedHealth` (`uint8`) | `+0xAC` | Quantized network health presentation |
-| `SFXModule_Damage` | `HealthType` (`uint8`) | `+0x214` | Enum: Default=0, Shields=1, Barrier=2, Armour=3 |
-| `Pawn` | `Controller` | `+0x374` | Controller reference |
-| `Pawn` | `InvManager` | `+0x414` | `SFXInventoryManager` reference |
-| `Pawn` | `Health` (legacy, int32) | `+0x514` | Non-authoritative engine placeholder |
-| `BioPawn` | `Squad` | `+0xBA8` | Squad membership reference |
-| `BioPawn` | `bio_dead` flag | `+0xE20` | Bit 9 (`0x200`) indicates dead BioPawn |
-| `SFXInventoryManager` | `InventoryChain` | `+0x280` | Head of inventory linked list |
-| `Inventory` | `Owner` | `+0x180` | **Reciprocal ownership**: must point back to target pawn |
-| `Inventory` | `Instigator` | `+0x190` | **Reciprocal ownership**: must point back to target pawn |
-| `Inventory` | `Inventory` (next pointer) | `+0x2A8` | Next item in inventory chain |
-| `Inventory` | `InvManager` | `+0x2B0` | **Reciprocal ownership**: must match pawn's `InvManager` |
-| `SFXShield_Base` | `MaxShields` (`float`) | `+0x304` | Reflected property offset 740 (`+0x2E4` + `0x20`) |
-| `SFXShield_Base` | `CurrentShields` (`float`) | `+0x3C4` | Reflected property offset 964 (`+0x3C4`) |
-| `SFXShield_Base` | `Resistance` (`uint8`) | `+0x3E4` | Resistance class byte |
-| `Controller` | `PlayerReplicationInfo` | `+0x3C4` | PRI reference (`RVA 0x497860`) |
-| `PlayerReplicationInfo` | `Team` (`TeamInfo*`) | `+0x2D8` | Team reference (`RVA 0x497860`) |
-| `TeamInfo` | `TeamIndex` (`int32`) | `+0x288` | Team index (0 = Player/Alliance, >0 = Hostile) |
+These exact-build offsets agree with the existing private native/reflection captures; fixtures alone are not offset verification.
 
----
+| Structure | Field | Offset |
+| --- | --- | --- |
+| Executable | GNames / GObjects / GWorld | `0x17B33D0` / `0x1887E40` / `0x18B6638` |
+| UObject | InternalIndex / FName / Class / Outer | `0x08` / `0x48` / `0x50` / `0x40` |
+| UClass | SuperField / ClassDefaultObject | `0x60` / `0x13C` |
+| UWorld | Levels / PersistentLevel | `0x78` / `0x88` |
+| ULevel | Actors | `0x60` |
+| WorldInfo | StreamingLevels / NetMode | `0x3E4` / `0x7C8` |
+| LevelStreaming | LoadedLevel / visibility bit | `0xA0` / `0xCC` mask `1` |
+| Actor | Modules / WorldInfo / Role | `0x70` / `0x198` / `0x26A` |
+| Actor | bDeleteMe / bPendingDelete | `0x25C` mask `8` / `0x260` mask `0x800000` |
+| SFXModule | ModuleOwner | `0x60` |
+| SFXModule_DamageNativeBase | CurrentHealth / MaxHealth.Value | `0x98` / `0x90` |
+| Pawn | InvManager / legacy Health | `0x414` / `0x514` |
+| SFXInventoryManager | InventoryChain | `0x280` |
+| Inventory | next / InvManager / Owner / Instigator | `0x2A8` / `0x2B0` / `0x180` / `0x190` |
+| SFXShield_Base | CurrentShields / MaxShields.Value | `0x3C4` / `0x304` |
+| Controller / PRI / TeamInfo | PRI / Team / TeamIndex | `0x3C4` / `0x2D8` / `0x288` |
 
-## 3. Hostile Pawn Identification & Gatehouse Dummy Rejection
+Health comes from actual `Actor.Modules` damage-module instances, never legacy `Pawn.Health` or class defaults. Damage `ModuleOwner` must reciprocally reference the pawn. Shields come from its actual inventory chain, requiring reciprocal `Owner`, `Instigator` and `InvManager` links. Missing or non-finite health is unknown, never zero.
 
-A common error in naive pawn discovery is classifying any non-Shepard pawn as an enemy. In Mass Effect 3 campaign levels (specifically Mars `BioD_ProMar_120Gatehouse`), a dummy scripted `BioPawn_0` exists:
-- Path: `BioD_ProMar_120Gatehouse.TheWorld.PersistentLevel.BioPawn_0`
-- Class: exact base `BioPawn`
-- Squad: `None` (0x0)
-- Team: `None`
-- Controller: base engine `AIController_1` (not a combat AI)
-- Shields: 0 (empty inventory)
-- Health: 100.0 dummy value
+## Candidate scope and authority
 
-The sampler strictly rejects this actor and only classifies pawns as genuine hostiles when:
-1. The pawn is not the player pawn (`SFXPawn_PlayerSoldier`).
-2. The pawn does not belong to the player squad (`BioPlayerSquad`).
-3. The pawn's controller is not `SFXPlayerController` or `SFXAI_Henchman`.
-4. The pawn's team index is not 0 (player team).
-5. The pawn exhibits positive hostile metadata:
-   - Hostile team index (`team_index > 0`), or
-   - Assigned to a combat squad (`BioSquadCombat`), or
-   - Controlled by a dedicated combat AI controller (`SFXAI_Trooper`, `SFXAI_Enemy`, `SFXAI_Combat`, `SFXAI_Guardian`, `SFXAI_Centurion`, `SFXAI_Nemesis`, `SFXAI_Turret`, `BioAiCombat`, or `BioAiController` explicitly assigned to a combat squad), or
-   - Belongs to a recognized hostile archetype class (`SFXPawn_Trooper`, `SFXPawn_Centurion`, `SFXPawn_Guardian`, `SFXPawn_Phantom`, `SFXPawn_Turret`, `SFXPawn_Cannibal`, etc.).
+The sampler enumerates current persistent and loaded streaming level actor arrays, validates GObjects membership and Actor.WorldInfo, rejects deleted/pending-delete actors, and excludes hidden actors and invisible streaming levels. CDO checks use the actual UClass.ClassDefaultObject pointer and `Default__` names. **The exact-build `RF_ClassDefaultObject` and UObject pending-kill bit meanings are not independently pinned here; comprehensive object-lifetime validation is not claimed.**
 
-Note: Generic `BioAiController` without a combat squad is NOT treated as a hostile indicator, preventing false-positive classification of civilian, ambient, or neutral NPCs.
+Player/squad/henchman exclusions and exact archetype/controller ancestry identify **hostile candidates**. Generic BioAiController alone and names merely containing `Engineer`, `Geth`, etc. do not qualify. Known Gatehouse base-BioPawn dummy data is rejected. A class, team number or combat-squad name is not proof of the current relationship to Shepard. Records therefore retain `hostility_verified: false`; verify actual enemy behavior/relationship separately before claiming enemy damage.
 
----
+A valid authoritative measurement additionally requires host/standalone `NetMode` 2 or 0 and target `Role` 3. Client floats are never accepted as authoritative damage evidence. Class/name ancestry cache is rebuilt each snapshot.
 
-## 4. Reciprocal Ownership Verification
+## Stable measurements and epochs
 
-To guard against stale pointers, misattributed components, or hijacked modules:
-- **Damage Module**: `Module.ModuleOwner (+0x60)` must strictly equal the target pawn's address. Any mismatched module is rejected with an explicit failure record.
-- **Inventory Shields**: The shield actor traversed in the inventory chain must satisfy:
-  - `Shield.Owner (+0x180) == TargetPawn`
-  - `Shield.Instigator (+0x190) == TargetPawn`
-  - `Shield.InvManager (+0x2B0) == TargetPawn.InvManager`
-  If any link does not match, the shield is rejected.
+Every snapshot binds world and WorldInfo identities, actor index/FName/class/outer, module identity/owner and shield identity/owner/manager. Module membership, inventory-chain links, current world/authority, GObjects header and world/level array **contents** are checked again after sampling. Detected changes or partial reads invalidate that snapshot for delta evaluation. Reads are not atomic; mutation and complete identity reuse between observations remain possible and are explicit limitations.
 
----
+`evaluate_damage_decrease` compares complete, authoritative records only within uninterrupted identity epochs. Missing targets, invalid samples, non-increasing timestamps and changed world/pawn/module/shield identities break the epoch. An unreadable module or missing shield never becomes a zero-health/zero-shield endpoint. Replaced components start a new epoch. Per-target epochs retain valid decreases, including transient shield loss followed by regeneration, without comparing different enemies.
 
-## 5. Usage Instructions
+The output field `decrease_observed` means only that a candidate's verified health/shield values decreased within one such epoch. It does not identify the shooter. `guest_damage_attribution_proven` is always false. Neither an incoming `ServerStartFire` nor the queued `SFXPreAsyncWorkTicker.ProcessInstantHit` entry proves actual damage; attribution requires the actual damage-processing path, matching weapon/controller/target, and exclusion of ambiguous sources. This tool implements no hit hook.
 
-### CLI Invocation
+## Usage and budgets
 
 ```powershell
-python tools/sample_authoritative_combat.py --pid <HOST_PID> [--seconds 10.0] [--interval 0.25]
+python tools/sample_authoritative_combat.py --pid <HOST_PID> --seconds 10 --interval 0.25
 ```
 
-### Options
-- `--pid <PID>`: Explicitly supplied PID of the running host game process (required).
-- `--seconds <FLOAT>`: Bounded sampling duration in seconds (allowed: `0.1` to `120.0`, default: `10.0`).
-- `--interval <FLOAT>`: Bounded sampling interval in seconds (allowed: `0.05` to `5.0`, default: `0.25`).
-- `--sandbox <PATH>`: Optional path to the isolated sandbox test installation.
-- `--output <PATH>`: Optional path to output private JSONL file. Defaults to `work/coop-anything/local/me3-le/combat-authoritative-samples-<pid>-<tick>.jsonl`.
-- `--target <HEX>`: Optional target actor pointer filter (e.g. `0x123f45a90`) to evaluate deltas on a specific hostile.
+Optional `--sandbox <PATH>` selects the already verified isolated copy; the local default follows the repository's private test layout. `--output <PATH>` must be a new private `.jsonl` outside the game sandbox. Existing files are never overwritten. Raw logs remain private and must not be committed. `--target <HEX>` selects a candidate pointer for the summary; complete identity epochs still govern comparison.
 
-### Sample Output Record (JSONL)
+Duration is 0.1–120 seconds; interval is 0.05–5 seconds. Each snapshot stops at 120,000 reader calls, 32 MiB requested data, three seconds or the run's remaining deadline, whichever occurs first. A budget failure is explicit and invalidates the sample. Individual OS reads, output writes and caller-supplied callbacks cannot be preempted by this Python deadline. Arrays, ancestry, outer chains and inventory links have independent count limits.
 
-```json
-{
-  "sample_index": 0,
-  "monotonic_time_s": 1423.85,
-  "monotonic_ns": 1423851029300,
-  "read_only": true,
-  "status": "ok",
-  "world_pointer": "0x78c7b810",
-  "actors_scanned": 42,
-  "hostiles_count": 1,
-  "hostiles": [
-    {
-      "pointer": "0x12a84b000",
-      "path": "BioD_ProMar_100Surface.TheWorld.PersistentLevel.SFXPawn_Trooper_0",
-      "class": "SFXPawn_Trooper",
-      "level_visible": true,
-      "hidden": false,
-      "bio_dead": false,
-      "location": [-21450.0, 48200.0, 310.0],
-      "team_index": 1,
-      "squad": "BioD_ProMar_100Surface.TheWorld.PersistentLevel.BioSquadCombat_0",
-      "controller": "BioD_ProMar_100Surface.TheWorld.PersistentLevel.SFXAI_Trooper_0",
-      "legacy_pawn_health": 100,
-      "damage_modules": [
-        {
-          "pointer": "0x12f440000",
-          "class": "SFXModule_Damage",
-          "path": "BioD_ProMar_100Surface.TheWorld.PersistentLevel.SFXPawn_Trooper_0.DmgMod0",
-          "module_owner": "0x12a84b000",
-          "owner_reciprocal": true,
-          "current_health": 500.0,
-          "max_health": 500.0,
-          "replicated_health": 15,
-          "health_type": 0
-        }
-      ],
-      "shields": [],
-      "hostile_indicators": {
-        "hostile_team": true,
-        "combat_squad": true,
-        "hostile_class": true,
-        "hostile_controller": true
-      }
-    }
-  ],
-  "read_failures": []
-}
-```
+JSONL records include monotonic timestamps, `status`, `authoritative`, `valid_for_decrease`, identities, per-pawn `measurement_complete` and read failures. World unavailable, changing arrays and budget exhaustion produce diagnostic records instead of fabricated values. A successful CLI exit means collection finished; inspect record validity, it is not a combat pass.
 
-### Damage Decrease Evaluation & Timeline Analysis
+## Validation
 
-The evaluation utility (`evaluate_damage_decrease`) analyzes observations across sampling runs:
-- **Pointer Anchoring**: Evaluates each hostile pointer independently rather than comparing whatever hostile appears at index 0 across different samples.
-- **Transient Damage Detection**: In addition to net delta (`initial - final`), the evaluator tracks the timeline minimums (`initial - min`) to catch transient shield or health damage before shields regenerate.
-- **Per-Target Breakdown**: In multi-enemy combat encounters, produces `per_target_evaluations` mapping each observed hostile pointer to its individual health/shield trajectory and reports `any_hostile_decrease_observed`.
-- **Level Mutation Invalidation**: Flags `level_actors_changed` if level actor array headers (`TArray<AActor*>` at `+0x60`) mutate during a snapshot (e.g. streaming level garbage collection or spawning).
-- **Read Error Resilience**: Fast-paths null/low addresses (<0x10000), retries bounded reads on `ERROR_BAD_LENGTH` (error 24), and records explicit failure entries if damage module arrays or inventory chains cannot be traversed.
+`python -m unittest discover -s tests -p test_authoritative_enemy_sampler.py -v` exercises hermetic object/level/module/chain layouts, valid health deltas, transient regeneration, partial reads, world/actor/component reuse, replacement, array mutation, authority rejection, inventory cycles, CLI world-unavailable handling, filesystem checks and bounded reads. Filesystem hardlink rejection uses mocked metadata because the desktop sandbox denies creating hardlinks.
 
----
-
-## 6. Attribution Skepticism & Unresolved Limitations
-
-### Attribution Skepticism
-A decrease in authoritative health or shields proves **only that authoritative health or shields decreased**. It does **not** prove guest damage attribution. 
-Attributing damage to the guest requires separate, verified proof:
-1. Guest weapon fired and processed an instant hit (`ProcessInstantHit` with guest weapon pointer).
-2. The hit impact target matched the hostile actor pointer.
-3. Host Shepard, AI squadmates (Ashley/Kaidan), environmental hazards, and scripted level triggers did not cause the damage.
-
-Without this attribution chain, any observed health decrease is strictly categorized as:
-`"guest_damage_attribution_proven": false`.
-
-### Unresolved Limitations
-1. **Live Hostile Encounters**: During early Mars landing, no live hostile Trooper instances are spawned until the player navigates through the gatehouse into combat encounter trigger volumes.
-2. **Hit Trace Instrumentation**: Full guest damage attribution requires pairing this health sampler with native `SFXPreAsyncWorkTicker.ProcessInstantHit` trace monitoring.
-3. **Replication Presentation vs Host Authoritative State**: Client replicated health (`ReplicatedHealth` at +0xAC) is an 8-bit quantized byte representation. Synchronization verification between host authoritative float and client presented byte is a separate networking check.
+These tests do not establish a live hostile encounter, exact object lifetime across unobserved gaps, real hit attribution, full multiplayer combat, Radmin connectivity or player installation.

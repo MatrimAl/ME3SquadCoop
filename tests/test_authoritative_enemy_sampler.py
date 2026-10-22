@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import copy
 import json
 import math
 from pathlib import Path
@@ -9,6 +10,9 @@ import struct
 import sys
 import tempfile
 import unittest
+from unittest import mock
+import importlib.util
+import contextlib
 
 # Ensure src/ is on search path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -62,6 +66,29 @@ from authoritative_enemy_sampler import (
     OFFSET_WORLDINFO_STREAMING_LEVELS,
     SUPPORTED_EXECUTABLE_SHA256,
 )
+
+
+def qualified_observations(*observations):
+    """Explicit synthetic identities for offline evaluator fixtures."""
+    def identity(pointer):
+        return {"pointer": pointer, "internal_index": int(pointer, 16),
+                "fname_index": 10, "fname_number": 0, "class_pointer": "0xc000", "outer_pointer": "0xa000"}
+    out = copy.deepcopy(observations)
+    for observation in out:
+        observation.update(status="ok", authoritative=True, valid_for_decrease=True,
+                           netmode=2, read_failures=[], world_pointer="0x7000",
+                           world_identity=identity("0x7000"), world_info_identity=identity("0x8000"))
+        for hostile in observation["hostiles"]:
+            hostile.update(identity=identity(hostile["pointer"]), role=3, measurement_complete=True,
+                           measurement_failures=[], world_info="0x8000", inventory_identity=None)
+            for i, module in enumerate(hostile.get("damage_modules", [])):
+                pointer = hex(int(hostile["pointer"], 16) + 0x100000 + i)
+                module.update(pointer=pointer, identity=identity(pointer), module_owner=hostile["pointer"])
+            for i, shield in enumerate(hostile.get("shields", [])):
+                pointer = hex(int(hostile["pointer"], 16) + 0x200000 + i)
+                shield.update(pointer=pointer, identity=identity(pointer), owner=hostile["pointer"],
+                              instigator=hostile["pointer"], inv_manager="0x9000")
+    return out
 
 
 class TestWorldFixture:
@@ -141,6 +168,7 @@ class TestWorldFixture:
 
         # WorldInfo pointers
         self.reader.write_ptr(self.world_info_ptr + OFFSET_ACTOR_WORLD_INFO, self.world_info_ptr)
+        self.reader.write_byte(self.world_info_ptr + 0x7C8, 2)
         self.reader.write_tarray(self.world_info_ptr + OFFSET_WORLDINFO_STREAMING_LEVELS, [], 0x30006000)
 
         self.sync_gobjects()
@@ -176,6 +204,7 @@ class TestWorldFixture:
         self.reader.write_uint32(addr + OFFSET_UOBJECT_FNAME, name_idx)
         self.reader.write_uint32(addr + OFFSET_UOBJECT_FNAME + 4, 0)
         self.reader.write_ptr(addr + OFFSET_UOBJECT_CLASS, class_ptr)
+        self.reader.write_byte(addr + 0x26A, 3)
         self.sync_gobjects()
         return addr
 
@@ -391,7 +420,7 @@ class AuthoritativeEnemySamplerTests(unittest.TestCase):
 
         is_hostile, reason, meta = self.sampler.classify_pawn(trooper)
         self.assertTrue(is_hostile, "Genuine Trooper must be classified as hostile")
-        self.assertEqual(reason, "genuine_hostile")
+        self.assertEqual(reason, "hostile_candidate")
         self.assertEqual(meta["team_index"], 1)
         self.assertTrue(meta["hostile_indicators"]["hostile_team"])
         self.assertTrue(meta["hostile_indicators"]["combat_squad"])
@@ -459,8 +488,7 @@ class AuthoritativeEnemySamplerTests(unittest.TestCase):
 
         modules, failures = self.sampler.sample_damage_modules(trooper)
         self.assertEqual(len(modules), 0, "Module with NaN health must be rejected")
-        self.assertEqual(len(failures), 1)
-        self.assertIn("CurrentHealth at +0x98 is unreadable or non-finite", failures[0])
+        self.assertTrue(any("CurrentHealth at +0x98 is unreadable or non-finite" in f for f in failures))
 
     def test_world_pointer_change_detected(self):
         # Force world pointer to change
@@ -477,21 +505,21 @@ class AuthoritativeEnemySamplerTests(unittest.TestCase):
         self.reader.write_ptr(self.fixture.base + OFFSET_GWORLD, self.fixture.world_ptr)
 
         # Test mid-snapshot world change: wrap reader.read_ptr to change GWORLD after initial read
-        original_read_ptr = self.reader.read_ptr
+        original_read = self.reader.read
         changed = False
 
-        def hook_read_ptr(addr):
+        def hook_read(addr, size):
             nonlocal changed
-            val = original_read_ptr(addr)
+            val = original_read(addr, size)
             if addr == self.fixture.base + OFFSET_GWORLD and not changed:
                 changed = True
                 # Next read of GWORLD will see different address
                 self.reader.write_ptr(self.fixture.base + OFFSET_GWORLD, 0x99990000)
             return val
 
-        self.reader.read_ptr = hook_read_ptr
+        self.reader.read = hook_read
         snapshot3 = self.sampler.sample_snapshot()
-        self.reader.read_ptr = original_read_ptr
+        self.reader.read = original_read
         self.assertEqual(snapshot3["status"], "world_changed")
         self.assertTrue(any("changed during snapshot" in f for f in snapshot3["read_failures"]))
 
@@ -564,7 +592,7 @@ class AuthoritativeEnemySamplerTests(unittest.TestCase):
             }],
         }
 
-        analysis = evaluate_damage_decrease([obs1, obs2])
+        analysis = evaluate_damage_decrease(qualified_observations(obs1, obs2))
         self.assertTrue(analysis["decrease_observed"])
         self.assertEqual(analysis["health_decrease"], 150.0)
         self.assertEqual(analysis["shield_decrease"], 200.0)
@@ -594,16 +622,16 @@ class AuthoritativeEnemySamplerTests(unittest.TestCase):
             }],
         }
         # Must NOT compare Hostile A with Hostile B and report false damage!
-        analysis = evaluate_damage_decrease([obs1, obs2])
+        analysis = evaluate_damage_decrease(qualified_observations(obs1, obs2))
         self.assertFalse(analysis["decrease_observed"])
-        self.assertEqual(analysis["reason"], "insufficient samples for target")
+        self.assertIn("insufficient complete samples", analysis["reason"])
 
     def test_evaluate_damage_decrease_detects_transient_damage_with_regeneration(self):
         # Hostile takes 150 shield damage in sample 2, but regenerates by sample 3
         obs1 = {"monotonic_time_s": 1.0, "hostiles": [{"pointer": "0x60010000", "shields": [{"current_shields": 200.0}], "damage_modules": [{"current_health": 500.0}]}]}
         obs2 = {"monotonic_time_s": 1.5, "hostiles": [{"pointer": "0x60010000", "shields": [{"current_shields": 50.0}], "damage_modules": [{"current_health": 500.0}]}]}
         obs3 = {"monotonic_time_s": 2.0, "hostiles": [{"pointer": "0x60010000", "shields": [{"current_shields": 200.0}], "damage_modules": [{"current_health": 500.0}]}]}
-        analysis = evaluate_damage_decrease([obs1, obs2, obs3])
+        analysis = evaluate_damage_decrease(qualified_observations(obs1, obs2, obs3))
         self.assertTrue(analysis["decrease_observed"])
         self.assertEqual(analysis["shield_decrease"], 150.0)
         self.assertEqual(analysis["per_target_evaluations"]["0x60010000"]["net_shield_decrease"], 0.0)
@@ -629,14 +657,14 @@ class AuthoritativeEnemySamplerTests(unittest.TestCase):
         self.reader.write_ptr(guardian + OFFSET_ACTOR_WORLD_INFO, self.fixture.world_info_ptr)
         is_hostile, reason, meta = self.sampler.classify_pawn(guardian)
         self.assertTrue(is_hostile, "Cerberus Guardian must be recognized as hostile archetype")
-        self.assertEqual(reason, "genuine_hostile")
+        self.assertEqual(reason, "hostile_candidate")
 
         phantom = 0x60091000
         self.fixture.setup_object(phantom, "SFXPawn_Phantom_0", self.fixture.class_phantom, outer=self.fixture.level_ptr)
         self.reader.write_ptr(phantom + OFFSET_ACTOR_WORLD_INFO, self.fixture.world_info_ptr)
         is_hostile, reason, meta = self.sampler.classify_pawn(phantom)
         self.assertTrue(is_hostile, "Cerberus Phantom must be recognized as hostile archetype")
-        self.assertEqual(reason, "genuine_hostile")
+        self.assertEqual(reason, "hostile_candidate")
 
     def test_level_actors_changed_during_snapshot_detected(self):
         snap1 = self.sampler.sample_snapshot()
@@ -677,8 +705,7 @@ class AuthoritativeEnemySamplerTests(unittest.TestCase):
 
         shields, failures = self.sampler.sample_inventory_shields(trooper)
         self.assertEqual(len(shields), 0)
-        self.assertEqual(len(failures), 1)
-        self.assertIn("not a valid live Inventory object", failures[0])
+        self.assertTrue(any("not a valid live Inventory object" in f for f in failures))
 
     def test_enumerate_levels_with_world_levels_and_worldinfo_streaming(self):
         # Level in StreamingLevels
@@ -732,13 +759,208 @@ class AuthoritativeEnemySamplerTests(unittest.TestCase):
                 {"pointer": "0x2000", "damage_modules": [{"current_health": 250.0}], "shields": []},
             ],
         }
-        res_1000 = evaluate_damage_decrease([obs1, obs2], target_pointer="0x1000")
+        res_1000 = evaluate_damage_decrease(qualified_observations(obs1, obs2), target_pointer="0x1000")
         self.assertFalse(res_1000["decrease_observed"])
         self.assertEqual(res_1000["health_decrease"], 0.0)
 
-        res_2000 = evaluate_damage_decrease([obs1, obs2], target_pointer="0x2000")
+        res_2000 = evaluate_damage_decrease(qualified_observations(obs1, obs2), target_pointer="0x2000")
         self.assertTrue(res_2000["decrease_observed"])
         self.assertEqual(res_2000["health_decrease"], 150.0)
+
+    def make_sampled_target(self):
+        pawn = 0x61000000
+        self.fixture.setup_object(pawn, "SFXPawn_Trooper_20", self.fixture.class_trooper, outer=self.fixture.level_ptr)
+        self.reader.write_ptr(pawn + OFFSET_ACTOR_WORLD_INFO, self.fixture.world_info_ptr)
+        module = self.fixture.add_damage_module(pawn, 100.0, 100.0)
+        self.reader.write_tarray(pawn + OFFSET_ACTOR_MODULES, [module], 0x61010000)
+        self.fixture.level_actors.append(pawn)
+        self.fixture.sync_level_actors(self.fixture.level_ptr, self.fixture.level_actors, 0x30005000)
+        return pawn, module
+
+    def test_real_snapshot_schema_detects_only_valid_stable_delta(self):
+        _, module = self.make_sampled_target()
+        first = self.sampler.sample_snapshot()
+        self.assertTrue(first["valid_for_decrease"], first["read_failures"])
+        self.reader.write_float(module + OFFSET_DAMAGE_CURRENT_HEALTH, 70.0)
+        second = self.sampler.sample_snapshot()
+        second["monotonic_time_s"] = first["monotonic_time_s"] + 0.05
+        result = evaluate_damage_decrease([first, second])
+        self.assertEqual(result["health_decrease"], 30.0)
+        self.assertFalse(result["guest_damage_attribution_proven"])
+
+    def test_unreadable_module_never_becomes_zero_health(self):
+        _, module = self.make_sampled_target()
+        first = self.sampler.sample_snapshot()
+        self.reader.set_fail_address(module + OFFSET_DAMAGE_CURRENT_HEALTH)
+        second = self.sampler.sample_snapshot()
+        self.assertFalse(second["valid_for_decrease"])
+        self.assertFalse(evaluate_damage_decrease([first, second])["decrease_observed"])
+
+    def test_module_replacement_same_array_header_starts_new_epoch(self):
+        pawn, _ = self.make_sampled_target()
+        first = self.sampler.sample_snapshot()
+        replacement = self.fixture.add_damage_module(pawn, 20.0, 100.0)
+        self.reader.write_ptr(0x61010000, replacement)
+        second = self.sampler.sample_snapshot()
+        second["monotonic_time_s"] = first["monotonic_time_s"] + 0.05
+        self.assertTrue(second["valid_for_decrease"], second["read_failures"])
+        self.assertFalse(evaluate_damage_decrease([first, second])["decrease_observed"])
+
+    def test_owner_mutation_during_health_read_invalidates_sample(self):
+        _, module = self.make_sampled_target()
+        original_read = self.reader.read
+        def mutate(address, size):
+            value = original_read(address, size)
+            if address == module + OFFSET_DAMAGE_CURRENT_HEALTH:
+                self.reader.write_ptr(module + OFFSET_MODULE_OWNER, 0x99990000)
+            return value
+        self.reader.read = mutate
+        result = self.sampler.sample_snapshot()
+        self.assertFalse(result["valid_for_decrease"])
+        self.assertTrue(any("changed identity/owner" in f for f in result["read_failures"]))
+
+    def test_delta_rejects_each_identity_or_validity_change(self):
+        self.make_sampled_target()
+        first = self.sampler.sample_snapshot()
+        mutations = {
+            "world": lambda x: x.update(world_pointer="0x99990000"),
+            "world_generation": lambda x: x["world_identity"].update(internal_index=999),
+            "actor_generation": lambda x: x["hostiles"][0]["identity"].update(internal_index=999),
+            "actor_fname": lambda x: x["hostiles"][0]["identity"].update(fname_number=999),
+            "actor_path": lambda x: x["hostiles"][0].update(path="OtherWorld.Pawn"),
+            "module": lambda x: x["hostiles"][0]["damage_modules"][0].update(pointer="0x88880000"),
+            "module_generation": lambda x: x["hostiles"][0]["damage_modules"][0]["identity"].update(fname_number=999),
+            "module_owner": lambda x: x["hostiles"][0]["damage_modules"][0].update(module_owner="0x88880000"),
+            "missing_module": lambda x: x["hostiles"][0].update(damage_modules=[]),
+            "world_changed": lambda x: x.update(status="world_changed"),
+            "level_changed": lambda x: x.update(status="level_actors_changed"),
+            "read_failure": lambda x: x.update(read_failures=["partial read"]),
+            "incomplete": lambda x: x["hostiles"][0].update(measurement_complete=False),
+            "client": lambda x: x.update(netmode=3),
+            "non_authority_role": lambda x: x["hostiles"][0].update(role=2),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                changed = copy.deepcopy(first)
+                changed["monotonic_time_s"] += 1
+                changed["hostiles"][0]["damage_modules"][0]["current_health"] = 20.0
+                mutate(changed)
+                self.assertFalse(evaluate_damage_decrease([first, changed])["decrease_observed"])
+
+    def test_shield_replacement_and_partial_chain_do_not_prove_delta(self):
+        raw = {"monotonic_time_s": 1.0, "hostiles": [{"pointer": "0x1000", "damage_modules": [{"current_health": 100.0}], "shields": [{"current_shields": 200.0}]}]}
+        first = qualified_observations(raw)[0]
+        for mutation in (
+            lambda x: x["hostiles"][0].update(shields=[]),
+            lambda x: x["hostiles"][0]["shields"][0]["identity"].update(fname_number=2),
+            lambda x: x["hostiles"][0]["shields"][0].update(owner="0x9999"),
+            lambda x: x["hostiles"][0]["shields"][0].update(inv_manager="0x9999"),
+        ):
+            second = copy.deepcopy(first)
+            second["monotonic_time_s"] = 2.0
+            second["hostiles"][0]["shields"][0]["current_shields"] = 0.0
+            mutation(second)
+            self.assertFalse(evaluate_damage_decrease([first, second])["decrease_observed"])
+
+    def test_invalid_gap_breaks_epoch_without_masking_later_real_delta(self):
+        raw = {"monotonic_time_s": 1., "hostiles": [{"pointer": "0x1000", "damage_modules": [{"current_health": 100.}], "shields": []}]}
+        first = qualified_observations(raw)[0]
+        later = copy.deepcopy(first)
+        later["monotonic_time_s"] = 3.
+        later["hostiles"][0]["damage_modules"][0]["current_health"] = 50.
+        gap = {"status": "world_unavailable", "hostiles": []}
+        self.assertFalse(evaluate_damage_decrease([first, gap, later])["decrease_observed"])
+        final = copy.deepcopy(later)
+        final["monotonic_time_s"] = 4.
+        final["hostiles"][0]["damage_modules"][0]["current_health"] = 40.
+        self.assertEqual(evaluate_damage_decrease([first, gap, later, final])["health_decrease"], 10.)
+
+    def test_client_or_non_authoritative_role_is_not_authoritative_health(self):
+        pawn, _ = self.make_sampled_target()
+        self.reader.write_byte(self.fixture.world_info_ptr + 0x7C8, 3)
+        sample = self.sampler.sample_snapshot()
+        self.assertFalse(sample["authoritative"])
+        self.assertFalse(sample["valid_for_decrease"])
+        self.reader.write_byte(self.fixture.world_info_ptr + 0x7C8, 2)
+        self.reader.write_byte(pawn + 0x26A, 2)
+        self.assertFalse(self.sampler.sample_snapshot()["valid_for_decrease"])
+
+    def test_same_array_header_with_changed_contents_is_invalid(self):
+        pawn, _ = self.make_sampled_target()
+        original_read = self.reader.read
+        reads = 0
+        def mutate(address, size):
+            nonlocal reads
+            data = original_read(address, size)
+            if address == 0x30005000 and size == 16:
+                reads += 1
+                if reads == 2:
+                    self.reader.write_ptr(0x30005000 + 8, 0)
+            return data
+        self.reader.read = mutate
+        result = self.sampler.sample_snapshot()
+        self.assertEqual(result["status"], "level_actors_changed")
+        self.assertFalse(result["valid_for_decrease"])
+
+    def test_inventory_unreadable_head_next_and_cycles_are_unknown(self):
+        pawn, _ = self.make_sampled_target()
+        manager = 0x62000000
+        self.fixture.setup_object(manager, "SFXInventoryManager", self.fixture.class_sfx_inv_manager, outer=pawn)
+        self.reader.write_ptr(pawn + OFFSET_PAWN_INVENTORY, manager)
+        shield = self.fixture.add_shield(pawn, manager)
+        self.reader.write_ptr(manager + OFFSET_INVENTORY_CHAIN, shield)
+        self.reader.set_fail_address(manager + OFFSET_INVENTORY_CHAIN)
+        self.assertFalse(self.sampler.sample_snapshot()["valid_for_decrease"])
+        self.reader._read_failure_addresses.clear()
+        self.reader.set_fail_address(shield + OFFSET_INVENTORY_NEXT)
+        self.assertFalse(self.sampler.sample_snapshot()["valid_for_decrease"])
+        self.reader._read_failure_addresses.clear()
+        self.reader.write_ptr(shield + OFFSET_INVENTORY_NEXT, shield)
+        self.assertFalse(self.sampler.sample_snapshot()["valid_for_decrease"])
+
+    def test_pending_delete_and_class_substring_are_not_live_hostiles(self):
+        pawn, _ = self.make_sampled_target()
+        self.reader.write_uint32(pawn + 0x260, 0x800000)
+        self.assertEqual(self.sampler.sample_snapshot()["hostiles_count"], 0)
+        self.reader.write_uint32(pawn + 0x260, 0)
+        neutral = self.fixture.create_class("SFXPawn_EngineeringCivilian", self.fixture.class_biopawn)
+        self.reader.write_ptr(pawn + OFFSET_UOBJECT_CLASS, neutral)
+        self.assertFalse(self.sampler.classify_pawn(pawn)[0])
+
+    def test_budget_deadline_returns_explicit_invalid_status(self):
+        sample = self.sampler.sample_snapshot(deadline=0.0)
+        self.assertEqual(sample["status"], "budget_exhausted")
+        self.assertFalse(sample["valid_for_decrease"])
+
+    def test_cli_world_unavailable_does_not_raise_keyerror(self):
+        spec = importlib.util.spec_from_file_location("sample_cli", Path(__file__).resolve().parents[1] / "tools/sample_authoritative_combat.py")
+        cli = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cli)
+        class EmptyProcess(MockMemoryReader):
+            base_address, module_path = 0x10000000, "synthetic-only"
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / "private.jsonl"
+            args = ["sampler", "--pid", "123", "--seconds", "0.1", "--interval", "0.05", "--output", str(output)]
+            with mock.patch.object(sys, "argv", args), mock.patch.object(cli, "WindowsProcessMemory", return_value=EmptyProcess()), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(cli.main(), 0)
+            self.assertEqual(json.loads(output.read_text().splitlines()[0])["status"], "world_unavailable")
+
+    def test_executable_requires_sandbox_and_rejects_hardlinks(self):
+        with tempfile.TemporaryDirectory() as folder:
+            executable = Path(folder) / "MassEffect3.exe"
+            executable.write_bytes(b"synthetic fixture")
+            sha = compute_file_sha256(executable)
+            self.assertFalse(verify_isolated_executable(executable, sha)[0])
+            from types import SimpleNamespace
+            metadata = executable.stat()
+            # The desktop sandbox denies creating actual hardlinks. Exercise
+            # the filesystem metadata branch without requesting wider access.
+            with mock.patch.object(Path, "stat", return_value=SimpleNamespace(st_mode=metadata.st_mode, st_nlink=2)):
+                valid, reason = verify_isolated_executable(executable, sha, Path(folder))
+            self.assertFalse(valid)
+            self.assertIn("hardlinks", reason)
 
 
 if __name__ == "__main__":

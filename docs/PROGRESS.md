@@ -1,16 +1,12 @@
 # Progress
 
-## 2026-10-23: bounded authoritative enemy combat sampler verified and hardened
+## 2026-10-23: read-only combat sampler reviewed and corrected
 
-- Implemented and verified `src/authoritative_enemy_sampler.py` and `tools/sample_authoritative_combat.py` for bounded, read-only Windows process-memory sampling of authoritative enemy health and shields during ME3 Legendary Edition campaign co-op tests.
-- Replaced reliance on legacy non-authoritative `Pawn.Health` (+0x514) with direct damage-module `CurrentHealth` (+0x98) and inventory `CurrentShields` (+0x3C4), with reciprocal ownership verification (`Module.ModuleOwner == Pawn` and `Shield.Owner/Instigator/InvManager == Pawn/Pawn/InventoryManager`).
-- Fixed multi-pawn comparison bug in `evaluate_damage_decrease` by anchoring pointer identity and generating `per_target_evaluations`. Added timeline minimum tracking (`max_shield_decrease` / `max_health_decrease`) to detect transient combat damage before enemy shield regeneration.
-- Corrected AI controller classification to prevent false-positive hostile tagging on generic `BioAiController` (unless attached to combat squad), while adding explicit support for dedicated combat controllers (`SFXAI_Trooper`, `SFXAI_Guardian`, `SFXAI_Nemesis`, `SFXAI_Turret`, etc.) and Mars Cerberus archetypes (`Guardian`, `Phantom`, `Turret`).
-- Added mid-snapshot level actor table mutation detection (`level_actors_changed`), dual-path level enumeration via `UWorld.Levels` (`+0x78`) and `WorldInfo.StreamingLevels` (`+0x3E4`), resilient `WorldInfo` dynamic discovery, and explicit failure logging for unreadable module/inventory chains.
-- Enforces strict read-only process memory access (`0x410: PROCESS_VM_READ | PROCESS_QUERY_INFORMATION`). Rejects unverified game launches, injection, code modification, or non-isolated executables. Verifies SHA-256 `b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001`.
-- Filters loaded levels to reject Class Default Objects (CDOs), deleted actors (`bDeleteMe`), wrong-world actors (`Actor.WorldInfo != GWorld.WorldInfo`), and stale GObjects identities. Explicitly rejects the pre-existing Gatehouse `BioPawn_0` dummy actor (`BioD_ProMar_120Gatehouse.TheWorld.PersistentLevel.BioPawn_0`).
-- Adheres to strict attribution skepticism: an observed health decrease proves only a health decrease; no guest damage attribution is claimed without verified hit/weapon trace evidence (`guest_damage_attribution_proven: false`).
-- Expanded test suite to 26 unit tests in `tests/test_authoritative_enemy_sampler.py`; full repository test suite passes with 223 tests (3 skipped). Documented in [AUTHORITATIVE-COMBAT-SAMPLER.md](AUTHORITATIVE-COMBAT-SAMPLER.md).
+- An external contribution added the read-only health/shield reader, CLI and 26 fixtures. Review reproduced false decreases when reads failed or different worlds/pawns reused an address; the original evaluator was not reliable damage evidence.
+- The corrected evaluator accepts only complete host/standalone Role3 snapshots in stable world, pawn, module and shield identity epochs. Missing data is unknown; identity changes and invalid snapshots break comparison. Array contents and reciprocal component links are rechecked, and read/byte/time budgets bound snapshots.
+- Candidate classification now uses exact archetype/controller ancestry. It remains explicitly a candidate classification, not a verified relationship to Shepard. CDO pointer/name and actor lifecycle checks are present; exact UObject flag meanings and unobserved complete identity reuse remain limitations.
+- The CLI handles unavailable worlds, verifies exact sandbox executable path and supported SHA, rejects reparse/hardlink ambiguity and refuses output overwrites or output inside the game sandbox.
+- Focused offline tests cover the original false positives, valid decreases, regeneration, component replacement, invalid gaps, authority and inventory/array races. No live game was launched for this review; live hostile damage and guest attribution remain unverified. See [sampler scope and validation](AUTHORITATIVE-COMBAT-SAMPLER.md).
 
 ## 2026-10-23: observer-off repeat identifies port-arms deferral
 
