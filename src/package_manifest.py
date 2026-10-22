@@ -160,7 +160,12 @@ def manifest_hash(manifest):
 
 def validate_native(path, *, fixture=False):
     raw = Path(path).read_bytes()
-    if b"SquadProbe" in raw or b"ME3SquadCoopProbe" in raw:
+    probe_markers = (
+        b"SquadProbe", b"ME3SquadCoopProbe", b"SquadDirectIPSelfTest",
+        b"SquadGuestCameraSelfTest", b"SquadGuestCinematicSelfTest",
+        b"SquadSessionHandleSelfTest", b".me3-coop-sandbox.json",
+    )
+    if any(marker in raw for marker in probe_markers):
         raise ValueError("research probe is not a release native component")
     if fixture:
         return
@@ -278,6 +283,7 @@ def install(package_root, manifest, game_root, *, allow_fixture=False, allow_can
                 raise FileExistsError("target ancestor is not a directory")
     receipt = {"schema": 1, "package_id": PACKAGE_ID, "manifest_sha256": manifest_hash(manifest),
                "manifest": manifest, "status": "incomplete", "created_directories": [],
+               "installed_files": [{"path": item["path"], "sha256": item["sha256"], "size": item["size"]} for item in manifest["files"]],
                "qa_candidate": manifest.get("channel") == "candidate"}
     # Durable ownership journal before copying; an interrupted copy is never represented as installed.
     _write_json_new(receipt_path, receipt)
@@ -310,11 +316,12 @@ def install(package_root, manifest, game_root, *, allow_fixture=False, allow_can
             "files": len(targets), "manifest_sha256": receipt["manifest_sha256"]}
 
 
-def remove(game_root, *, expected_manifest_sha256, allow_fixture=False):
+def remove(game_root, *, expected_manifest_sha256=None, allow_fixture=False):
     """Remove only receipt-listed files matching the caller's trusted manifest hash.
 
     All hashes are checked before any deletion; modified components are preserved.
-    Empty directories are intentionally retained to avoid touching another mod's directories.
+    Empty directories created during installation are cleaned up, while directories containing
+    other files or existing game files are preserved.
     """
     root = checked_root(game_root)
     path = safe_path(root, RECEIPT)
@@ -322,6 +329,8 @@ def remove(game_root, *, expected_manifest_sha256, allow_fixture=False):
     manifest = receipt.get("manifest")
     # A candidate's hash-checked removal must remain available after its explicit QA install.
     validate_manifest(manifest, allow_fixture=allow_fixture, allow_candidate=receipt.get("qa_candidate") is True)
+    if expected_manifest_sha256 is None:
+        expected_manifest_sha256 = receipt.get("manifest_sha256")
     if (receipt.get("package_id") != PACKAGE_ID or receipt.get("status") not in ("installed", "incomplete")
             or manifest_hash(manifest) != expected_manifest_sha256
             or receipt.get("manifest_sha256") != expected_manifest_sha256):
@@ -338,5 +347,69 @@ def remove(game_root, *, expected_manifest_sha256, allow_fixture=False):
         existing.append(target)
     for target in existing:
         target.unlink()
+    removed_dirs = []
+    for rel_dir in reversed(receipt.get("created_directories", [])):
+        try:
+            d_path = safe_path(root, rel_dir)
+            if d_path.is_dir() and not _is_link(d_path):
+                if not any(d_path.iterdir()):
+                    d_path.rmdir()
+                    removed_dirs.append(rel_dir)
+        except Exception:
+            pass
     path.unlink()
-    return {"status": "removed", "files": len(existing)}
+    return {"status": "removed", "files": len(existing), "removed_directories": len(removed_dirs)}
+
+
+def inspect_installation(game_root):
+    """Inspect installation status and component integrity in game_root without mutating anything."""
+    root = checked_root(game_root)
+    receipt_path = safe_path(root, RECEIPT)
+    if not receipt_path.is_file():
+        return {"status": "not_installed", "receipt_present": False}
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except Exception as err:
+        return {"status": "corrupt_receipt", "receipt_present": True, "error": str(err)}
+
+    manifest = receipt.get("manifest", {})
+    files = manifest.get("files", [])
+    verified, modified, missing = [], [], []
+    for item in files:
+        target = safe_path(root, item["path"])
+        if not os.path.lexists(target):
+            missing.append(item["path"])
+        elif not target.is_file():
+            modified.append(item["path"])
+        else:
+            if digest(target) == item["sha256"]:
+                verified.append(item["path"])
+            else:
+                modified.append(item["path"])
+
+    receipt_status = receipt.get("status", "unknown")
+    is_healthy = (receipt_status == "installed" and len(verified) == len(files) and not modified and not missing)
+    return {
+        "status": "installed" if is_healthy else ("incomplete" if receipt_status == "incomplete" else "diverged"),
+        "receipt_present": True,
+        "receipt_status": receipt_status,
+        "package_id": receipt.get("package_id"),
+        "manifest_sha256": receipt.get("manifest_sha256"),
+        "channel": manifest.get("channel"),
+        "version": manifest.get("version"),
+        "total_files": len(files),
+        "files_verified": verified,
+        "files_modified": modified,
+        "files_missing": missing,
+        "is_clean": is_healthy,
+    }
+
+
+def reinstall(package_root, manifest, game_root, *, allow_fixture=False, allow_candidate=False):
+    """Safely reinstall mod into game_root: verifies existing installation is clean, removes it, and installs anew."""
+    inspection = inspect_installation(game_root)
+    if inspection.get("receipt_present"):
+        if inspection.get("files_modified"):
+            raise ValueError(f"cannot reinstall; modified components preserved: {inspection['files_modified']}")
+        remove(game_root, expected_manifest_sha256=inspection.get("manifest_sha256"), allow_fixture=allow_fixture)
+    return install(package_root, manifest, game_root, allow_fixture=allow_fixture, allow_candidate=allow_candidate)

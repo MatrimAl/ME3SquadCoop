@@ -352,11 +352,11 @@ class PackageTests(unittest.TestCase):
             module.scaffold(destination)
 
     def test_deployment_archive_and_reversibility(self):
-        if not (PROJECT / "local/build/ME3SquadCoop.asi").is_file():
-            self.skipTest("build native ASI before running archive integration test")
         spec = importlib.util.spec_from_file_location("build_shareable", PROJECT / "tools/build_shareable.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
+        if not module.find_zig_compiler() and not (PROJECT / "local/build/ME3SquadCoop.asi").is_file():
+            self.skipTest("Zig compiler or prebuilt native ASI required for archive test")
         archive_path = self.root / "test-deployment.7z"
         result = module.build_deployment_archive(archive_path)
         self.assertTrue(result["archive_verified"])
@@ -367,6 +367,117 @@ class PackageTests(unittest.TestCase):
                      "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/Mount.dlc",
                      "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/ME3SquadCoop_Startup.pcc"):
             self.assertIn(comp, result["components"])
+
+    def test_reinstall_rejected_if_installed_and_reinstall_flow(self):
+        self.install()
+        # Attempting install when receipt exists must fail closed
+        with self.assertRaises(FileExistsError):
+            self.install()
+        # Reinstall helper cleanly reinstalls when components match expected state
+        res = package.reinstall(self.bundle, self.manifest, self.game, allow_fixture=True)
+        self.assertEqual(res["status"], "installed")
+        self.assertEqual(res["files"], 2)
+        # But if a file was modified, reinstall refuses to touch anything
+        package.safe_path(self.game, self.dlc).write_bytes(b"MODIFIED")
+        with self.assertRaisesRegex(ValueError, "modified components preserved"):
+            package.reinstall(self.bundle, self.manifest, self.game, allow_fixture=True)
+
+    def test_preexisting_collision_aborts_without_creating_receipt_or_mutating_files(self):
+        target = package.safe_path(self.game, self.native)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"ORIGINAL GAME FILE DO NOT OVERWRITE")
+        before = self.inventory()
+        with self.assertRaises(FileExistsError):
+            self.install()
+        # No receipt created, target untouched, no other files created
+        self.assertEqual(self.inventory(), before)
+        self.assertFalse((self.game / package.RECEIPT).exists())
+        self.assertEqual(target.read_bytes(), b"ORIGINAL GAME FILE DO NOT OVERWRITE")
+
+    def test_interrupted_incomplete_install_rollback_and_recovery(self):
+        # Prepare an interrupted installation state where status is 'incomplete'
+        # and only 1 file was copied before failure
+        receipt_path = package.safe_path(self.game, package.RECEIPT)
+        first_target = package.safe_path(self.game, self.manifest["files"][0]["path"])
+        first_target.parent.mkdir(parents=True, exist_ok=True)
+        first_target.write_bytes(package.safe_path(self.payload, self.manifest["files"][0]["path"]).read_bytes())
+        created_dir = first_target.parent.relative_to(self.game).as_posix()
+        receipt = {
+            "schema": 1,
+            "package_id": package.PACKAGE_ID,
+            "manifest_sha256": package.manifest_hash(self.manifest),
+            "manifest": self.manifest,
+            "status": "incomplete",
+            "created_directories": [created_dir],
+            "installed_files": [{"path": self.manifest["files"][0]["path"],
+                                 "sha256": self.manifest["files"][0]["sha256"],
+                                 "size": self.manifest["files"][0]["size"]}],
+            "qa_candidate": False,
+        }
+        package._write_json_new(receipt_path, receipt)
+        # Normal install refuses to proceed over incomplete receipt
+        with self.assertRaises(FileExistsError):
+            self.install()
+        # Inspection identifies incomplete status
+        status = package.inspect_installation(self.game)
+        self.assertEqual(status["status"], "incomplete")
+        self.assertFalse(status["is_clean"])
+        # Remove rolls back the incomplete installation cleanly
+        res = package.remove(self.game, allow_fixture=True)
+        self.assertEqual(res["status"], "removed")
+        self.assertFalse(receipt_path.exists())
+        self.assertFalse(first_target.exists())
+        # After rollback, install succeeds cleanly
+        clean_res = self.install()
+        self.assertEqual(clean_res["status"], "installed")
+
+    def test_remove_cleans_empty_created_directories_and_preserves_non_empty(self):
+        self.install()
+        # Both created directories exist
+        dlc_file = package.safe_path(self.game, self.dlc)
+        dlc_parent = dlc_file.parent
+        self.assertTrue(dlc_parent.is_dir())
+        # Place an unrelated mod file in dlc_parent
+        unrelated = dlc_parent / "unrelated_squadmate.ini"
+        unrelated.write_bytes(b"[Config]\nEnabled=1\n")
+        self.remove()
+        # Mod files removed, but unrelated file and its containing directory are preserved
+        self.assertFalse(dlc_file.exists())
+        self.assertTrue(dlc_parent.is_dir())
+        self.assertTrue(unrelated.is_file())
+        self.assertEqual(unrelated.read_bytes(), b"[Config]\nEnabled=1\n")
+
+    def test_inspect_installation_accurately_detects_all_states(self):
+        # 1. Not installed
+        st = package.inspect_installation(self.game)
+        self.assertEqual(st["status"], "not_installed")
+        self.assertFalse(st["receipt_present"])
+        # 2. Installed clean
+        self.install()
+        st = package.inspect_installation(self.game)
+        self.assertEqual(st["status"], "installed")
+        self.assertTrue(st["is_clean"])
+        self.assertEqual(len(st["files_verified"]), 2)
+        # 3. Modified component
+        package.safe_path(self.game, self.dlc).write_bytes(b"ALTERED")
+        st = package.inspect_installation(self.game)
+        self.assertEqual(st["status"], "diverged")
+        self.assertFalse(st["is_clean"])
+        self.assertIn(self.dlc, st["files_modified"])
+        # 4. Missing component
+        package.safe_path(self.game, self.dlc).unlink()
+        st = package.inspect_installation(self.game)
+        self.assertIn(self.dlc, st["files_missing"])
+
+    def test_validate_native_rejects_diagnostic_probe_symbols(self):
+        for marker in (b"SquadProbe", b"ME3SquadCoopProbe", b"SquadDirectIPSelfTest",
+                       b"SquadGuestCameraSelfTest", b"SquadGuestCinematicSelfTest",
+                       b"SquadSessionHandleSelfTest", b".me3-coop-sandbox.json"):
+            fake_dll = b"MZ" + b"\0" * 60 + b"PE\0\0" + b"\x64\x86" + b"\0" * 16 + b"\0\x20" + b"\x0b\x02" + marker
+            fake_path = self.root / "fake_probe.asi"
+            fake_path.write_bytes(fake_dll)
+            with self.subTest(marker=marker), self.assertRaisesRegex(ValueError, "research probe"):
+                package.validate_native(fake_path)
 
 
 if __name__ == "__main__":

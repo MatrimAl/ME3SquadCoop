@@ -103,6 +103,20 @@ python tests/native_probe_harness.py
 
 The harness exercises DLL guards and temporary fixtures. Neither command establishes in-game campaign support.
 
+## Packaging and Reversible Installation
+
+A complete shareable deployment package in ME3Tweaks Mod Manager format (`.7z`) and a reversible test installer are available:
+
+- Build deployment archive: `python tools/build_shareable.py build outputs/ME3SquadCoop-v0.1.0.7z`
+- Check installation status: `python tools/build_shareable.py status <test_game_root>`
+- Safe install into test copy: `python tools/build_shareable.py install <package_root> <test_game_root> --qa-candidate`
+- Safe reinstall: `python tools/build_shareable.py reinstall <package_root> <test_game_root> --qa-candidate`
+- Clean remove: `python tools/build_shareable.py remove <package_root> <test_game_root>`
+
+Detailed architecture, collision detection, and safety guarantees are documented in [docs/PACKAGING.md](docs/PACKAGING.md).
+
+> **Note**: In-game ME3Tweaks Mod Manager execution has not been live tested with human players. The package is an automated QA candidate for test installations and is not offered as a playable release.
+
 ## Running research experiments
 
 The launch scripts currently expect a sibling `coop-anything/local/me3-le/` private workspace with independently verified copy manifests, private profile configuration and isolated runtime files. A fresh clone does not include or manufacture those prerequisites. Do not launch the game until every protection is set up and verified. See [development and safety](docs/DEVELOPMENT.md).

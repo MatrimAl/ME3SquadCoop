@@ -73,6 +73,56 @@ def find_seven_zip():
     return None
 
 
+def find_zig_compiler():
+    me3_coop_root = HERE.parents[1]
+    candidates = [
+        me3_coop_root.parent / "toolchain" / "zig-x86_64-windows-0.15.2" / "zig.exe",
+        HERE.parents[2] / "work" / "toolchain" / "zig-x86_64-windows-0.15.2" / "zig.exe",
+        shutil.which("zig"),
+    ]
+    for c in candidates:
+        if c and Path(c).is_file():
+            return str(Path(c).resolve())
+    return None
+
+
+def compile_release_native(output_path=None):
+    """Compile the release native companion (squad_coop.c) with active-DLC runtime gate."""
+    import os
+    me3_coop_root = HERE.parents[1]
+    if output_path is None:
+        output_path = me3_coop_root / "local" / "build" / "ME3SquadCoop.asi"
+    else:
+        output_path = Path(output_path).resolve()
+
+    src_c = me3_coop_root / "src" / "squad_coop.c"
+    if not src_c.is_file():
+        raise FileNotFoundError(f"Source file squad_coop.c not found at {src_c}")
+
+    zig_exe = find_zig_compiler()
+    if not zig_exe:
+        raise FileNotFoundError("Zig compiler not found in toolchain or system PATH")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_dir = me3_coop_root / "local" / "compiler-tmp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    env = dict(
+        os.environ,
+        ZIG_GLOBAL_CACHE_DIR=str(me3_coop_root / "local" / "zig-cache"),
+        ZIG_LOCAL_CACHE_DIR=str(me3_coop_root / "local" / "zig-local-cache"),
+        TMP=str(temp_dir), TEMP=str(temp_dir),
+    )
+    cmd = [
+        str(zig_exe), "cc", "-target", "x86_64-windows-gnu", "-std=c17", "-O2", "-Wall",
+        str(src_c), "-shared", "-o", str(output_path)
+    ]
+    proc = subprocess.run(cmd, cwd=str(me3_coop_root), env=env, capture_output=True, text=True, encoding="utf-8")
+    if proc.returncode != 0:
+        raise RuntimeError(f"Failed to compile squad_coop.c:\n{proc.stdout}\n{proc.stderr}")
+    package.validate_native(output_path)
+    return output_path
+
+
 def generate_mount_dlc(priority=5100):
     raw = bytearray(108)
     struct.pack_into("<I", raw, 0, 1)           # Version 1
@@ -122,22 +172,23 @@ def generate_moddesc_ini(cmmver="7.0", game="ME3LE", version="0.1.0"):
     )
 
 
-def build_deployment_archive(archive_path, channel="candidate"):
+def build_deployment_archive(archive_path, channel="candidate", force_recompile=True):
     archive_path = Path(archive_path).resolve()
     archive_path.parent.mkdir(parents=True, exist_ok=True)
 
     me3_coop_root = HERE.parents[1]
-    repo_root = HERE.parents[2]
     asi_built = me3_coop_root / "local" / "build" / "ME3SquadCoop.asi"
-    if not (asi_built.is_file() and asi_built.stat().st_size > 0):
-        zig_exe = repo_root / "work" / "toolchain" / "zig-x86_64-windows-0.15.2" / "zig.exe"
-        src_c = me3_coop_root / "src" / "squad_coop.c"
-        if zig_exe.is_file() and src_c.is_file():
-            asi_built.parent.mkdir(parents=True, exist_ok=True)
-            subprocess.run([
-                str(zig_exe), "cc", "-target", "x86_64-windows-gnu", "-std=c17", "-O2", "-Wall",
-                str(src_c), "-shared", "-o", str(asi_built)
-            ], check=True)
+    need_compile = force_recompile or not (asi_built.is_file() and asi_built.stat().st_size > 0)
+    if not need_compile:
+        try:
+            package.validate_native(asi_built)
+            raw = asi_built.read_bytes()
+            if b"ME3SquadCoopVerifyDlcGate" not in raw:
+                need_compile = True
+        except Exception:
+            need_compile = True
+    if need_compile:
+        compile_release_native(asi_built)
     if not asi_built.is_file():
         raise FileNotFoundError(f"ME3SquadCoop.asi not found at {asi_built}")
     package.validate_native(asi_built)
@@ -223,13 +274,20 @@ def build_deployment_archive(archive_path, channel="candidate"):
             "Components:\n"
             "- DLC_MOD_ME3SquadCoop (Mount.dlc priority 5100, ME3SquadCoop_Startup.pcc)\n"
             "- ME3SquadCoop.asi with active-DLC runtime gate\n"
-            "- Cryptographic manifest and rollback receipt support\n",
+            "- Cryptographic manifest and rollback receipt support\n\n"
+            "> [!IMPORTANT]\n"
+            "> Real in-game ME3Tweaks Mod Manager execution has not been live tested with human players.\n"
+            "> This package is an automated QA candidate for test copies and is NOT offered as a playable release.\n",
             encoding="utf-8"
         )
         (stage / "README.md").write_text(
             "# Mass Effect 3 Squad Co-op (v0.1.0)\n\n"
             "Two-player co-op campaign mod for Mass Effect 3 Legendary Edition.\n"
-            "Install with ME3Tweaks Mod Manager or via manage.py in test copies.\n",
+            "Install with ME3Tweaks Mod Manager or via manage.py in verified test copies.\n\n"
+            "## Testing Notice\n"
+            "All sandbox reversibility, file collision, and unit test suites passed.\n"
+            "Real in-game ME3Tweaks Mod Manager execution has NOT been live tested with human players.\n"
+            "Do not treat as a completed playable release.\n",
             encoding="utf-8"
         )
 
@@ -363,14 +421,16 @@ def main():
     p.add_argument("args", nargs="+", type=Path)
     p.add_argument("--baseline-manifest", type=Path, default=None)
     p.add_argument("--channel", choices=("candidate", "release"), default="candidate")
-    for action in ("verify", "install", "remove"):
+    for action in ("verify", "install", "remove", "reinstall"):
         p = sub.add_parser(action)
         p.add_argument("package_root", type=Path)
         if action != "verify":
             p.add_argument("test_game_root", type=Path)
-        if action == "install":
+        if action in ("install", "reinstall"):
             p.add_argument("--qa-candidate", action="store_true",
                            help="explicit unfinished candidate install into a verified independent test copy only")
+    p = sub.add_parser("status")
+    p.add_argument("test_game_root", type=Path)
     args = parser.parse_args()
     if args.action == "scaffold":
         result = scaffold(args.destination)
@@ -383,6 +443,8 @@ def main():
             result = build(args.args[0], args.args[1], args.args[2], args.baseline_manifest, channel=args.channel)
         else:
             parser.error("build requires either 1 argument (<archive.7z>) or 3 arguments (<source_root> <spec> <destination>)")
+    elif args.action == "status":
+        result = package.inspect_installation(args.test_game_root)
     else:
         manifest = json.loads((args.package_root / "manifest.json").read_text(encoding="utf-8"))
         if args.action == "verify":
@@ -391,6 +453,8 @@ def main():
                       "manifest_sha256": package.manifest_hash(manifest)}
         elif args.action == "install":
             result = package.install(args.package_root, manifest, args.test_game_root, allow_candidate=args.qa_candidate)
+        elif args.action == "reinstall":
+            result = package.reinstall(args.package_root, manifest, args.test_game_root, allow_candidate=args.qa_candidate)
         else:
             result = package.remove(args.test_game_root, expected_manifest_sha256=package.manifest_hash(manifest))
     print(json.dumps(result, indent=2))
