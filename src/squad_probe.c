@@ -19,6 +19,7 @@ static DirectIPNativeConfig direct_ip_config;
 static wchar_t root[MAX_PATH];
 static wchar_t documents[MAX_PATH];
 static char test_role[8] = "single";
+static int probe_guards_only=0,probe_private_guards_ready=0;
 typedef HANDLE (WINAPI *MutexW)(LPSECURITY_ATTRIBUTES,BOOL,LPCWSTR);
 static MutexW original_mutex = NULL;
 static volatile LONG instance_mutex_isolations = 0;
@@ -562,6 +563,7 @@ static void game_tick(void *self,float delta) {
     lookup_record("Probe","TotalTick",whole,0,0);
 }
 static int install_tick_bridge(uintptr_t base) {
+    if(probe_guards_only)return 0;
     uintptr_t engine = read_ptr(base + 0x18b31d0);
     uintptr_t vt = engine ? read_ptr(engine) : 0;
     if (vt != base + 0x13983a0) return 0;
@@ -602,6 +604,7 @@ static DWORD WINAPI observe(void *unused) {
     char header[220];
     snprintf(header, sizeof header, "{\"stage\":%d,\"pid\":%lu,\"role\":\"%s\",\"engine_state_read_only\":%s,\"observer_loaded\":true,\"private_documents\":true,\"campaign_coop\":false}\r\n", test_action, GetCurrentProcessId(), test_role, test_action ? "false" : "true");
     line(header);
+    if(probe_guards_only)line("{\"guards_only_qa\":true,\"engine_bridge_disabled\":true,\"action_plan_ignored\":true,\"private_guards_ready\":true}\r\n");
     AddVectoredExceptionHandler(0, exception_observer);
     int bridge_installed = 0, pe_identity_logged = 0; LONG logged_blocks = -1, logged_isolations = 0;
     for (int tick = 0; tick < 140 && has_marker(root); ++tick) {
@@ -655,6 +658,61 @@ static DWORD WINAPI observe(void *unused) {
     return 0;
 }
 
+/* Explicit protected QA mode: all original isolation gates must succeed
+ * before any orchestration decision. Isolation role still chooses private
+ * Documents/mutex names; it never forces client gameplay in guards-only mode. */
+static int probe_apply_private_guards(uintptr_t base) {
+    probe_private_guards_ready=0;
+    if(!has_marker(root)||!supported_image(base)||GetFileAttributesW(documents)==INVALID_FILE_ATTRIBUTES||
+       !redirect_documents(base)||!guard_file_imports(base))return 0;
+    probe_private_guards_ready=1;return 1;
+}
+static int probe_guards_only_environment(void) {
+    wchar_t value[2];int present=0;
+    if(!direct_ip_native_read_environment(L"ME3_SQUAD_COOP_GUARDS_ONLY_QA",value,2,&present))return -1;
+    if(!present||!wcscmp(value,L"0"))return 0;
+    return !wcscmp(value,L"1")?1:-1;
+}
+static int probe_configure_orchestration(int guards_only) {
+    if(!probe_private_guards_ready||(guards_only!=0&&guards_only!=1))return 0;
+    if(guards_only) {
+        probe_guards_only=1;test_action=0;client_prewarm=client_prewarm_joined=0;
+        host_reload_mars=host_reload_sent=0;refresh_host_map=0;
+        pair_control_enabled=session_enabled=progress_enabled=0;
+        return 1;
+    }
+    wchar_t plan[MAX_PATH];
+    _snwprintf(plan, MAX_PATH, L"%ls\\ME3SquadCoopRuntime\\test-action.txt", root);
+    HANDLE action = CreateFileW(plan, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (action != INVALID_HANDLE_VALUE) {
+        char value[64] = {0}; DWORD count = 0;
+        if (ReadFile(action, value, sizeof value - 1, &count, NULL)) {
+            if (strcmp(value, "travel-mars") == 0) test_action = 1;
+            else if (strcmp(value, "possess-ashley") == 0) test_action = 2;
+            else if (strcmp(value, "move-ashley") == 0) test_action = 3;
+            else if (strcmp(value, "host-mars") == 0) test_action = 4;
+            else if (strcmp(value, "host-pair") == 0) test_action = 6;
+        }
+        CloseHandle(action);
+    }
+    if (strcmp(test_role, "client") == 0) test_action = 5;
+    wchar_t prewarm[8] = {0};
+    client_prewarm = test_action == 5 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PREWARM_MARS", prewarm, 8) == 1 && prewarm[0] == L'1';
+    prewarm[0] = 0;
+    refresh_host_map = test_action == 6 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_REFRESH_HOST_MAP", prewarm, 8) == 1 && prewarm[0] == L'1';
+    prewarm[0] = 0;
+    host_reload_mars = test_action == 6 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_RELOAD_HOST_MARS", prewarm, 8) == 1 && prewarm[0] == L'1';
+    prewarm[0] = 0;
+    pair_control_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PAIR_CONTROL", prewarm, 8) == 1 && prewarm[0] == L'1';
+    prewarm[0] = 0;
+    session_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_SESSION_TEST", prewarm, 8) == 1 && prewarm[0] == L'1';
+    progress_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PROGRESS_TEST", prewarm, 8) == 1 && prewarm[0] == L'1';
+    return 1;
+}
+
+#ifndef ME3_SQUAD_COOP_RELEASE
+#include "probe_guards_fixture.h"
+#endif
 #ifndef ME3_SQUAD_COOP_RELEASE
 __declspec(dllexport) int SquadRuntimeIdentitySelfTest(void) {return me3_runtime_identity_selftest();}
 __declspec(dllexport) int SquadRuntimeConfigSelfTest(void) {return runtime_config_selftest();}
@@ -773,35 +831,12 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved) {
     }
     _snwprintf(documents, MAX_PATH, L"%ls\\ME3SquadCoopRuntime\\Documents%ls%ls", root,
         strcmp(test_role, "single") ? L"-" : L"", strcmp(test_role, "single") ? role : L"");
-    if (GetFileAttributesW(documents) == INVALID_FILE_ATTRIBUTES ||
-        !redirect_documents((uintptr_t)GetModuleHandleW(NULL)) ||
-        !guard_file_imports((uintptr_t)GetModuleHandleW(NULL))) { TerminateProcess(GetCurrentProcess(), 5); return TRUE; }
-    wchar_t plan[MAX_PATH];
-    _snwprintf(plan, MAX_PATH, L"%ls\\ME3SquadCoopRuntime\\test-action.txt", root);
-    HANDLE action = CreateFileW(plan, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (action != INVALID_HANDLE_VALUE) {
-        char value[64] = {0}; DWORD count = 0;
-        if (ReadFile(action, value, sizeof value - 1, &count, NULL)) {
-            if (strcmp(value, "travel-mars") == 0) test_action = 1;
-            else if (strcmp(value, "possess-ashley") == 0) test_action = 2;
-            else if (strcmp(value, "move-ashley") == 0) test_action = 3;
-            else if (strcmp(value, "host-mars") == 0) test_action = 4;
-            else if (strcmp(value, "host-pair") == 0) test_action = 6;
-        }
-        CloseHandle(action);
+    if(!probe_apply_private_guards((uintptr_t)GetModuleHandleW(NULL))) {
+        TerminateProcess(GetCurrentProcess(),5);return TRUE;
     }
-    if (strcmp(test_role, "client") == 0) test_action = 5;
-    wchar_t prewarm[8] = {0};
-    client_prewarm = test_action == 5 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PREWARM_MARS", prewarm, 8) == 1 && prewarm[0] == L'1';
-    prewarm[0] = 0;
-    refresh_host_map = test_action == 6 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_REFRESH_HOST_MAP", prewarm, 8) == 1 && prewarm[0] == L'1';
-    prewarm[0] = 0;
-    host_reload_mars = test_action == 6 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_RELOAD_HOST_MARS", prewarm, 8) == 1 && prewarm[0] == L'1';
-    prewarm[0] = 0;
-    pair_control_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PAIR_CONTROL", prewarm, 8) == 1 && prewarm[0] == L'1';
-    prewarm[0] = 0;
-    session_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_SESSION_TEST", prewarm, 8) == 1 && prewarm[0] == L'1';
-    progress_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PROGRESS_TEST", prewarm, 8) == 1 && prewarm[0] == L'1';
+    if(!probe_configure_orchestration(probe_guards_only_environment())) {
+        TerminateProcess(GetCurrentProcess(),87);return TRUE;
+    }
     HANDLE thread = CreateThread(NULL, 0, observe, NULL, 0, NULL);
     if (thread) CloseHandle(thread);
     return TRUE;

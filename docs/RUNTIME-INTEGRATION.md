@@ -80,10 +80,18 @@ python tests/native_session_gate_mutants.py <zig.exe>
 Actual-entry game validation still requires the independent copy, original-file
 locks, private profiles and bounded cleanup. The protected probe and ordinary
 entry both own the same Tick slot, so loading them both in their normal modes is
-invalid. A future explicit probe **guards-only** mode must retain its existing
-isolation checks, then skip action-plan/client-role orchestration and Tick
-installation. Only the ordinary entry would own Tick. Current stage zero alone
-is insufficient because the client test role forces the probe's join stage.
+invalid. The explicit protected `ME3_SQUAD_COOP_GUARDS_ONLY_QA=1` mode now
+retains marker, exact-image, private-Documents and file-import guards before
+skipping the action plan, client gameplay fallback and all probe Tick hooks.
+The isolation role still selects private profiles and the scoped test mutex;
+it does not select a gameplay role in this mode. Missing or `0` retains normal
+probe behavior; malformed/truncated values fail closed. Only the ordinary entry
+may own Tick. Its separate full fingerprint/configuration/DLC gates still apply.
+The native fixture uses actual guard functions on an allocated synthetic PE,
+verifies the substituted import slots, Documents routing and outside-write
+refusal, then checks that even an otherwise valid Tick slot remains untouched.
+It tests client fallback only in normal mode and rejects a missing private marker.
+This is offline evidence; loading the two real ASIs together remains unverified.
 Any research network bootstrap must be explicitly separate and preserved in
 its evidence; it is not an ordinary-runtime host/join implementation.
 

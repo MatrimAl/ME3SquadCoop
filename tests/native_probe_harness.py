@@ -1,6 +1,7 @@
 """DLL harness only: no game starts and no engine memory is written."""
 import ctypes
 import json
+import os
 import subprocess
 import tempfile
 import uuid
@@ -65,6 +66,27 @@ with tempfile.TemporaryDirectory(dir=ROOT / "local") as tmp:
     assert probe.SquadProbeEnabled(str(folder)) == 1
     (folder / "ME3SquadCoop.probe.enabled").unlink()
     assert probe.SquadProbeEnabled(str(folder)) == 0
+probe.SquadProbeGuardsOnlySelfTest.argtypes=[ctypes.c_wchar_p]
+probe.SquadProbeGuardsOnlySelfTest.restype=ctypes.c_int
+with tempfile.TemporaryDirectory(dir=ROOT / "local") as tmp:
+    folder=Path(tmp)
+    (folder / ".me3-coop-sandbox.json").write_text("{}")
+    (folder / "ME3SquadCoop.probe.enabled").write_text("stage-0")
+    runtime=folder / "ME3SquadCoopRuntime"
+    (runtime / "Documents-client").mkdir(parents=True)
+    (runtime / "test-action.txt").write_text("host-pair")
+    assert probe.SquadProbeGuardsOnlySelfTest(str(folder))==1, "guards-only skipped isolation or admitted orchestration/engine bridge"
+    (folder / "ME3SquadCoop.probe.enabled").unlink()
+    assert probe.SquadProbeGuardsOnlySelfTest(str(folder))==0, "guards-only accepted a missing private marker"
+clean_environment={k:v for k,v in os.environ.items() if k!="ME3_SQUAD_COOP_GUARDS_ONLY_QA"}
+code=("import ctypes,sys; p=ctypes.CDLL(sys.argv[1]); "
+      "f=p.SquadProbeGuardsEnvironmentFixture; f.restype=ctypes.c_int; "
+      "assert f()==int(sys.argv[2])")
+for value,expected in ((None,0),("0",0),("1",1),("",-1),("true",-1),("11",-1)):
+    environment=dict(clean_environment)
+    if value is not None:environment["ME3_SQUAD_COOP_GUARDS_ONLY_QA"]=value
+    subprocess.run(["python","-c",code,str(BUILD / "ME3SquadCoopProbe.asi"),str(expected)],
+                   env=environment,check=True,timeout=15)
 print("PASS native probe memory reader and opt-in gate (no game launched)")
 
 # Controlled Windows integrity test. Only the new fixture's ACL is changed.
