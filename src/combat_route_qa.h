@@ -50,11 +50,12 @@ static int combat_route_corridor(const float position[3],const float from[3],con
     return combat_route_horizontal(position,nearest)<=180&&fabsf(position[2]-(from[2]+t*(to[2]-from[2])))<=180;
 }
 static int combat_route_start_allowed(const float position[3]) {
-    /* A joined peer can displace the otherwise stationary landing pawn.
-     * Capture its actual guarded/grounded start inside this landing envelope;
-     * only the first leg uses that origin. Later nav corridors stay fixed. */
-    return scene_readiness_finite3(position)&&combat_route_horizontal(position,combat_route_start)<=350&&
-        fabsf(position[2]-combat_route_start[2])<=100;
+    /* The joined landing position varies. Bound the first input leg by the
+     * same 1500-unit range as ordinary steering, relative to the validated
+     * first nav point. Capture the actual grounded start as its corridor
+     * origin; later nav corridors and all context checks remain fixed. */
+    return scene_readiness_finite3(position)&&combat_route_horizontal(position,combat_route_points[0].xyz)<=1500&&
+        fabsf(position[2]-combat_route_points[0].xyz[2])<=180;
 }
 typedef struct CombatRouteQA {
     int loaded,opted,active,done,stopping,injected;unsigned waypoint,cleanup_tries;
@@ -235,9 +236,16 @@ static int combat_route_qa_selftest(void) {
     if(!combat_route_start_allowed(joined))return 0;
     float settled[3]={-21873.033f,49660.332f,226.492f};if(!combat_route_start_allowed(settled))return 0;
     if(!combat_route_corridor(settled,settled,combat_route_points[0].xyz))return 0;
-    memcpy(joined,combat_route_start,12);joined[0]+=349;if(!combat_route_start_allowed(joined))return 0;
-    memcpy(joined,combat_route_start,12);joined[2]+=101;if(combat_route_start_allowed(joined))return 0;
-    memcpy(joined,combat_route_start,12);joined[1]+=351;if(combat_route_start_allowed(joined))return 0;
+    float displaced[3]={-21924.662f,49481.430f,225.0f};
+    if(!combat_route_start_allowed(displaced)||!combat_route_corridor(displaced,displaced,combat_route_points[0].xyz))return 0;
+    if(!combat_route_start_allowed(combat_route_start))return 0;
+    memcpy(joined,combat_route_points[0].xyz,12);joined[0]+=1499;if(!combat_route_start_allowed(joined))return 0;
+    memcpy(joined,combat_route_points[0].xyz,12);joined[0]+=1501;if(combat_route_start_allowed(joined))return 0;
+    memcpy(joined,combat_route_points[0].xyz,12);joined[2]+=180;if(!combat_route_start_allowed(joined))return 0;
+    joined[2]+=1;if(combat_route_start_allowed(joined))return 0;
+    memcpy(joined,combat_route_points[0].xyz,12);joined[2]-=181;if(combat_route_start_allowed(joined))return 0;
+    memcpy(joined,combat_route_points[0].xyz,12);joined[0]=NAN;if(combat_route_start_allowed(joined))return 0;
+    memcpy(joined,combat_route_points[0].xyz,12);joined[2]=INFINITY;if(combat_route_start_allowed(joined))return 0;
     return combat_route_horizontal(combat_route_stop,combat_route_points[COMBAT_ROUTE_COUNT-1].xyz)>149;
 }
 #endif

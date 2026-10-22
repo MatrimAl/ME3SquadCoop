@@ -37,6 +37,8 @@ Equipment results remain mixed. One audit produced no eligible fire pulses; late
 
 Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. One protected pair observed six native `FireAmmunition` calls per side, with consumed counts settling at 3/3 and 6/6 and stable counts after release. The unchanged-build repeat with that native observer disabled failed: the host received and executed start-fire but deferred the shot while its port-arms animation flag remained set, leaving counts at host/guest 0/3. Snapshot correction was disabled in both runs. **Native firing works in some bounded runs; consistent animation/equipment initialization and enemy damage remain unverified.** The measured animation-state difference is the current investigation, rather than missing RPC delivery. See [progress notes](docs/PROGRESS.md).
 
+A subsequent route attempt measured frozen animation-node ticking while the world's `bPlayersOnly` flag was enabled. Normal message boxes can own and restore this flag; the active UI owner still needs identification. That run never acquired a guest, so this observation alone does not explain or fix the earlier firing failure. The guarded input route and separate player runtime are still being developed.
+
 1. Make equipment initialization repeatable, including inventory links and action-state readiness.
 2. Verify both firing and stopping, with matching host/guest ammunition observations.
 3. Test a real full conversation while the guest owns a squadmate, then verify camera/control restoration.

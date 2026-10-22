@@ -1,5 +1,14 @@
 # Progress
 
+## 2026-10-23: route attempt exposes frozen animation ticking
+
+- A separate protected Mars pair enabled the actual `WorldInfo.bPlayersOnly` flag about 36.7 seconds into the world. Ashley's mesh and cover-node tick tags then remained unchanged through about 187.8 seconds. The exact native mesh tick guard skips animation nodes while this world flag is set. Animation ticking outside rendering was already enabled; pause-animation, frozen, saved-pose and no-skeleton flags did not explain this capture. No animation or world flags were changed.
+- Native research identified a normal message-box lifecycle that saves and enables `bPlayersOnly`, then restores its prior value when that same message box closes. The active owning message box has not yet been captured. This supports inspecting normal UI ownership before attempting any remedy; it does not establish that a particular tutorial or player action caused the pause.
+- Both route attempts rejected the joined landing position before walking or guest acquisition. They therefore provide no new firing, ownership-lifecycle or combat pass. The default-off driver now bounds its first leg by the same 1,500-unit range as its ordinary input calculation, relative to the validated first nav point, and retains the actual grounded start as its first corridor origin. Later corridors and identity, story, camera, ground and duration guards remain in place. Native outputs built, the Windows protection harness passed, and four compiled unsafe-policy variants were rejected. Actual route traversal remains unverified.
+- The latest completed run protected 8,210 original game/profile files, retained unchanged profiles, recorded zero native exceptions and required no forced orphan cleanup. The probe was disabled afterward, the native source fingerprint matched, and no game processes remained. Raw captures and distinct run/build records remain private.
+
+Next: identify and normally close the owning modal UI, then exercise the actual input route to a hostile encounter. Consistent firing, enemy damage, real dialogue, two-PC Radmin and end-user installation/rollback remain unverified.
+
 ## 2026-10-23: observer-off repeat identifies port-arms deferral
 
 - Repeated the protected pair with the unchanged native build and native firing observer disabled. RPC observations remained enabled; snapshot correction remained disabled. The one eligible 250 ms input pulse settled at host/guest consumed counts 0/3, reserves 210/210. After synthetic reacquisition, the guest inventory chain was not eligible for a second pulse. This fails the firing requirement despite passing the separate lifecycle checks.
