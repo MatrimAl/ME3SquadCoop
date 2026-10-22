@@ -25,6 +25,13 @@ exact in-process timestamp/landmark checks. These checks supplement the complete
 executable SHA-256 required by protected launchers; they are not a full hash.
 Both native entry sources use these primitives.
 
+`me3_game_support.h` shares the existing UE3 names, FString/parameter layouts,
+validated function discovery cache, ordinary invocation helpers and native
+package-map readiness code. These function bodies were moved unchanged from
+the protected probe. `squad_pawn_readiness.h` shares its read-only ownership,
+action and physics readiness helpers. Sharing those implementations does not
+start the co-op lifecycle or permit an unprotected game experiment.
+
 `runtime_config.h` defines an explicit future runtime role and endpoint. It
 requires `ME3_SQUAD_COOP_ENABLED=1`, `ME3_SQUAD_COOP_ROLE=host` or `guest`, an
 explicit bind IPv4 and port, and a peer IPv4 for a guest. It rejects loopback,

@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <wchar.h>
 #include <string.h>
-#include "me3_runtime_identity.h"
+#include "me3_game_support.h"
 #include "runtime_config.h"
 
 static int g_dlc_active = 0;
@@ -43,6 +43,15 @@ __declspec(dllexport) int ME3SquadCoopConfigStatus(void) {return g_config_status
 #ifdef ME3_RUNTIME_FIXTURE
 __declspec(dllexport) int ME3RuntimeIdentitySelfTest(void) {return me3_runtime_identity_selftest();}
 __declspec(dllexport) int ME3RuntimeConfigSelfTest(void) {return runtime_config_selftest();}
+__declspec(dllexport) int ME3RuntimeSupportSelfTest(void) {
+    unsigned char engine[0x510]={0},player[0x80]={0};uint32_t marker=17;
+    uintptr_t players[1]={(uintptr_t)player};GameArray array={(uintptr_t)players,1,1};
+    uintptr_t controller=(uintptr_t)&marker;
+    memcpy(engine+0x498,&array,sizeof array);memcpy(player+0x68,&controller,8);
+    if(local_controller((uintptr_t)engine)!=controller)return 0;
+    array.count=5;memcpy(engine+0x498,&array,sizeof array);
+    return !local_controller((uintptr_t)engine)&&sizeof(ConsoleParms)==0x24&&function_lookup_selftest();
+}
 __declspec(dllexport) int ME3RuntimeConfigEnvironmentFixture(void) {
     Me3RuntimeConfig config;return runtime_config_load_environment(&config);
 }

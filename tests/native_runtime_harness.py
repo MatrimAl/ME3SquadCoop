@@ -27,7 +27,7 @@ def main():
                     "-std=c17", "-O2", "-shared", "-DME3_RUNTIME_FIXTURE",
                     str(ROOT / "src/squad_coop.c"), "-o", str(dll)], env=env, check=True)
     entry = ctypes.CDLL(str(dll))
-    for name in ("ME3RuntimeIdentitySelfTest", "ME3RuntimeConfigSelfTest"):
+    for name in ("ME3RuntimeIdentitySelfTest", "ME3RuntimeConfigSelfTest", "ME3RuntimeSupportSelfTest"):
         fixture = getattr(entry, name)
         fixture.restype = ctypes.c_int
         assert fixture() == 1, name
