@@ -204,8 +204,11 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
     guest_config = DirectIPConfig("client", bind_ipv4, port, peer_ipv4=bind_ipv4, loopback_qa=loopback_qa)
     progress_test = os.environ.get("ME3_SQUAD_COOP_PROGRESS_TEST") == "1"
     extended_qa = progress_test and os.environ.get("ME3_SQUAD_COOP_EXTENDED_QA") == "1"
-    host_seconds = 480 if extended_qa else 360 if progress_test else 240 if session_test else 210 if pair_control else 180
-    client_seconds = 360 if extended_qa else 240 if progress_test else 120 if session_test else 90 if pair_control else 60 if prewarm_mars else CLIENT_SECONDS
+    route_qa = progress_test and os.environ.get("ME3_SQUAD_COOP_COMBAT_ROUTE_QA") == "1"
+    # Keep the same 110-second host readiness allowance while reducing the
+    # unused tail after the two bounded ownership epochs in route experiments.
+    host_seconds = 480 if extended_qa else 300 if route_qa else 360 if progress_test else 240 if session_test else 210 if pair_control else 180
+    client_seconds = 360 if extended_qa else 180 if route_qa else 240 if progress_test else 120 if session_test else 90 if pair_control else 60 if prewarm_mars else CLIENT_SECONDS
     report = {"stage": "two-real-client-connection-observation",
               "campaign_coop_verified": False, "connection_states_verified": False,
               "join_patches_enabled": False,
@@ -215,6 +218,7 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
               "host_reload_mars": reload_host_mars,
               "pair_control_requested": pair_control,
               "session_lifecycle_requested": session_test,
+              "combat_route_qa_requested": route_qa,
               "transport_configuration": host_config.to_dict(),
               "two_computer_radmin_verified": False,
               "protection_method": "OS read-sharing locks held across both launchers",
