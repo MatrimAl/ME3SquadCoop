@@ -22,6 +22,8 @@ probe.SquadFunctionLookupSelfTest.restype = ctypes.c_int
 assert probe.SquadFunctionLookupSelfTest() == 1, "function cache accepted a changed/reused function, owner, class or object-table entry"
 probe.SquadNetworkActorSelfTest.restype = ctypes.c_int
 assert probe.SquadNetworkActorSelfTest() == 1, "channel lookup accepted a stale world, duplicate peer/channel or broken reciprocal identity"
+probe.SquadAmmoWireSelfTest.restype = ctypes.c_int
+assert probe.SquadAmmoWireSelfTest() == 1, "ammo wire observer changed forwarding, nested receive scope or its record budget"
 probe.SquadDirectIPSelfTest.restype = ctypes.c_int
 assert probe.SquadDirectIPSelfTest() == 1, "native endpoint validation failed"
 probe.SquadGuestCameraSelfTest.restype = ctypes.c_int

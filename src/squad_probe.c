@@ -574,6 +574,7 @@ static void possession_test(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
 #include "combat_fire_bot.h"
 #include "guest_equipment_bootstrap.h"
 #include "ammo_change_trace.h"
+#include "ammo_wire_trace.h"
 #include "initial_actor_trace.h"
 #include "session_control.h"
 static void game_tick_diagnostics(void *self,uintptr_t base) {
@@ -683,12 +684,13 @@ static void game_tick_diagnostics(void *self,uintptr_t base) {
 static void game_tick(void *self,float delta) {
     uintptr_t base=(uintptr_t)GetModuleHandleW(NULL);
     lookup_profile_emit();unsigned long long whole=lookup_clock(),part=lookup_clock();
-    initial_actor_trace_install(base);install_package_trace(base);
+    initial_actor_trace_install(base);ammo_wire_install(base);install_package_trace(base);
     input_bot(base,(uintptr_t)self);progress_input(base,(uintptr_t)self);
     if(session_enabled)session_frame(base,(uintptr_t)self,0);else pair_guest_input(base,(uintptr_t)self);
     lookup_record("Probe","PreTick",part,0,0);part=lookup_clock();
     original_tick(self,delta);lookup_record("Engine","OriginalTick",part,0,0);part=lookup_clock();
     if(session_enabled)session_frame(base,(uintptr_t)self,1);
+    ammo_wire_prepare(base);
     lookup_record("Probe","PostTick",part,0,0);part=lookup_clock();
     game_tick_diagnostics(self,base);lookup_record("Probe","Diagnostics",part,0,0);
     lookup_record("Probe","TotalTick",whole,0,0);
@@ -801,6 +803,7 @@ __declspec(dllexport) int SquadCatchupGroundSelfTest(void) { return catchup_grou
 __declspec(dllexport) int SquadAmmoTraceSelfTest(void) { return ammo_trace_selftest(); }
 __declspec(dllexport) int SquadFunctionLookupSelfTest(void) { return function_lookup_selftest(); }
 __declspec(dllexport) int SquadNetworkActorSelfTest(void) { return network_actor_identity_selftest(); }
+__declspec(dllexport) int SquadAmmoWireSelfTest(void) { return ammo_wire_selftest(); }
 __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_adapter_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {

@@ -55,9 +55,11 @@ static void initial_actor_received_bunch(void *self, void *bunch) {
         read_at(incoming + 0xc4, &initial_byte, sizeof initial_byte) &&
         read_at(incoming + 0x38, &archive_before, sizeof archive_before);
     unsigned int event = capture ? ++initial_actor_trace_count : 0;
+    AmmoWireReceive wire_frame;ammo_wire_receive_begin(&wire_frame,channel);
     SetLastError(error_before);
     forward(self, bunch); /* Always exactly one original call, unchanged args. */
     DWORD error_after = GetLastError();
+    ammo_wire_receive_end(&wire_frame);
     if (capture) {
         uintptr_t actor_after = 0, class_after = 0;
         uint32_t flags_after = 0, archive_after = 0;
