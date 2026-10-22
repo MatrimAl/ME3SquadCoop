@@ -12,4 +12,5 @@ if __name__ == "__main__":
         "route-excess-input": [("||gain>0.45f", "")],
         "route-off-corridor": [("<=180&&fabsf", "<=2000&&fabsf")],
         "route-unbounded-start": [("<=1500&&", "<=15000&&")],
+        "route-fname-number-shift": [("(unsigned long)(number-1)", "(unsigned long)number")],
     }, "combat_route_qa.h", "SquadCombatRouteSelfTest")

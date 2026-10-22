@@ -59,6 +59,15 @@ static int combat_route_start_allowed(const float position[3]) {
     return scene_readiness_finite3(position)&&combat_route_horizontal(position,combat_route_points[0].xyz)<=1500&&
         fabsf(position[2]-combat_route_points[0].xyz[2])<=180;
 }
+/* object_name intentionally returns the FName base only. Actor instance
+ * suffixes use the separate one-based Number field, not another name string. */
+static int combat_route_numbered_point(const char *name,uint32_t number,unsigned *point) {
+    if(!name||!number||!point)return 0;
+    char numbered[96];int length=snprintf(numbered,sizeof numbered,"%s_%lu",name,(unsigned long)(number-1));
+    if(length<0||length>=(int)sizeof numbered)return 0;
+    for(unsigned j=0;j<COMBAT_ROUTE_COUNT;++j)if(!strcmp(numbered,combat_route_points[j].name)){*point=j;return 1;}
+    return 0;
+}
 typedef struct CombatRouteQA {
     int loaded,opted,active,done,stopping,injected,action_approach,turn_injected;unsigned waypoint,cleanup_tries;
     DWORD stable_at,started,advanced_at,report_at,discovery_at,stopped_at,still_at,paused_at;
@@ -108,9 +117,12 @@ static int combat_route_discover(uintptr_t base,uintptr_t world,DWORD now) {
     GameArray list={0};uintptr_t *objects=identity_object_list(base,&list);if(!objects)return 0;
     unsigned found[COMBAT_ROUTE_COUNT]={0};GuestCameraStamp nodes[COMBAT_ROUTE_COUNT];memset(nodes,0,sizeof nodes);
     for(int i=0;i<list.count;++i){uintptr_t at=objects[i];if(!at)continue;char name[96];object_name(base,at,name,sizeof name);
-        for(unsigned j=0;j<COMBAT_ROUTE_COUNT;++j)if(!strcmp(name,combat_route_points[j].name)){
+        if(strcmp(name,"PathNode")&&strcmp(name,"SFXNav_JumpDownNode"))continue;
+        uint32_t number=0;unsigned j=0;
+        if(!read_at(at+0x4c,&number,4)||!combat_route_numbered_point(name,number,&j))continue;
+        {
             GuestCameraStamp stamp;char expected[240];float xyz[3];
-            snprintf(expected,sizeof expected,"BioD_ProMar_120Gatehouse.TheWorld.PersistentLevel.%s",name);
+            snprintf(expected,sizeof expected,"BioD_ProMar_120Gatehouse.TheWorld.PersistentLevel.%s",combat_route_points[j].name);
             if(!guest_camera_actor_live(base,at)||read_ptr(at+0x198)!=world||
                !is_kind_of(base,at,j+1==COMBAT_ROUTE_COUNT?"SFXNav_JumpDownNode":"PathNode")||
                !guest_camera_stamp_read(base,at,&stamp,1)||strcmp(stamp.full_name,expected)||
@@ -280,6 +292,12 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
     if(!q->report_at||now-q->report_at>=1000){q->report_at=now;combat_route_log("input","ordinary-host-axes",xyz,now);}
 }
 static int combat_route_qa_selftest(void) {
+    const uint32_t captured_numbers[]={104,105,113,112,111,110,109,108,107,7};unsigned point=99;
+    for(unsigned i=0;i<COMBAT_ROUTE_COUNT;++i)
+        if(!combat_route_numbered_point(i+1==COMBAT_ROUTE_COUNT?"SFXNav_JumpDownNode":"PathNode",captured_numbers[i],&point)||point!=i)return 0;
+    if(combat_route_numbered_point("PathNode",0,&point)||combat_route_numbered_point("PathNode",106,&point)||
+       combat_route_numbered_point("OtherNode",104,&point)||combat_route_numbered_point("PathNode_103",104,&point)||
+       combat_route_numbered_point(NULL,104,&point)||combat_route_numbered_point("PathNode",104,NULL))return 0;
     CombatRoutePolicy p={1,1,1,1,1,1,1,0};if(!combat_route_policy(&p)||combat_route_policy(NULL))return 0;
     int *fields[]={&p.opted,&p.authority,&p.identity,&p.ordinary,&p.camera,&p.ground,&p.input};
     for(unsigned i=0;i<sizeof fields/sizeof *fields;++i){*fields[i]=0;if(combat_route_policy(&p))return 0;*fields[i]=1;}
