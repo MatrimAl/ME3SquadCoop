@@ -1,0 +1,15 @@
+local/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+*.log
+*.jsonl
+*.dmp
+*.7z
+*.zip
+*.asi
+*.dll
+*.exe
+*.obj
+*.pdb
