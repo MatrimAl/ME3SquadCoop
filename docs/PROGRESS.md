@@ -9,6 +9,16 @@
 
 Next: identify and normally close the owning modal UI, then exercise the actual input route to a hostile encounter. Consistent firing, enemy damage, real dialogue, two-PC Radmin and end-user installation/rollback remain unverified.
 
+## 2026-10-23: bounded authoritative enemy combat sampler implemented
+
+- Implemented `src/authoritative_enemy_sampler.py` and `tools/sample_authoritative_combat.py` for bounded, read-only Windows process-memory sampling of authoritative enemy health and shields during ME3 Legendary Edition campaign co-op tests.
+- Replaced reliance on legacy non-authoritative `Pawn.Health` (+0x514) with direct damage-module `CurrentHealth` (+0x98) and inventory `CurrentShields` (+0x3C4), with reciprocal ownership verification (`Module.ModuleOwner == Pawn` and `Shield.Owner/Instigator/InvManager == Pawn/Pawn/InventoryManager`).
+- Enforces strict read-only process memory access (`0x410: PROCESS_VM_READ | PROCESS_QUERY_INFORMATION`). Rejects unverified game launches, injection, code modification, or non-isolated executables. Verifies SHA-256 `b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001`.
+- Filters loaded levels to reject Class Default Objects (CDOs), deleted actors (`bDeleteMe`), wrong-world actors (`Actor.WorldInfo != GWorld.WorldInfo`), and stale GObjects identities.
+- Distinguishes genuine hostile pawns from player/squad allies and explicitly rejects the pre-existing Gatehouse `BioPawn_0` dummy actor (`BioD_ProMar_120Gatehouse.TheWorld.PersistentLevel.BioPawn_0`).
+- Adheres to strict attribution skepticism: an observed health decrease proves only a health decrease; no guest damage attribution is claimed without verified hit/weapon trace evidence.
+- Added 16 unit tests in `tests/test_authoritative_enemy_sampler.py`; full repository test suite passes with 213 tests (3 skipped). Documented in [AUTHORITATIVE-COMBAT-SAMPLER.md](AUTHORITATIVE-COMBAT-SAMPLER.md).
+
 ## 2026-10-23: observer-off repeat identifies port-arms deferral
 
 - Repeated the protected pair with the unchanged native build and native firing observer disabled. RPC observations remained enabled; snapshot correction remained disabled. The one eligible 250 ms input pulse settled at host/guest consumed counts 0/3, reserves 210/210. After synthetic reacquisition, the guest inventory chain was not eligible for a second pulse. This fails the firing requirement despite passing the separate lifecycle checks.
