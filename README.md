@@ -35,7 +35,7 @@ Equipment results remain mixed. One audit produced no eligible fire pulses; late
 
 ## Current work
 
-Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. Measured changes reduced function discovery and channel-lookup stalls. Native field observations exposed guest prediction after the last received ammunition value. A new default-off research adapter now requests a settled host snapshot through existing owner-controller RPCs and applies a fresh, matching reply to the idle guest weapon. In its first protected pair, two complete roundtrips corrected guest consumed count 1 to host count 0. **The host consumed no ammunition in that run: counter correction works in this observation, but authoritative guest firing remains unresolved.** This is not a combat fix or player-ready transport. See [progress notes](docs/PROGRESS.md).
+Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. Measured changes reduced function discovery and channel-lookup stalls. A default-off snapshot adapter corrected guest consumed count 1 to host count 0 in two observed exchanges. A subsequent protected pair, with that correction disabled, directly observed two start-fire and two stop-fire RPC entries on the host for the validated guest weapon channel. Host ammunition stayed 0 while guest counts reached 3 and 6. **The firing commands reached the host; actual firing, damage and ammunition behavior still need separate verification.** Native dispatch entry and a shot/effects counter alone do not prove a complete authoritative shot. See [progress notes](docs/PROGRESS.md).
 
 1. Make equipment initialization repeatable, including inventory links and action-state readiness.
 2. Verify both firing and stopping, with matching host/guest ammunition observations.
@@ -68,6 +68,7 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `src/ammo_change_trace.h` | Opt-in read-only ammunition changes, channel identities and sampled update state |
 | `src/ammo_wire_trace.h`, `src/ammo_wire_verification.py` | Opt-in native field encoding/decoding observations and conservative evidence summaries |
 | `src/ammo_reconcile.h`, `src/ammo_reconcile_protocol.h`, `src/ammo_reconcile_verification.py` | Default-off owner-controller snapshot requests, guarded guest counter correction and separate roundtrip evidence |
+| `src/fire_rpc_trace.h` | Default-off native script-entry observations for class/state weapon methods; internal VM calls may bypass these entries |
 | `src/function_lookup_cache.h`, `src/lookup_profile.h` | Live-validated discovery cache and opt-in CPU-path wall-clock measurements |
 | `src/combat_*` | Equipment observations and opt-in firing test input |
 | `src/*verification.py` | Evidence evaluators; labels alone do not count as proof |

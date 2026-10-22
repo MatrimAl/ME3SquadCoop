@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-10-23: guest firing RPC arrival observed on host
+
+- Added default-off `ME3_SQUAD_COOP_FIRE_RPC_TRACE=1` observations around 15 exact-build weapon class/state native script entries, including the separate inactive-state server methods. Installation validates reflected identity, parameter layout, script length and native dispatch; calls retain their original arguments and Windows LastError. Observations require the current reciprocally owned squad weapon and are bounded to 256 records per process. This does not alter firing or consume an RPC.
+- Built all three native outputs and passed the Windows harness. Three separately compiled negative controls rejected missing original forwarding, changed self arguments and classification of a different channel as an incoming RPC. Python discovery passed 197 tests, 2 skipped.
+- In a protected Mars pair, the snapshot correction adapter was disabled. Two 250 ms guest input pulses produced two `Engine.Weapon.ServerStartFire` and two `SFXGame.SFXWeapon.ServerStopFire` native entries on the host. Each matched the active native receive frame, target function/object and validated weapon channel 21; all four original entry calls returned with valid scope. The weapon state was `Active` before and after each entry. Host consumed count stayed 0; guest counts stabilized at 3 and 6, reserves 210/210.
+- This establishes arrival at the selected host RPC entry, not execution of every statement or a full authoritative shot. Internal VM calls can bypass `UFunction.Func`, so missing nested/client entries cannot prove those methods were never called. Separate read-only research also maps the pawn shot counter to a weapon/effects path; a changed shot counter alone does not establish ammunition consumption or enemy damage.
+- Two ownership epochs, synthetic scene release/reacquisition, host story preservation and native disconnect/AI restoration passed. Original locks covered 8,210 game/profile files; profiles were unchanged, native exceptions were zero, no forced orphan cleanup occurred, the probe was disabled and no game processes remained. The tested native source fingerprint matched at completion. Raw captures, call records and distinct build/run audits remain private.
+
+Next: distinguish incoming script-body execution from dispatch-only observation, and observe the actual native ammunition-firing path. Real conversations, sustained progression, two-PC Radmin and safe player installation remain open.
+
 ## 2026-10-22: guarded host snapshot correction exercised
 
 - Added a default-off research adapter that requests settled authoritative ammunition through existing owner-PlayerController native RPCs. Exact method/parameter/dispatch validation and the active reciprocal native receive channel authorize control messages. Ordinary script calls retain original forwarding. No new socket or package-validation change is involved.
