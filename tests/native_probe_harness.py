@@ -28,6 +28,8 @@ probe.SquadAmmoReconcileSelfTest.restype = ctypes.c_int
 assert probe.SquadAmmoReconcileSelfTest() == 1, "ammo reconciliation accepted a malformed/stale reply or changed unrelated script forwarding"
 probe.SquadFireRpcTraceSelfTest.restype = ctypes.c_int
 assert probe.SquadFireRpcTraceSelfTest() == 1, "weapon script observer changed forwarding, receive classification or its record limit"
+probe.SquadNativeFireTraceSelfTest.restype = ctypes.c_int
+assert probe.SquadNativeFireTraceSelfTest() == 1, "native fire observer changed forwarding, accepted another identity/native body or exceeded its record limit"
 probe.SquadDirectIPSelfTest.restype = ctypes.c_int
 assert probe.SquadDirectIPSelfTest() == 1, "native endpoint validation failed"
 probe.SquadGuestCameraSelfTest.restype = ctypes.c_int
