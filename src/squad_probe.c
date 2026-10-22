@@ -580,6 +580,7 @@ static void possession_test(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
 #include "native_fire_trace.h"
 #include "initial_actor_trace.h"
 #include "session_control.h"
+#include "combat_route_qa.h"
 static void game_tick_diagnostics(void *self,uintptr_t base) {
     DWORD now = GetTickCount();
     if (now - last_state < 1000) return;
@@ -688,11 +689,14 @@ static void game_tick(void *self,float delta) {
     uintptr_t base=(uintptr_t)GetModuleHandleW(NULL);
     lookup_profile_emit();unsigned long long whole=lookup_clock(),part=lookup_clock();
     initial_actor_trace_install(base);ammo_wire_install(base);install_package_trace(base);
-    input_bot(base,(uintptr_t)self);progress_input(base,(uintptr_t)self);
+    input_bot(base,(uintptr_t)self);
+    if(!combat_route_qa_host_mode())progress_input(base,(uintptr_t)self);
+    combat_route_qa_tick(base,(uintptr_t)self,0,GetTickCount());
     if(session_enabled)session_frame(base,(uintptr_t)self,0);else pair_guest_input(base,(uintptr_t)self);
     lookup_record("Probe","PreTick",part,0,0);part=lookup_clock();
     original_tick(self,delta);lookup_record("Engine","OriginalTick",part,0,0);part=lookup_clock();
     if(session_enabled)session_frame(base,(uintptr_t)self,1);
+    combat_route_qa_tick(base,(uintptr_t)self,1,GetTickCount());
     ammo_wire_prepare(base);
     ammo_reconcile_tick();
     fire_rpc_trace_prepare();
@@ -806,6 +810,7 @@ __declspec(dllexport) int SquadProbeSelfTest(void) {
 __declspec(dllexport) int SquadDirectIPSelfTest(void) { return direct_ip_native_selftest(); }
 __declspec(dllexport) int SquadStateReaderSelfTest(void) { return native_state_reader_selftest(); }
 __declspec(dllexport) int SquadCatchupGroundSelfTest(void) { return catchup_ground_selftest(); }
+__declspec(dllexport) int SquadCombatRouteSelfTest(void) { return combat_route_qa_selftest(); }
 __declspec(dllexport) int SquadAmmoTraceSelfTest(void) { return ammo_trace_selftest(); }
 __declspec(dllexport) int SquadFunctionLookupSelfTest(void) { return function_lookup_selftest(); }
 __declspec(dllexport) int SquadNetworkActorSelfTest(void) { return network_actor_identity_selftest(); }
