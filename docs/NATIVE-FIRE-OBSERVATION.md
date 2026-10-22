@@ -45,4 +45,17 @@ The native fixture covers exact forwarding, `LastError`, identity/generation/
 thread guards, changed bridge/body instructions, changed vtable/target and the
 paired record budget. Compiled negative controls deliberately remove forwarding
 or identity protections. These checks do not establish in-game firing behavior;
-the observer needs a new protected paired run for that.
+runtime evidence is required separately.
+
+In a protected paired run on 2026-10-23, six original native calls per side each
+advanced consumed count by one. Two 250 ms guest input pulses settled at
+host/guest 3/3 and 6/6, reserves 210/210, and stopped consuming after release.
+Snapshot correction was disabled. Each incoming host start-fire request used
+mode 2 and advanced its script cursor while entering `WeaponFiring`.
+
+This is one bounded success. The preceding pair received firing RPCs without
+authoritative consumption; no intentional firing behavior fix separates the
+runs. Repeatability with observation disabled and the cause of the difference
+remain open. No authoritative enemy health/shield change was measured, so this
+run does not establish enemy damage or full combat. Private raw captures and
+the audited build/source fingerprints are retained outside the public repository.
