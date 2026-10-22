@@ -1,3 +1,6 @@
+> **Bu proje için fazlasıyla ai geliştirme kullanılmaktadır.**
+> AI-assisted development is used extensively. Contributions and claims still require human review and actual verification.
+
 # ME3 Squad Co-op
 
 Experimental campaign co-op research for **Mass Effect 3 in Mass Effect Legendary Edition (LE3)**.
@@ -109,6 +112,10 @@ The launch scripts currently expect a sibling `coop-anything/local/me3-le/` priv
 
 No game files, saves, personal profiles, runtime logs or third-party mod assets are distributed here. No account, matchmaking or public service bypass is part of the project. Package/GUID validation remains intact.
 
+## Contributions welcome
+
+Start with [CONTRIBUTING.md](CONTRIBUTING.md), report a bug or propose research using the [issue forms](https://github.com/MatrimAl/ME3SquadCoop/issues/new/choose), and open a draft PR against `dev/campaign-coop`. Code, tests, research, documentation and translations are welcome. See the [Turkish maintainer guide](docs/MAINTAINER-GUIDE.tr.md) for review and merge steps.
+
 ## Development workflow
 
 `main` records reviewed source snapshots. Active work starts on `dev/campaign-coop`; subsequent changes should use focused branches and be reviewed before merging. Keep implementation, tests and evidence limits together. Never promote a synthetic success into a claim about a real mission.
@@ -122,5 +129,5 @@ For bug reports, include the exact build, reproduction steps and sanitized obser
 - [Original ME3 campaign co-op proof of concept](https://www.nexusmods.com/masseffect3/mods/723): historical reference for the original game, not proof of LE3 compatibility.
 - [ME3Tweaks](https://me3tweaks.com/): intended packaging ecosystem; install/disable/rollback integration still needs validation.
 
-This is an unofficial community experiment. Mass Effect and its game assets belong to their respective owners. No open-source license is selected for the project-owned code yet; public visibility alone does not grant a redistribution license. Third-party material retains its own terms.
+This is an unofficial community experiment. Mass Effect and its game assets belong to their respective owners. Project-owned code is available under the [MIT License](LICENSE). Third-party material retains its own terms; game assets are not included.
 

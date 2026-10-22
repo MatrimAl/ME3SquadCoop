@@ -1,0 +1,57 @@
+name: Research / task / Araştırma
+description: Coordinate a bounded investigation or volunteer for work.
+title: '[Research]: '
+labels:
+- research
+- needs-triage
+body:
+- type: markdown
+  attributes:
+    value: 'Turkish and English are welcome. Research prototype: no complete gameplay release yet. Do
+      not include game assets, saves, private logs, paths, VPN addresses or credentials.'
+- type: textarea
+  id: goal
+  attributes:
+    label: Question and scope
+    description: One question or concrete task. Link existing issues/PRs and say if you intend to work
+      on it.
+  validations:
+    required: true
+- type: textarea
+  id: known
+  attributes:
+    label: Known evidence and sources
+    description: What is observed, inferred, hypothetical or unknown? Link primary sources and state build/revision.
+  validations:
+    required: true
+- type: textarea
+  id: plan
+  attributes:
+    label: Proposed approach
+    description: Small steps, dependencies, isolation and cleanup. Do not propose changes to original
+      game files.
+  validations:
+    required: true
+- type: textarea
+  id: done
+  attributes:
+    label: Definition of done
+    description: Specific evidence needed, stop conditions and validation limits.
+  validations:
+    required: true
+- type: textarea
+  id: help
+  attributes:
+    label: Help wanted
+    description: What skills or support would help? Suggested branch or fork URL, if any.
+  validations:
+    required: false
+- type: checkboxes
+  id: confirmation
+  attributes:
+    label: Before submitting
+    options:
+    - label: I searched existing issues and PRs.
+      required: true
+    - label: This report contains no private data, game assets or credentials.
+      required: true

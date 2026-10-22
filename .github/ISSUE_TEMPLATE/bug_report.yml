@@ -1,0 +1,71 @@
+name: Bug report / Hata bildirimi
+description: Report a reproducible source, tooling or isolated gameplay problem.
+title: '[Bug]: '
+labels:
+- bug
+- needs-triage
+body:
+- type: markdown
+  attributes:
+    value: 'Turkish and English are welcome. Research prototype: no complete gameplay release yet. Do
+      not include game assets, saves, private logs, paths, VPN addresses or credentials.'
+- type: input
+  id: revision
+  attributes:
+    label: Commit / branch
+    description: Include the commit SHA; say whether this is source tooling or an isolated game run.
+  validations:
+    required: true
+- type: input
+  id: environment
+  attributes:
+    label: Environment / build
+    description: Windows/Python/Zig versions; for game tests include LE3 executable version and SHA-256,
+      never the install path.
+  validations:
+    required: true
+- type: textarea
+  id: steps
+  attributes:
+    label: Steps to reproduce
+    description: Numbered steps, host/guest role and whether this is a real game test or a synthetic fixture.
+  validations:
+    required: true
+- type: textarea
+  id: expected
+  attributes:
+    label: Expected behavior
+    description: What should have happened?
+  validations:
+    required: true
+- type: textarea
+  id: actual
+  attributes:
+    label: Observed behavior
+    description: What happened, how often, and when?
+  validations:
+    required: true
+- type: textarea
+  id: evidence
+  attributes:
+    label: Sanitized evidence and cleanup
+    description: Short relevant observations, commands and results. For game tests explain isolation,
+      restoration and whether originals stayed unchanged. Do not attach full logs or saves.
+  validations:
+    required: true
+- type: textarea
+  id: workaround
+  attributes:
+    label: Workaround / additional context
+    description: Related issues, workaround or possible cause. Mark hypotheses clearly.
+  validations:
+    required: false
+- type: checkboxes
+  id: confirmation
+  attributes:
+    label: Before submitting
+    options:
+    - label: I searched existing issues and PRs.
+      required: true
+    - label: This report contains no private data, game assets or credentials.
+      required: true
