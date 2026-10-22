@@ -411,6 +411,7 @@ static void possession_test(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
     snprintf(text, sizeof text, "{\"possession\":\"returned\",\"ashley_controller_match\":%s}\r\n", ok ? "true" : "false");
     line(text); possession_at = now; possession_stage = 1;
 }
+static int native_session_role(void) {return test_action;}
 #include "pair_control.h"
 #include "network_actor_identity.h"
 #include "network_actor_identity_selftest.h"

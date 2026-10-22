@@ -46,8 +46,8 @@ static int network_actor_connection_in_scope(uintptr_t base, uintptr_t driver, u
     if (!is_live(base, driver) || !is_kind_of(base, driver, "NetDriver") ||
         !is_live(base, connection) || !is_kind_of(base, connection, "NetConnection") ||
         read_ptr(connection + 0x8c) != driver) return 0;
-    if (test_action == 5) return read_ptr(driver + 0x80) == connection;
-    if (test_action == 6) {
+    if (native_session_role() == 5) return read_ptr(driver + 0x80) == connection;
+    if (native_session_role() == 6) {
         GameArray clients = {0}; int memberships = 0;
         if (driver != identity_host_driver || read_ptr(driver + 0x80) ||
             !identity_array(driver + 0x70, &clients, 64)) return 0;
@@ -84,13 +84,13 @@ static int network_actor_scan_driver(uintptr_t base, uintptr_t pawn, uintptr_t d
                                      NetworkActorIdentityEntry *result) {
     uintptr_t connections[64]; int connection_count = 0, matches = 0;
     if (!is_live(base, driver) || !is_kind_of(base, driver, "NetDriver")) return -1;
-    if (test_action == 6) {
+    if (native_session_role() == 6) {
         GameArray clients = {0};
         if (driver != identity_host_driver || read_ptr(driver + 0x80) ||
             !identity_array(driver + 0x70, &clients, 64) ||
             !read_at(clients.data, connections, (SIZE_T)clients.count * 8)) return -1;
         connection_count = clients.count;
-    } else if (test_action == 5) {
+    } else if (native_session_role() == 5) {
         connections[0] = read_ptr(driver + 0x80); connection_count = 1;
     } else return -1;
     for (int c = 0; c < connection_count; ++c) {
@@ -142,14 +142,14 @@ static int network_actor_read_scope(uintptr_t base,uintptr_t actor,NetworkActorS
        !read_at(s->world+0x88,&s->level,8)||!is_live(base,s->level)||!is_kind_of(base,s->level,"Level")||
        !identity_array(s->level+0x60,&s->actors,100000)||
        !read_at(s->actors.data,&s->info,8)||!is_live(base,s->info)||!is_kind_of(base,s->info,"WorldInfo")||
-       read_ptr(actor+0x198)!=s->info||!read_at(s->info+0x7c8,&s->mode,1)||s->mode!=(test_action==5?3:2)||
+       read_ptr(actor+0x198)!=s->info||!read_at(s->info+0x7c8,&s->mode,1)||s->mode!=(native_session_role()==5?3:2)||
        !read_at(s->world+0x120,&s->driver,8)||!is_live(base,s->driver)||!is_kind_of(base,s->driver,"NetDriver"))return 0;
-    return test_action==5||(test_action==6&&s->driver==identity_host_driver);
+    return native_session_role()==5||(native_session_role()==6&&s->driver==identity_host_driver);
 }
 
 static int network_actor_channel_id_core(uintptr_t base, uintptr_t pawn) {
     NetworkActorIdentityEntry found = {0};NetworkActorScope before,after;
-    if ((test_action != 5 && test_action != 6) || !network_actor_layout_matches(base) ||
+    if ((native_session_role() != 5 && native_session_role() != 6) || !network_actor_layout_matches(base) ||
         !is_live(base, pawn) || !is_kind_of(base, pawn, "Actor")) return -1;
     /* Consumers may use the published cache between calls, but resolution
      * always checks every current peer. A failed lookup invalidates its hint.
