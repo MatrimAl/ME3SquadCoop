@@ -12,5 +12,9 @@ if __name__ == "__main__":
         "route-excess-input": [("||gain>0.45f", "")],
         "route-off-corridor": [("<=180&&fabsf", "<=2000&&fabsf")],
         "route-unbounded-start": [("<=1500&&", "<=15000&&")],
+        "route-shuttle-skip-doorway": [("else *point=0;", "else *point=COMBAT_ROUTE_ROAD_FIRST;")],
+        "route-shuttle-wide-arrival": [("point==0?20.0f", "point==0?70.0f")],
+        "route-shuttle-ignore-lower-floor": [("point==1?20.0f:180.0f", "point==1?180.0f:180.0f")],
+        "route-shuttle-skip-floor-on-start": [("fabsf(position[2]-combat_route_points[1].xyz[2])<=20", "fabsf(position[2]-combat_route_points[1].xyz[2])<=180")],
         "route-fname-number-shift": [("(unsigned long)(number-1)", "(unsigned long)number")],
     }, "combat_route_qa.h", "SquadCombatRouteSelfTest")

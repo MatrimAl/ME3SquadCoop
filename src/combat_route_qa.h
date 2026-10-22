@@ -8,6 +8,11 @@
  * Include after session_control.h; call before and after the ordinary Tick. */
 typedef struct CombatRoutePoint {const char *name;float xyz[3];} CombatRoutePoint;
 static const CombatRoutePoint combat_route_points[]={
+    /* Measured shuttle navigation anchors. Turning directly toward road103
+     * stopped near the left doorway at unchanged shuttle height.
+     * Leave through the center before changing direction onto the road. */
+    {"BioPathPoint_1",{-21930.008f,49803.781f,278.492f}},
+    {"BioPathPoint_3",{-21924.662f,49481.430f,225.0f}},
     {"PathNode_103",{-22525.412f,49222.133f,225.0f}},
     {"PathNode_104",{-23081.881f,48666.277f,225.0f}},
     {"PathNode_112",{-23078.938f,48084.230f,225.0f}},
@@ -20,6 +25,13 @@ static const CombatRoutePoint combat_route_points[]={
     {"SFXNav_JumpDownNode_6",{-22184.104f,43566.086f,0.0f}}
 };
 #define COMBAT_ROUTE_COUNT (sizeof combat_route_points/sizeof *combat_route_points)
+#define COMBAT_ROUTE_ROAD_FIRST 2u
+static const char *combat_route_node_package(unsigned point) {
+    return point<COMBAT_ROUTE_ROAD_FIRST?"BioD_ProMar_110Shuttle":"BioD_ProMar_120Gatehouse";
+}
+static const char *combat_route_node_kind(unsigned point) {
+    return point<COMBAT_ROUTE_ROAD_FIRST?"BioPathPoint":point+1==COMBAT_ROUTE_COUNT?"SFXNav_JumpDownNode":"PathNode";
+}
 static const float combat_route_start[3]={-21960.033f,49931.332f,279.492f};
 /* 150 units behind the top node; arrival radius 25 keeps the capsule away
  * from its radius-50 traversal cylinder. No drop or action-button input. */
@@ -54,10 +66,30 @@ static int combat_route_corridor(const float position[3],const float from[3],con
 static int combat_route_start_allowed(const float position[3]) {
     /* The joined landing position varies. Bound the first input leg by the
      * same 1500-unit range as ordinary steering, relative to the validated
-     * first nav point. Capture the actual grounded start as its corridor
+     * first road nav point. Capture the actual grounded start as its corridor
      * origin; later nav corridors and all context checks remain fixed. */
-    return scene_readiness_finite3(position)&&combat_route_horizontal(position,combat_route_points[0].xyz)<=1500&&
-        fabsf(position[2]-combat_route_points[0].xyz[2])<=180;
+    return scene_readiness_finite3(position)&&combat_route_horizontal(position,combat_route_points[COMBAT_ROUTE_ROAD_FIRST].xyz)<=1500&&
+        fabsf(position[2]-combat_route_points[COMBAT_ROUTE_ROAD_FIRST].xyz[2])<=180;
+}
+static int combat_route_first_point(const float position[3],unsigned *point) {
+    if(!point||!combat_route_start_allowed(position))return 0;
+    /* Already outside starts must not retrace the doorway. Keep the original
+     * start domain; skip an anchor only after its measured exit plane. The
+     * road additionally requires the actual lower ground height. */
+    if(position[1]<=combat_route_points[1].xyz[1]+35&&fabsf(position[2]-combat_route_points[1].xyz[2])<=20)
+        *point=COMBAT_ROUTE_ROAD_FIRST;
+    else if(position[1]<combat_route_points[0].xyz[1]-35)*point=1;
+    else *point=0;
+    return 1;
+}
+static float combat_route_arrival_radius(unsigned point) {
+    /* A wide road radius would cut the corner before clearing the doorway. */
+    return point==0?20.0f:point==1?35.0f:point+1==COMBAT_ROUTE_COUNT?25.0f:70.0f;
+}
+static int combat_route_arrived(const float position[3],unsigned point,const float target[3]) {
+    if(point>=COMBAT_ROUTE_COUNT||!scene_readiness_finite3(position)||!scene_readiness_finite3(target))return 0;
+    float vertical=point==0?15.0f:point==1?20.0f:180.0f;
+    return combat_route_horizontal(position,target)<=combat_route_arrival_radius(point)&&fabsf(position[2]-target[2])<=vertical;
 }
 /* object_name intentionally returns the FName base only. Actor instance
  * suffixes use the separate one-based Number field, not another name string. */
@@ -69,7 +101,7 @@ static int combat_route_numbered_point(const char *name,uint32_t number,unsigned
     return 0;
 }
 typedef struct CombatRouteQA {
-    int loaded,opted,active,done,stopping,injected,action_approach,turn_injected;unsigned waypoint,cleanup_tries;
+    int loaded,opted,active,done,stopping,injected,action_approach,turn_injected;unsigned waypoint,first_waypoint,cleanup_tries;
     DWORD stable_at,started,advanced_at,report_at,discovery_at,stopped_at,still_at,paused_at;
     GuestCameraStamp pc,pawn,world,squad,input,camera,nodes[COMBAT_ROUTE_COUNT];
     uintptr_t story_player,story_initial,node_world;float progress[3],axes[2],origin[3],turn;int nodes_ready;
@@ -117,14 +149,14 @@ static int combat_route_discover(uintptr_t base,uintptr_t world,DWORD now) {
     GameArray list={0};uintptr_t *objects=identity_object_list(base,&list);if(!objects)return 0;
     unsigned found[COMBAT_ROUTE_COUNT]={0};GuestCameraStamp nodes[COMBAT_ROUTE_COUNT];memset(nodes,0,sizeof nodes);
     for(int i=0;i<list.count;++i){uintptr_t at=objects[i];if(!at)continue;char name[96];object_name(base,at,name,sizeof name);
-        if(strcmp(name,"PathNode")&&strcmp(name,"SFXNav_JumpDownNode"))continue;
+        if(strcmp(name,"BioPathPoint")&&strcmp(name,"PathNode")&&strcmp(name,"SFXNav_JumpDownNode"))continue;
         uint32_t number=0;unsigned j=0;
         if(!read_at(at+0x4c,&number,4)||!combat_route_numbered_point(name,number,&j))continue;
         {
             GuestCameraStamp stamp;char expected[240];float xyz[3];
-            snprintf(expected,sizeof expected,"BioD_ProMar_120Gatehouse.TheWorld.PersistentLevel.%s",combat_route_points[j].name);
+            snprintf(expected,sizeof expected,"%s.TheWorld.PersistentLevel.%s",combat_route_node_package(j),combat_route_points[j].name);
             if(!guest_camera_actor_live(base,at)||read_ptr(at+0x198)!=world||
-               !is_kind_of(base,at,j+1==COMBAT_ROUTE_COUNT?"SFXNav_JumpDownNode":"PathNode")||
+               !is_kind_of(base,at,combat_route_node_kind(j))||
                !guest_camera_stamp_read(base,at,&stamp,1)||strcmp(stamp.full_name,expected)||
                !read_at(at+0x108,xyz,12)||!scene_readiness_finite3(xyz)||distance(xyz,combat_route_points[j].xyz)>1.0f)continue;
             nodes[j]=stamp;++found[j];
@@ -243,7 +275,7 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
         q->paused_at=0;q->advanced_at=now;memcpy(q->progress,xyz,12);combat_route_log("resumed","all-original-host-guards-restored",xyz,now);
     }
     if(!q->active){
-        if(!combat_route_start_allowed(xyz)){
+        if(!combat_route_first_point(xyz,&q->waypoint)){
             combat_route_end(base,"rejected","unexpected-mars-start",xyz,now);return;}
         if(!combat_route_discover(base,c.world,now))return;
         if(!q->stable_at){q->stable_at=now;return;}if(now-q->stable_at<1500)return;
@@ -251,6 +283,7 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
            !guest_camera_stamp_read(base,c.world,&q->world,1)||!guest_camera_stamp_read(base,c.squad,&q->squad,1)||
            !guest_camera_stamp_read(base,input,&q->input,1)||!guest_camera_stamp_read(base,camera,&q->camera,1))return;
         q->story_player=read_ptr(c.squad+0x2cc);q->story_initial=read_ptr(c.squad+0x2d4);
+        q->first_waypoint=q->waypoint;
         q->active=1;q->started=q->advanced_at=now;memcpy(q->progress,xyz,12);memcpy(q->origin,xyz,12);
         /* Preserve the existing acquisition warmup against actual ordinary
          * walking, replacing only the opt-in host's old straight-line bot. */
@@ -275,26 +308,29 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
         if(now-q->stopped_at>=4000)combat_route_end(base,"aborted","stop-not-stable",xyz,now);return;
     }
     const float *target=q->waypoint+1==COMBAT_ROUTE_COUNT?combat_route_stop:combat_route_points[q->waypoint].xyz;
-    const float *from=q->waypoint?combat_route_points[q->waypoint-1].xyz:q->origin;
+    const float *from=q->waypoint&&q->waypoint!=q->first_waypoint?combat_route_points[q->waypoint-1].xyz:q->origin;
     if(!combat_route_corridor(xyz,from,target)||!guest_camera_stamp_matches(base,&q->nodes[q->waypoint],1)||
        read_ptr(q->nodes[q->waypoint].pointer+0x198)!=c.world){
         combat_route_end(base,"aborted","nav-corridor-or-node-changed",xyz,now);return;}
-    float remaining=combat_route_horizontal(xyz,target);float radius=q->waypoint+1==COMBAT_ROUTE_COUNT?25:70;
-    if(remaining<=radius){
+    float remaining=combat_route_horizontal(xyz,target);
+    if(combat_route_arrived(xyz,q->waypoint,target)){
         if(q->waypoint+1==COMBAT_ROUTE_COUNT){q->stopping=1;q->stopped_at=now;q->axes[0]=q->axes[1]=0;combat_route_log("stopping","before-real-jump-node",xyz,now);return;}
         ++q->waypoint;q->advanced_at=now;memcpy(q->progress,xyz,12);combat_route_log("waypoint","measured-nav-candidate-reached",xyz,now);return;
     }
     if(combat_route_horizontal(xyz,q->progress)>20){q->advanced_at=now;memcpy(q->progress,xyz,12);}
     if(now-q->advanced_at>=4000){combat_route_end(base,"aborted","four-second-stuck-bound",xyz,now);return;}
     float gain=q->waypoint+1==COMBAT_ROUTE_COUNT?0.18f:0.45f;
+    if(q->waypoint<COMBAT_ROUTE_ROAD_FIRST)gain=fminf(0.30f,fmaxf(0.08f,remaining*0.003f));
     if(!combat_route_axes(xyz,target,rotation[1],gain,q->axes)){combat_route_end(base,"aborted","input-vector-invalid",xyz,now);return;}
     q->injected=1;q->cleanup_tries=0;if(!combat_route_write_axes(input,q->axes[0],q->axes[1])){combat_route_end(base,"aborted","input-write-failed",xyz,now);return;}
     if(!q->report_at||now-q->report_at>=1000){q->report_at=now;combat_route_log("input","ordinary-host-axes",xyz,now);}
 }
 static int combat_route_qa_selftest(void) {
-    const uint32_t captured_numbers[]={104,105,113,112,111,110,109,108,107,7};unsigned point=99;
+    const uint32_t captured_numbers[]={2,4,104,105,113,112,111,110,109,108,107,7};unsigned point=99;
     for(unsigned i=0;i<COMBAT_ROUTE_COUNT;++i)
-        if(!combat_route_numbered_point(i+1==COMBAT_ROUTE_COUNT?"SFXNav_JumpDownNode":"PathNode",captured_numbers[i],&point)||point!=i)return 0;
+        if(!combat_route_numbered_point(combat_route_node_kind(i),captured_numbers[i],&point)||point!=i)return 0;
+    if(strcmp(combat_route_node_package(0),"BioD_ProMar_110Shuttle")||strcmp(combat_route_node_package(1),"BioD_ProMar_110Shuttle")||
+       strcmp(combat_route_node_package(COMBAT_ROUTE_ROAD_FIRST),"BioD_ProMar_120Gatehouse"))return 0;
     if(combat_route_numbered_point("PathNode",0,&point)||combat_route_numbered_point("PathNode",106,&point)||
        combat_route_numbered_point("OtherNode",104,&point)||combat_route_numbered_point("PathNode_103",104,&point)||
        combat_route_numbered_point(NULL,104,&point)||combat_route_numbered_point("PathNode",104,NULL))return 0;
@@ -318,13 +354,29 @@ static int combat_route_qa_selftest(void) {
     float displaced[3]={-21924.662f,49481.430f,225.0f};
     if(!combat_route_start_allowed(displaced)||!combat_route_corridor(displaced,displaced,combat_route_points[0].xyz))return 0;
     if(!combat_route_start_allowed(combat_route_start))return 0;
-    memcpy(joined,combat_route_points[0].xyz,12);joined[0]+=1499;if(!combat_route_start_allowed(joined))return 0;
-    memcpy(joined,combat_route_points[0].xyz,12);joined[0]+=1501;if(combat_route_start_allowed(joined))return 0;
-    memcpy(joined,combat_route_points[0].xyz,12);joined[2]+=180;if(!combat_route_start_allowed(joined))return 0;
+    if(!combat_route_first_point(combat_route_start,&point)||point!=0||
+       !combat_route_first_point(settled,&point)||point!=1||
+       !combat_route_first_point(displaced,&point)||point!=COMBAT_ROUTE_ROAD_FIRST||
+       combat_route_first_point(combat_route_start,NULL))return 0;
+    /* The stuck direct-to-road run moved left into shuttle geometry. Its
+     * corrected first ordinary steering leg must instead move right/forward
+     * toward the captured doorway center, independent of controller yaw. */
+    if(!combat_route_axes(combat_route_start,combat_route_points[0].xyz,0,0.30f,out)||out[0]<=0||out[1]>=0)return 0;
+    float threshold[3];memcpy(threshold,combat_route_points[0].xyz,12);
+    threshold[0]+=40;if(combat_route_arrived(threshold,0,combat_route_points[0].xyz))return 0;
+    threshold[0]-=40;if(!combat_route_arrived(threshold,0,combat_route_points[0].xyz))return 0;
+    memcpy(threshold,combat_route_points[1].xyz,12);threshold[2]=279.492f;
+    if(combat_route_arrived(threshold,1,combat_route_points[1].xyz)||
+       !combat_route_first_point(threshold,&point)||point!=1)return 0;
+    threshold[2]=225;if(!combat_route_arrived(threshold,1,combat_route_points[1].xyz))return 0;
+    threshold[0]=NAN;if(combat_route_arrived(threshold,1,combat_route_points[1].xyz)||combat_route_first_point(threshold,&point))return 0;
+    memcpy(joined,combat_route_points[COMBAT_ROUTE_ROAD_FIRST].xyz,12);joined[0]+=1499;if(!combat_route_start_allowed(joined))return 0;
+    memcpy(joined,combat_route_points[COMBAT_ROUTE_ROAD_FIRST].xyz,12);joined[0]+=1501;if(combat_route_start_allowed(joined))return 0;
+    memcpy(joined,combat_route_points[COMBAT_ROUTE_ROAD_FIRST].xyz,12);joined[2]+=180;if(!combat_route_start_allowed(joined))return 0;
     joined[2]+=1;if(combat_route_start_allowed(joined))return 0;
-    memcpy(joined,combat_route_points[0].xyz,12);joined[2]-=181;if(combat_route_start_allowed(joined))return 0;
-    memcpy(joined,combat_route_points[0].xyz,12);joined[0]=NAN;if(combat_route_start_allowed(joined))return 0;
-    memcpy(joined,combat_route_points[0].xyz,12);joined[2]=INFINITY;if(combat_route_start_allowed(joined))return 0;
+    memcpy(joined,combat_route_points[COMBAT_ROUTE_ROAD_FIRST].xyz,12);joined[2]-=181;if(combat_route_start_allowed(joined))return 0;
+    memcpy(joined,combat_route_points[COMBAT_ROUTE_ROAD_FIRST].xyz,12);joined[0]=NAN;if(combat_route_start_allowed(joined))return 0;
+    memcpy(joined,combat_route_points[COMBAT_ROUTE_ROAD_FIRST].xyz,12);joined[2]=INFINITY;if(combat_route_start_allowed(joined))return 0;
     return combat_route_horizontal(combat_route_stop,combat_route_points[COMBAT_ROUTE_COUNT-1].xyz)>149;
 }
 #endif
