@@ -17,4 +17,7 @@ if __name__ == "__main__":
         "route-shuttle-ignore-lower-floor": [("point==1?20.0f:180.0f", "point==1?180.0f:180.0f")],
         "route-shuttle-skip-floor-on-start": [("fabsf(position[2]-combat_route_points[1].xyz[2])<=20", "fabsf(position[2]-combat_route_points[1].xyz[2])<=180")],
         "route-fname-number-shift": [("(unsigned long)(number-1)", "(unsigned long)number")],
+        "route-scene-wait-unbounded": [("observed_scene==1?20000:2000", "observed_scene==1?75000:2000")],
+        "route-unknown-waits-like-scene": [("observed_scene==1?20000:2000", "observed_scene?20000:2000")],
+        "route-pause-deadline-inclusive": [("&&elapsed<budget", "&&elapsed<=budget")],
     }, "combat_route_qa.h", "SquadCombatRouteSelfTest")

@@ -30,6 +30,17 @@ This correction has offline fixture coverage; successful shuttle exit and the
 remaining route still require a new protected run. Captured component bounds
 are geometric leads, not proof of which component produced the collision.
 
+The subsequent protected run cleared both shuttle anchors and reached the first
+road node. An actual landing conversation then held the engine control gate for
+13.39 seconds in ordinary mode 0, with an active conversation controller and
+playing line Matinee. The route's two-second airborne/context allowance expired
+before this normal scene ended. Positive, readable engine scene evidence now
+permits up to 20 seconds of neutral waiting. Unknown context keeps two seconds;
+the captured identities, original story pointers, all normal input guards and
+75-second total route budget remain mandatory. Nothing closes UI, advances a
+conversation or writes pause flags. Resume still requires every original guard.
+This waiting change remains unverified in the game.
+
 The action candidate verifies the actual top node, destination, touching
 cylinder, and unique enabled, unpruned reach specification. It uses ordinary
 movement and turn input, remains at least 45 units from the top's center, and

@@ -2,6 +2,17 @@
 
 Status snapshot: 2026-10-22. Private raw logs and profiles are not published.
 
+2026-10-23 completed route update: ordinary input cleared the shuttle exit and
+reached the first road node. A real mode-0 landing conversation interrupted
+control for about 13.39 seconds; the route's two-second context allowance expired.
+Release/reacquisition and disconnect ownership checks passed, but the guest's
+collision remained disabled after control return and Ashley later fell on both
+processes. Shared travel and firing/stop failed their separate checks. No full
+mode-7 conversation or hostile damage was verified. Original locks covered
+8,210 files, profiles were unchanged, recorded native exceptions were zero,
+no forced orphan cleanup occurred, the probe was disabled and no game remained.
+This completed experiment does not establish usable campaign control.
+
 Latest observer-off repeat: the unchanged native build failed authoritative firing, settling at host/guest consumed counts 0/3 with reserves 210/210. The host executed the mode-2 start-fire script, but remained `Active` with pending mode 2 while `bPlayingPortArmsAnim` stayed set after `bInPortArms` cleared. The exact state getter confirms this defers firing. The second epoch had no eligible guest equipment chain for another pulse. Synthetic lifecycle and original-file protections passed, with unchanged profiles, zero native exceptions, no forced orphan cleanup and no remaining game processes. This rules out a repeatability claim for the successful run below; mesh/node ticking and natural combat still require verification.
 
 Latest 2026-10-23 observation: with snapshot correction disabled, a protected pair recorded six native `FireAmmunition` enter/leave pairs on the host and six on the guest. Each original call advanced consumed count by one. Two 250 ms input pulses settled at consumed counts 3/3 and 6/6, reserves 210/210, with stable post-release counts. Incoming host start-fire calls requested mode 2, advanced the script cursor and entered `WeaponFiring`. Synthetic lifecycle checks and original-file/profile protections passed; no native exceptions, forced orphan cleanup or remaining game processes were recorded. This proves native firing and consumption in that bounded run. It does not establish repeatability or enemy damage. The preceding failed firing observation below remains relevant; no intentional firing behavior fix separates the two runs.

@@ -39,7 +39,7 @@ Protected runs have both failed before squadmate acquisition and exercised synth
 
 A subsequent route attempt measured frozen animation-node ticking while the world's `bPlayersOnly` flag was enabled. Normal message boxes can own and restore this flag; the active UI owner still needs identification. That run never acquired a guest, so this observation alone does not explain or fix the earlier firing failure. The guarded input route and separate player runtime are still being developed.
 
-The latest interrupted experiment started the route but stopped against landing-shuttle geometry. Two actual drained guest hit calls had no hit actor, so they prove no damage. Its first ownership epoch settled at host/guest ammunition counts 2/2; after synthetic reacquisition Ashley fell on both processes. Control return therefore also needs repair. The experiment has no final paired report and is not counted as a completed lifecycle test.
+One interrupted experiment captured two actual drained guest hit calls with no hit actor; they prove no damage. The next completed pair cleared the shuttle exit and reached the first road node, then the route stopped during a real landing conversation. A paired recorder found guest collision clearing during control release and staying disabled after reacquisition; Ashley later fell on both processes. Firing and shared travel still failed their separate checks. Full mode-7 conversations, collision restoration and usable control return remain unverified.
 
 1. Make equipment initialization repeatable, including inventory links and action-state readiness.
 2. Verify both firing and stopping, with matching host/guest ammunition observations.

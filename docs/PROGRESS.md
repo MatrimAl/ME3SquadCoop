@@ -1,5 +1,14 @@
 # Progress
 
+## 2026-10-23: shuttle exit exercised and collision loss isolated
+
+- A new completed protected pair cleared both authored shuttle exit anchors and reached the first road node using ordinary movement. The landing obstruction correction is exercised in this run; the remaining route and jump-down traversal are still unverified.
+- An actual landing conversation then held the ordinary engine gate for about 13.39 seconds. Its conversation controller and playing line Matinee were observed in mode 0. This is a real engine interruption and release/reacquisition, but it does not meet the separate full mode-7 dialogue requirement. The route stopped after its two-second context allowance; the new neutral scene-wait policy is documented separately and has not yet been rerun.
+- A read-only paired transition recorder sampled both processes for 120 seconds. Guest Ashley's world/actor collision cleared during release and remained disabled through subsequent ownership epochs. Both processes later observed her falling. Inventory remained present in this run, so missing inventory is not required for the fall. Native collision restoration after control return is the next fix; captured flag changes alone do not prove its complete cause.
+- Firing/stop and shared travel failed their separate evaluators; no hostile damage or full conversation was verified. Pointer ownership, AI restoration and disconnect checks passed, which expressly do not establish usable control while a pawn is falling.
+- The final report protected 8,210 original game/profile files, retained unchanged profiles, recorded zero native exceptions and required no forced orphan cleanup. The probe ended disabled, no game process remained, and current native fingerprints matched. Distinct source/build/result/audit files and raw transition records remain private.
+- Packaging now authors strict LE3 mount metadata and a DLC-only Mod Manager archive, replacing the fabricated startup PCC and wrong game identifier. Archive/readback and synthetic rollback checks are separate from actual Mod Manager import and engine mounting, which remain unverified. See [activation packaging](DLC-PACKAGING.md).
+
 ## 2026-10-23: actual drained-hit dispatch and landing obstruction
 
 - The numbered-name correction allowed the protected input route to start. The host moved about 126 units, then stopped against landing-shuttle geometry before the first road node. The four-second stuck guard released the injected input. No jump-down action, hostile encounter or mission progress was established.
