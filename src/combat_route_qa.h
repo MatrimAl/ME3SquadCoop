@@ -3,7 +3,8 @@
 /* Default-off protected QA driver: ordinary host PlayerInput axes only.
  * Mars nav locations were measured privately; the approach is a candidate
  * route, not a claim of traversed terrain or combat. Stop before the real
- * jump node. Never invoke traversal or edit actor/story/physics state.
+ * jump node. A separate explicit action opt-in may dispatch the captured
+ * normal binding there. Never edit actor/story/physics state.
  * Include after session_control.h; call before and after the ordinary Tick. */
 typedef struct CombatRoutePoint {const char *name;float xyz[3];} CombatRoutePoint;
 static const CombatRoutePoint combat_route_points[]={
@@ -23,6 +24,7 @@ static const float combat_route_start[3]={-21960.033f,49931.332f,279.492f};
 /* 150 units behind the top node; arrival radius 25 keeps the capsule away
  * from its radius-50 traversal cylinder. No drop or action-button input. */
 static const float combat_route_stop[3]={-22288.13f,43674.24f,0.0f};
+#include "combat_action_qa.h"
 typedef struct CombatRoutePolicy {int opted,authority,identity,ordinary,camera,ground,input;DWORD elapsed;} CombatRoutePolicy;
 static int combat_route_policy(const CombatRoutePolicy *p) {
     return p&&p->opted==1&&p->authority==1&&p->identity==1&&p->ordinary==1&&p->camera==1&&
@@ -58,10 +60,11 @@ static int combat_route_start_allowed(const float position[3]) {
         fabsf(position[2]-combat_route_points[0].xyz[2])<=180;
 }
 typedef struct CombatRouteQA {
-    int loaded,opted,active,done,stopping,injected;unsigned waypoint,cleanup_tries;
+    int loaded,opted,active,done,stopping,injected,action_approach,turn_injected;unsigned waypoint,cleanup_tries;
     DWORD stable_at,started,advanced_at,report_at,discovery_at,stopped_at,still_at,paused_at;
     GuestCameraStamp pc,pawn,world,squad,input,camera,nodes[COMBAT_ROUTE_COUNT];
-    uintptr_t story_player,story_initial,node_world;float progress[3],axes[2],origin[3];int nodes_ready;
+    uintptr_t story_player,story_initial,node_world;float progress[3],axes[2],origin[3],turn;int nodes_ready;
+    DWORD action_approach_at;
 } CombatRouteQA;
 static CombatRouteQA combat_route_qa;
 static int combat_route_qa_host_mode(void) {
@@ -72,9 +75,9 @@ static int combat_route_qa_host_mode(void) {
 }
 static void combat_route_log(const char *event,const char *reason,const float *position,DWORD now) {
     CombatRouteQA *q=&combat_route_qa;char row[750];
-    snprintf(row,sizeof row,"{\"combat_route_qa\":\"%s\",\"reason\":\"%s\",\"waypoint\":%u,\"position\":[%.3f,%.3f,%.3f],\"forward\":%.5f,\"strafe\":%.5f,\"elapsed_ms\":%lu,\"monotonic_ms\":%lu,\"position_writes\":false,\"traversal_invoked\":false,\"combat_verified\":false}\r\n",
+    snprintf(row,sizeof row,"{\"combat_route_qa\":\"%s\",\"reason\":\"%s\",\"waypoint\":%u,\"position\":[%.3f,%.3f,%.3f],\"forward\":%.5f,\"strafe\":%.5f,\"turn\":%.5f,\"elapsed_ms\":%lu,\"monotonic_ms\":%lu,\"position_writes\":false,\"traversal_invoked\":false,\"combat_verified\":false}\r\n",
         event,reason,q->waypoint,position?position[0]:0,position?position[1]:0,position?position[2]:0,
-        q->axes[0],q->axes[1],q->started?now-q->started:0,now);line(row);
+        q->axes[0],q->axes[1],q->turn,q->started?now-q->started:0,now);line(row);
 }
 static int combat_route_write_axes(uintptr_t input,float forward,float strafe) {
     SIZE_T wrote=0;int ok=1;const uintptr_t offsets[]={0x194,0x1a4,0x1ac};const float values[]={forward,forward,strafe};
@@ -82,15 +85,21 @@ static int combat_route_write_axes(uintptr_t input,float forward,float strafe) {
     return ok;
 }
 static int combat_route_cleanup(uintptr_t base) {
-    CombatRouteQA *q=&combat_route_qa;if(!q->injected)return 1;
+    CombatRouteQA *q=&combat_route_qa;if(!q->injected&&!q->turn_injected)return 1;
     int safe=guest_camera_stamp_matches(base,&q->pc,1)&&guest_camera_actor_live(base,q->pc.pointer)&&
         guest_camera_stamp_matches(base,&q->input,1)&&read_ptr(q->pc.pointer+0x6dc)==q->input.pointer&&
         read_ptr(q->input.pointer+0x40)==q->pc.pointer;
     ++q->cleanup_tries;int cleaned=safe&&combat_route_write_axes(q->input.pointer,0,0);
-    if(cleaned||!safe||q->cleanup_tries>=3)q->injected=0;return cleaned;
+    if(safe&&q->turn_injected){SIZE_T wrote=0;float neutral=0;
+        int turn_clean=WriteProcessMemory(GetCurrentProcess(),(void*)(q->input.pointer+0x1a8),&neutral,4,&wrote)&&wrote==4;
+        cleaned=cleaned&&turn_clean;
+    }
+    if(cleaned||!safe||q->cleanup_tries>=3)q->injected=q->turn_injected=0;return cleaned;
 }
 static void combat_route_end(uintptr_t base,const char *event,const char *reason,const float *position,DWORD now) {
-    CombatRouteQA *q=&combat_route_qa;int clean=combat_route_cleanup(base);q->done=1;q->active=0;
+    CombatRouteQA *q=&combat_route_qa;int clean=combat_route_cleanup(base);
+    int action_clean=combat_action_cleanup(base,now);clean=clean&&action_clean;
+    combat_action_qa.active=0;q->done=1;q->active=0;
     combat_route_log(clean?event:"cleanup-unverified",clean?reason:"old-input-identity-or-write",position,now);
 }
 static int combat_route_discover(uintptr_t base,uintptr_t world,DWORD now) {
@@ -151,13 +160,59 @@ static int combat_route_same(uintptr_t base,SessionContext c) {
         guest_camera_stamp_matches(base,&q->world,1)&&guest_camera_stamp_matches(base,&q->squad,1)&&
         guest_camera_stamp_matches(base,&q->input,1)&&guest_camera_stamp_matches(base,&q->camera,1);
 }
+static void combat_route_action_approach(uintptr_t base,SessionContext c,uintptr_t input,
+                                          const float xyz[3],const float velocity[3],int32_t yaw,DWORD now) {
+    CombatRouteQA *q=&combat_route_qa;float top[3],bottom[3],target[3];int touching=0;
+    if(!combat_action_opted()||!combat_action_turn_property(base,input)||
+       !combat_action_jump_context(base,c.pawn,c.world,q->nodes+COMBAT_ROUTE_COUNT-1,top,bottom,&touching)||
+       !combat_action_heading(top,bottom,yaw,&q->turn,target)||
+       !combat_action_approach_safe(combat_route_horizontal(xyz,top),xyz[2]-top[2],now-q->action_approach_at)||
+       !combat_route_corridor(xyz,combat_route_stop,target)){
+        combat_route_end(base,"aborted","normal-action-top-spec-facing-or-approach-bound",xyz,now);return;
+    }
+    float speed=sqrtf(velocity[0]*velocity[0]+velocity[1]*velocity[1]),top_distance=combat_route_horizontal(xyz,top);
+    /* Stop inside the actual overlap, before approaching closer than 45 units.
+     * A geometric overlap alone never substitutes for Actor.Touching evidence. */
+    int in_place=touching&&top_distance<=80&&q->turn==0;
+    if(in_place&&speed<15){if(!q->still_at)q->still_at=now;}
+    else q->still_at=0;
+    if(combat_action_ready(touching,top_distance,q->turn,speed,q->still_at?now-q->still_at:0)){
+        if(!combat_route_cleanup(base)||!combat_action_begin(base,c.pc,c.pawn,c.world,input,xyz,now))
+            combat_route_end(base,"rejected","normal-action-dispatch-identity-abi-or-binding",xyz,now);
+        return;
+    }
+    q->axes[0]=q->axes[1]=0;
+    if(q->turn==0&&!in_place&&combat_route_horizontal(xyz,target)>5&&
+       !combat_route_axes(xyz,target,yaw,0.08f,q->axes)){
+        combat_route_end(base,"aborted","normal-action-input-vector",xyz,now);return;
+    }
+    q->injected=1;q->cleanup_tries=0;
+    if(!combat_route_write_axes(input,q->axes[0],q->axes[1])){
+        combat_route_end(base,"aborted","normal-action-approach-input-write",xyz,now);return;
+    }
+    if(q->turn!=0){SIZE_T wrote=0;q->turn_injected=1;
+        if(!WriteProcessMemory(GetCurrentProcess(),(void*)(input+0x1a8),&q->turn,4,&wrote)||wrote!=4){
+            combat_route_end(base,"aborted","normal-action-turn-input-write",xyz,now);return;
+        }
+    }
+    if(!q->report_at||now-q->report_at>=250){q->report_at=now;
+        combat_route_log("action-approach",touching?"actual-top-touch-awaiting-facing-and-rest":"ordinary-input-seeking-top-touch",xyz,now);}
+}
 static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     CombatRouteQA *q=&combat_route_qa;
     if(after){if(!combat_route_cleanup(base)&&q->active)combat_route_end(base,"aborted","input-cleanup",NULL,now);return;}
+    /* A stopped/disabled run still owns its bounded pending release. */
+    if(q->done){if(combat_action_qa.pulse.pending)combat_action_cleanup(base,now);return;}
     if(!combat_route_qa_host_mode()||!has_marker(root)){if(q->active)combat_route_end(base,"aborted","opt-in-or-protection-ended",NULL,now);return;}
-    if(q->done)return;
     if(q->active&&now-q->started>=75000){combat_route_end(base,"aborted","75-second-bound",NULL,now);return;}
     SessionContext c=session_context(engine);float xyz[3],velocity[3];int32_t rotation[3];uintptr_t input=0,camera=0;
+    if(combat_action_qa.active){
+        if(!combat_route_same(base,c)){combat_route_end(base,"aborted","host-story-or-input-changed",NULL,now);return;}
+        int observing=combat_action_poll(base,now);
+        if(observing<=0)combat_route_end(base,observing<0?"aborted":"action-observation-complete",
+            observing<0?"action-identity-state-or-bound":"normal-binding-runtime-verdict-required",NULL,now);
+        return;
+    }
     if(!combat_route_context(base,engine,c,xyz,velocity,rotation,&input,&camera)){
         if(q->active){
             if(!combat_route_same(base,c)){combat_route_end(base,"aborted","host-story-or-input-changed",NULL,now);return;}
@@ -193,11 +248,17 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
     int same=combat_route_same(base,c);
     CombatRoutePolicy policy={1,1,same,1,1,1,1,now-q->started};
     if(!combat_route_policy(&policy)){combat_route_end(base,"aborted",same?"75-second-bound":"host-story-or-input-changed",xyz,now);return;}
+    if(q->action_approach){combat_route_action_approach(base,c,input,xyz,velocity,rotation[1],now);return;}
     if(combat_route_horizontal(xyz,combat_route_points[COMBAT_ROUTE_COUNT-1].xyz)<110){combat_route_end(base,"aborted","drop-clearance",xyz,now);return;}
     if(q->stopping){
         float speed=sqrtf(velocity[0]*velocity[0]+velocity[1]*velocity[1]);
         if(combat_route_horizontal(xyz,combat_route_stop)>65){combat_route_end(base,"aborted","stop-drift",xyz,now);return;}
-        if(speed<15){if(!q->still_at)q->still_at=now;if(now-q->still_at>=500){combat_route_end(base,"approach-complete","stopped-before-drop-no-traversal",xyz,now);return;}}
+        if(speed<15){if(!q->still_at)q->still_at=now;if(now-q->still_at>=500){
+            if(!combat_action_opted())combat_route_end(base,"approach-complete","stopped-before-drop-no-traversal",xyz,now);
+            else {q->action_approach=1;q->action_approach_at=now;q->still_at=0;
+                combat_route_log("action-approach-started","explicit-normal-action-opt-in",xyz,now);}
+            return;
+        }}
         else q->still_at=0;
         if(now-q->stopped_at>=4000)combat_route_end(base,"aborted","stop-not-stable",xyz,now);return;
     }
