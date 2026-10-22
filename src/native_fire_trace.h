@@ -3,7 +3,8 @@
 /* Default-off research observer for the actual native virtual dispatch.
  * Supported LE3 execFireAmmunition (4b5ec0) tail-calls self.vtable+7d8 with
  * RCX=self only; the observed SFXWeapon vtable14fa430 points to c62120.
- * That native fallback dispatches the base script through ProcessEvent.
+ * That native fallback dispatches a resolved function through ProcessEvent;
+ * its exact resolved script target still requires runtime observation.
  * VM-internal script calls may bypass UFunction.Func observers. Conversely,
  * callers that bypass this particular virtual slot are not observed here.
  * An entry proves dispatch, never ammunition consumption or target damage.

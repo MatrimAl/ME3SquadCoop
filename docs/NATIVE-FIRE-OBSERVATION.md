@@ -7,8 +7,9 @@ The default is off. This changes no gameplay values and is not a firing fix.
 The supported build's native `SFXWeapon_NativeBase.FireAmmunition` script bridge
 tail-calls virtual slot `0x7d8` with the weapon as its sole argument. The observed
 selected weapon uses vtable RVA `0x14fa430`, with the slot pointing at RVA
-`0xc62120`. This native fallback ultimately dispatches the base script through
-`ProcessEvent`. Installation requires the supported image, the exact complete
+`0xc62120`. This native fallback ultimately dispatches a resolved function through
+`ProcessEvent`; the exact resolved target still needs runtime observation.
+Installation requires the supported image, the exact complete
 bridge/body instructions, the expected live vtable/target and reflected method
 identity and ABI. The observer forwards the original argument once and preserves
 the original call's incoming and outgoing `LastError` values.
