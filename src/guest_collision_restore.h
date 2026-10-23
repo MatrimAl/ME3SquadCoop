@@ -167,7 +167,7 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
     }
     if(!owned) {
         l->was_owned=0;GuestCollisionShape shape={0};
-        if(!guest_collision_shape(l->pawn.pointer,l->component.pointer,&shape)){l->pending=0;return;}
+        if(!guest_collision_shape(l->pawn.pointer,l->component.pointer,&shape)){l->released=l->pending=0;return;}
         int disabled=guest_collision_disabled(&shape);
         /* Observe the already-read released shape. Do not widen a physical
          * predicate merely because ownership/camera handoff passed. */
@@ -177,7 +177,7 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
                 l->token,shape.actor,shape.block,shape.component,(unsigned)shape.type,(unsigned)shape.replicated,
                 disabled?"true":"false",now);line(row);
         }
-        if(!disabled){l->pending=0;return;}
+        if(!disabled){l->released=l->pending=0;return;}
         if(l->pending&&guest_collision_equal(&shape,&l->release))l->released=1;
         else {l->release=shape;l->pending=1;l->released=0;}
         return;
@@ -187,9 +187,23 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
     if(channel.channel!=l->network.channel||channel.index!=l->network.index||channel.connection!=l->network.connection||
        channel.driver!=l->network.driver||l->attempted==l->token)return;
     l->attempted=l->token;GuestCollisionShape before={0};GameArray components={0};GuestCameraStamp saved[64];
-    if(!guest_collision_identity(base)||!guest_collision_shape(pawn,l->component.pointer,&before)||
-       !guest_collision_equal(&before,&l->release)||!guest_collision_components(base,pawn,&components,saved)||
-       !guest_collision_method(base,&l->method)) {guest_collision_log("refused","scope-or-released-state-or-native-abi",now,0);return;}
+    const char *refusal=NULL;
+    if(!guest_collision_identity(base))refusal="captured-identity-changed";
+    else if(!guest_collision_shape(pawn,l->component.pointer,&before))refusal="reacquired-shape-unreadable";
+    else if(!guest_collision_equal(&before,&l->release))refusal="released-shape-changed";
+    else if(!guest_collision_components(base,pawn,&components,saved))refusal="component-array-identity-unavailable";
+    else if(!guest_collision_method(base,&l->method))refusal="native-method-abi-mismatch";
+    if(refusal) {
+        guest_collision_log("refused",refusal,now,0);
+        if(!strcmp(refusal,"released-shape-changed")) {
+            char row[700];
+            snprintf(row,sizeof row,"{\"guest_collision_restore\":\"reacquired-shape\",\"lease_token\":%lu,\"actor_mask\":%u,\"block_mask\":%u,\"component_mask\":%u,\"collision_type\":%u,\"replicated_type\":%u,\"released_actor_mask\":%u,\"released_block_mask\":%u,\"released_component_mask\":%u,\"released_collision_type\":%u,\"released_replicated_type\":%u,\"read_only\":true,\"monotonic_ms\":%lu}\r\n",
+                l->token,before.actor,before.block,before.component,(unsigned)before.type,(unsigned)before.replicated,
+                l->release.actor,l->release.block,l->release.component,(unsigned)l->release.type,(unsigned)l->release.replicated,now);
+            line(row);
+        }
+        return;
+    }
     unsigned char type=l->healthy.type;
     int dispatched=guest_player_context_dispatch(base,pawn,&l->method,&type);uint32_t current=0;
     int stable=dispatched&&guest_collision_identity(base)&&guest_collision_components_same(base,pawn,&components,saved)&&

@@ -164,6 +164,13 @@ static int lifecycle_cases(void){
 
     CHECK(baseline());owned=0;set_shape(address(&pawn),address(&component),0);frame(0,1,200);
     reacquire();frame(1,1,300);CHECK(dispatches==0); /* one disabled sample is insufficient */
+    /* A later refused release shape cancels BOTH the candidate and its stable
+     * flag. A stale snapshot must not consume the next ownership attempt. */
+    CHECK(baseline());CHECK(release());u32(address(&pawn)+0x260,0x49690100);
+    frame(0,1,220);CHECK(!guest_collision_restore.pending&&!guest_collision_restore.released);
+    reacquire();u32(address(&world)+0x7c0,0);frame(1,1,300);
+    CHECK(dispatches==0&&guest_collision_restore.attempted==0);
+    CHECK(release());reacquire();u32(address(&world)+0x7c0,0);frame(1,1,400);CHECK(restored());
     return 1;
 }
 static void use_variant(void) {

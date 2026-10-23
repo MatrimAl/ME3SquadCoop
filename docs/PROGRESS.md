@@ -1,5 +1,29 @@
 # Progress
 
+## 2026-10-23: walking probe exposes stale collision-release state
+
+- A measured protected pair reached actual landing control return and the
+  separate synthetic handoff, with guest input after reacquisition. Native
+  exceptions were zero, but the repair was refused and usable synchronized
+  walking remains unverified. Lifecycle success is not physical gameplay proof.
+- The retained-response candidate was observed live with Actor0/block2/cylinder
+  0xaa/type0/replicated0 during release. Later paired snapshots changed again
+  before reacquisition. Static review found that a subsequently rejected shape
+  cleared `pending` but left `released` set. An actual-adapter regression failed
+  on that stale flag before the correction. Both flags now clear together;
+  refusal reasons identify the existing failing check without extra engine calls.
+  A shape mismatch records the already-read before/expected values once.
+  All three native outputs rebuilt; the probe harness and actual-adapter
+  lifecycle fixture passed, including cancellation and a later valid repair.
+- The memory observer measured only 277,741,568 bytes of available system commit
+  during startup, with both games allocating roughly 4 GB each. The same run
+  reached gameplay without a native exception. No matching System event2004
+  was found; memory exhaustion is a lead, not an established crash cause.
+- Original-file/profile protection and native cleanup passed; no game remained.
+  A process-exit permission error affected the read-only monitor and the memory
+  helper exited1 without a final summary. Retained samples remain partial evidence, not a
+  claim of complete observer coverage. No further live rerun was made here.
+
 ## 2026-10-23: landing return retains a second collision shape and RemoteRole0
 
 - A protected pair completed the actual landing release/reacquisition and the
@@ -20,8 +44,10 @@
   still parked. No new QA mode or timer was added. Physical movement must be
   measured separately from successful possession.
 - The stationary run recorded one access violation after ordinary disconnect,
-  outside both authored probe and game image; the guest remained alive afterward.
-  Module/cause remain unknown. The final audit verified 8,210 original-file
+  outside both authored probe and game image. A later Windows error record,
+  matched by PID, creation time and executable path, attributes the fatal fault
+  to NVIDIA `nvwgf2umx.dll` at RVA0x59a996. A retained live process handle did not
+  prove continued game execution. Root cause remains unknown. The final audit verified 8,210 original-file
   locks, unchanged original profiles/source/build, disabled probe/restored action
   and complete cleanup with no forced, unknown or remaining game processes.
 
