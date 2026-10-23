@@ -1,5 +1,27 @@
 # Progress
 
+## 2026-10-23: healthy baseline accepted in-game; stationary recovery prepared
+
+- With the existing extended QA deadlines, Ashley was acquired and the native
+  collision adapter accepted her healthy baseline on channel27. A creation-pinned
+  read-only snapshot independently captured the variant/sentinel shape. The
+  frozen snapshot helper still evaluates the old predicate, so its subset
+  rejection is expected and is not the current adapter's verdict.
+- Host and guest each produced 60 ownership samples, covering59 seconds.
+  Ordinary disconnect restored AI, preserved the host story roster and removed
+  native driver membership. No native exception was recorded. The monitor
+  encountered an access-denied error; this is not a clean overall QA pass.
+  Final audit verified8,210 locks, unchanged profiles/source/build, disabled
+  probe, restored action, no forced cleanup and no remaining game process.
+- The collision predicate now also accepts the observed guest RemoteRole2
+  while requiring local autonomous Role2 and the existing owned/acknowledged
+  client context, channel, scene and identity checks. Neither role is written.
+  Local simulated/authority roles and other remote values remain rejected.
+  Real-adapter offline cases passed; live recovery is still unverified.
+- Stationary QA keeps the route parked and guest bot input disabled, while
+  restoring the existing timed scene/reacquisition policy. It can now exercise
+  recovery without adding another mode or running the later route/cinematic.
+
 ## 2026-10-23: focused rerun ended without guest acquisition
 
 - The reduced-observation run completed with zero recorded native exceptions.
@@ -7,10 +29,10 @@
   was never acquired. Consequently neither the corrected collision baseline
   nor a live collision repair was exercised. Client mode alone is insufficient
   evidence of playable co-op.
-- Retained admission samples showed matching current/cached drivers but no
-  reciprocal remote controller. This identifies the failed acquisition stage;
-  it does not establish a cause or prove that removing the observers fixed
-  the preceding access violation.
+- Full timeline review corrects the initial tail-only interpretation: one client
+  was present while the host control gate stayed blocked. Discovery later ran
+  after the guest's180-second lifetime had ended. This does not establish a
+  missing-controller fault or a fix for the preceding access violation.
 - All 8,210 original-file/profile locks remained held through child cleanup;
   profiles and frozen source/build were unchanged. The probe was disabled,
   the action restored, and no forced cleanup or remaining game PID was recorded.

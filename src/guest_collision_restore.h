@@ -101,9 +101,14 @@ static int guest_collision_components_same(uintptr_t base,uintptr_t pawn,const G
 }
 static int guest_collision_ordinary(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world) {
     uint32_t flags=0,dead=0,life=0;uintptr_t pauser=1,conversation=0;unsigned char roles[2],physics=0;
+    /* The supported guest stays locally autonomous (Role2) across control
+     * return, but its RemoteRole can be2 rather than the initial3. Authority
+     * comes from the current client connection/channel and reciprocal owned
+     * pawn checked by the caller, not this client's RemoteRole byte. Do not
+     * rewrite either role or admit a local simulated/authority pawn. */
     if(!read_at(world+0x7c0,&flags,4)||(flags&0xc00)||!read_at(world+0x670,&pauser,8)||pauser||
        !read_at(pawn+0xe20,&dead,4)||(dead&0x200)||!read_at(pawn+0xe18,&life,4)||!(life&0x40)||
-       !read_at(pawn+0x25c,&flags,4)||(flags&0x4000000)||!read_at(pawn+0x269,roles,2)||roles[0]!=3||roles[1]!=2||
+       !read_at(pawn+0x25c,&flags,4)||(flags&0x4000000)||!read_at(pawn+0x269,roles,2)||(roles[0]!=2&&roles[0]!=3)||roles[1]!=2||
        !read_at(pawn+0x268,&physics,1)||(physics!=1&&physics!=2)||!read_at(pc+0x77c,&flags,4)||(flags&0x20000)||
        !read_at(world+0x948,&conversation,8))return 0;
     if(conversation) {

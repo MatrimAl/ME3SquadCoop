@@ -3,11 +3,10 @@
 /* Protected probe orchestration. These policies do not enter the player ASI. */
 static int session_policy_is_host(void) {return test_action==6;}
 static int session_policy_enabled(void) {
-    return has_marker(root)&&collision_baseline_qa_acquire_allowed(collision_baseline_qa_opted(),session_first_acquired!=0,session_active);
+    return has_marker(root);
 }
 static int session_policy_host_ready(void) {return host_map_refreshed;}
 static int session_policy_synthetic(DWORD first,DWORD now) {
-    if(collision_baseline_qa_opted())return 0;
     DWORD at=progress_enabled?30000:18000;return first&&now-first>=at&&now-first<at+3000;
 }
 static int session_policy_walk_started(void) {return progress_walk_at!=0;}

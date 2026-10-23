@@ -192,8 +192,20 @@ static int variant_cases(void) {
     CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
     ptr(address(&pawn)+0x58,address(&other));frame(1,1,310);
     CHECK(guest_collision_restore.suppressed&&dispatches==0);
-    reset_fixture();use_variant();put_byte(address(&pawn)+0x269,2);frame(1,1,100);
-    CHECK(!guest_collision_restore.tracked&&dispatches==0); /* role issue remains separate */
+    /* Captured control return: local autonomous2, RemoteRole2. No role write;
+     * the same owned context/channel and new lease token are still required. */
+    reset_fixture();use_variant();frame(1,1,100);CHECK(guest_collision_restore.tracked);
+    CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
+    put_byte(address(&pawn)+0x269,2);frame(1,1,310);CHECK(restored());
+    CHECK(*(unsigned char*)(address(&pawn)+0x269)==2&&*(unsigned char*)(address(&pawn)+0x26a)==2);
+    for(unsigned char role=0;role<=3;++role)if(role!=2){
+        reset_fixture();use_variant();put_byte(address(&pawn)+0x26a,role);frame(1,1,100);
+        CHECK(!guest_collision_restore.tracked&&dispatches==0);
+    }
+    for(unsigned char remote=0;remote<=4;++remote)if(remote!=2&&remote!=3){
+        reset_fixture();use_variant();put_byte(address(&pawn)+0x269,remote);frame(1,1,100);
+        CHECK(!guest_collision_restore.tracked&&dispatches==0);
+    }
     return 1;
 }
 int main(void){if(!guest_collision_selftest()||!lifecycle_cases()||!variant_cases())return 1;
