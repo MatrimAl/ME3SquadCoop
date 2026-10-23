@@ -1,7 +1,8 @@
 #ifndef ME3_COLLISION_BASELINE_QA_H
 #define ME3_COLLISION_BASELINE_QA_H
-/* Protected probe only. Park after the second acquisition and suppress guest
- * bot input while the existing scene/reacquisition policy remains active.
+/* Protected probe only. Park after the second acquisition; the guest's existing
+ * two-second input pulse runs only after reacquisition, with firing/follow off.
+ * The existing scene/reacquisition policy remains active.
  * Never a player runtime policy or a movement/combat verdict. */
 static int collision_baseline_qa_value(const wchar_t *value,DWORD length) {
     return length==1&&value[0]==L'1';

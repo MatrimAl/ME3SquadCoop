@@ -614,7 +614,7 @@ static DWORD WINAPI observe(void *unused) {
     char header[220];
     snprintf(header, sizeof header, "{\"stage\":%d,\"pid\":%lu,\"role\":\"%s\",\"engine_state_read_only\":%s,\"observer_loaded\":true,\"private_documents\":true,\"campaign_coop\":false}\r\n", test_action, GetCurrentProcessId(), test_role, test_action ? "false" : "true");
     line(header);
-    if(collision_baseline_qa_opted())line("{\"collision_baseline_qa\":true,\"route_stop\":\"second-host-acquisition\",\"guest_synthetic_input\":false,\"synthetic_scene\":true,\"reacquisition\":true,\"combat_tested\":false}\r\n");
+    if(collision_baseline_qa_opted())line("{\"collision_baseline_qa\":true,\"route_stop\":\"second-host-acquisition\",\"guest_synthetic_input\":true,\"guest_input_policy\":\"existing-two-second-pulse-after-reacquisition\",\"guest_firing\":false,\"synthetic_scene\":true,\"reacquisition\":true,\"combat_tested\":false}\r\n");
     if(probe_guards_only)line("{\"guards_only_qa\":true,\"engine_bridge_disabled\":true,\"action_plan_ignored\":true,\"private_guards_ready\":true}\r\n");
     AddVectoredExceptionHandler(0, exception_observer);
     int bridge_installed = 0, pe_identity_logged = 0; LONG logged_blocks = -1, logged_isolations = 0;

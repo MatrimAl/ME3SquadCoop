@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-10-23: landing return retains a second collision shape and RemoteRole0
+
+- A protected pair completed the actual landing release/reacquisition and the
+  separate synthetic handoff. No guest sample fell below KillZ while stationary;
+  no collision repair ran. This is not a walking or collision-repair success.
+- Read-only paired capture measured the same guest pawn/controller/acknowledged
+  pawn and positive channel after control return with LocalRole2/RemoteRole0.
+  Its stable released collision was Actor0x20000000, block0, cylinder0x12,
+  type8/replicated8: actor collision remained enabled while world/blocking
+  collision did not. The previous predicates rejected both this shape and role0.
+- The candidate now admits only that exact additional released shape. RemoteRole0
+  requires a previously captured healthy baseline; local autonomous role and all
+  ownership, world, camera, channel, stable-release and native ABI gates remain.
+  The actual adapter fixture passed recovery and neighboring refusal cases;
+  role bytes remain unchanged. Live repair is still unverified.
+- The existing protected QA mode now permits its existing two-second guest input
+  pulse after reacquisition, with following/firing disabled and the host route
+  still parked. No new QA mode or timer was added. Physical movement must be
+  measured separately from successful possession.
+- The stationary run recorded one access violation after ordinary disconnect,
+  outside both authored probe and game image; the guest remained alive afterward.
+  Module/cause remain unknown. The final audit verified 8,210 original-file
+  locks, unchanged original profiles/source/build, disabled probe/restored action
+  and complete cleanup with no forced, unknown or remaining game processes.
+
 ## 2026-10-23: retained cylinder response measured; narrow correction prepared
 
 - The released-shape record measured cylinder response0xaa while the engine

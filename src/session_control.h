@@ -40,14 +40,14 @@ static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     }
     session_guest_last_pawn = ashley ? c.pawn : 0;
     if (!after) {
-        if (ashley&&!collision_baseline_qa_opted()) {
+        if (ashley&&(!collision_baseline_qa_opted()||session_guest_epoch>=2)) {
             uintptr_t input = read_ptr(c.pc + 0x6dc);
             if (is_live(base, input) && is_kind_of(base, input, "PlayerInput")) {
                 DWORD elapsed = now - session_guest_at;
                 float value = elapsed >= 2000 && elapsed < 4000 && !session_disconnect_sent ? 1.0f : 0.0f; SIZE_T wrote;
                 WriteProcessMemory(GetCurrentProcess(), (void *)(input + 0x194), &value, 4, &wrote);
                 WriteProcessMemory(GetCurrentProcess(), (void *)(input + 0x1a4), &value, 4, &wrote);
-                if (!session_disconnect_sent) progress_guest_follow_input(base,c.pc,c.pawn,input,elapsed);
+                if (!session_disconnect_sent&&!collision_baseline_qa_opted()) progress_guest_follow_input(base,c.pc,c.pawn,input,elapsed);
             }
         }
     } else if (session_guest_first_at && now - session_guest_first_at >= (progress_enabled?60000:40000) && !session_disconnect_sent && c.pc) {
