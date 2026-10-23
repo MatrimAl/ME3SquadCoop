@@ -32,29 +32,23 @@ These observations come from bounded tests with real game processes on one Windo
 | Weapon input | Earlier runs consumed authoritative ammunition after guest firing input | Stop-firing reliability and ammo agreement failed in some runs |
 | Isolation | Independent game copy, original-file read locks and private profile routing used | These protections must be established again for every test |
 
-Equipment results remain mixed. One audit produced no eligible fire pulses; later runs observed firing and stopping with differing counts, then two pulses with matching consumed/reserve counts. This does not prove the weapon problem solved. Recent completed audit runs recorded no native exceptions or original-profile changes.
+Equipment results remain mixed: bounded runs have produced native firing and matching ammunition counts, while unchanged-build repeats have failed. Reliable firing, stopping and enemy damage remain unverified. Recent experiments also include native crashes; successful isolation checks must not be mistaken for gameplay success. See [progress notes](docs/PROGRESS.md).
 
 ## Current work
 
-The separate ordinary runtime has now opened a real host listener without reloading the current Mars mission. The protected run measured native listen-server mode and Windows UDP ownership on the configured local Radmin interface at port `17779`. This used no research networking bootstrap. Review also corrected the native command-buffer address, the actual Shepard class requirement, guest cached-port admission and collision observation across paused scene frames. Offline integration ran 257 Python tests (2 skipped), native harnesses and compiled negative controls. Guest connection, usable collision restoration and combat still require actual-entry game evidence. See [runtime integration](docs/RUNTIME-INTEGRATION.md).
+Gameplay is the priority. The current blocker is usable squadmate control after a scene: actual landing release/reacquisition has been observed, but Ashley can retain incomplete collision and fall or move out of sync. The latest walking evaluator rejected shared progression despite passing ownership handoffs. The collision candidate now cancels stale released state and reports separate refusal checks; its native fixtures pass, but a positive in-game repair is still unverified. See [collision restoration](docs/COLLISION-RESTORATION.md).
 
-The following protected ordinary pair repeated host startup, but the guest's one-shot join produced only a brief pending-travel observation. All 213 valid guest world samples remained standalone; no sustained native connection or squadmate acquisition was observed. Initial-world readiness is a working hypothesis, and the native rejection reason has not been captured. This run did not verify collision restoration or combat.
+Combat is also incomplete. Native guest firing requests have reached the authoritative host, but the host can defer firing while the port-arms animation flag remains set. A previous positive ammunition run does not establish repeatability, powers or enemy damage. Full conversations and sustained mission progression still require real gameplay evidence.
 
-The next rerun waited for stable ordinary player/story readiness and dispatched at native world time 68.026 seconds. It observed `Connecting...`, but no sustained connection. The owner also reported a corrupt-DLC dialog naming the activation container, whose engine acceptance has failed its validation boundary. Packaging and ordinary startup are separate investigations; combat work continues through the protected research entry without that DLC. See [activation packaging](docs/DLC-PACKAGING.md).
+The separate ordinary runtime opened a native host listener without reloading the current Mars mission, but ordinary guest connection/control has not been validated. The activation DLC also failed engine acceptance. Protected gameplay research therefore remains separate from an end-user installation. See [runtime integration](docs/RUNTIME-INTEGRATION.md) and [activation packaging](docs/DLC-PACKAGING.md). Radmin validation and package delivery follow the gameplay work.
 
-Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. One protected pair observed six native `FireAmmunition` calls per side, with consumed counts settling at 3/3 and 6/6 and stable counts after release. The unchanged-build repeat with that native observer disabled failed: the host received and executed start-fire but deferred the shot while its port-arms animation flag remained set, leaving counts at host/guest 0/3. Snapshot correction was disabled in both runs. **Native firing works in some bounded runs; consistent animation/equipment initialization and enemy damage remain unverified.** The measured animation-state difference is the current investigation, rather than missing RPC delivery. See [progress notes](docs/PROGRESS.md).
-
-A subsequent route attempt measured frozen animation-node ticking while the world's `bPlayersOnly` flag was enabled. Normal message boxes can own and restore this flag; the active UI owner still needs identification. That run never acquired a guest, so this observation alone does not explain or fix the earlier firing failure. The guarded input route and separate player runtime are still being developed.
-
-One interrupted experiment captured two actual drained guest hit calls with no hit actor; they prove no damage. The next completed pair cleared the shuttle exit and reached the first road node, then the route stopped during a real landing conversation. A paired recorder found guest collision clearing during control release and staying disabled after reacquisition; Ashley later fell on both processes. Firing and shared travel still failed their separate checks. Full mode-7 conversations, collision restoration and usable control return remain unverified.
-
-1. Make equipment initialization repeatable, including inventory links and action-state readiness.
-2. Verify both firing and stopping, with matching host/guest ammunition observations.
+1. Verify scene return with healthy collision and sustained, synchronized walking.
+2. Make equipment/animation readiness repeatable; verify firing and stopping on both sides.
 3. Test a real full conversation while the guest owns a squadmate, then verify camera/control restoration.
 4. Verify enemy damage, powers, sustained progression and mission transitions.
 5. Test two physical PCs over Radmin.
 6. Validate installation, disable/uninstall and rollback before releasing a gameplay package.
-7. Expand beyond two participants: per-guest squad assignment, independent ownership leases, disconnect handling and capacity/replication tests.
+7. Expand beyond two participants with per-guest squad assignment and capacity tests.
 
 There is no promised completion date. See [validation notes](docs/VALIDATION.md) for the evidence boundaries.
 

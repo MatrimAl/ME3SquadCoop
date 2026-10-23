@@ -1,6 +1,18 @@
 # Validation status
 
-Status snapshot: 2026-10-23. Private raw logs and profiles are not published.
+Current gameplay boundary: a recent protected pair completed three ownership
+epochs, actual landing release/reacquisition, a separate synthetic handoff and
+ordinary disconnect, with zero recorded native exceptions. Its shared-walking
+evaluator still failed: no sustained nearby common travel interval, downward
+velocity outside the walking bound, and no verified ground contact. Collision
+repair did not execute. An ownership/lifecycle pass is not usable control return.
+A process-exit permission error also affected observation, so this is not an
+unqualified passing audit. Earlier startup/disconnect crashes remain documented
+in [PROGRESS.md](PROGRESS.md). The subsequent stale-release correction passed
+offline native fixtures; positive live repair remains unverified.
+
+Status reviewed: 2026-10-24; the latest gameplay evidence below is from 2026-10-23.
+Private raw logs and profiles are not published.
 
 Latest ordinary-entry host check: the separate runtime and guards-only probe
 loaded together in the protected copy. The ordinary entry opened a real native
