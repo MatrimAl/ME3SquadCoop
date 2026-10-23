@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-10-23: crash module identified; focused first-lease observation prepared
+
+- A Windows Application Error record matches the failed host's PID, creation
+  time, executable path and exception RVA exactly. The faulting module was
+  `bink2w64_original.DLL`, at RVA `0xc8fe`. This establishes the module, not the
+  cause or absence of an upstream caller error. Exact disassembly identifies
+  an asynchronous Bink worker-context table dereference on that path. The
+  proxy forwards the required imports by name; proxy and original DLL hashes
+  match the protected copy's baseline. No DLL replacement is justified.
+- A new default-off, protected-probe-only `COLLISION_BASELINE_QA` observation
+  stops the host route at its first actual acquisition, suppresses guest bot
+  movement/fire and the synthetic scene, and permits only that first lease.
+  Native scene/disconnect cleanup remains active. It preserves all acquisition
+  and collision guards; the purpose is to measure the rejected class/template
+  shape before movement or reacquisition confounds it. This focused test is
+  not a combat or complete lifecycle validation.
+  All three outputs built and the native probe policy/isolation fixtures
+  passed. The private capture wrapper's trigger/provenance tests also passed;
+  no live focused run has exercised the new policy yet.
+
 ## 2026-10-23: three acquisitions; collision refusal and host exception measured
 
 - The next completed protected pair acquired Ashley three times. Cached and

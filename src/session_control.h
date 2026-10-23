@@ -2,9 +2,12 @@
 #include "session_admission_diagnostics.h"
 /* Protected probe orchestration. These policies do not enter the player ASI. */
 static int session_policy_is_host(void) {return test_action==6;}
-static int session_policy_enabled(void) {return has_marker(root);}
+static int session_policy_enabled(void) {
+    return has_marker(root)&&collision_baseline_qa_acquire_allowed(collision_baseline_qa_opted(),session_first_acquired!=0,session_active);
+}
 static int session_policy_host_ready(void) {return host_map_refreshed;}
 static int session_policy_synthetic(DWORD first,DWORD now) {
+    if(collision_baseline_qa_opted())return 0;
     DWORD at=progress_enabled?30000:18000;return first&&now-first>=at&&now-first<at+3000;
 }
 static int session_policy_walk_started(void) {return progress_walk_at!=0;}
@@ -26,7 +29,7 @@ static int session_disconnect_sent = 0;
 static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     SessionContext c = session_context(engine); DWORD now = GetTickCount();
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,progress_enabled&&has_marker(root),now);
-    combat_fire_bot_tick(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),after,now);
+    combat_fire_bot_tick(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root)&&!collision_baseline_qa_opted(),after,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
     guest_player_context_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
     guest_collision_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
@@ -38,7 +41,7 @@ static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     }
     session_guest_last_pawn = ashley ? c.pawn : 0;
     if (!after) {
-        if (ashley) {
+        if (ashley&&!collision_baseline_qa_opted()) {
             uintptr_t input = read_ptr(c.pc + 0x6dc);
             if (is_live(base, input) && is_kind_of(base, input, "PlayerInput")) {
                 DWORD elapsed = now - session_guest_at;

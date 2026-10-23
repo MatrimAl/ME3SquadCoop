@@ -53,6 +53,8 @@ probe.SquadSessionAdmissionDiagnosticsSelfTest.restype = ctypes.c_int
 assert probe.SquadSessionAdmissionDiagnosticsSelfTest() == 1, "session admission diagnostic exceeded its clock/cap or misclassified a rejection"
 probe.SquadExceptionContextSelfTest.restype = ctypes.c_int
 assert probe.SquadExceptionContextSelfTest() == 1, "exception observation falsely attributed an unknown/private allocation or missing parameters"
+probe.SquadCollisionBaselineQASelfTest.restype = ctypes.c_int
+assert probe.SquadCollisionBaselineQASelfTest() == 1, "focused baseline QA changed default acquisition or failed its one-lease/route-stop boundary"
 probe.SquadSessionGateSelfTest.restype = ctypes.c_int
 assert probe.SquadSessionGateSelfTest() == 1, "session gate accepted PlayersOnly, unreadable, cinematic or conversation control"
 probe.SquadSessionHandleSelfTest.restype = ctypes.c_int

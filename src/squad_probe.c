@@ -15,6 +15,7 @@
 #include "me3_game_support.h"
 #include "runtime_config.h"
 #include "probe_exception_context.h"
+#include "collision_baseline_qa.h"
 static DirectIPNativeConfig direct_ip_config;
 static uintptr_t probe_module_base,probe_game_module_base;
 
@@ -612,6 +613,7 @@ static DWORD WINAPI observe(void *unused) {
     char header[220];
     snprintf(header, sizeof header, "{\"stage\":%d,\"pid\":%lu,\"role\":\"%s\",\"engine_state_read_only\":%s,\"observer_loaded\":true,\"private_documents\":true,\"campaign_coop\":false}\r\n", test_action, GetCurrentProcessId(), test_role, test_action ? "false" : "true");
     line(header);
+    if(collision_baseline_qa_opted())line("{\"collision_baseline_qa\":true,\"route_stop\":\"first-host-acquisition\",\"guest_synthetic_input\":false,\"synthetic_scene\":false,\"reacquisition\":false,\"combat_tested\":false}\r\n");
     if(probe_guards_only)line("{\"guards_only_qa\":true,\"engine_bridge_disabled\":true,\"action_plan_ignored\":true,\"private_guards_ready\":true}\r\n");
     AddVectoredExceptionHandler(0, exception_observer);
     int bridge_installed = 0, pe_identity_logged = 0; LONG logged_blocks = -1, logged_isolations = 0;
@@ -750,6 +752,7 @@ __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinem
 __declspec(dllexport) int SquadSessionGateSelfTest(void) { return session_gate_selftest(); }
 __declspec(dllexport) int SquadSessionAdmissionDiagnosticsSelfTest(void) { return session_admission_diagnostics_selftest(); }
 __declspec(dllexport) int SquadExceptionContextSelfTest(void) { return probe_exception_context_selftest(); }
+__declspec(dllexport) int SquadCollisionBaselineQASelfTest(void) { return collision_baseline_qa_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {
     unsigned char fake[0x60] = {0}; int32_t index = 27; uint64_t name = 0x1234567800000021ULL;
     memcpy(fake + 8, &index, 4); memcpy(fake + 0x48, &name, 8);
