@@ -31,7 +31,10 @@ static int guest_collision_physical_equal(const GuestCollisionShape *a,const Gue
     return a->actor==b->actor&&a->block==b->block&&a->component==b->component&&a->type==b->type;
 }
 static int guest_collision_disabled(const GuestCollisionShape *s) {
-    return s&&s->actor==0&&!(s->block&1)&&!(s->component&2)&&s->type<10&&s->replicated<=10;
+    /* The engine can disable Actor collision while its cylinder retains the
+     * captured class-default response0xaa. Missing Actor world collision is
+     * still required; a partial state retaining world collision is not armed. */
+    return s&&s->actor==0&&!(s->block&1)&&(!(s->component&2)||s->component==0xaa)&&s->type<10&&s->replicated<=10;
 }
 static int guest_collision_shape(uintptr_t pawn,uintptr_t component,GuestCollisionShape *s) {
     uint32_t a=0,b=0,c=0;unsigned char type[2];

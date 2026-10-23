@@ -206,6 +206,19 @@ static int variant_cases(void) {
         reset_fixture();use_variant();put_byte(address(&pawn)+0x269,remote);frame(1,1,100);
         CHECK(!guest_collision_restore.tracked&&dispatches==0);
     }
+    /* Actor collision can be absent while the cylinder retains its healthy
+     * response. Recover via the same native type6 path; never force a type
+     * toggle, touch role bytes or arm a state that retains world collision. */
+    for(unsigned char type=0;type<=6;type+=6){
+        reset_fixture();use_variant();frame(1,1,100);CHECK(guest_collision_restore.tracked);
+        owned=0;guest_player_context_lease.registered=0;set_shape(address(&pawn),address(&component),0);
+        u32(address(&pawn)+0x264,0x444002);u32(address(&component)+0x16c,0x8600aa);
+        put_byte(address(&pawn)+0x26b,type);put_byte(address(&pawn)+0x26c,type==0?0:10);
+        frame(0,1,200);frame(0,1,210);CHECK(guest_collision_restore.released);
+        reacquire();put_byte(address(&pawn)+0x269,2);frame(1,1,310);CHECK(restored());
+    }
+    GuestCollisionShape partial={0x40000000,1,0xaa,0,0},unknown={0,2,0xba,0,0};
+    CHECK(!guest_collision_disabled(&partial)&&!guest_collision_disabled(&unknown));
     return 1;
 }
 int main(void){if(!guest_collision_selftest()||!lifecycle_cases()||!variant_cases())return 1;

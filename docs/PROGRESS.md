@@ -1,5 +1,29 @@
 # Progress
 
+## 2026-10-23: retained cylinder response measured; narrow correction prepared
+
+- The released-shape record measured cylinder response0xaa while the engine
+  changed Actor collision/type. The former predicate required the cylinder's
+  actor-collision bit to clear too. It now also accepts the already validated
+  default response0xaa, while still requiring Actor mask0, a stable released
+  state and all existing ownership/context/channel/native-ABI guards. Partial
+  states retaining world collision remain rejected. Live repair is unverified.
+- This run captured partial Actor states with response0xaa; the earlier run
+  captured complete Actor collision loss without a simultaneous cylinder read.
+  Their combination remains a candidate, not a jointly observed live repair.
+  All three native outputs rebuilt; the native probe harness and collision
+  lifecycle fixture passed, including retained-response recovery and refusal
+  cases. These offline checks do not establish working in-game collision.
+- Exact native `SetCollisionType` disassembly writes both type bytes and calls
+  `UpdateCollision` unconditionally. No force-toggle or extra native method is
+  necessary merely because the current physical type already equals6.
+- The measurement run failed on its second acquisition with a guest access
+  violation in the game executable at RVA0x72b6c. A Windows error record matches
+  PID, creation time, executable path and offset. Cause remains unknown; no
+  collision repair was called before the fault. Exact authored ASI/PDB retained.
+  Final audit verified8,210 locks, unchanged profiles/source/build, disabled
+  probe, restored action and complete cleanup without forced termination.
+
 ## 2026-10-23: actual landing transition reproduced falling; repair still blocked
 
 - The route reached its actual landing scene, released Ashley to AI, reacquired
