@@ -79,9 +79,9 @@ A native failure or post-start verification failure is terminal for this mod
 instance: companion admission stays closed and restart is required. A listener
 already created by the engine remains engine-owned until the game exits; the mod
 does not invent a teardown method. In-session listen retry is unsupported.
-**The new host/guest startup paths still require protected actual-entry game
-verification.** Their offline fixtures do not establish playable co-op or Radmin
-reachability.
+**Protected actual-entry host startup has been observed; ordinary guest connection
+still requires verification.** Offline fixtures do not establish playable co-op
+or Radmin reachability.
 
 `ME3SquadCoopNetworkStartStatus` reports idle (0), waiting (1), command dispatched
 (2), already networked (3), ABI refused (4), malformed request (5), reserved (6),
@@ -175,6 +175,17 @@ Temporary authored activation files were removed after bounded shutdown; the
 original profiles were unchanged and no game remained. A later PlayersOnly
 observation means uninterrupted control has not been established. No guest was
 launched, and this establishes no cross-PC or campaign result.
+
+A subsequent protected ordinary pair repeated successful host startup but failed
+to establish a sustained guest connection. The one-shot guest join briefly set
+native pending travel; all 213 valid guest world samples remained standalone.
+The guest never acquired Ashley. The join was issued during a very early initial
+world, making player/story readiness a hypothesis to test. The exact native
+rejection was not captured, so neither readiness nor transport is established as
+the cause. This pair provides no collision-restoration or combat proof. The run
+ended with unchanged original profiles, zero native exceptions, no remaining game
+processes and the temporary authored activation files removed.
+
 Any research network bootstrap must be explicitly separate and preserved in
 its evidence; it is not an ordinary-runtime host/join implementation.
 

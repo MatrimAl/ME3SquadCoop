@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-23: ordinary guest join attempted without a sustained connection
+
+- A protected pair used the ordinary runtime for both roles, with the probe limited
+  to isolation guards. Host startup reached verified status 8 again. The guest's
+  one-shot join briefly entered native pending travel, but every valid guest world
+  sample (213) remained standalone. No sustained native connection or Ashley
+  acquisition was observed. Collision restoration, combat and cross-PC play were
+  not verified by this attempt.
+- The join was dispatched in the guest's early initial world, whose observed world
+  time was about 0.43 seconds. Joining before stable player/story readiness is a
+  hypothesis, not an established cause. The exact native rejection/error was not
+  retained; a next diagnostic must capture it and distinguish initial travel from
+  a genuinely stable ordinary player context without forcing readiness flags.
+- The completed run retained 8,210 original-file locks, unchanged profiles and zero
+  native exceptions. Both owned processes ended within their bounded launchers;
+  temporary authored ASI/Mount files were removed, the probe was disabled, and no
+  game process remained. No native source change or new test pass is claimed here.
+
 ## 2026-10-23: ordinary host listener exercised in the current mission
 
 - A protected actual-entry run loaded the separate ordinary ASI with the probe
