@@ -51,6 +51,8 @@ probe.SquadGuestCinematicSelfTest.restype = ctypes.c_int
 assert probe.SquadGuestCinematicSelfTest() == 1, "cinematic reciprocal membership transaction/rollback guards failed"
 probe.SquadSessionAdmissionDiagnosticsSelfTest.restype = ctypes.c_int
 assert probe.SquadSessionAdmissionDiagnosticsSelfTest() == 1, "session admission diagnostic exceeded its clock/cap or misclassified a rejection"
+probe.SquadExceptionContextSelfTest.restype = ctypes.c_int
+assert probe.SquadExceptionContextSelfTest() == 1, "exception observation falsely attributed an unknown/private allocation or missing parameters"
 probe.SquadSessionGateSelfTest.restype = ctypes.c_int
 assert probe.SquadSessionGateSelfTest() == 1, "session gate accepted PlayersOnly, unreadable, cinematic or conversation control"
 probe.SquadSessionHandleSelfTest.restype = ctypes.c_int

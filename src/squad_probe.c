@@ -14,7 +14,9 @@
 #include "direct_ip_native.h"
 #include "me3_game_support.h"
 #include "runtime_config.h"
+#include "probe_exception_context.h"
 static DirectIPNativeConfig direct_ip_config;
+static uintptr_t probe_module_base,probe_game_module_base;
 
 static wchar_t root[MAX_PATH];
 static wchar_t documents[MAX_PATH];
@@ -203,17 +205,16 @@ static int redirect_documents(uintptr_t base) {
 }
 static LONG WINAPI exception_observer(PEXCEPTION_POINTERS info) {
     if (info->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
-        char text[340];
+        char text[768];
         uintptr_t fault = (uintptr_t)info->ExceptionRecord->ExceptionAddress;
         MEMORY_BASIC_INFORMATION memory;
         ZeroMemory(&memory, sizeof memory);
-        VirtualQuery((void*)fault, &memory, sizeof memory);
-        snprintf(text, sizeof text,
-            "{\"exception\":\"access_violation\",\"fault\":\"0x%llx\",\"module_rva\":\"0x%llx\",\"access_kind\":%llu,\"access_address\":\"0x%llx\"}\r\n",
-            (unsigned long long)fault, (unsigned long long)(fault - (uintptr_t)memory.AllocationBase),
-            (unsigned long long)info->ExceptionRecord->ExceptionInformation[0],
-            (unsigned long long)info->ExceptionRecord->ExceptionInformation[1]);
-        line(text);
+        int queried=VirtualQuery((void*)fault,&memory,sizeof memory)==sizeof memory;
+        int parameters=info->ExceptionRecord->NumberParameters>=2;
+        if(probe_exception_format(text,sizeof text,fault,queried,(uintptr_t)memory.AllocationBase,memory.Type,
+            probe_module_base,probe_game_module_base,parameters,
+            parameters?info->ExceptionRecord->ExceptionInformation[0]:0,
+            parameters?info->ExceptionRecord->ExceptionInformation[1]:0,GetTickCount()))line(text);
     }
     return EXCEPTION_CONTINUE_SEARCH;
 }
@@ -602,6 +603,7 @@ static int install_tick_bridge(uintptr_t base) {
 static DWORD WINAPI observe(void *unused) {
     (void)unused;
     uintptr_t base = (uintptr_t)GetModuleHandleW(NULL);
+    probe_game_module_base=base;
     if (!supported_image(base)) return 0;
     wchar_t path[MAX_PATH];
     _snwprintf(path, MAX_PATH, L"%ls\\ME3SquadCoopRuntime\\squad_probe_%lu.jsonl", root, GetCurrentProcessId());
@@ -747,6 +749,7 @@ __declspec(dllexport) int SquadGuestCollisionSelfTest(void) { return guest_colli
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
 __declspec(dllexport) int SquadSessionGateSelfTest(void) { return session_gate_selftest(); }
 __declspec(dllexport) int SquadSessionAdmissionDiagnosticsSelfTest(void) { return session_admission_diagnostics_selftest(); }
+__declspec(dllexport) int SquadExceptionContextSelfTest(void) { return probe_exception_context_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {
     unsigned char fake[0x60] = {0}; int32_t index = 27; uint64_t name = 0x1234567800000021ULL;
     memcpy(fake + 8, &index, 4); memcpy(fake + 0x48, &name, 8);
@@ -822,6 +825,7 @@ __declspec(dllexport) int SquadProbeFolderTest(void) {
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved) {
     (void)reserved;
     if (reason != DLL_PROCESS_ATTACH) return TRUE;
+    probe_module_base=(uintptr_t)instance;
     DisableThreadLibraryCalls(instance);
     if (!GetModuleFileNameW(NULL, root, MAX_PATH)) return TRUE;
     wchar_t *slash = wcsrchr(root, L'\\');

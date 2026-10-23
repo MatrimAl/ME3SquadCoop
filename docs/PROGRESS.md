@@ -1,5 +1,35 @@
 # Progress
 
+## 2026-10-23: three acquisitions; collision refusal and host exception measured
+
+- The next completed protected pair acquired Ashley three times. Cached and
+  current-world drivers matched with one client; remote discovery and native
+  membership passed. Earlier blocked samples were ordinary scene gates, not
+  evidence of a stale driver. Ownership predicates were not changed between
+  the preceding failed acquisition and this run.
+- The first lease released to AI after 6.469 seconds during an engine scene;
+  the second released after 9.516 seconds through the explicitly synthetic
+  gate. Both preserved the host story roster. The third lease had at least
+  6.547 seconds of host observations before a native access violation. Clean
+  final release/disconnect and combat did not pass.
+- Collision baseline admission was refused twice inside its class/template/
+  shape checks during the first lease. Later guest samples changed from
+  RemoteRole3/Role2 to 2/2, which separately fails the candidate's ordinary
+  state requirement. Falling and crossing Kill Z preceded the host exception.
+  Neither relaxing role guards nor claiming collision repair is justified.
+- The wrapper's incremental observer and final audit completed with correct
+  role headers. Original-file locks covered 8,210 files; profiles were unchanged,
+  no forced launcher/child cleanup occurred, the probe ended disabled and no
+  game remained. One host access violation makes the gameplay run a failure.
+- The old exception record lacks a timestamp and module identity; an RVA alone
+  cannot attribute it to this ASI. The probe now records monotonic time,
+  allocation-query validity and cached game/probe module-base comparisons,
+  without loader/symbol lookup or exception recovery in the handler. The next
+  real run must establish attribution; this observation change fixes no crash.
+  All three outputs rebuilt and the probe harness passed the attribution,
+  incomplete-parameter and isolation fixtures. No game has run with the new
+  exception metadata yet.
+
 ## 2026-10-23: research connection reproduced; squad admission still blocked
 
 - The next protected research pair omitted the ordinary activation DLC and
