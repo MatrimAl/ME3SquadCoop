@@ -21,7 +21,7 @@ typedef struct FixtureContext {
 } FixtureContext;
 static FixtureContext guest_player_context_lease;
 typedef struct FixtureObject {_Alignas(8) unsigned char bytes[0x1000];} FixtureObject;
-static FixtureObject pc,pawn,world,component,cdo,templ,klass,channel,connection,driver,other,fn,field;
+static FixtureObject pc,pawn,world,component,cdo,templ,pawn_arch,component_arch,klass,channel,connection,driver,other,fn,field;
 static _Alignas(8) unsigned char image[0x4ba140];
 static uintptr_t members[2],invalid_stamp;
 static int owned,channel_changed,abi_valid,camera_valid,dispatches,repair_logs;
@@ -42,9 +42,9 @@ static int guest_camera_stamp_matches(uintptr_t base,const GuestCameraStamp *s,i
 static int guest_camera_actor_live(uintptr_t base,uintptr_t at){
     GuestCameraStamp s={0};return guest_camera_stamp_read(base,at,&s,1);}
 static int is_kind_of(uintptr_t base,uintptr_t at,const char *kind){(void)base;
-    return at==address(&cdo)&&!strcmp(kind,"SFXPawn_Ashley");}
+    return (at==address(&cdo)||at==address(&pawn_arch))&&!strcmp(kind,"SFXPawn_Ashley");}
 static int narrative_probe_object(uintptr_t base,uintptr_t at,const char *kind){(void)base;
-    if(!strcmp(kind,"CylinderComponent"))return at==address(&component)||at==address(&templ);
+    if(!strcmp(kind,"CylinderComponent"))return at==address(&component)||at==address(&templ)||at==address(&component_arch);
     if(!strcmp(kind,"ActorComponent"))return at==address(&component)||at==address(&other);
     if(!strcmp(kind,"ByteProperty"))return at==address(&field);
     return 0;}
@@ -84,7 +84,7 @@ static void set_shape(uintptr_t actor,uintptr_t cylinder,int healthy){
     put_byte(actor+0x26b,6);put_byte(actor+0x26c,6);
 }
 static void reset_fixture(void){
-    FixtureObject *objects[]={&pc,&pawn,&world,&component,&cdo,&templ,&klass,&channel,&connection,&driver,&other,&fn,&field};
+    FixtureObject *objects[]={&pc,&pawn,&world,&component,&cdo,&templ,&pawn_arch,&component_arch,&klass,&channel,&connection,&driver,&other,&fn,&field};
     for(unsigned i=0;i<sizeof objects/sizeof *objects;++i){memset(objects[i],0,sizeof *objects[i]);ptr(address(objects[i])+0x50,address(&klass));}
     memset(&guest_collision_restore,0,sizeof guest_collision_restore);
     guest_collision_restore.configured=guest_collision_restore.opted=1;
@@ -93,6 +93,8 @@ static void reset_fixture(void){
     ptr(address(&pc)+0x198,address(&world));ptr(address(&pawn)+0x198,address(&world));
     ptr(address(&pawn)+0x1e0,address(&component));ptr(address(&klass)+0x13c,address(&cdo));
     ptr(address(&cdo)+0x1e0,address(&templ));ptr(address(&component)+0x58,address(&templ));
+    ptr(address(&pawn)+0x58,address(&cdo));ptr(address(&templ)+0x40,address(&cdo));
+    ptr(address(&component_arch)+0x40,address(&pawn_arch));
     set_shape(address(&pawn),address(&component),1);set_shape(address(&cdo),address(&templ),1);
     put_byte(address(&pawn)+0x269,3);put_byte(address(&pawn)+0x26a,2);put_byte(address(&pawn)+0x268,1);
     u32(address(&pawn)+0xe18,0x40);members[0]=address(&component);members[1]=address(&other);
@@ -164,5 +166,35 @@ static int lifecycle_cases(void){
     reacquire();frame(1,1,300);CHECK(dispatches==0); /* one disabled sample is insufficient */
     return 1;
 }
-int main(void){if(!guest_collision_selftest()||!lifecycle_cases())return 1;
-    puts("PASS collision adapter lifecycle: scene retention, guarded repair and refusal cases");return 0;}
+static void use_variant(void) {
+    ptr(address(&pawn)+0x58,address(&pawn_arch));ptr(address(&component)+0x58,address(&component_arch));
+    put_byte(address(&pawn)+0x26c,10);put_byte(address(&cdo)+0x26c,10);
+}
+static int variant_cases(void) {
+    /* Observed first-lease shape: type6, initial replicated sentinel10,
+     * same physical class default but a component from a pawn archetype. */
+    reset_fixture();use_variant();frame(1,1,100);
+    CHECK(guest_collision_restore.tracked&&guest_collision_restore.healthy.replicated==10&&dispatches==0);
+    CHECK(release());reacquire();u32(address(&world)+0x7c0,0);frame(1,1,310);CHECK(restored());
+
+    reset_fixture();use_variant();ptr(address(&component_arch)+0x40,address(&other));frame(1,1,100);
+    CHECK(!guest_collision_restore.tracked&&dispatches==0);
+    reset_fixture();use_variant();ptr(address(&component_arch)+0x50,address(&other));frame(1,1,100);
+    CHECK(!guest_collision_restore.tracked&&dispatches==0);
+    reset_fixture();use_variant();ptr(address(&pawn_arch)+0x50,address(&other));frame(1,1,100);
+    CHECK(!guest_collision_restore.tracked&&dispatches==0);
+    reset_fixture();use_variant();put_byte(address(&pawn)+0x26c,11);frame(1,1,100);
+    CHECK(!guest_collision_restore.tracked&&dispatches==0);
+    reset_fixture();use_variant();u32(address(&templ)+0x16c,0x8600ba);frame(1,1,100);
+    CHECK(!guest_collision_restore.tracked&&dispatches==0);
+
+    reset_fixture();use_variant();frame(1,1,100);CHECK(guest_collision_restore.tracked);
+    CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
+    ptr(address(&pawn)+0x58,address(&other));frame(1,1,310);
+    CHECK(guest_collision_restore.suppressed&&dispatches==0);
+    reset_fixture();use_variant();put_byte(address(&pawn)+0x269,2);frame(1,1,100);
+    CHECK(!guest_collision_restore.tracked&&dispatches==0); /* role issue remains separate */
+    return 1;
+}
+int main(void){if(!guest_collision_selftest()||!lifecycle_cases()||!variant_cases())return 1;
+    puts("PASS collision adapter lifecycle: variants/sentinel, scene retention, guarded repair and refusal cases");return 0;}

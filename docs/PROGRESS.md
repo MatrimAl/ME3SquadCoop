@@ -1,5 +1,27 @@
 # Progress
 
+## 2026-10-23: first-lease collision refusal reproduced and corrected
+
+- The focused run stopped the route at waypoint2 and held Ashley for 59.36
+  seconds on the host before a normal guest disconnect. AI and the host story
+  roster were restored. No native exception occurred. This stationary scope
+  does not validate combat, scene reacquisition or the earlier Bink failure.
+- A creation-pinned, read-only snapshot captured the exact rejected baseline.
+  Actual and class-default physical masks were identical: actor `0x60000000`,
+  block `3`, component `0xaa`, collision type `6`. Both stored replicated type
+  `10` (`COLLIDE_MAX`), the initial sentinel rather than a repair argument.
+  The component used the Ashley combat variant's archetype, not the class
+  default component directly. The former checks incorrectly rejected both.
+- Baseline admission now accepts the observed replicated sentinel and pins the
+  actual component/pawn archetypes, requiring matching classes and the component
+  archetype's ownership by that pawn archetype. Physical equality with the class
+  default remains required. Repair still dispatches the captured physical type6;
+  scene, ownership, channel and role checks remain unchanged.
+- All three native outputs built. Probe/runtime harnesses, real-adapter offline
+  lifecycle cases for variant/sentinel and their refusal cases passed; three
+  compiled physical-mask/CAS negative controls were rejected. A new live run
+  must establish that the corrected baseline arms; no live repair is claimed.
+
 ## 2026-10-23: crash module identified; focused first-lease observation prepared
 
 - A Windows Application Error record matches the failed host's PID, creation

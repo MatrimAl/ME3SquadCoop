@@ -9,7 +9,7 @@
 typedef struct GuestCollisionShape {uint32_t actor,block,component;unsigned char type,replicated;} GuestCollisionShape;
 typedef struct GuestCollisionRestore {
     int configured,opted,tracked,released,pending,was_owned,suppressed;unsigned long token,attempted;
-    GuestCameraStamp pc,pawn,world,component,cdo,template,channel,connection,driver;
+    GuestCameraStamp pc,pawn,world,component,cdo,template,archetype,pawn_archetype,channel,connection,driver;
     NetworkActorIdentityEntry network;
     GuestCollisionShape healthy,release;
     GuestPlayerContextMethod method;
@@ -22,14 +22,16 @@ static int guest_collision_equal(const GuestCollisionShape *a,const GuestCollisi
 }
 static int guest_collision_healthy(const GuestCollisionShape *s) {
     /* Actual supported Ashley defaults: COLLIDE_BlockAllButWeapons. */
-    return s&&s->actor==0x60000000&&s->block==3&&s->component==0xaa&&s->type==6&&s->replicated<10;
+    /* COLLIDE_MAX (10) is the observed initial replicated-byte sentinel,
+     * including the supported class default. It is never a native argument. */
+    return s&&s->actor==0x60000000&&s->block==3&&s->component==0xaa&&s->type==6&&s->replicated<=10;
 }
 static int guest_collision_physical_equal(const GuestCollisionShape *a,const GuestCollisionShape *b) {
     /* The CDO's transient replicated-type byte is not a physical default. */
     return a->actor==b->actor&&a->block==b->block&&a->component==b->component&&a->type==b->type;
 }
 static int guest_collision_disabled(const GuestCollisionShape *s) {
-    return s&&s->actor==0&&!(s->block&1)&&!(s->component&2)&&s->type<10&&s->replicated<10;
+    return s&&s->actor==0&&!(s->block&1)&&!(s->component&2)&&s->type<10&&s->replicated<=10;
 }
 static int guest_collision_shape(uintptr_t pawn,uintptr_t component,GuestCollisionShape *s) {
     uint32_t a=0,b=0,c=0;unsigned char type[2];
@@ -59,10 +61,14 @@ static int guest_collision_identity(uintptr_t base) {
         guest_camera_stamp_matches(base,&l->world,1)&&guest_camera_actor_live(base,l->world.pointer)&&
         guest_camera_stamp_matches(base,&l->component,1)&&guest_camera_stamp_matches(base,&l->cdo,1)&&
         guest_camera_stamp_matches(base,&l->template,1)&&guest_camera_stamp_matches(base,&l->channel,1)&&
+        guest_camera_stamp_matches(base,&l->archetype,1)&&guest_camera_stamp_matches(base,&l->pawn_archetype,1)&&
         guest_camera_stamp_matches(base,&l->connection,1)&&guest_camera_stamp_matches(base,&l->driver,1)&&
         read_ptr(l->pc.pointer+0x198)==l->world.pointer&&read_ptr(l->pawn.pointer+0x198)==l->world.pointer&&
         read_ptr(l->pawn.pointer+0x1e0)==l->component.pointer&&read_ptr(l->pawn.klass+0x13c)==l->cdo.pointer&&
-        read_ptr(l->cdo.pointer+0x1e0)==l->template.pointer&&read_ptr(l->component.pointer+0x58)==l->template.pointer;
+        read_ptr(l->cdo.pointer+0x1e0)==l->template.pointer&&read_ptr(l->component.pointer+0x58)==l->archetype.pointer&&
+        read_ptr(l->pawn.pointer+0x58)==l->pawn_archetype.pointer&&
+        read_ptr(l->archetype.pointer+0x40)==l->pawn_archetype.pointer&&
+        l->archetype.klass==l->component.klass&&l->pawn_archetype.klass==l->pawn.klass;
 }
 static int guest_collision_method(uintptr_t base,GuestPlayerContextMethod *method) {
     uintptr_t fn=function_named(base,"Actor","SetCollisionType"),field=read_ptr(fn+0x70);
@@ -128,16 +134,19 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
     if(!l->tracked) {
         if(!eligible)return;
         uintptr_t component=read_ptr(pawn+0x1e0),cdo=read_ptr(read_ptr(pawn+0x50)+0x13c),templ=read_ptr(cdo+0x1e0);
+        uintptr_t archetype=read_ptr(component+0x58),pawn_archetype=read_ptr(pawn+0x58);
         GuestCollisionShape shape={0},defaults={0};
         if(!narrative_probe_object(base,component,"CylinderComponent")||!narrative_probe_object(base,templ,"CylinderComponent")||
            !is_kind_of(base,cdo,"SFXPawn_Ashley")||read_ptr(cdo+0x50)!=read_ptr(pawn+0x50)||
-           read_ptr(component+0x58)!=templ||!guest_collision_shape(pawn,component,&shape)||
+           !narrative_probe_object(base,archetype,"CylinderComponent")||!is_kind_of(base,pawn_archetype,"SFXPawn_Ashley")||
+           read_ptr(archetype+0x40)!=pawn_archetype||read_ptr(archetype+0x50)!=read_ptr(component+0x50)||
+           read_ptr(pawn_archetype+0x50)!=read_ptr(pawn+0x50)||!guest_collision_shape(pawn,component,&shape)||
            !guest_collision_shape(cdo,templ,&defaults)||!guest_collision_healthy(&shape)||!guest_collision_physical_equal(&shape,&defaults)) {
             if(!l->reported||now-l->reported>=5000){l->reported=now;guest_collision_log("baseline-refused","healthy-class-template-shape-required",now,0);}return;
         }
-        uintptr_t targets[]={pc,pawn,world,component,cdo,templ,channel.channel,channel.connection,channel.driver};
-        GuestCameraStamp *stamps[]={&l->pc,&l->pawn,&l->world,&l->component,&l->cdo,&l->template,&l->channel,&l->connection,&l->driver};
-        for(unsigned i=0;i<9;++i)if(!guest_camera_stamp_read(base,targets[i],stamps[i],1))return;
+        uintptr_t targets[]={pc,pawn,world,component,cdo,templ,archetype,pawn_archetype,channel.channel,channel.connection,channel.driver};
+        GuestCameraStamp *stamps[]={&l->pc,&l->pawn,&l->world,&l->component,&l->cdo,&l->template,&l->archetype,&l->pawn_archetype,&l->channel,&l->connection,&l->driver};
+        for(unsigned i=0;i<11;++i)if(!guest_camera_stamp_read(base,targets[i],stamps[i],1))return;
         l->healthy=shape;l->network=channel;l->token=guest_player_context_lease.token;l->tracked=1;l->was_owned=1;
         guest_collision_log("baseline","observed-healthy-owned-collision",now,1);return;
     }
@@ -169,6 +178,8 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
 static int guest_collision_selftest(void) {
     GuestCollisionShape healthy={0x60000000,3,0xaa,6,6},released={0,2,0x20,1,1},wrong=healthy;
     if(!guest_collision_healthy(&healthy)||!guest_collision_disabled(&released)||guest_collision_healthy(&released)||guest_collision_disabled(&healthy))return 0;
+    wrong=healthy;wrong.replicated=10;if(!guest_collision_healthy(&wrong))return 0;
+    wrong.replicated=11;if(guest_collision_healthy(&wrong))return 0;wrong=healthy;
     wrong.component^=0x10;if(guest_collision_healthy(&wrong)||guest_collision_equal(&healthy,&wrong))return 0;
     _Alignas(8) unsigned char memory[0x268]={0};uint32_t before=0x29690100,after=0;memcpy(memory+0x260,&before,4);
     if(guest_collision_world_compare((uintptr_t)memory,before^0x100,1)||!guest_collision_world_compare((uintptr_t)memory,before,1))return 0;
