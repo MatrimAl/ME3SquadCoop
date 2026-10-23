@@ -1,5 +1,20 @@
 # Native activation DLC packaging
 
+A protected test has now received an owner-reported corrupt-DLC dialog naming
+`DLC_MOD_ME3SquadCoop`. The screenshot did not capture process attribution.
+**The Mount-only activation container is not an engine-validated package and
+must not be distributed as a working install.** The completed test removed it.
+
+Read-only native review confirms the authored Mount versions and priority fit
+the supported reader; its complete byte layout also matches the official LE3
+writer. Do not invent different versions or nonzero GUID data to hide this
+failure. The container lacks a DLC-root `PCConsoleTOC.bin`, which the official
+TOC generator produces and uses to list `CookedPCConsole\\Mount.dlc`.
+The native engine can report corruption when its virtual file manager cannot
+open the Mount. A separate conditional coalesced-file failure reaches the same
+dialog. Which path caused the reported error remains unresolved; adding a TOC
+alone is an isolation experiment, not a proven complete fix.
+
 The candidate now authors LE3 mount metadata instead of a fabricated startup
 package. It contains no UnrealScript, package exports, coalesced/config changes,
 TLK strings, copied GUIDs, or game assets. The ordinary ASI currently uses the

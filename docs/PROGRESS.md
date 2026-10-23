@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-10-23: late ordinary join measured; activation DLC rejection reported
+
+- The protected rerun exercised the new admission policy: five stable samples
+  over 1,000 ms, with dispatch at native world time 68.026 seconds. The immediate
+  console response was empty. The reflected viewport observer recorded
+  `Connecting...` and closed its 60-second window normally. No sustained native
+  connection, Ashley acquisition, collision repair or combat was established.
+- During this run the owner supplied an in-game corrupt-DLC dialog naming
+  `DLC_MOD_ME3SquadCoop`. The screenshot's process was not independently attributed.
+  The activation container must not be treated as accepted by the engine. Static
+  review confirms that our Mount versions, priority and serialized bytes match
+  the supported native reader and official writer. Its absent DLC-root TOC is a
+  concrete omission; the exact failure has not been attributed to that omission.
+  A conditional native coalesced-file error also reaches the corruption dialog.
+- Cleanup retained 8,210 original-file locks, unchanged profiles and zero native
+  exceptions. Both native launchers ended at their limits, no game remained,
+  and temporary authored ASI/Mount files were removed without forced cleanup.
+- Combat investigation returns to the protected research entry, which does not
+  install this activation DLC. Ordinary startup and packaging research remain
+  separate from Ashley collision, firing/stop and authoritative damage evidence.
+
 ## 2026-10-23: stable guest admission and native response diagnostics
 
 - Ordinary join now waits for a stable reciprocal player/story context rather
