@@ -8,6 +8,7 @@
 - Firing/stop and shared travel failed their separate evaluators; no hostile damage or full conversation was verified. Pointer ownership, AI restoration and disconnect checks passed, which expressly do not establish usable control while a pawn is falling.
 - The final report protected 8,210 original game/profile files, retained unchanged profiles, recorded zero native exceptions and required no forced orphan cleanup. The probe ended disabled, no game process remained, and current native fingerprints matched. Distinct source/build/result/audit files and raw transition records remain private.
 - Packaging now authors strict LE3 mount metadata and a DLC-only Mod Manager archive, replacing the fabricated startup PCC and wrong game identifier. Archive/readback and synthetic rollback checks are separate from actual Mod Manager import and engine mounting, which remain unverified. See [activation packaging](DLC-PACKAGING.md).
+- The ordinary ASI now implements an explicit one-shot current-world host Listen as well as guest join. It validates native interface selection, the actual bound endpoint, current-map URL ownership, transient two-player capacity and client-free genuine package-map initialization. It never implicitly reloads a mission. The integrated build produced all three outputs; the ordinary native harness and 246 Python tests passed with two skipped. These startup paths still require protected actual-entry game tests; they were not used in the preceding route experiment.
 
 ## 2026-10-23: actual drained-hit dispatch and landing obstruction
 
