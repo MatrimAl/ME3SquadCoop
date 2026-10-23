@@ -45,6 +45,8 @@ probe.SquadDirectIPSelfTest.restype = ctypes.c_int
 assert probe.SquadDirectIPSelfTest() == 1, "native endpoint validation failed"
 probe.SquadGuestCameraSelfTest.restype = ctypes.c_int
 assert probe.SquadGuestCameraSelfTest() == 1, "guest camera identity and restoration guards failed"
+probe.SquadGuestCollisionSelfTest.restype = ctypes.c_int
+assert probe.SquadGuestCollisionSelfTest() == 1, "guest collision baseline/release and masked compare-exchange guards failed"
 probe.SquadGuestCinematicSelfTest.restype = ctypes.c_int
 assert probe.SquadGuestCinematicSelfTest() == 1, "cinematic reciprocal membership transaction/rollback guards failed"
 probe.SquadSessionGateSelfTest.restype = ctypes.c_int

@@ -427,6 +427,7 @@ static int native_session_role(void) {return test_action;}
 #include "progress_probe.h"
 #include "guest_camera_adapter.h"
 #include "guest_player_context_adapter.h"
+#include "guest_collision_restore.h"
 #include "guest_cinematic_registration_adapter.h"
 #include "combat_fire_bot.h"
 #define ME3_SQUAD_COOP_PROTECTED_HIT_TRACE 1
@@ -741,6 +742,7 @@ __declspec(dllexport) int SquadFireRpcTraceSelfTest(void) { return fire_rpc_self
 __declspec(dllexport) int SquadNativeFireTraceSelfTest(void) { return native_fire_selftest(); }
 __declspec(dllexport) int SquadGuestHitTraceSelfTest(void) { return guest_hit_selftest(); }
 __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_adapter_selftest(); }
+__declspec(dllexport) int SquadGuestCollisionSelfTest(void) { return guest_collision_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
 __declspec(dllexport) int SquadSessionGateSelfTest(void) { return session_gate_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {

@@ -28,6 +28,7 @@ static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     combat_fire_bot_tick(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),after,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
     guest_player_context_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
+    guest_collision_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
     if(after&&!session_engine_blocked(c))ammo_change_sample(base,c.pc,c.pawn,c.world,guest_player_context_lease.token,now);
     int ashley = session_actor_live(base, c.pawn) && is_kind_of(base, c.pawn, "SFXPawn_Ashley");
     if (ashley && session_guest_last_pawn != c.pawn) {

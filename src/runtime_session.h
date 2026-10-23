@@ -16,6 +16,7 @@ static int native_session_role(void) {
 #include "squad_pawn_readiness.h"
 #include "guest_camera_adapter.h"
 #include "guest_player_context_adapter.h"
+#include "guest_collision_restore.h"
 #include "guest_cinematic_registration_adapter.h"
 #include "guest_equipment_bootstrap.h"
 #include "squad_session_core.h"
@@ -81,6 +82,7 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,enabled,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
     guest_player_context_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
+    guest_collision_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
 }
 static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     session_engine=engine;session_game_thread=GetCurrentThreadId();
