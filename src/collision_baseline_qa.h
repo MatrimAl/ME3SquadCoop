@@ -1,6 +1,6 @@
 #ifndef ME3_COLLISION_BASELINE_QA_H
 #define ME3_COLLISION_BASELINE_QA_H
-/* Protected probe only. Park after the first acquisition and suppress guest
+/* Protected probe only. Park after the second acquisition and suppress guest
  * bot input while the existing scene/reacquisition policy remains active.
  * Never a player runtime policy or a movement/combat verdict. */
 static int collision_baseline_qa_value(const wchar_t *value,DWORD length) {
@@ -15,14 +15,15 @@ static int collision_baseline_qa_opted(void) {
     }
     return opted;
 }
-static int collision_baseline_qa_stop_route(int opted,DWORD acquired) {
-    return opted==1&&acquired!=0;
+static int collision_baseline_qa_stop_route(int opted,DWORD epoch) {
+    return opted==1&&epoch>=2;
 }
 static int collision_baseline_qa_selftest(void) {
     if(!collision_baseline_qa_value(L"1",1)||collision_baseline_qa_value(L"",0)||
        collision_baseline_qa_value(L"0",1)||collision_baseline_qa_value(L"11",2)||
        collision_baseline_qa_value(L"true",4)||collision_baseline_qa_value(L"1",9))return 0;
-    return !collision_baseline_qa_stop_route(0,1)&&!collision_baseline_qa_stop_route(1,0)&&
-        collision_baseline_qa_stop_route(1,1)&&collision_baseline_qa_stop_route(1,UINT32_MAX);
+    return !collision_baseline_qa_stop_route(0,2)&&!collision_baseline_qa_stop_route(1,0)&&
+        !collision_baseline_qa_stop_route(1,1)&&collision_baseline_qa_stop_route(1,2)&&
+        collision_baseline_qa_stop_route(1,UINT32_MAX);
 }
 #endif

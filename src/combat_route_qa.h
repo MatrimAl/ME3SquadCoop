@@ -266,9 +266,9 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
     if(after){if(!combat_route_cleanup(base)&&q->active)combat_route_end(base,"aborted","input-cleanup",NULL,now);return;}
     /* A stopped/disabled run still owns its bounded pending release. */
     if(q->done){if(combat_action_qa.pulse.pending)combat_action_cleanup(base,now);return;}
-    if(collision_baseline_qa_stop_route(collision_baseline_qa_opted(),session_first_acquired)) {
+    if(collision_baseline_qa_stop_route(collision_baseline_qa_opted(),session_epoch)) {
         q->axes[0]=q->axes[1]=q->turn=0;
-        combat_route_end(base,"baseline-observation-stop","first-acquisition-no-further-route",NULL,now);return;
+        combat_route_end(base,"baseline-observation-stop","second-acquisition-no-further-route",NULL,now);return;
     }
     if(!combat_route_qa_host_mode()||!has_marker(root)){if(q->active)combat_route_end(base,"aborted","opt-in-or-protection-ended",NULL,now);return;}
     if(q->active&&now-q->started>=75000){combat_route_end(base,"aborted","75-second-bound",NULL,now);return;}

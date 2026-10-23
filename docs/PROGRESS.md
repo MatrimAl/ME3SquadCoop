@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-10-23: stationary handoff passed without reproducing world-collision loss
+
+- The stationary pair accepted a baseline, completed a30-second first lease,
+  synthetic release and second acquisition, then restored AI/story state on
+  ordinary disconnect. Guest ownership/camera returned for roughly25 seconds.
+  The guest retained world collision (`0x40000000`) and local autonomous Role2;
+  RemoteRole remained3. No repair attempt occurred. This does not exercise the
+  historical fully disabled collision shape or the new RemoteRole2 case.
+- Recorded native exceptions were zero. Final audit verified all8,210 original
+  locks, unchanged profiles/source/build, disabled probe, restored action and
+  complete cleanup with no forced game termination. The monitor again recorded
+  an access-denied error, so the broad runner's green lifecycle result is not
+  evidence of a clean overall QA pass or working collision recovery.
+- Stationary QA now parks at the second acquisition. This lets ordinary route
+  input reach the actual landing scene before parking, while retaining the
+  existing later synthetic handoff. The earlier failing capture combined these
+  two transitions before world collision disappeared. Guest bot input remains
+  disabled; no extra timer, mode, role write or partial-shape repair was added.
+
 ## 2026-10-23: healthy baseline accepted in-game; stationary recovery prepared
 
 - With the existing extended QA deadlines, Ashley was acquired and the native
