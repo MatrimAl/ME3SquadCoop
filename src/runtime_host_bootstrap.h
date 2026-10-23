@@ -224,7 +224,7 @@ static int runtime_host_master_prepare(uintptr_t base,uintptr_t world,uintptr_t 
 }
 static int runtime_host_story_idle(uintptr_t base,SessionContext c) {
     uint32_t flags=0,world_flags=0,activating=0;uintptr_t pauser=1,conversation=0;
-    if(session_engine_blocked(c)||!session_actor_live(base,c.pawn)||!is_kind_of(base,c.pawn,"BioPlayerPawn")||
+    if(session_engine_blocked(c)||!session_actor_live(base,c.pawn)||!is_kind_of(base,c.pawn,"SFXPawn_Player")||
        read_ptr(c.pawn+0x374)!=c.pc||!read_at(c.pc+0x77c,&flags,4)||(flags&0x20000)||
        !read_at(c.world+0x7c0,&world_flags,4)||(world_flags&0xc00)||
        !read_at(c.world+0x670,&pauser,8)||pauser||!read_at(c.world+0x948,&conversation,8))return 0;

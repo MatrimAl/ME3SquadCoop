@@ -44,12 +44,18 @@ static int runtime_transport_multihome_matches(const wchar_t *command,size_t len
 }
 static int runtime_transport_bind_argument(uintptr_t base,const wchar_t *bind) {
     if(!runtime_transport_commandline_pins(base))return 0;
+    /* The pinned getter is LEA RAX,[RIP+disp32], not an indirect pointer.
+     * Derive its buffer from the instruction: 0x1196e0+7+0x16e43d9=
+     * 0x17fdac0. The preceding 0x20 bytes are not command-line storage. */
+    int32_t displacement=0;
+    if(!read_at(base+0x1196e0+3,&displacement,sizeof displacement))return 0;
+    uintptr_t command_address=base+0x1196e0+7+(intptr_t)displacement;
     wchar_t command[8192];size_t used=0;
-    /* Fixed engine buffer from the pinned getter. Bounded complete read, no
+    /* Engine buffer from the pinned getter. Bounded complete read, no
      * native function invocation and no substitution of GetCommandLineW. */
     while(used<8192) {
         size_t chunk=128;
-        if(!read_at(base+0x17fdaa0+used*2,command+used,chunk*2))return 0;
+        if(!read_at(command_address+used*2,command+used,chunk*2))return 0;
         for(size_t i=0;i<chunk;++i)if(!command[used+i])
             return runtime_transport_multihome_matches(command,used+i,bind);
         used+=chunk;

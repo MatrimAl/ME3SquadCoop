@@ -2,7 +2,7 @@
 #define ME3_RUNTIME_HOST_FIXTURE_H
 /* The checked production startup pipeline uses fixture-owned allocation/listen
  * callbacks on allocated synthetic objects. No engine code or socket is run. */
-static uintptr_t runtime_host_fixture_o[38];
+static uintptr_t runtime_host_fixture_o[43];
 static unsigned runtime_host_fixture_copies,runtime_host_fixture_destroys,runtime_host_fixture_inits;
 static int runtime_host_fixture_failure;
 static RuntimeHostURL *runtime_host_fixture_copy(RuntimeHostURL *to,const RuntimeHostURL *from) {
@@ -51,26 +51,32 @@ static void runtime_host_fixture_initialize(void *map) {
 }
 static int runtime_host_startup_selftest(void) {
     unsigned char *image=VirtualAlloc(NULL,0x1900000,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
-    unsigned char *memory=HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,38*0x1000);
+    unsigned char *memory=HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,43*0x1000);
     if(!image||!memory) {if(image)VirtualFree(image,0,MEM_RELEASE);if(memory)HeapFree(GetProcessHeap(),0,memory);return 0;}
     uintptr_t base=(uintptr_t)image,*o=runtime_host_fixture_o;
     const char *labels[]={"TheWorld","PersistentLevel","Info","PC","Shepard","Squad","Game","Driver","Master",
         "Core","SFXGame","SFXGameContent","Biop_ProMar","Mode","Player","EngineInstance",
         "MaxPlayers","MaxPlayersAllowed","NumPlayers","Class","World","Level","BioWorldInfo","Actor",
-        "SFXPlayerController","BioPlayerPawn","BioBaseSquad","GameInfo","TcpNetDriver","PackageMap",
-        "Package","BioModeManager","LocalPlayer","Engine","IntProperty","Object","BioPawn","NetDriver"};
-    const int classes[]={20,21,22,24,25,26,27,28,29,30,30,30,30,31,32,33,34,34,34,
-        19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19};
-    unsigned char names[38*128]={0};
-    for(int i=0;i<38;++i) {
+        "SFXPlayerController","SFXPawn_Player","BioBaseSquad","GameInfo","TcpNetDriver","PackageMap",
+        "Package","BioModeManager","LocalPlayer","Engine","IntProperty","Object","BioPawn","NetDriver",
+        "SFXPawn_PlayerSoldier","SFXPawn_PlayerParty","SFXPawn","Pawn","SFXPawn_Ashley"};
+    const int classes[]={20,21,22,24,38,26,27,28,29,30,30,30,30,31,32,33,34,34,34,
+        19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19};
+    unsigned char names[43*128]={0};
+    for(int i=0;i<43;++i) {
         o[i]=(uintptr_t)(memory+i*0x1000);memcpy((void*)(o[i]+8),&i,4);unsigned name=i*128;
         memcpy((void*)(o[i]+0x48),&name,4);strcpy((char*)names+name+12,labels[i]);
     }
-    for(int i=0;i<38;++i)runtime_fixture_ptr(o[i]+0x50,o[classes[i]]);
-    const int actors[]={22,24,26,27,36};
+    for(int i=0;i<43;++i)runtime_fixture_ptr(o[i]+0x50,o[classes[i]]);
+    const int actors[]={22,24,26,27};
     for(unsigned i=0;i<sizeof actors/sizeof actors[0];++i)runtime_fixture_ptr(o[actors[i]]+0x60,o[23]);
-    runtime_fixture_ptr(o[25]+0x60,o[36]);runtime_fixture_ptr(o[28]+0x60,o[37]);
-    GameArray objects={(uintptr_t)o,38,38};memcpy(image+OBJECTS_RVA,&objects,sizeof objects);
+    /* Captured native Shepard hierarchy, with no invented BioPlayerPawn:
+     * Soldier -> Player -> PlayerParty -> SFXPawn -> BioPawn -> Pawn -> Actor. */
+    const int pawn_chain[]={38,25,39,40,36,41,23,35};
+    for(unsigned i=1;i<sizeof pawn_chain/sizeof pawn_chain[0];++i)
+        runtime_fixture_ptr(o[pawn_chain[i-1]]+0x60,o[pawn_chain[i]]);
+    runtime_fixture_ptr(o[42]+0x60,o[40]);runtime_fixture_ptr(o[28]+0x60,o[37]);
+    GameArray objects={(uintptr_t)o,43,43};memcpy(image+OBJECTS_RVA,&objects,sizeof objects);
     runtime_fixture_ptr(base+NAME_POOLS_RVA,(uintptr_t)names);runtime_fixture_ptr(base+0x18b6638,o[0]);
     runtime_fixture_ptr(o[0]+0x40,o[12]);runtime_fixture_ptr(o[0]+0x88,o[1]);
     uintptr_t level_actors[]={o[2]};GameArray actors_array={(uintptr_t)level_actors,1,1};
@@ -109,6 +115,10 @@ static int runtime_host_startup_selftest(void) {
     const RuntimeHostNativeCalls calls={runtime_host_fixture_copy,runtime_host_fixture_destroy,
         runtime_host_fixture_listen,runtime_host_fixture_initialize,runtime_host_fixture_error_free};
     SessionContext context=session_context(o[15]);CombatContextChain chain;
+    ok=ok&&runtime_host_story_idle(base,context);
+    runtime_fixture_ptr(o[4]+0x50,o[42]);ok=ok&&!runtime_host_story_idle(base,context);
+    runtime_fixture_ptr(o[4]+0x50,o[36]);ok=ok&&!runtime_host_story_idle(base,context);
+    runtime_fixture_ptr(o[4]+0x50,o[38]);ok=ok&&runtime_host_story_idle(base,context);
     for(int failure=0;failure<=3&&ok;++failure) {
         runtime_host_fixture_failure=failure;runtime_host_fixture_copies=runtime_host_fixture_destroys=runtime_host_fixture_inits=0;
         runtime_fixture_ptr(o[0]+0x120,0);*(unsigned char*)(o[2]+0x7c8)=0;

@@ -24,10 +24,15 @@ static int runtime_transport_selftest(void) {
     memcpy(image+0x1196e0,getter,sizeof getter);memcpy(image+0x902705,consumer,sizeof consumer);
     memcpy(image+0x113d80,parse,sizeof parse);memcpy(image+0x9033ae,port,sizeof port);
     memcpy(image+0x9033e9,bind,sizeof bind);
-    wcscpy((wchar_t*)(image+0x17fdaa0),good);
+    /* Keep the old, incorrect start empty. An independent expected target
+     * makes a reader 0x20 bytes early fail instead of repeating its mistake. */
+    wcscpy((wchar_t*)(image+0x17fdac0),good);
     int ok=runtime_transport_bind_argument(base,L"26.1.2.3")&&!runtime_transport_bind_argument(1,L"26.1.2.3");
+    wcscpy((wchar_t*)(image+0x17fdaa0),L"-MULTIHOME=9");
+    ok=ok&&runtime_transport_bind_argument(base,L"26.1.2.3")&&
+        !runtime_transport_bind_argument(base,L"26.1.2.4");
     image[0x1196e0]^=1;ok=ok&&!runtime_transport_bind_argument(base,L"26.1.2.3");image[0x1196e0]^=1;
-    for(unsigned i=0;i<8192;++i)((wchar_t*)(image+0x17fdaa0))[i]=L'A';
+    for(unsigned i=0;i<8192;++i)((wchar_t*)(image+0x17fdac0))[i]=L'A';
     ok=ok&&!runtime_transport_bind_argument(base,L"26.1.2.3");
     uintptr_t objects[]={base+0x1000,base+0x2000,base+0x3000};
     unsigned char names[384]={0};const char *labels[]={"Driver","TcpNetDriver","Class"};

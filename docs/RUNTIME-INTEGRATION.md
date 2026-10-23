@@ -55,6 +55,17 @@ port is the remote server port; this cache is not an observation of its actual
 kernel socket port. This correction has offline native fixture coverage; genuine
 ordinary-entry guest control remains to be tested.
 
+The command-line buffer is now derived from the validated getter's RIP-relative
+LEA. A protected ordinary-host smoke exposed that the previous constant pointed
+0x20 bytes before the actual buffer and refused a valid MULTIHOME argument.
+The smoke reached the bridge and refusal, not a verified listener. Host readiness
+also now requires the captured `SFXPawn_Player` hierarchy; the earlier
+`BioPlayerPawn` class does not occur in the observed Shepard hierarchy. Native
+fixtures keep the old buffer address empty or conflicting and represent the
+actual Soldier/Player/PlayerParty hierarchy, while rejecting Ashley and a generic
+BioPawn. Compiled negative controls reject both old bugs and overly broad pawn
+admission. These corrections still require a new protected in-game startup run.
+
 Host startup leases reflected `GameInfo` capacity for two participants and checks
 the actual bound endpoint. Native bind can advance an occupied port; a different
 bound port fails startup. Before companion admission, the code invokes the same
