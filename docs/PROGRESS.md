@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-23: focused rerun ended without guest acquisition
+
+- The reduced-observation run completed with zero recorded native exceptions.
+  Host listen mode and sustained guest client mode were observed, but Ashley
+  was never acquired. Consequently neither the corrected collision baseline
+  nor a live collision repair was exercised. Client mode alone is insufficient
+  evidence of playable co-op.
+- Retained admission samples showed matching current/cached drivers but no
+  reciprocal remote controller. This identifies the failed acquisition stage;
+  it does not establish a cause or prove that removing the observers fixed
+  the preceding access violation.
+- All 8,210 original-file/profile locks remained held through child cleanup;
+  profiles and frozen source/build were unchanged. The probe was disabled,
+  the action restored, and no forced cleanup or remaining game PID was recorded.
+- Current priority is reliable squadmate acquisition, collision after control
+  return, and authoritative combat. Cross-PC Radmin and packaging are deferred.
+  Prefer a small measured gameplay correction over additional infrastructure.
+
 ## 2026-10-23: baseline rerun failed during join; focused diagnostics reduced
 
 - The baseline correction rerun failed before guest acquisition or baseline
