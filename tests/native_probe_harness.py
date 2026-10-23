@@ -49,6 +49,8 @@ probe.SquadGuestCollisionSelfTest.restype = ctypes.c_int
 assert probe.SquadGuestCollisionSelfTest() == 1, "guest collision baseline/release and masked compare-exchange guards failed"
 probe.SquadGuestCinematicSelfTest.restype = ctypes.c_int
 assert probe.SquadGuestCinematicSelfTest() == 1, "cinematic reciprocal membership transaction/rollback guards failed"
+probe.SquadSessionAdmissionDiagnosticsSelfTest.restype = ctypes.c_int
+assert probe.SquadSessionAdmissionDiagnosticsSelfTest() == 1, "session admission diagnostic exceeded its clock/cap or misclassified a rejection"
 probe.SquadSessionGateSelfTest.restype = ctypes.c_int
 assert probe.SquadSessionGateSelfTest() == 1, "session gate accepted PlayersOnly, unreadable, cinematic or conversation control"
 probe.SquadSessionHandleSelfTest.restype = ctypes.c_int

@@ -1,4 +1,5 @@
 #include "squad_session_core.h"
+#include "session_admission_diagnostics.h"
 /* Protected probe orchestration. These policies do not enter the player ASI. */
 static int session_policy_is_host(void) {return test_action==6;}
 static int session_policy_enabled(void) {return has_marker(root);}

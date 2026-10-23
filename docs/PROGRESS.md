@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-10-23: research connection reproduced; squad admission still blocked
+
+- The next protected research pair omitted the ordinary activation DLC and
+  runtime ASI. Native listener/client modes and a sustained connection were
+  observed, but Ashley was never acquired. The route remained at its ordinary
+  host-context gate. Collision baseline/repair, firing and control return were
+  therefore not exercised.
+- The cached host driver's readable client array was empty in sampled camera
+  inventory records. This does not establish a stale driver: the global object
+  connection count is not proof of current-world membership. Admission guards
+  remain in place while their individual predicates are investigated.
+- The wrapper's live observer and final audit exceeded their 8 MiB whole-log
+  limit. The inner result recorded unchanged original profiles, zero native
+  exceptions, no forced cleanup and a disabled probe. A separate read-only
+  recovery supplement hashed and streamed the completed logs and confirmed no
+  remaining game processes. It does not replace the missing outer audit or
+  convert the failed live observers into a pass.
+- Protected-probe admission diagnostics now compare cached and current-world
+  driver scope, retain counters from the existing remote-controller scan, and
+  report silent pre-acquisition rejections. They do not change possession
+  predicates. Sampling is limited to 120 records at two-second intervals.
+  All three native outputs built; probe and ordinary runtime harnesses passed,
+  including diagnostic budget/rejection fixtures and file-write isolation.
+  These offline checks do not establish live acquisition or a gameplay fix.
+
 ## 2026-10-23: late ordinary join measured; activation DLC rejection reported
 
 - The protected rerun exercised the new admission policy: five stable samples

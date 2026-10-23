@@ -413,6 +413,7 @@ static void possession_test(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
     line(text); possession_at = now; possession_stage = 1;
 }
 static int native_session_role(void) {return test_action;}
+#define ME3_PROTECTED_SESSION_ADMISSION_DIAGNOSTICS 1
 #include "pair_control.h"
 #include "network_actor_identity.h"
 #include "network_actor_identity_selftest.h"
@@ -745,6 +746,7 @@ __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_a
 __declspec(dllexport) int SquadGuestCollisionSelfTest(void) { return guest_collision_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
 __declspec(dllexport) int SquadSessionGateSelfTest(void) { return session_gate_selftest(); }
+__declspec(dllexport) int SquadSessionAdmissionDiagnosticsSelfTest(void) { return session_admission_diagnostics_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {
     unsigned char fake[0x60] = {0}; int32_t index = 27; uint64_t name = 0x1234567800000021ULL;
     memcpy(fake + 8, &index, 4); memcpy(fake + 0x48, &name, 8);

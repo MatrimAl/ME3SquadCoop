@@ -276,9 +276,15 @@ static void session_acquire(uintptr_t base, SessionContext c, DWORD now) {
         session_epoch, owned ? "true" : "false", story ? "true" : "false", now); line(text);
     if (!owned || !story) { session_fault = 1; session_release(base, c, "ownership-lost", GetTickCount()); }
 }
+#ifdef ME3_PROTECTED_SESSION_ADMISSION_DIAGNOSTICS
+static void session_admission_diagnostic(uintptr_t base,SessionContext c,DWORD now);
+#endif
 static void session_host_frame(uintptr_t base, uintptr_t engine, int after) {
     if (!session_enabled) return;
     session_engine = engine; session_game_thread = GetCurrentThreadId();
+#ifdef ME3_PROTECTED_SESSION_ADMISSION_DIAGNOSTICS
+    if(after&&session_policy_is_host()&&!session_active)session_admission_diagnostic(base,session_context(engine),GetTickCount());
+#endif
     if (!session_policy_is_host() || !session_policy_host_ready()) return;
     SessionContext c = session_context(engine); DWORD now = GetTickCount();
     if (session_pending_reason) {
