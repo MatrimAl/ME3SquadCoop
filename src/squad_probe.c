@@ -552,7 +552,8 @@ static void game_tick_diagnostics(void *self,uintptr_t base) {
 static void game_tick(void *self,float delta) {
     uintptr_t base=(uintptr_t)GetModuleHandleW(NULL);
     lookup_profile_emit();unsigned long long whole=lookup_clock(),part=lookup_clock();
-    initial_actor_trace_install(base);ammo_wire_install(base);install_package_trace(base);
+    if(!collision_baseline_qa_opted()){initial_actor_trace_install(base);install_package_trace(base);}
+    ammo_wire_install(base);
     input_bot(base,(uintptr_t)self);
     if(!combat_route_qa_host_mode())progress_input(base,(uintptr_t)self);
     combat_route_qa_tick(base,(uintptr_t)self,0,GetTickCount());

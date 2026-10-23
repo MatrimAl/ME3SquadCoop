@@ -1,5 +1,19 @@
 # Progress
 
+## 2026-10-23: baseline rerun failed during join; focused diagnostics reduced
+
+- The baseline correction rerun failed before guest acquisition or baseline
+  evaluation. Windows recorded a guest access violation in `VCRUNTIME140.dll`;
+  the probe recorded 174 guest and three host first-chance access violations.
+  No live baseline or repair claim follows from this run. The cause remains
+  unknown; the collision adapter had not reached its eligible path.
+- The focused probe now leaves package-lookup and initial actor receive
+  observation hooks uninstalled. Neither is needed for the first-lease shape
+  measurement; native package validation and channel handling run directly.
+  This removes diagnostic interference without claiming it caused the fault.
+- Original-file locks, unchanged profiles, disabled probe and complete process
+  cleanup were verified. No forced launcher/child cleanup was recorded.
+
 ## 2026-10-23: first-lease collision refusal reproduced and corrected
 
 - The focused run stopped the route at waypoint2 and held Ashley for 59.36
