@@ -58,7 +58,7 @@ static int runtime_host_startup_selftest(void) {
         "Core","SFXGame","SFXGameContent","Biop_ProMar","Mode","Player","EngineInstance",
         "MaxPlayers","MaxPlayersAllowed","NumPlayers","Class","World","Level","BioWorldInfo","Actor",
         "SFXPlayerController","SFXPawn_Player","BioBaseSquad","GameInfo","TcpNetDriver","PackageMap",
-        "Package","BioModeManager","LocalPlayer","Engine","IntProperty","Object","BioPawn","NetDriver",
+        "Package","SFXGameModeManager","LocalPlayer","Engine","IntProperty","Object","BioPawn","NetDriver",
         "SFXPawn_PlayerSoldier","SFXPawn_PlayerParty","SFXPawn","Pawn","SFXPawn_Ashley"};
     const int classes[]={20,21,22,24,38,26,27,28,29,30,30,30,30,31,32,33,34,34,34,
         19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19};
@@ -119,6 +119,18 @@ static int runtime_host_startup_selftest(void) {
     runtime_fixture_ptr(o[4]+0x50,o[42]);ok=ok&&!runtime_host_story_idle(base,context);
     runtime_fixture_ptr(o[4]+0x50,o[36]);ok=ok&&!runtime_host_story_idle(base,context);
     runtime_fixture_ptr(o[4]+0x50,o[38]);ok=ok&&runtime_host_story_idle(base,context);
+    runtime_fixture_ptr(o[4]+0x198,o[2]);combat_context_read_chain(base,&chain);
+    RuntimeJoinSample join_sample={0};
+    ok=ok&&runtime_join_context_sample(base,context,&chain,&join_sample);
+    SessionContext wrong_manager=context;wrong_manager.manager=o[5];
+    ok=ok&&!runtime_join_context_sample(base,wrong_manager,&chain,&join_sample);
+    runtime_fixture_ptr(o[4]+0x374,0);ok=ok&&!runtime_join_context_sample(base,context,&chain,&join_sample);
+    runtime_fixture_ptr(o[4]+0x374,o[3]);runtime_fixture_ptr(o[5]+0x2cc,0);
+    ok=ok&&!runtime_join_context_sample(base,context,&chain,&join_sample);
+    runtime_fixture_ptr(o[5]+0x2cc,o[4]);runtime_fixture_ptr(o[4]+0x198,o[1]);
+    ok=ok&&!runtime_join_context_sample(base,context,&chain,&join_sample);
+    runtime_fixture_ptr(o[4]+0x198,o[2]);
+    ok=ok&&runtime_join_context_sample(base,context,&chain,&join_sample);
     for(int failure=0;failure<=3&&ok;++failure) {
         runtime_host_fixture_failure=failure;runtime_host_fixture_copies=runtime_host_fixture_destroys=runtime_host_fixture_inits=0;
         runtime_fixture_ptr(o[0]+0x120,0);*(unsigned char*)(o[2]+0x7c8)=0;

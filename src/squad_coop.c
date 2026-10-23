@@ -54,6 +54,7 @@ static void runtime_tick(void *self,float delta) {
     runtime_network_start_tick(base,(uintptr_t)self,now);
     runtime_session_frame(base,(uintptr_t)self,0,now);
     runtime_original_tick(self,delta);
+    runtime_join_progress_poll(base,(uintptr_t)self,GetTickCount());
     runtime_session_frame(base,(uintptr_t)self,1,GetTickCount());
     runtime_host_capacity_poll(base,(uintptr_t)self);
 }
@@ -118,6 +119,9 @@ __declspec(dllexport) int ME3SquadCoopConfigStatus(void) {return g_config_status
 #include "runtime_core_fixture.h"
 __declspec(dllexport) int ME3RuntimeNetworkStartSelfTest(void) {return runtime_network_start_selftest();}
 __declspec(dllexport) int ME3RuntimeTravelIdleSelfTest(void) {return runtime_join_travel_idle_selftest();}
+__declspec(dllexport) int ME3RuntimeJoinReadinessSelfTest(void) {return runtime_join_readiness_selftest();}
+__declspec(dllexport) int ME3RuntimeJoinDiagnosticsSelfTest(void) {return runtime_join_diagnostics_selftest();}
+__declspec(dllexport) int ME3RuntimeJoinProgressSelfTest(void) {return runtime_join_progress_selftest();}
 #include "runtime_transport_fixture.h"
 __declspec(dllexport) int ME3RuntimeTransportSelfTest(void) {return runtime_transport_selftest();}
 #include "runtime_host_fixture.h"

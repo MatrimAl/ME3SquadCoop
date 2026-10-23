@@ -41,6 +41,9 @@ def main():
                  "ME3RuntimeCinematicSelfTest", "ME3RuntimeCoreCleanupSelfTest",
                  "ME3RuntimeTickForwardingSelfTest", "ME3RuntimeNetworkStartSelfTest",
                  "ME3RuntimeJoinRequestSelfTest", "ME3RuntimeTravelIdleSelfTest",
+                 "ME3RuntimeJoinReadinessSelfTest",
+                 "ME3RuntimeJoinDiagnosticsSelfTest",
+                 "ME3RuntimeJoinProgressSelfTest",
                  "ME3RuntimeTransportSelfTest", "ME3RuntimeHostStartupSelfTest",
                  "ME3RuntimeListenRequestSelfTest"):
         fixture = getattr(entry, name)

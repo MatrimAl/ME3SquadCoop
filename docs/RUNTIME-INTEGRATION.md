@@ -90,6 +90,25 @@ native bind argument refused (7), native host setup verified (8), capacity refus
 None means a guest connection is verified. Unknown/truncated
 startup requests also remain inert, with runtime error 4.
 
+Guest join now requires an observed ordinary player/story context before consuming
+the one-shot request: reciprocal current-world Shepard ownership, the actual mode
+manager, the squad's story-player link, and unchanged native object identities.
+The admission policy requires five samples spanning at least one second, no
+sample gap over 375 ms, and at least half a second of advancing native world time.
+A scene, missing observation, reused object or regressing clock restarts the
+window. These thresholds are a conservative mod policy, not an inferred native
+minimum or proof of the previous rejection's cause. Context is reread before
+dispatch; no readiness or pause flag is changed.
+
+The immediate ConsoleCommand return is copied before its existing engine free.
+A separate read-only observer samples the current viewport's two stored progress
+strings after native Tick, at most every 250 ms for 60 seconds. Exact reflected
+property types, offsets, dimensions and sizes, live object identities and stable
+FString headers are required. Missing contracts produce an unavailable result.
+Text is bounded and JSON-escaped into private runtime logs; it is not published.
+Stored progress text is not proof that a native error event occurred. No private
+PendingLevel fields, additional engine hooks or guessed error offsets are used.
+
 ## Shared ownership and presentation
 
 `squad_session_core.h` contains native peer membership, captured object identity,

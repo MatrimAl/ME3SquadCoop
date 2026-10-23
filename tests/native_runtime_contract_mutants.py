@@ -19,6 +19,17 @@ def main():
                        ZIG_LOCAL_CACHE_DIR=str(ROOT / "local/zig-local-cache"),
                        TMP=str(ROOT / "local/compiler-tmp"), TEMP=str(ROOT / "local/compiler-tmp"))
     faults = {
+        "observe-past-progress-window": (
+            "runtime_join_progress.h", "ME3RuntimeJoinProgressSelfTest",
+            "now-state->started_at>=RUNTIME_JOIN_PROGRESS_WINDOW_MS",
+            "now-state->started_at>RUNTIME_JOIN_PROGRESS_WINDOW_MS"),
+        "consume-transient-join-context": (
+            "runtime_join_readiness.h", "ME3RuntimeJoinReadinessSelfTest",
+            "return state->samples>=5&&now-state->first_at>=1000&&",
+            "return 1||state->samples>=5&&now-state->first_at>=1000&&"),
+        "admit-pawn-from-other-world": (
+            "runtime_join_readiness.h", "ME3RuntimeHostStartupSelfTest",
+            "read_ptr(c.pawn+0x198)!=c.world", "0"),
         "command-buffer-0x20-early": (
             "runtime_transport.h", "ME3RuntimeTransportSelfTest",
             "uintptr_t command_address=base+0x1196e0+7+(intptr_t)displacement;",

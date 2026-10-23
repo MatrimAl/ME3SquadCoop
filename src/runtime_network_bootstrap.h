@@ -54,6 +54,9 @@ static int runtime_join_travel_idle(uintptr_t world,uintptr_t engine) {
         read_at(engine+0x9fc,&pending,8)&&!pending;
 }
 #include "runtime_host_bootstrap.h"
+#include "runtime_join_readiness.h"
+#include "runtime_join_diagnostics.h"
+#include "runtime_join_progress.h"
 static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     int host=g_runtime_config.role==ME3_ROLE_HOST;
     volatile LONG *requested=host?&runtime_listen_requested:&runtime_join_requested,
@@ -95,6 +98,17 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
         InterlockedExchange(&runtime_network_start_status,status);
         char row[280];snprintf(row,sizeof row,"{\"runtime_network\":\"listen-request\",\"status\":%d,\"native_start_verified\":%s,\"implicit_travel\":false,\"guest_connection_verified\":false,\"restart_required\":%s,\"monotonic_ms\":%lu}\r\n",status,runtime_host_start_gate?"true":"false",runtime_host_start_gate?"false":"true",now);line(row);return;
     }
+    RuntimeJoinSample ready={0};
+    int player_ready=runtime_join_context_sample(base,c,&before,&ready);
+    if(!runtime_join_readiness_observe(&runtime_join_readiness,player_ready?&ready:NULL,now)) {
+        static int last_ready=-1;
+        if(last_ready!=player_ready) {
+            last_ready=player_ready;
+            line(player_ready?"{\"runtime_network\":\"join-wait\",\"reason\":\"stable-ordinary-player-window\"}\r\n":
+                "{\"runtime_network\":\"join-wait\",\"reason\":\"ordinary-player-story-context\"}\r\n");
+        }
+        return;
+    }
     wchar_t command[64];
     if(!runtime_join_command(&g_runtime_config,command,64)||!runtime_join_console_abi(base,c.pc)) {
         InterlockedExchange(&runtime_join_attempted,1);InterlockedExchange(&runtime_join_requested,0);
@@ -102,18 +116,27 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
     }
     SessionHandle controller=session_capture_handle(c.pc);
     combat_context_read_chain(base,&after);
-    if(!session_handle_matches(controller)||!combat_context_chain_equal(&before,&after)||local_controller(engine)!=c.pc)return;
+    RuntimeJoinSample final_ready={0};SessionContext current_context=session_context(engine);
+    if(!session_handle_matches(controller)||!combat_context_chain_equal(&before,&after)||local_controller(engine)!=c.pc||
+       current_context.pc!=c.pc||current_context.pawn!=c.pawn||current_context.world!=c.world||
+       current_context.manager!=c.manager||current_context.squad!=c.squad||
+       !runtime_join_travel_idle(before.world,engine)||!runtime_join_context_sample(base,current_context,&after,&final_ready)||
+       !runtime_join_sample_same(&ready,&final_ready)) {
+        memset(&runtime_join_readiness,0,sizeof runtime_join_readiness);return;
+    }
     /* Mark before invoking: native travel can invalidate the captured PC/world.
      * Nothing from that old context is dereferenced after the engine call. */
     InterlockedExchange(&runtime_join_attempted,1);InterlockedExchange(&runtime_join_requested,0);
     ConsoleParms params={0};params.command.data=command;params.command.count=params.command.max=(int32_t)wcslen(command)+1;
-    params.write_log=1;int dispatched=invoke(base,c.pc,"PlayerController","ConsoleCommand",&params);
+    params.write_log=1;runtime_join_progress_begin(engine,now);
+    int dispatched=invoke(base,c.pc,"PlayerController","ConsoleCommand",&params);
+    runtime_join_log_console_result(&params.result);
     if(params.result.data&&guest_cinematic_allocator_pins(base)) {
         typedef void (*EngineFree)(void*,uint32_t);
         ((EngineFree)(base+0xbf0d0))(params.result.data,0);
     }
     InterlockedExchange(&runtime_network_start_status,dispatched?RUNTIME_START_DISPATCHED:RUNTIME_START_ABI_REFUSED);
-    char row[220];snprintf(row,sizeof row,"{\"runtime_network\":\"join-request\",\"ordinary_console_dispatched\":%s,\"connection_verified\":false,\"monotonic_ms\":%lu}\r\n",dispatched?"true":"false",now);line(row);
+    char row[384];snprintf(row,sizeof row,"{\"runtime_network\":\"join-request\",\"ordinary_console_dispatched\":%s,\"connection_verified\":false,\"monotonic_ms\":%lu,\"ordinary_ready_samples\":%u,\"ordinary_ready_ms\":%lu,\"pre_dispatch_world_time\":%.3f}\r\n",dispatched?"true":"false",now,runtime_join_readiness.samples,now-runtime_join_readiness.first_at,final_ready.world_time);line(row);
 }
 static int runtime_network_start_selftest(void) {
     Me3RuntimeConfig config={0};wchar_t command[64];

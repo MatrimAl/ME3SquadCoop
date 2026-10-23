@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-23: stable guest admission and native response diagnostics
+
+- Ordinary join now waits for a stable reciprocal player/story context rather
+  than consuming its one request on a transient initial-world control frame.
+  The policy observes unchanged identities and advancing native world time;
+  it does not force loading, cinematic or pause flags. This changes admission
+  behavior without establishing the cause of the preceding failed join.
+- The immediate native console response is captured before its existing free.
+  A bounded read-only observer also records changes in reflected viewport
+  progress strings, explicitly distinguishing stored text from a native event.
+  PendingLevel's undocumented private fields are not used.
+- All three native outputs built. The ordinary native harness passed readiness,
+  string safety and observer lifecycle fixtures; six compiled contract faults
+  were rejected. Python discovery ran 257 tests, 2 skipped. These offline checks
+  do not prove an ordinary guest connection; a protected game rerun is next.
+
 ## 2026-10-23: ordinary guest join attempted without a sustained connection
 
 - A protected pair used the ordinary runtime for both roles, with the probe limited
