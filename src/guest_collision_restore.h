@@ -24,27 +24,33 @@ static int guest_collision_healthy(const GuestCollisionShape *s) {
     /* Actual supported Ashley defaults: COLLIDE_BlockAllButWeapons. */
     /* COLLIDE_MAX (10) is the observed initial replicated-byte sentinel,
      * including the supported class default. It is never a native argument. */
-    return s&&s->actor==0x60000000&&s->block==3&&s->component==0xaa&&s->type==6&&s->replicated<=10;
+    return s&&s->actor==0x60000000&&s->block==1&&s->component==0xaa&&s->type==6&&s->replicated<=10;
 }
 static int guest_collision_physical_equal(const GuestCollisionShape *a,const GuestCollisionShape *b) {
     /* The CDO's transient replicated-type byte is not a physical default. */
     return a->actor==b->actor&&a->block==b->block&&a->component==b->component&&a->type==b->type;
 }
 static int guest_collision_disabled(const GuestCollisionShape *s) {
+    /* Measured owned return: world collision survives, actor/blocking collision
+     * does not; the healthy cylinder response remains. Native type6 preserves
+     * the world bit. No other partial world-colliding shape is admitted. */
+    if(s&&s->actor==0x40000000)return s->block==0&&s->component==0xaa&&s->type==0&&s->replicated==0;
     /* Actual landing release: actor collision stays enabled, but world and
      * blocking collision are absent. Admit only the observed type/response,
      * not arbitrary partial collision states. */
     if(s&&s->actor==0x20000000)return s->block==0&&s->component==0x12&&s->type==8&&s->replicated==8;
     /* The engine can disable Actor collision while its cylinder retains the
      * captured class-default response0xaa. Missing Actor world collision is
-     * still required; a partial state retaining world collision is not armed. */
-    return s&&s->actor==0&&!(s->block&1)&&(!(s->component&2)||s->component==0xaa)&&s->type<10&&s->replicated<=10;
+     * required for this fully disabled Actor case. */
+    return s&&s->actor==0&&s->block==0&&(!(s->component&2)||s->component==0xaa)&&s->type<10&&s->replicated<=10;
 }
 static int guest_collision_shape(uintptr_t pawn,uintptr_t component,GuestCollisionShape *s) {
     uint32_t a=0,b=0,c=0;unsigned char type[2];
     if(!read_at(pawn+0x260,&a,4)||!read_at(pawn+0x264,&b,4)||
        !read_at(component+0x16c,&c,4)||!read_at(pawn+0x26b,type,2))return 0;
-    *s=(GuestCollisionShape){a&0x60000000,b&3,c&0xba,type[0],type[1]};return 1;
+    /* Reflection identifies only mask0x1 as bBlockActors. Adjacent mask0x2 is
+     * outside this collision contract and must remain untouched. */
+    *s=(GuestCollisionShape){a&0x60000000,b&1,c&0xba,type[0],type[1]};return 1;
 }
 static int guest_collision_world_compare(uintptr_t pawn,uint32_t expected,int enable) {
     uintptr_t at=pawn+0x260;MEMORY_BASIC_INFORMATION m={0};
@@ -208,19 +214,24 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
     int dispatched=guest_player_context_dispatch(base,pawn,&l->method,&type);uint32_t current=0;
     int stable=dispatched&&guest_collision_identity(base)&&guest_collision_components_same(base,pawn,&components,saved)&&
         guest_player_context_basic_owned(base,pc,pawn,world)&&guest_collision_ordinary(base,pc,pawn,world)&&read_at(pawn+0x260,&current,4);
-    int changed=stable&&!(current&0x40000000)&&guest_collision_world_compare(pawn,current,1);
-    GuestCollisionShape after={0};int repaired=changed&&guest_collision_shape(pawn,l->component.pointer,&after)&&
+    int world_ready=stable&&((current&0x40000000)||guest_collision_world_compare(pawn,current,1));
+    GuestCollisionShape after={0};int repaired=world_ready&&guest_collision_shape(pawn,l->component.pointer,&after)&&
         guest_collision_physical_equal(&after,&l->healthy)&&after.replicated==l->healthy.type;
     guest_collision_log("repair-attempt",repaired?"native-type-and-captured-world-collision-restored":"post-call-state-unverified",now,repaired);
     l->released=l->pending=0;
 }
 static int guest_collision_selftest(void) {
-    GuestCollisionShape healthy={0x60000000,3,0xaa,6,6},released={0,2,0x20,1,1},wrong=healthy;
+    GuestCollisionShape healthy={0x60000000,1,0xaa,6,6},released={0,0,0x20,1,1},wrong=healthy;
     if(!guest_collision_healthy(&healthy)||!guest_collision_disabled(&released)||guest_collision_healthy(&released)||guest_collision_disabled(&healthy))return 0;
     wrong=healthy;wrong.replicated=10;if(!guest_collision_healthy(&wrong))return 0;
     wrong.replicated=11;if(guest_collision_healthy(&wrong))return 0;wrong=healthy;
     wrong.component^=0x10;if(guest_collision_healthy(&wrong)||guest_collision_equal(&healthy,&wrong))return 0;
-    _Alignas(8) unsigned char memory[0x268]={0};uint32_t before=0x29690100,after=0;memcpy(memory+0x260,&before,4);
+    _Alignas(8) unsigned char memory[0x270]={0},component[0x170]={0};
+    uint32_t value=0x60000000;memcpy(memory+0x260,&value,4);
+    value=3;memcpy(memory+0x264,&value,4);value=0xaa;memcpy(component+0x16c,&value,4);
+    memory[0x26b]=memory[0x26c]=6;GuestCollisionShape observed={0};
+    if(!guest_collision_shape((uintptr_t)memory,(uintptr_t)component,&observed)||!guest_collision_healthy(&observed)||observed.block!=1)return 0;
+    uint32_t before=0x29690100,after=0;memcpy(memory+0x260,&before,4);
     if(guest_collision_world_compare((uintptr_t)memory,before^0x100,1)||!guest_collision_world_compare((uintptr_t)memory,before,1))return 0;
     memcpy(&after,memory+0x260,4);if(after!=(before|0x40000000))return 0;
     if(!guest_collision_world_compare((uintptr_t)memory,after,0))return 0;

@@ -1,5 +1,31 @@
 # Progress
 
+## 2026-10-24: measured partial collision return; native mask corrected
+
+- The paired recorder now includes collision type and cylinder response from
+  buffers it already reads. It captured 323 valid owned samples after control
+  return with world collision enabled, actor/blocking collision absent, cylinder
+  response0xaa and type0/replicated0, on the same positive native channel.
+  The previous fully-disabled predicate rejected this stable partial state.
+- The candidate admits only that additional exact shape. Native type6 restores
+  actor/blocking collision while preserving an already enabled world flag;
+  the world compare-exchange runs only if that flag is missing.
+- Reflection identifies Actor.bBlockActors as mask0x1 at the captured field.
+  The old mask also included neighboring0x2, which the native type6 path does
+  not restore. That unrelated flag is now excluded from the physical shape and
+  preserved. The native fixture's dispatch stand-in was corrected to match the
+  actual native writes instead of manufacturing that neighboring flag.
+- The fixture passed both neighboring-flag values with world collision already
+  present, plus the prior release/identity/ABI refusal cases. Positive live
+  collision repair and shared walking still need verification.
+  All three native outputs built, the probe harness passed, and four compiled
+  negative controls were rejected, including reintroducing the neighboring mask.
+- The measurement run recorded zero native exceptions and kept original files
+  and profiles protected. Shutdown observation had a permission error; retained
+  paired capture completed, but the overall audit is not an unqualified pass.
+  A separate read-only mesh capture observed animation ticking enabled throughout;
+  it does not justify changing render flags or claim to solve firing.
+
 ## 2026-10-23: walking probe exposes stale collision-release state
 
 - A measured protected pair reached actual landing control return and the

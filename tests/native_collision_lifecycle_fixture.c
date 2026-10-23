@@ -25,6 +25,7 @@ static FixtureObject pc,pawn,world,component,cdo,templ,pawn_arch,component_arch,
 static _Alignas(8) unsigned char image[0x4ba140];
 static uintptr_t members[2],invalid_stamp;
 static int owned,channel_changed,abi_valid,camera_valid,dispatches,repair_logs;
+static uint32_t dispatch_actor_before,dispatch_block_before;
 
 static uintptr_t address(FixtureObject *p){return (uintptr_t)p->bytes;}
 static void put(uintptr_t at,const void *value,SIZE_T size){memcpy((void*)at,value,size);}
@@ -68,8 +69,10 @@ static int guest_player_context_channel(uintptr_t base,uintptr_t a,NetworkActorI
     *out=(NetworkActorIdentityEntry){base,a,channel_changed?address(&other):address(&channel),address(&connection),address(&driver),13};return 1;}
 static int guest_player_context_dispatch(uintptr_t base,uintptr_t at,const GuestPlayerContextMethod *method,void *parms){
     (void)base;if(at!=address(&pawn)||method->function.pointer!=address(&fn)||*(unsigned char*)parms!=6)return 0;
-    ++dispatches;uint32_t value=0;read_at(at+0x260,&value,4);u32(at+0x260,(value&~UINT32_C(0x60000000))|0x20000000);
-    read_at(at+0x264,&value,4);u32(at+0x264,value|3);
+    /* Exact native type6 sets bCollideActors/bBlockActors only, preserving
+     * bCollideWorld and the unrelated neighboring Actor flag. */
+    ++dispatches;uint32_t value=0;read_at(at+0x260,&value,4);dispatch_actor_before=value;u32(at+0x260,value|0x20000000);
+    read_at(at+0x264,&value,4);dispatch_block_before=value;u32(at+0x264,value|1);
     read_at(address(&component)+0x16c,&value,4);u32(address(&component)+0x16c,(value&~UINT32_C(0xba))|0xaa);
     put_byte(at+0x26b,6);put_byte(at+0x26c,6);return 1;
 }
@@ -122,7 +125,7 @@ static int restored(void){GuestCollisionShape shape={0};
     CHECK(guest_collision_shape(address(&pawn),address(&component),&shape));
     CHECK(guest_collision_healthy(&shape)&&dispatches==1&&repair_logs==1&&guest_collision_restore.attempted==2);
     uint32_t a=0,b=0;read_at(address(&pawn)+0x260,&a,4);read_at(address(&pawn)+0x264,&b,4);
-    CHECK(a==0x69690100&&b==0x444003);return 1;
+    CHECK(a==(dispatch_actor_before|0x60000000)&&b==(dispatch_block_before|1));return 1;
 }
 static int lifecycle_cases(void){
     CHECK(baseline());frame(0,1,150);CHECK(guest_collision_restore.tracked&&dispatches==0);
@@ -224,8 +227,19 @@ static int variant_cases(void) {
         frame(0,1,200);frame(0,1,210);CHECK(guest_collision_restore.released);
         reacquire();put_byte(address(&pawn)+0x269,2);frame(1,1,310);CHECK(restored());
     }
-    GuestCollisionShape partial={0x40000000,1,0xaa,0,0},unknown={0,2,0xba,0,0};
+    GuestCollisionShape partial={0x40000000,1,0xaa,0,0},unknown={0,0,0xba,0,0};
     CHECK(!guest_collision_disabled(&partial)&&!guest_collision_disabled(&unknown));
+    for(uint32_t adjacent=0;adjacent<=2;adjacent+=2){
+        reset_fixture();use_variant();frame(1,1,100);CHECK(guest_collision_restore.tracked);
+        owned=0;guest_player_context_lease.registered=0;set_shape(address(&pawn),address(&component),0);
+        u32(address(&pawn)+0x260,0x49690100);u32(address(&pawn)+0x264,0x444000|adjacent);
+        u32(address(&component)+0x16c,0x8600aa);put_byte(address(&pawn)+0x26b,0);put_byte(address(&pawn)+0x26c,0);
+        frame(0,1,200);frame(0,1,210);CHECK(guest_collision_restore.released);
+        reacquire();frame(1,1,310);CHECK(restored());
+        uint32_t after=0;read_at(address(&pawn)+0x264,&after,4);CHECK((after&2)==adjacent);
+    }
+    GuestCollisionShape unknown_type={0x40000000,0,0xaa,12,12},unknown_response={0x40000000,0,0xba,0,0};
+    CHECK(!guest_collision_disabled(&unknown_type)&&!guest_collision_disabled(&unknown_response));
     /* Live landing return: the same reciprocal owned pawn/channel, role0/2,
      * type8/response12 and no world/blocking collision. The initial role0
      * baseline is still refused above. No role byte may be rewritten. */

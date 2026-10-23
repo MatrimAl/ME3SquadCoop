@@ -13,6 +13,13 @@ channel. It captures complete pawn, controller, world, channel/connection/driver
 class-default and collision-cylinder/template identities. The observed healthy
 physical shape must equal the actual supported class/template defaults.
 
+The Actor blocking mask covers only reflected `bBlockActors` (0x1); its
+neighboring flag is neither part of the collision contract nor restored. A
+measured return can retain world collision while actor/blocking collision is
+absent, with the healthy cylinder response and type0. That exact partial shape
+is also eligible for the existing release/reacquire policy. Native type6 keeps
+an existing world-collision flag; the compare-exchange enables it only if absent.
+
 While that same pawn is unowned, two matching disabled snapshots record the
 released state. Repair requires a later registered ownership token, reciprocal
 local possession, the same native channel lifetime and objects, ordinary game
