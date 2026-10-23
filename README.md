@@ -19,11 +19,12 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 ## What has been demonstrated
 
-These observations come from bounded tests with **two real game processes on one Windows PC**. They do not establish full campaign support.
+These observations come from bounded tests with real game processes on one Windows PC. They do not establish full campaign support.
 
 | Area | Observed result | Limit |
 | --- | --- | --- |
 | Native connection | Host and guest connected through LE3's UE3 networking | Cross-PC play untested |
+| Ordinary host startup | Separate runtime opened a native listener in the current Mars world; Windows confirmed the requested local Radmin interface and port | Ordinary guest connection and control still need validation |
 | Squad control | Guest Ashley possession and short replicated movement | Sustained mission progression unverified |
 | Player context | Guest-local squad context initialization and cleanup | Equipment readiness still inconsistent |
 | Cameras | Shoulder-camera adaptation and actual intro Matinee camera motion/cleanup | Full conversations unverified |
@@ -34,6 +35,8 @@ These observations come from bounded tests with **two real game processes on one
 Equipment results remain mixed. One audit produced no eligible fire pulses; later runs observed firing and stopping with differing counts, then two pulses with matching consumed/reserve counts. This does not prove the weapon problem solved. Recent completed audit runs recorded no native exceptions or original-profile changes.
 
 ## Current work
+
+The separate ordinary runtime has now opened a real host listener without reloading the current Mars mission. The protected run measured native listen-server mode and Windows UDP ownership on the configured local Radmin interface at port `17779`. This used no research networking bootstrap. Review also corrected the native command-buffer address, the actual Shepard class requirement, guest cached-port admission and collision observation across paused scene frames. Offline integration ran 257 Python tests (2 skipped), native harnesses and compiled negative controls. Guest connection, usable collision restoration and combat still require actual-entry game evidence. See [runtime integration](docs/RUNTIME-INTEGRATION.md).
 
 Protected runs have both failed before squadmate acquisition and exercised synthetic handoffs. One protected pair observed six native `FireAmmunition` calls per side, with consumed counts settling at 3/3 and 6/6 and stable counts after release. The unchanged-build repeat with that native observer disabled failed: the host received and executed start-fire but deferred the shot while its port-arms animation flag remained set, leaving counts at host/guest 0/3. Snapshot correction was disabled in both runs. **Native firing works in some bounded runs; consistent animation/equipment initialization and enemy damage remain unverified.** The measured animation-state difference is the current investigation, rather than missing RPC delivery. See [progress notes](docs/PROGRESS.md).
 
@@ -82,7 +85,7 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `tools/` | Configuration and packaging tooling |
 | `tests/` | Synthetic Python tests and separate Windows native harness |
 
-`src/squad_coop.c` is now a separate experimental ordinary runtime entry, sharing ownership/cleanup and camera/context adapters with the protected probe. It attaches to an existing native host/client world by default and has explicit one-shot guest join and in-place host Listen requests. Native interface selection requires a matching process `-MULTIHOME` argument, and actual driver endpoints are checked. Protected actual-entry verification of these new startup paths remains unfinished. `build.py` compiles each ASI from its own entry. See [runtime integration](docs/RUNTIME-INTEGRATION.md); an output filename does not establish release readiness.
+`src/squad_coop.c` is a separate experimental ordinary runtime entry, sharing ownership/cleanup and camera/context adapters with the protected probe. It attaches to an existing native host/client world by default and has explicit one-shot guest join and in-place host Listen requests. Native interface selection requires a matching process `-MULTIHOME` argument, and actual driver endpoints are checked. Protected actual-entry host startup and local binding have been observed; ordinary guest startup and control remain unverified. `build.py` compiles each ASI from its own entry. See [runtime integration](docs/RUNTIME-INTEGRATION.md); an output filename does not establish release readiness.
 
 ## Build from source
 

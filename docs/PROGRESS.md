@@ -1,5 +1,33 @@
 # Progress
 
+## 2026-10-23: ordinary host listener exercised in the current mission
+
+- A protected actual-entry run loaded the separate ordinary ASI with the probe
+  in guards-only mode. The ordinary entry opened native Listen in the current
+  Mars world without reloading it. Its startup result was 8, the independent
+  current-world reader observed native net mode 2, and Windows confirmed the
+  process owned the configured local Radmin interface/UDP port 17779. No guest
+  was launched, and no research networking bootstrap was used.
+- The preceding failed actual-entry run exposed a command-buffer address 0x20
+  before the native getter target. The reader now derives the target from the
+  pinned instruction. Live class inspection also showed that Shepard derives
+  from SFXPawn_Player, not the previously assumed BioPlayerPawn. Native fixtures
+  now contain the observed hierarchy and reject the old address/class errors.
+- Parallel review corrected native guest admission for the client's cached zero
+  local port and retained collision observations across ordinary-runtime paused
+  scene frames. Meaningful native fixtures passed; guest connection and positive
+  collision repair are separate pending game checks.
+- All three native outputs rebuilt. Python discovery ran 257 tests, 2 skipped;
+  ordinary native and collision lifecycle fixtures passed, and three compiled
+  startup contract mutants were rejected. The actual game run retained 8,210
+  original locks, unchanged profiles and bounded cleanup. Temporary authored
+  ASI/Mount additions were removed and no game process remained. A later
+  PlayersOnly observation rules out a claim of uninterrupted ordinary control.
+
+Next: connect a real protected ordinary guest to this listener, then measure
+Ashley ownership, equipment and usable scene/control return. Real combat, full
+conversations, mission travel, two physical PCs and player installation remain open.
+
 ## 2026-10-23: shuttle exit exercised and collision loss isolated
 
 - A new completed protected pair cleared both authored shuttle exit anchors and reached the first road node using ordinary movement. The landing obstruction correction is exercised in this run; the remaining route and jump-down traversal are still unverified.

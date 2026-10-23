@@ -1,6 +1,20 @@
 # Validation status
 
-Status snapshot: 2026-10-22. Private raw logs and profiles are not published.
+Status snapshot: 2026-10-23. Private raw logs and profiles are not published.
+
+Latest ordinary-entry host check: the separate runtime and guards-only probe
+loaded together in the protected copy. The ordinary entry opened a real native
+listener in the current Mars world without mission reload. Its startup status
+was 8; an independent read-only current-world observation measured net mode 2,
+and Windows reported the game process owning UDP port 17779 on the requested
+local Radmin interface. No guest was launched. This proves the bounded ordinary
+host startup/local bind, not two-PC Radmin, continuous control or campaign play.
+All 8,210 original game/profile locks remained active, profiles were unchanged,
+the temporary authored ASI/Mount were removed, the probe ended disabled and no
+game process remained. A later PlayersOnly observation prevents a continuous
+control claim. Integrated offline checks ran 257 Python tests (2 skipped),
+ordinary native and collision lifecycle fixtures, and three compiled startup
+contract negative controls. Positive live collision repair remains unverified.
 
 2026-10-23 completed route update: ordinary input cleared the shuttle exit and
 reached the first road node. A real mode-0 landing conversation interrupted

@@ -164,11 +164,21 @@ The native fixture uses actual guard functions on an allocated synthetic PE,
 verifies the substituted import slots, Documents routing and outside-write
 refusal, then checks that even an otherwise valid Tick slot remains untouched.
 It tests client fallback only in normal mode and rejects a missing private marker.
-This is offline evidence; loading the two real ASIs together remains unverified.
+The two real ASIs have subsequently loaded together in a protected host-only
+game run: the guards-only probe installed the private file/profile guards while
+the ordinary entry owned Tick and opened native Listen in the current Mars
+world. An independent current-world reader measured listen-server mode, and
+Windows confirmed the actual process-owned UDP socket at the configured local
+Radmin interface and port 17779. The run used a fixed private native map argument
+for initial QA entry, with no research networking bootstrap or mission reload.
+Temporary authored activation files were removed after bounded shutdown; the
+original profiles were unchanged and no game remained. A later PlayersOnly
+observation means uninterrupted control has not been established. No guest was
+launched, and this establishes no cross-PC or campaign result.
 Any research network bootstrap must be explicitly separate and preserved in
 its evidence; it is not an ordinary-runtime host/join implementation.
 
-Still required: protected ordinary host-start/local-bind, guest-join and
+Still required: protected ordinary guest-join and
 actual-entry control/camera/disconnect runs, reliable equipment and authoritative
 enemy damage, actual full conversations, mission transitions, two physical PCs
 over Radmin, authored installable DLC, and Mod Manager install/disable/rollback.
