@@ -82,7 +82,11 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,enabled,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
     guest_player_context_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
-    guest_collision_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
+    /* A scene/PlayersOnly interval suspends writes, not the captured healthy
+     * collision lifetime. Keep observing the same pawn while it is released;
+     * only an actual session disable/scope loss retires that baseline. */
+    guest_collision_adapt(base,c.pc,c.pawn,c.world,ordinary,
+        runtime_control_enabled&&runtime_scope_ready,now);
 }
 static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     session_engine=engine;session_game_thread=GetCurrentThreadId();

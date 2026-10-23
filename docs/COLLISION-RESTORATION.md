@@ -20,6 +20,11 @@ control, a living initialized pawn, no pause/conversation, and an unchanged
 released snapshot. Missing or changed context never authorizes a write. A
 generation receives at most one attempt, with no continuous reassertion.
 
+The ordinary runtime keeps the session-lifetime gate separate from permission
+to write on a particular frame. A scene or `bPlayersOnly` interval suspends
+repair while preserving the healthy baseline and released-state observations.
+An actual runtime disable or loss of the native session scope retires them.
+
 The repair dispatches the actual reflected native `Actor.SetCollisionType` with
 the captured healthy type, `COLLIDE_BlockAllButWeapons` (6). It verifies the
 supported native entry, callsite and one-byte parameter ABI. This engine method
@@ -41,3 +46,14 @@ The native fixture covers captured healthy/disabled shapes, altered component
 responses, stale compare-exchange expectations and preservation of unrelated
 bits. These are offline checks. Real release/reacquire, movement, disconnect,
 actual conversations and ordinary-entry integration still require game evidence.
+
+The separate lifecycle fixture exercises the actual adapter against temporary
+objects, with explicit stand-ins for engine discovery and native dispatch. It
+covers retained observation through a scene/PlayersOnly interval, two released
+samples, a later ownership token, one repair attempt, true disable, changed
+identities/channel/template/released state, and ABI refusal. Run it without
+launching a game:
+
+```powershell
+python tests/native_collision_lifecycle.py C:\Tools\zig-0.15.2\zig.exe
+```

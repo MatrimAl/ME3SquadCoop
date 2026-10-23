@@ -3,7 +3,9 @@
 /* Default-off repair of an observed release/reacquire collision loss. Never
  * derive permission from a pawn name alone, reassert during a scene, move an
  * actor, or restore the broken collision state when this repair is disabled.
- * Include after guest_player_context_adapter.h. Call on the game thread. */
+ * Include after guest_player_context_adapter.h. Call on the game thread.
+ * enabled means the session lifetime is active, including scenes/PlayersOnly;
+ * ordinary is the separate per-frame permission to acquire/repair. */
 typedef struct GuestCollisionShape {uint32_t actor,block,component;unsigned char type,replicated;} GuestCollisionShape;
 typedef struct GuestCollisionRestore {
     int configured,opted,tracked,released,pending,was_owned,suppressed;unsigned long token,attempted;
