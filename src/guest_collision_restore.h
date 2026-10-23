@@ -157,7 +157,17 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
     }
     if(!owned) {
         l->was_owned=0;GuestCollisionShape shape={0};
-        if(!guest_collision_shape(l->pawn.pointer,l->component.pointer,&shape)||!guest_collision_disabled(&shape)){l->pending=0;return;}
+        if(!guest_collision_shape(l->pawn.pointer,l->component.pointer,&shape)){l->pending=0;return;}
+        int disabled=guest_collision_disabled(&shape);
+        /* Observe the already-read released shape. Do not widen a physical
+         * predicate merely because ownership/camera handoff passed. */
+        if(!l->reported||now-l->reported>=5000) {
+            char row[600];l->reported=now;
+            snprintf(row,sizeof row,"{\"guest_collision_restore\":\"released-shape\",\"lease_token\":%lu,\"actor_mask\":%u,\"block_mask\":%u,\"component_mask\":%u,\"collision_type\":%u,\"replicated_type\":%u,\"disabled_shape_admitted\":%s,\"read_only\":true,\"monotonic_ms\":%lu}\r\n",
+                l->token,shape.actor,shape.block,shape.component,(unsigned)shape.type,(unsigned)shape.replicated,
+                disabled?"true":"false",now);line(row);
+        }
+        if(!disabled){l->pending=0;return;}
         if(l->pending&&guest_collision_equal(&shape,&l->release))l->released=1;
         else {l->release=shape;l->pending=1;l->released=0;}
         return;

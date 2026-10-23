@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-10-23: actual landing transition reproduced falling; repair still blocked
+
+- The route reached its actual landing scene, released Ashley to AI, reacquired
+  her, and parked at waypoint3. The existing later synthetic handoff produced a
+  third acquisition. Native ownership/story restoration and ordinary disconnect
+  checks passed, but gameplay failed: guest epoch2 descended below KillZ.
+- Paired snapshots show guest actor collision mask0/block2 and roles2/2 after
+  the real scene. The adapter had accepted the initial healthy baseline but
+  made no repair attempt. The RemoteRole predicate correction alone therefore
+  did not resolve falling. Component response/type values during release are
+  still needed to identify the remaining physical-shape rejection.
+- A small, rate-limited record now logs the released shape already read by the
+  adapter, including whether its existing disabled-shape predicate accepts it.
+  It performs no new engine calls, physical writes or predicate relaxation.
+- Recorded native exceptions and observer errors were zero. All8,210 original
+  locks, unchanged profiles/source/build, disabled probe, restored action and
+  complete cleanup without forced game termination were verified. The runner's
+  passing lifecycle result is not a passing movement/collision result.
+
 ## 2026-10-23: stationary handoff passed without reproducing world-collision loss
 
 - The stationary pair accepted a baseline, completed a30-second first lease,
