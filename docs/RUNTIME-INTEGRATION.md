@@ -47,8 +47,13 @@ FURL.Host alone cannot select the local interface. The supported argument form
 is one plain, unquoted argument, with canonical IPv4 matching the configuration.
 Missing, conflicting, duplicate or ambiguous forms are refused. Existing-session
 attachment also checks the native driver endpoint: exact configured host bind
-and port, or configured guest bind with a nonzero ephemeral local port. A guest's
-configured port is the remote server port, not its ephemeral local port.
+and port, or the configured guest bind address. The native client leaves zero in
+its cached local sockaddr when the OS selects an ephemeral port, so a nonzero
+cached guest port is not an admission requirement. The runtime still requires
+native client net mode and a reciprocal server connection. A guest's configured
+port is the remote server port; this cache is not an observation of its actual
+kernel socket port. This correction has offline native fixture coverage; genuine
+ordinary-entry guest control remains to be tested.
 
 Host startup leases reflected `GameInfo` capacity for two participants and checks
 the actual bound endpoint. Native bind can advance an occupied port; a different

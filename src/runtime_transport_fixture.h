@@ -43,12 +43,15 @@ static int runtime_transport_selftest(void) {
     Me3RuntimeConfig config={0};
     ok=ok&&runtime_config_parse(&config,L"1",L"host",L"26.1.2.3",NULL,L"17779")==ME3_CONFIG_READY&&
         runtime_transport_endpoint(base,objects[0],&config)&&!runtime_transport_endpoint(base,1,&config);
-    /* Occupied-port fallback is not the requested host port. Guest local ports
-     * are ephemeral and are independent of the configured remote server port. */
+    /* Occupied-port fallback is not the requested host port. Client initialization
+     * leaves zero in its cached address even after successful ephemeral bind. */
     ++endpoint[3];memcpy((void*)(objects[0]+0x1e4),endpoint,sizeof endpoint);
     ok=ok&&!runtime_transport_endpoint(base,objects[0],&config);
     config.role=ME3_ROLE_GUEST;ok=ok&&runtime_transport_endpoint(base,objects[0],&config);
-    endpoint[2]=endpoint[3]=0;ok=ok&&!runtime_transport_endpoint_bytes(endpoint,&config);
+    endpoint[2]=endpoint[3]=0;memcpy((void*)(objects[0]+0x1e4),endpoint,sizeof endpoint);
+    ok=ok&&runtime_transport_endpoint(base,objects[0],&config);
+    config.role=ME3_ROLE_HOST;ok=ok&&!runtime_transport_endpoint(base,objects[0],&config);
+    config.role=ME3_ROLE_GUEST;
     endpoint[3]=1;endpoint[4]=27;ok=ok&&!runtime_transport_endpoint_bytes(endpoint,&config);
     endpoint[4]=26;endpoint[0]=23;ok=ok&&!runtime_transport_endpoint_bytes(endpoint,&config);
     endpoint[0]=2;memcpy((void*)(objects[0]+0x1e4),endpoint,sizeof endpoint);

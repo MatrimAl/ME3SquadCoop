@@ -3,6 +3,8 @@
 /* Exact native transport prerequisites, read-only. The supported socket
  * provider obtains MULTIHOME from appCmdLine, not FURL.Host or a mod variable.
  * Native host init may advance an occupied port, so inspect its actual endpoint.
+ * Client init retains zero in its cached sockaddr when the OS selects an
+ * ephemeral port; that cache is not a getsockname result.
  * These predicates establish neither reachability nor successful co-op. */
 static int runtime_transport_pin(uintptr_t address,const unsigned char *wanted,size_t count) {
     unsigned char actual[128];
@@ -61,7 +63,13 @@ static int runtime_transport_endpoint_bytes(const unsigned char address[16],
        (config->role!=ME3_ROLE_HOST&&config->role!=ME3_ROLE_GUEST)||
        address[0]!=2||address[1]!=0||memcmp(address+4,ip,4))return 0;
     unsigned port=((unsigned)address[2]<<8)|address[3];
-    return port&&(config->role==ME3_ROLE_GUEST||port==config->endpoint.port);
+    /* InitConnect passes bClient=1 to 0x903120. At 0x90339a..0x9033ac that
+     * branch keeps driver.LocalAddr.Port zero; BindNextPort returns the real
+     * ephemeral port without copying it back on the successful zero-port path
+     * (0x90d2eb..0x90d311). Requiring nonzero here blocks valid guest control.
+     * The caller still validates native client net mode and server connection.
+     * A host's requested nonzero port remains exact, including fallback refusal. */
+    return config->role==ME3_ROLE_GUEST||port==config->endpoint.port;
 }
 static int runtime_transport_endpoint(uintptr_t base,uintptr_t driver,const Me3RuntimeConfig *config) {
     static const unsigned char port_source[]={0x41,0x0f,0xb7,0x4f,0x50};
