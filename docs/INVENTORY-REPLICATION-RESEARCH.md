@@ -88,3 +88,14 @@ matches distinguish an inactive callback from a rejected callsite/property.
 Wrong-callsite and wrong-property authored cases assert different counters;
 the actual wrapper passes27 cases plus the failing canary. Coverage counts
 alone still do not prove that a valid object was decoded or applied.
+
+A later bounded real pair produced the discriminating field record. In one
+receive scope, the scratch inventory pointer changed from the current manager
+to null inside the original ObjectProperty serializer, with native result1 and
+archive error0 before and after. The correlated receive completion stored null
+in the same pawn's InvManager. The actual map table was PackageMapLevel
+(RVA0x11a0d20), not SeekFree. This demonstrates decoder output preceding the
+final loss and excludes a later-only callback as the explanation for that
+particular sample. It still does not distinguish an encoded null from failed
+reference resolution inside the map. The serializer result1 is not evidence
+that a usable object was resolved.

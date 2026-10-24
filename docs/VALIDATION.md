@@ -198,3 +198,13 @@ The corrected predicate is evaluated by the native fixture and deliberate
 mutants, including restoring the old remote-role restriction. Successful input
 dispatch, ammunition use, release and hostile damage still require runtime
 proof; this is not a combat completion claim.
+
+The protected runtime test after the remote-role QA correction reached ordinary
+FireWeapon with localRole2/remoteRole0 and released its250ms input pulse.
+Neither Ashley weapon consumed ammunition in the retained samples. The strict
+firing/stop evaluator did not pass; input release is not proof that a weapon
+fired and stopped. Inventory loss recurred and unsafe guest motion was observed.
+No native exception or remaining game process was recorded and original
+profiles stayed unchanged; the read-only monitor again reported access denied.
+The QA correction enables this previously blocked test; it is not a gameplay
+repair and is not included in the ordinary player ASI.
