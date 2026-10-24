@@ -24,6 +24,9 @@ a final summary, so this is not an unqualified passing observer audit.
 Status reviewed: 2026-10-24; the latest gameplay evidence below is from 2026-10-23.
 Private raw logs and profiles are not published.
 
+Guest powers remain unverified. Keyboard and gamepad power inputs use different
+entry points in retained bindings; see [power input research](POWER-INPUT-RESEARCH.md).
+
 Latest ordinary-entry host check: the separate runtime and guards-only probe
 loaded together in the protected copy. The ordinary entry opened a real native
 listener in the current Mars world without mission reload. Its startup status
