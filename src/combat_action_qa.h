@@ -251,17 +251,31 @@ static int combat_action_cleanup(uintptr_t base,DWORD now) {
     combat_action_log(base,result==1?"released":"cleanup-unverified",result==1?"matching-alias-release":"original-input-method-or-binding-unavailable",now);
     return result==1;
 }
+static int combat_action_setup_reject(uintptr_t base,const char *reason,DWORD now) {
+    combat_action_log(base,"setup-rejected",reason,now);return 0;
+}
 static int combat_action_begin(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,uintptr_t input,const float xyz[3],DWORD now) {
-    CombatActionQA *q=&combat_action_qa;if(!combat_action_opted()||q->pulse.attempted)return 0;
+    CombatActionQA *q=&combat_action_qa;
+    if(!combat_action_opted()||q->pulse.attempted)return combat_action_setup_reject(base,"opt-in-or-already-attempted",now);
     uintptr_t manager=read_ptr(pc+0xc38);GameArray modes={0};unsigned char current=255;
-    if(!narrative_probe_object(base,manager,"SFXGameModeManager")||!combat_action_array(manager+0x70,&modes,32)||modes.count<1||
-       !read_at(manager+0xa8,&current,1)||current!=0)return 0;
+    if(!narrative_probe_object(base,manager,"SFXGameModeManager"))return combat_action_setup_reject(base,"manager-identity",now);
+    if(!combat_action_array(manager+0x70,&modes,32)||modes.count<1){
+        char row[240];snprintf(row,sizeof row,"{\"combat_action_setup\":\"modes-header\",\"count\":%d,\"max\":%d,\"monotonic_ms\":%lu}\r\n",modes.count,modes.max,now);line(row);
+        return combat_action_setup_reject(base,"modes-header",now);
+    }
+    if(!read_at(manager+0xa8,&current,1)||current!=0)return combat_action_setup_reject(base,"current-mode",now);
     uintptr_t mode=read_ptr(modes.data),objects[]={pc,pawn,world,input,manager,mode};
-    if(!narrative_probe_object(base,mode,"SFXGameModeDefault"))return 0;
-    for(unsigned i=0;i<COMBAT_ACTION_SCOPE_COUNT;++i)if(!guest_camera_stamp_read(base,objects[i],q->scope+i,1))return 0;
+    if(!narrative_probe_object(base,mode,"SFXGameModeDefault"))return combat_action_setup_reject(base,"default-mode-identity",now);
+    for(unsigned i=0;i<COMBAT_ACTION_SCOPE_COUNT;++i)if(!guest_camera_stamp_read(base,objects[i],q->scope+i,1)){
+        static const char *reasons[]={"pc-stamp","pawn-stamp","world-stamp","input-stamp","manager-stamp","mode-stamp"};
+        return combat_action_setup_reject(base,reasons[i],now);
+    }
     uintptr_t fn=guest_player_context_find_method(base,read_ptr(input+0x50),"BioPlayerInput","DebugExecInputCommands");
-    if(!guest_player_context_method_stamp(base,fn,&q->method)||!combat_action_method(base,&q->method)||
-       !combat_action_scope(base,1)||!combat_action_pins(base,input,manager)||!combat_action_bindings(base,mode))return 0;
+    if(!guest_player_context_method_stamp(base,fn,&q->method))return combat_action_setup_reject(base,"method-stamp",now);
+    if(!combat_action_method(base,&q->method))return combat_action_setup_reject(base,"method-abi",now);
+    if(!combat_action_scope(base,1))return combat_action_setup_reject(base,"scope-relations",now);
+    if(!combat_action_pins(base,input,manager))return combat_action_setup_reject(base,"native-pins",now);
+    if(!combat_action_bindings(base,mode))return combat_action_setup_reject(base,"bindings",now);
     memcpy(q->origin,xyz,12);q->report_at=now;CombatActionDispatch dispatch={base};
     q->active=1;int called=combat_action_press(&q->pulse,1,1,now,combat_action_dispatch,&dispatch);
     combat_action_log(base,called?"pressed":"press-unverified","guarded-stationary-bound-command-candidate",now);return called;

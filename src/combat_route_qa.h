@@ -246,8 +246,9 @@ static void combat_route_action_approach(uintptr_t base,SessionContext c,uintptr
     if(in_place&&speed<15){if(!q->still_at)q->still_at=now;}
     else q->still_at=0;
     if(combat_action_ready(touching,top_distance,q->turn,speed,q->still_at?now-q->still_at:0)){
-        if(!combat_route_cleanup(base)||!combat_action_begin(base,c.pc,c.pawn,c.world,input,xyz,now))
-            combat_route_end(base,"rejected","normal-action-dispatch-identity-abi-or-binding",xyz,now);
+        if(!combat_route_cleanup(base))combat_route_end(base,"rejected","normal-action-input-cleanup",xyz,now);
+        else if(!combat_action_begin(base,c.pc,c.pawn,c.world,input,xyz,now))
+            combat_route_end(base,"rejected","normal-action-setup-or-dispatch",xyz,now);
         return;
     }
     q->axes[0]=q->axes[1]=0;
