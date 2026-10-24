@@ -44,7 +44,7 @@ static int position_receive_opted(void) {
     return value;
 }
 typedef struct PositionReceiveSnapshot {
-    uintptr_t pawn,klass,world,base,controller;
+    uintptr_t pawn,klass,world,base,controller,inventory,weapon;
     int32_t index;
     float position[3],relative[3],velocity[3];
     uint32_t actor_flags;
@@ -74,6 +74,7 @@ static PositionReceiveSnapshot position_receive_snapshot_actor(uintptr_t channel
        !read_at(s.pawn+0x15c,s.relative,12)||!read_at(s.pawn+0x138,s.velocity,12)||
        !read_at(s.pawn+0x25c,&s.actor_flags,4)||!read_at(s.pawn+0x268,&s.physics,1)||
        !read_at(s.pawn+0x188,&s.base,8)||
+       !read_at(s.pawn+0x414,&s.inventory,8)||!read_at(s.pawn+0x41c,&s.weapon,8)||
        !read_at(s.pawn+0x374,&s.controller,8)||!read_at(s.pawn+0x269,s.roles,2))return s;
     for(int i=0;i<3;++i)if(!isfinite(s.position[i])||!isfinite(s.relative[i])||!isfinite(s.velocity[i]))return s;
     s.valid=1;return s;
@@ -91,6 +92,7 @@ static void position_receive_finish(uintptr_t channel,PositionReceiveSnapshot be
         d=(double)after.relative[i]-before.relative[i];relative_delta+=d*d;}
     if(delta<256.0*256.0&&velocity_delta<256.0*256.0&&relative_delta<256.0*256.0&&
        before.physics==after.physics&&!((before.actor_flags^after.actor_flags)&0x04000008)&&read_ptr(channel+0xa0)==before.pawn&&before.base==after.base&&before.controller==after.controller&&
+       before.inventory==after.inventory&&before.weapon==after.weapon&&
        !memcmp(before.roles,after.roles,2))return;
     ++position_receive_events;
     char row[2300];snprintf(row,sizeof row,
@@ -101,6 +103,8 @@ static void position_receive_finish(uintptr_t channel,PositionReceiveSnapshot be
         "\"physics_before\":%u,\"physics_after\":%u,\"actor_flags_before\":%u,\"actor_flags_after\":%u,"
         "\"channel_actor_cleared\":%s,"
         "\"base_before\":\"0x%llx\",\"base_after\":\"0x%llx\","
+        "\"inventory_before\":\"0x%llx\",\"inventory_after\":\"0x%llx\","
+        "\"weapon_before\":\"0x%llx\",\"weapon_after\":\"0x%llx\","
         "\"controller_before\":\"0x%llx\",\"controller_after\":\"0x%llx\","
         "\"roles_before\":[%u,%u],\"roles_after\":[%u,%u],\"original_forwarded\":true,"
         "\"bunch_modified_by_probe\":false,\"position_written_by_probe\":false,\"monotonic_ms\":%lu}\r\n",
@@ -110,6 +114,8 @@ static void position_receive_finish(uintptr_t channel,PositionReceiveSnapshot be
         before.velocity[0],before.velocity[1],before.velocity[2],after.velocity[0],after.velocity[1],after.velocity[2],
         before.physics,after.physics,before.actor_flags,after.actor_flags,read_ptr(channel+0xa0)?"false":"true",
         (unsigned long long)before.base,(unsigned long long)after.base,
+        (unsigned long long)before.inventory,(unsigned long long)after.inventory,
+        (unsigned long long)before.weapon,(unsigned long long)after.weapon,
         (unsigned long long)before.controller,(unsigned long long)after.controller,
         before.roles[0],before.roles[1],after.roles[0],after.roles[1],GetTickCount());line(row);
 }

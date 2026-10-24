@@ -107,3 +107,26 @@ Synthetic evaluators and their fixture tests are shipped so verification logic i
 ## Public source snapshot checks
 
 The prepared public source copy built all three native outputs with Zig 0.15.2. Python unittest discovery ran 152 tests: OK, 2 skipped (platform/privilege-dependent fixtures). The separate Windows native harness passed memory/opt-in guards and temporary low-integrity write-denial fixtures. No game was launched for these publication checks.
+
+## Receive-observer test correction
+
+The optimized native receive fixture previously used libc `assert`, which the
+current Zig build expands to a no-op. Its earlier passing output was therefore
+insufficient evidence. The fixture now uses unconditional runtime `CHECK`
+failures, and the driver requires an intentionally failing canary before it
+accepts positive cases. The missing inventory-only receive event was reproduced
+as a failing case, then passed after recording inventory/weapon changes.
+The default-off case and18 opt-in wrapper cases now pass with active checks.
+These remain authored-memory tests, not proof of gameplay or packet delivery.
+
+The full-route rerun with stationary parking disabled reached waypoint8 and
+measured guest movement, but stopped at the75-second route bound and failed
+sustained common travel. It dispatched no fire pulse: the first ownership
+interval ended before the eight-second fire baseline, the next was rejected by
+role checks, and after synthetic release the guest pawn's inventory reference
+was null while its weapon still referred to the previous manager. The host's
+inventory chain remained intact. No native exception, observer error or
+remaining game process was recorded; original profiles stayed unchanged.
+The observer now includes inventory/weapon reference changes to distinguish
+incoming replication changes from later lifecycle effects; it performs no
+inventory correction.

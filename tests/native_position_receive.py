@@ -28,6 +28,11 @@ def main():
         if build.returncode:
             print("\n".join((build.stdout + build.stderr).splitlines()[:20]), flush=True)
             raise SystemExit(build.returncode)
+        canary = subprocess.run([str(output), "canary"], cwd=ROOT, capture_output=True,
+                                text=True, timeout=30)
+        if canary.returncode != 2 or "CHECK failed" not in canary.stderr:
+            raise RuntimeError("native runtime checks are inactive or unexpected canary failure")
+        print("PASS negative canary: runtime CHECK fails even in optimized build", flush=True)
         for opted in ("0", "1"):
             subprocess.run([str(output), opted], cwd=ROOT, check=True, timeout=30)
 
