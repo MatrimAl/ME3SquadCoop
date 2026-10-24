@@ -42,25 +42,33 @@ static void inventory_reference_end(InventoryReferenceScope *s) {
 }
 static void inventory_reference_record(InventoryReferenceScope *s,int index,uint32_t value) {
     if(inventory_reference_rows>=128)return;
-    uintptr_t connection=0,channel=0,actor=0,klass=0;int snapshot_valid=0;
+    uintptr_t connection=0,channel=0,actor=0,klass=0,receive_connection=0,index_connection=0;int snapshot_valid=0;
+    int receive_connection_valid=read_at(s->receive->channel+0x60,&receive_connection,8);
+    int map_connection_valid=read_at(s->map+0x108,&connection,8);
+    int index_connection_valid=0;
     uint32_t type=0,flags=0,error=0;
     if(index&&s->tag==1&&value>0&&value<0x3ff) {
-        if(read_at(s->map+0x108,&connection,8)&&connection&&
+        if(map_connection_valid&&connection&&
            read_at(connection+0xf84+(uintptr_t)value*8,&channel,8)) {
             snapshot_valid=1;
-            if(channel){snapshot_valid=read_at(channel+0x78,&type,4)&&read_at(channel+0x68,&flags,4)&&
+            if(channel){index_connection_valid=read_at(channel+0x60,&index_connection,8);
+                snapshot_valid=read_at(channel+0x78,&type,4)&&read_at(channel+0x68,&flags,4)&&
                 read_at(channel+0xa0,&actor,8);if(actor)snapshot_valid=snapshot_valid&&read_at(actor+0x50,&klass,8);}
         }
     }
-    int error_valid=read_at(s->archive+0x38,&error,4);++inventory_reference_rows;char row[1100];
+    int error_valid=read_at(s->archive+0x38,&error,4);++inventory_reference_rows;char row[1600];
     snprintf(row,sizeof row,
       "{\"inventory_reference_trace\":\"%s\",\"receive_id\":%u,\"tag\":%u,\"index\":%u,"
       "\"channel_snapshot_valid\":%s,\"archive_error_read_valid\":%s,\"archive_error\":%u,\"channel\":\"0x%llx\",\"channel_type\":%u,\"channel_flags\":%u,"
       "\"actor\":\"0x%llx\",\"actor_class\":\"0x%llx\",\"requested_class\":\"0x%llx\","
+      "\"map_connection_valid\":%s,\"map_connection\":\"0x%llx\",\"receive_connection_valid\":%s,\"receive_connection\":\"0x%llx\","
+      "\"indexed_channel_connection_valid\":%s,\"indexed_channel_connection\":\"0x%llx\","
       "\"original_forwarded\":true,\"payload_modified\":false,\"monotonic_ms\":%lu}\r\n",
       index?"index":"tag",s->id,(unsigned)s->tag,value,snapshot_valid?"true":"false",error_valid?"true":"false",error,(unsigned long long)channel,
       type,flags,(unsigned long long)actor,(unsigned long long)klass,
-      (unsigned long long)s->requested_class,GetTickCount());line(row);
+      (unsigned long long)s->requested_class,map_connection_valid?"true":"false",(unsigned long long)connection,
+      receive_connection_valid?"true":"false",(unsigned long long)receive_connection,
+      index_connection_valid?"true":"false",(unsigned long long)index_connection,GetTickCount());line(row);
 }
 static void inventory_reference_bits_forward(void *archive,void *dest,int32_t count,uintptr_t caller) {
     DWORD before=GetLastError();InventoryReferenceScope *s=inventory_reference_scope;

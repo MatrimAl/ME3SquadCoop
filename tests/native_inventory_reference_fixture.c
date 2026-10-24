@@ -59,7 +59,7 @@ int main(int argc,char **argv){
     InventoryDecodeFrame f={{1,(uintptr_t)pawn},(uintptr_t)channel,19},inner_f=f;
     inventory_decode_frame=&f;put(archive,0,initial_actor_trace_base+0x119dda8);put(other_archive,0,initial_actor_trace_base+0x119dda8);
     put(map,0,initial_actor_trace_base+0x11a0d20);put(map,0x108,(uintptr_t)connection);put(channel,0xa0,(uintptr_t)pawn);
-    put(connection,0xf84+9*8,(uintptr_t)channel);put(property,0xd0,0x1111);put(pawn,0x50,0x2222);uint32_t type=2,flags=2;memcpy(channel+0x78,&type,4);memcpy(channel+0x68,&flags,4);
+    put(connection,0xf84+9*8,(uintptr_t)channel);put(channel,0x60,(uintptr_t)connection);put(property,0xd0,0x1111);put(pawn,0x50,0x2222);uint32_t type=2,flags=2;memcpy(channel+0x78,&type,4);memcpy(channel+0x68,&flags,4);
     reset_slots();inventory_reference_install(initial_actor_trace_base);CHECK(inventory_reference_installed&&slots[0]==(uintptr_t)inventory_reference_bits&&slots[1]==(uintptr_t)inventory_reference_index);
     reset_slots();cas_fail=2;inventory_reference_install(initial_actor_trace_base);CHECK(!inventory_reference_installed&&slots[0]==initial_actor_trace_base+0xc2b00&&slots[1]==initial_actor_trace_base+0xc3060&&cas_calls==3);
     reset_slots();cas_fail=1;inventory_reference_install(initial_actor_trace_base);CHECK(!inventory_reference_installed&&slots[0]==initial_actor_trace_base+0xc2b00&&slots[1]==initial_actor_trace_base+0xc3060&&cas_calls==1);
@@ -69,6 +69,7 @@ int main(int argc,char **argv){
     inventory_reference_begin(&outer,&f,property,archive,map,base+0x488ed4,1);CHECK(GetLastError()==123&&inventory_reference_scope==&outer);
     bitcall(base+0x602c40,1,archive);CHECK(records==1&&outer.tag_known&&outer.tag==1);
     intcall(base+0x602c5d,0x3ff,archive);CHECK(records==2&&strstr(last_row,"\"index\":9")&&strstr(last_row,"\"channel_snapshot_valid\":true")&&strstr(last_row,"\"channel_type\":2")&&strstr(last_row,"\"channel_flags\":2"));
+    CHECK(strstr(last_row,"\"map_connection_valid\":true")&&strstr(last_row,"\"receive_connection_valid\":true")&&strstr(last_row,"\"indexed_channel_connection_valid\":true"));
     native_index=0;intcall(base+0x602c5d,0x3ff,archive);CHECK(strstr(last_row,"\"index\":0")&&strstr(last_row,"\"channel\":\"0x0\""));
     native_index=10;intcall(base+0x602c5d,0x3ff,archive);CHECK(strstr(last_row,"\"index\":10")&&strstr(last_row,"\"channel_snapshot_valid\":true")&&strstr(last_row,"\"channel\":\"0x0\""));
     native_index=9;error_read_fail=1;intcall(base+0x602c5d,0x3ff,archive);CHECK(strstr(last_row,"\"archive_error_read_valid\":false"));error_read_fail=0;
