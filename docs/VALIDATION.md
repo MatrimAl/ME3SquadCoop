@@ -130,3 +130,28 @@ remaining game process was recorded; original profiles stayed unchanged.
 The observer now includes inventory/weapon reference changes to distinguish
 incoming replication changes from later lifecycle effects; it performs no
 inventory correction.
+
+## Latest bounded movement and inventory observation
+
+A subsequent real pair passed the unchanged common-travel gate over19 seconds
+and20 aligned samples. Both Ashley replicas moved while the host moved, with
+no unsafe guest motion detected. This is one bounded observation; aggregate
+staging replica mismatch and repeatability limits remain. Combat and full
+conversation gates still failed. Original profiles were unchanged, native
+exceptions were zero and no game remained; a read-only monitor access error
+prevents calling the entire observer audit a pass.
+
+The expanded receive observer recorded the same guest pawn's inventory pointer
+changing from a live manager to null during the original ReceivedBunch call,
+while weapon identity, roles, position and physics stayed unchanged in that
+sample. This narrows the change to receive processing, which includes native
+property application and engine callbacks; it does not distinguish those two.
+
+The protected equipment handoff now experiments with the existing native
+PlayerController.ForceSingleNetUpdateFor for inventory, weapon and pawn before
+ClientGivenTo. Exact function identity, native handler and one-pointer ABI
+must match before dispatch; calls are bounded to one set per ownership epoch.
+No inventory pointer is assigned by the probe. This requests ordinary engine
+updates for existing channels, and is not evidence that an inventory reference
+was delivered or restored. The ordinary player ASI does not include this
+protected-probe experiment.
