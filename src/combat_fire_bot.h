@@ -234,7 +234,10 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
     if(!p->stable_at)p->stable_at=now;
     if(!p->gate_at||now-p->gate_at>=1000){p->gate_at=now;p->positive_getter=guest_player_context_gate(base,"fire-bot-baseline",now)==1;
         if(!p->positive_getter)p->stable_at=0;}
-    if(!after||!p->positive_getter||!p->stable_at||now-p->stable_at<8000)return;
+    /* Observe normal input during the retained valid ownership window. The
+     * eight-second QA delay outlasted the measured inventory loss (~six s).
+     * Native permission, continuous identity/chain checks and release stay. */
+    if(!after||!p->positive_getter||!p->stable_at||now-p->stable_at<2000)return;
     if(!combat_fire_resolve(base,mode,now)){
         if(!p->report_at||now-p->report_at>=5000){p->report_at=now;
             combat_fire_log(base,"method-unavailable",combat_fire_resolution_reason,now,1,before,0,0,0);}

@@ -99,3 +99,10 @@ local-control predicate: in a network session its controlled player controller
 requires `Player` to be an `Engine.LocalPlayer`. The inspected predicate has no
 pawn-class or Role restriction. Static logic and slot identity do not prove
 the predicate's result at a particular firing tick.
+
+The isolated fire bot now waits two seconds of continuously valid ownership
+and equipment before its ordinary 250ms input pulse. The earlier eight-second
+QA delay exceeded the measured six-second inventory window and prevented any
+input observation. Native permission checks, per-lease attempt limits,
+identity/chain validation and release behavior are unchanged. This timing
+change does not repair inventory replication or alter normal player input.
