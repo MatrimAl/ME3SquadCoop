@@ -31,10 +31,11 @@ static int guest_collision_physical_equal(const GuestCollisionShape *a,const Gue
     return a->actor==b->actor&&a->block==b->block&&a->component==b->component&&a->type==b->type;
 }
 static int guest_collision_disabled(const GuestCollisionShape *s) {
-    /* Measured owned return: world collision survives, actor/blocking collision
-     * does not; the healthy cylinder response remains. Native type6 preserves
-     * the world bit. No other partial world-colliding shape is admitted. */
-    if(s&&s->actor==0x40000000)return s->block==0&&s->component==0xaa&&s->type==0&&s->replicated==0;
+    /* Measured owned return: world collision survives, actor collision does not;
+     * the blocking bit can be absent or retained. Both exact states were
+     * captured with the healthy cylinder response. Native type6 preserves
+     * existing world/blocking bits. Other partial shapes remain refused. */
+    if(s&&s->actor==0x40000000)return (s->block==0||s->block==1)&&s->component==0xaa&&s->type==0&&s->replicated==0;
     /* Actual landing release: actor collision stays enabled, but world and
      * blocking collision are absent. Admit only the observed type/response,
      * not arbitrary partial collision states. */

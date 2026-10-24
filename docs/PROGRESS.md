@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-10-24: retained blocking bit measured on control return
+
+- The focus candidate installed in both protected game processes. Its first
+  actual Tick cursor advanced from71 to72 as predicted. The pair acquired Ashley
+  in three ownership epochs and completed scene handoff/disconnect checks, but
+  no adapted focus result was logged; focus correction is still unverified.
+- Guest control returned with world collision enabled, actor collision absent,
+  blocking retained, cylinder response0xaa and type0/replicated0. The paired
+  recorder captured 87 valid owned/acknowledged samples on the same positive
+  channel. The prior predicate rejected this partial shape, so no repair ran.
+- The candidate now admits that one additional measured shape. Its new native
+  regression failed before the change and passed afterward, including both
+  values of the unrelated adjacent flag. Existing identity, release snapshots,
+  channel, ownership and native-call guards are unchanged. All three outputs
+  rebuilt, the native protection harness passed and four unsafe variants were
+  rejected. A positive live repair and usable walking remain unverified.
+- The completed pair recorded zero native exceptions, unchanged originals and
+  profiles, no forced/unknown cleanup and no remaining game. UI, paired and
+  baseline recorders completed; the memory helper lacked a final summary.
+
 ## 2026-10-24: custom focus pause confirmed before possession
 
 - A protected pair measured 39 consecutive host samples over 10.032 seconds

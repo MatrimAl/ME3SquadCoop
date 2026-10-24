@@ -228,11 +228,11 @@ static int variant_cases(void) {
         reacquire();put_byte(address(&pawn)+0x269,2);frame(1,1,310);CHECK(restored());
     }
     GuestCollisionShape partial={0x40000000,1,0xaa,0,0},unknown={0,0,0xba,0,0};
-    CHECK(!guest_collision_disabled(&partial)&&!guest_collision_disabled(&unknown));
-    for(uint32_t adjacent=0;adjacent<=2;adjacent+=2){
+    CHECK(guest_collision_disabled(&partial)&&!guest_collision_disabled(&unknown));
+    for(uint32_t blocking=0;blocking<=1;++blocking)for(uint32_t adjacent=0;adjacent<=2;adjacent+=2){
         reset_fixture();use_variant();frame(1,1,100);CHECK(guest_collision_restore.tracked);
         owned=0;guest_player_context_lease.registered=0;set_shape(address(&pawn),address(&component),0);
-        u32(address(&pawn)+0x260,0x49690100);u32(address(&pawn)+0x264,0x444000|adjacent);
+        u32(address(&pawn)+0x260,0x49690100);u32(address(&pawn)+0x264,0x444000|adjacent|blocking);
         u32(address(&component)+0x16c,0x8600aa);put_byte(address(&pawn)+0x26b,0);put_byte(address(&pawn)+0x26c,0);
         frame(0,1,200);frame(0,1,210);CHECK(guest_collision_restore.released);
         reacquire();frame(1,1,310);CHECK(restored());

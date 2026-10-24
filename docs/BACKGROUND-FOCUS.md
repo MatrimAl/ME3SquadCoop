@@ -18,8 +18,11 @@ focus-related blocker before guest possession, not a collision or combat pass.
 The reflected HasFocus return ABI and its native wrapper/getter matched the
 supported executable in both processes: one four-byte bool result at offset0,
 mask1. Tick has two calls, with expected script cursors71/280 before the native
-wrapper and72/281 afterward. These cursor positions are derived from the
-actual script and native instructions; they are not yet live call observations.
+wrapper and72/281 afterward. Both cursor positions were derived from the actual script and native
+instructions. The first site,71 to72, was subsequently observed in real calls;
+the second site remains a derived constraint. That protected pair acquired
+Ashley but logged no adapted focus result, so it does not prove that background
+focus correction worked.
 
 ## Candidate policy
 

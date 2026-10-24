@@ -15,9 +15,10 @@ physical shape must equal the actual supported class/template defaults.
 
 The Actor blocking mask covers only reflected `bBlockActors` (0x1); its
 neighboring flag is neither part of the collision contract nor restored. A
-measured return can retain world collision while actor/blocking collision is
-absent, with the healthy cylinder response and type0. That exact partial shape
-is also eligible for the existing release/reacquire policy. Native type6 keeps
+measured return can retain world collision while actor collision is absent,
+with the healthy cylinder response and type0. The blocking bit may be absent
+or retained: both exact states were observed with reciprocal ownership. These
+partial shapes are also eligible for the existing release/reacquire policy. Native type6 keeps
 an existing world-collision flag; the compare-exchange enables it only if absent.
 
 While that same pawn is unowned, two matching disabled snapshots record the
