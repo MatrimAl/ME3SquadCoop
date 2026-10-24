@@ -824,3 +824,13 @@ settling checks. The bot still sends ordinary `PC_Action`; native selection and
 traversal are untouched. Regression checks cover the recorded80.75054 case and
 reject missing contact, excessive speed and insufficient settling. Live
 traversal remains unverified.
+
+
+A subsequent protected pair recorded matching sender/receiver `RelativeLocation`
+scalars and the expected rounded value, then later a guest `Velocity` decode
+followed by archive errors. The healthy field does not reproduce the earlier
+large relative-position change. That run still failed shared progression and
+the guest fell below world kill Z. Native exceptions were zero and original
+profiles remained unchanged; the memory helper exited1. Host `Velocity` is now
+included in the same bounded observer to compare the failing field directly.
+Equal field values alone do not identify a packet by its header.

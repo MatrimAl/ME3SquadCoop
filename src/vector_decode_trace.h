@@ -29,8 +29,9 @@ static int vector_decode_sender(uintptr_t property,uintptr_t archive,uintptr_t m
         uintptr_t data,uintptr_t caller,const char *path,VectorDecodeScope *s) {
     uintptr_t base=initial_actor_trace_base;uint32_t loading=1;int32_t offset=0;
     if(test_action!=6||strcmp(test_role,"host")||caller!=base+0x48d433||
-       strcmp(path,"Engine.Actor.RelativeLocation")||
-       !read_at(property+0x94,&offset,4)||offset!=0x15c||data<(uintptr_t)offset||
+       (strcmp(path,"Engine.Actor.RelativeLocation")&&strcmp(path,"Engine.Actor.Velocity"))||
+       !read_at(property+0x94,&offset,4)||
+       offset!=(!strcmp(path,"Engine.Actor.Velocity")?0x138:0x15c)||data<(uintptr_t)offset||
        read_ptr(archive)!=base+0x119dcc0||read_ptr(map)!=base+0x11a0d20||
        !read_at(archive+0x14,&loading,4)||loading)return 0;
     uintptr_t pawn=data-offset,world=read_ptr(base+0x18b6638),level=0,info=0;GameArray actors={0};

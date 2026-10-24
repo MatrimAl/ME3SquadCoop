@@ -89,6 +89,10 @@ int main(int argc,char **argv){
  put(world,0x88,(uintptr_t)level);actors[0]=(uintptr_t)info;
  GameArray ar={(uintptr_t)actors,1,1};memcpy(level+0x60,&ar,sizeof ar);put(pawn,0x198,(uintptr_t)info);
  invoke(b+0x48d433);CHECK(records==++count&&strstr(row,"vector_send_trace")&&strstr(row,"\"scalar_count\":4"));
+ offset=0x138;memcpy(property+0x94,&offset,4);strcpy(field_path,"Engine.Actor.Velocity");data=(float*)(pawn+0x138);
+ invoke(b+0x48d433);CHECK(records==++count&&strstr(row,"Engine.Actor.Velocity"));
+ offset=0x15c;memcpy(property+0x94,&offset,4);invoke(b+0x48d433);CHECK(records==count);
+ offset=0x138;memcpy(property+0x94,&offset,4);
  uint32_t loading=1;memcpy(archive+0x14,&loading,4);invoke(b+0x48d433);CHECK(records==count);
  loading=0;memcpy(archive+0x14,&loading,4);
  put(map,0x108,0);invoke(b+0x48d433);CHECK(records==count);put(map,0x108,0xabcdef);
