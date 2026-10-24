@@ -99,3 +99,18 @@ final loss and excludes a later-only callback as the explanation for that
 particular sample. It still does not distinguish an encoded null from failed
 reference resolution inside the map. The serializer result1 is not evidence
 that a usable object was resolved.
+
+Exact-image analysis of the concrete Level decoder explains this limitation:
+it clears the output before reading the discriminator. Dynamic channel index
+zero, a missing/closing/wrong-type channel, a null actor and a requested-class
+rejection can all leave null while returning1. Its static-reference branch
+also has package resolution and streamed-Level checks. Do not substitute the
+SeekFree decoder's behavior for these branches.
+
+The existing field record now includes the archive vtable and its byte/index
+serializer slot RVAs, read without calling either slot. These identities are
+needed before choosing a narrowly scoped observation of the original decoder's
+index output. No archive payload is re-read or advanced by this addition.
+The actual receive-wrapper fixture checks the captured slot values alongside
+its forwarding and LastError invariants; the archive targets in a live run
+remain to be collected.

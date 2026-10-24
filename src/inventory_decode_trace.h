@@ -27,6 +27,7 @@ static int inventory_decode_property(uintptr_t property) {
 static int inventory_decode_forward(void *property,void *archive,void *map,void *data,uintptr_t caller) {
     DWORD before_error=GetLastError();InventoryDecodeFrame *f=inventory_decode_frame;
     uintptr_t base=initial_actor_trace_base,before=0,after=0;uint32_t error_before=1,error_after=1;
+    uintptr_t archive_table=0,archive_bytes=0,archive_index=0;
     int scoped=inventory_decode_installed&&position_receive_opted()&&has_marker(root)&&
         GetCurrentThreadId()==initial_actor_trace_thread&&f&&f->before.valid;
     int property_match=0,site_match=0;
@@ -40,6 +41,8 @@ static int inventory_decode_forward(void *property,void *archive,void *map,void 
     int capture=scoped&&inventory_decode_rows<64&&site_match&&property_match&&
         read_ptr(f->channel+0xa0)==f->before.pawn&&
         read_at((uintptr_t)data,&before,8)&&read_at((uintptr_t)archive+0x38,&error_before,4);
+    if(capture){archive_table=read_ptr((uintptr_t)archive);
+        if(archive_table){archive_bytes=read_ptr(archive_table+0x10);archive_index=read_ptr(archive_table+0x18);}}
     SetLastError(before_error);
     int result=inventory_decode_original(property,archive,map,data);
     DWORD after_error=GetLastError();
@@ -50,9 +53,13 @@ static int inventory_decode_forward(void *property,void *archive,void *map,void 
           "{\"inventory_decode_trace\":\"field\",\"receive_id\":%u,\"pawn\":\"0x%llx\","
           "\"scratch_before\":\"0x%llx\",\"scratch_after\":\"0x%llx\",\"native_result\":%d,"
           "\"archive_error_before\":%u,\"archive_error_after\":%u,\"map_vtable_rva\":\"0x%llx\","
+          "\"archive_vtable_rva\":\"0x%llx\",\"archive_bytes_rva\":\"0x%llx\",\"archive_index_rva\":\"0x%llx\","
           "\"final_application_verified\":false,\"original_forwarded\":true,\"payload_modified\":false,\"monotonic_ms\":%lu}\r\n",
           f->id,(unsigned long long)f->before.pawn,(unsigned long long)before,(unsigned long long)after,
-          result,error_before,error_after,(unsigned long long)(table>=base?table-base:0),GetTickCount());line(row);
+          result,error_before,error_after,(unsigned long long)(table>=base?table-base:0),
+          (unsigned long long)(archive_table>=base?archive_table-base:0),
+          (unsigned long long)(archive_bytes>=base?archive_bytes-base:0),
+          (unsigned long long)(archive_index>=base?archive_index-base:0),GetTickCount());line(row);
     }
     SetLastError(after_error);return result;
 }

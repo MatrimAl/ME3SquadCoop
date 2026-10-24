@@ -114,7 +114,11 @@ int main(int argc,char **argv) {
     CHECK(strstr(logged,"change-in-original-receive")&&strstr(logged,"78.000,-128.000,-72.000"));
     setup();run(0);
     setup();mode=11;inventory_decode_installed=1;run(3);
-    setup();mode=12;inventory_decode_installed=1;run(1);CHECK(strstr(logged,"\"native_result\":7"));
+    setup();mode=12;inventory_decode_installed=1;
+    putptr(archive_data,0,(uintptr_t)map_data);putptr(map_data,0x10,fake_base+0x123);putptr(map_data,0x18,fake_base+0x456);
+    run(1);CHECK(strstr(logged,"\"native_result\":7"));
+    CHECK(strstr(logged,"\"archive_bytes_rva\":\"0x123\""));
+    CHECK(strstr(logged,"\"archive_index_rva\":\"0x456\""));
     setup();mode=15;inventory_decode_installed=1;run(0);
     setup();mode=12;inventory_decode_installed=1;int invalid_offset=0x41c;memcpy(property+0x94,&invalid_offset,4);run(0);
     setup();mode=13;inventory_decode_installed=1;run(0);CHECK(inventory_decode_scoped_calls==1&&inventory_decode_site_calls==0&&inventory_decode_property_calls==1);
