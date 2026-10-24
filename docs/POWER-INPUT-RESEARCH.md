@@ -78,3 +78,22 @@ provided initial declaration leads. The primary
 [LegendaryExplorer reader](https://github.com/ME3Tweaks/LegendaryExplorer/tree/b5e746233491ec5a7cbfc077685996af37a3d125/LegendaryExplorer/LegendaryExplorerCore)
 provided package/bytecode format references. Extracted game data and research
 readers stay private; no game assets or decompiled bodies are distributed here.
+
+## Action-instance ownership follow-up
+
+Additional owned-script analysis found that the power-action eligibility path
+uses the controlled BioPawn's own action classes and instances. When a missing
+action is instantiated, the script records its pawn and either AI or player
+controller context. Existing populated instances skip that creation block.
+Action start/stop subsequently use cached controller context for input-ignore
+and reticle handling. The power-specific check also rejects ragdoll/recovery
+and weapon equip/put-down states. These native gameplay restrictions remain
+part of the intended power path.
+
+This raises a concrete ownership question for previously AI-controlled squad
+members: do existing action instances still reference their former controller
+after possession? That has not been measured. Inherited/native refresh paths
+have not been ruled out, so no rebind, array recreation or forced cast is
+implemented from this finding. Six selected functions decoded completely with
+matching serialized/VM lengths and valid branch targets; this remains offline
+evidence and does not establish successful guest powers.
