@@ -1,5 +1,17 @@
 # Progress
 
+## 2026-10-24: correct the QA input sampling phase
+
+- The input-state record is sampled inside input_bot before session_guest_frame
+  writes its movement pulse and before the original engine Tick. Its former
+  post_tick_axes name was misleading; zero values do not prove that the pulse
+  was overwritten. The record now explicitly names its pre-input/pre-Tick phase.
+- The actual W mapping is a command alias chain to Axis aBaseY Speed=1.0.
+  Retained pulse-window pawn samples show PlayerWalking, grounded physics and
+  no sampled freeze, attachment or move-input suppression. None establishes
+  that a normal key reached the input consumer. Distinguish ordinary key
+  delivery from the raw-axis QA pulse before changing gameplay state.
+
 ## 2026-10-24: mode-0 landing dialogue returns; movement still unresolved
 
 - The corrected protected pair completed three ownership epochs and native

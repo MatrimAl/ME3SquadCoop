@@ -213,7 +213,7 @@ static void progress_sample(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
     int effective_known=invoke(base,pc,"PlayerController","IsMoveInputIgnored",&effective);
     if(is_kind_of(base,input,"BioPlayerInput")) { read_at(input+0x398,&disabled,4);read_at(input+0x2c4,&overrides,sizeof overrides); }
     read_at(input+0x194,&axes[0],4);read_at(input+0x1a4,&axes[1],4);read_at(input+0x1ac,&axes[2],4);
-    char input_row[500];snprintf(input_row,sizeof input_row,"{\"progress\":\"input-state\",\"role\":\"%s\",\"ignore_move\":%u,\"ignore_look\":%u,\"effective_ignore_known\":%s,\"effective_ignore_move\":%s,\"key_input_disabled\":%d,\"override_count\":%d,\"post_tick_axes\":[%.4f,%.4f,%.4f],\"monotonic_ms\":%lu}\r\n",test_action==5?"guest":"host",ignore_move,ignore_look,effective_known?"true":"false",effective&1?"true":"false",disabled,overrides.count,axes[0],axes[1],axes[2],now);line(input_row);
+    char input_row[700];snprintf(input_row,sizeof input_row,"{\"progress\":\"input-state\",\"sample_phase\":\"before-session-input-and-engine-tick\",\"role\":\"%s\",\"ignore_move\":%u,\"ignore_look\":%u,\"effective_ignore_known\":%s,\"effective_ignore_move\":%s,\"key_input_disabled\":%d,\"override_count\":%d,\"pre_tick_axes\":[%.4f,%.4f,%.4f],\"monotonic_ms\":%lu}\r\n",test_action==5?"guest":"host",ignore_move,ignore_look,effective_known?"true":"false",effective&1?"true":"false",disabled,overrides.count,axes[0],axes[1],axes[2],now);line(input_row);
     if (test_action != 6) return;
     if (progress_walk_at && !progress_scripts_dumped) {
         progress_scripts_dumped=1;
