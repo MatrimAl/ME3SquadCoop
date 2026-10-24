@@ -24,6 +24,7 @@ static int inventory_decode_property(uintptr_t property) {
     identity_path(base,property,path,sizeof path);
     return !strcmp(path,"Engine.Pawn.InvManager");
 }
+#include "inventory_reference_trace.h"
 static int inventory_decode_forward(void *property,void *archive,void *map,void *data,uintptr_t caller) {
     DWORD before_error=GetLastError();InventoryDecodeFrame *f=inventory_decode_frame;
     uintptr_t base=initial_actor_trace_base,before=0,after=0;uint32_t error_before=1,error_after=1;
@@ -43,9 +44,13 @@ static int inventory_decode_forward(void *property,void *archive,void *map,void 
         read_at((uintptr_t)data,&before,8)&&read_at((uintptr_t)archive+0x38,&error_before,4);
     if(capture){archive_table=read_ptr((uintptr_t)archive);
         if(archive_table){archive_bytes=read_ptr(archive_table+0x10);archive_index=read_ptr(archive_table+0x18);}}
+    InventoryReferenceScope reference_scope;
+    int reference_eligible=scoped&&site_match&&property_match&&read_ptr(f->channel+0xa0)==f->before.pawn;
+    inventory_reference_begin(&reference_scope,f,property,archive,map,caller,reference_eligible);
     SetLastError(before_error);
     int result=inventory_decode_original(property,archive,map,data);
     DWORD after_error=GetLastError();
+    inventory_reference_end(&reference_scope);
     if(capture&&inventory_decode_frame==f&&
        read_at((uintptr_t)data,&after,8)&&read_at((uintptr_t)archive+0x38,&error_after,4)) {
         ++inventory_decode_rows;char row[1000];uintptr_t table=read_ptr((uintptr_t)map);
@@ -104,6 +109,7 @@ static void inventory_decode_install(uintptr_t base) {
     VirtualProtect((void*)slot,8,old,&ignored);
     if((uintptr_t)previous!=expected){inventory_decode_original=NULL;return;}
     inventory_decode_installed=1;
+    inventory_reference_install(base);
     line("{\"inventory_decode_trace\":\"installed\",\"limit\":64,\"observational\":true}\r\n");
 }
 #endif

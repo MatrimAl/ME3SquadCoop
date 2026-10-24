@@ -120,3 +120,19 @@ a bounded integer. Both have void ABI. Their code targets are shared with
 another archive vtable, so a future observer must select the concrete table
 and exact property/thread/archive scope. These identities do not yet reveal
 the discriminator or index from the failing receive.
+
+An opt-in reference observer now wraps only the concrete archive table's
+two original slots. It records their original-produced discriminator/index
+destinations after forwarding exactly once, within an exact InvManager
+property, receive frame, thread, archive and map scope. It neither reads the
+payload nor invokes an additional serializer. Dynamic positive-index records
+include the existing channel-table entry, type, closing flags and actor/class
+identities when readable. Index0 is distinct from a missing positive-index
+entry. An unreadable archive-error field is explicitly marked invalid.
+
+The observer independently caps output at128 rows. Nested rejected properties
+mask the outer scope; unrelated calls retain original arguments and LastError.
+The authored fixture covers these constraints, tag/index variants, wrong
+return sites/counts/maxima, and transactional two-slot installation/rollback.
+Both its deliberately failing CHECK canary and the existing27 receive-wrapper
+cases passed. Live index observations remain a separate requirement.
