@@ -96,3 +96,12 @@ added. The lifecycle fixture checks one repair after reacquisition, preserves
 adjacent flags and rejects other component/type/block combinations. This is a
 candidate fix with offline evidence; prevention of falling still requires a
 new protected real-client run.
+
+The next protected pair exercised this exact release shape and dispatched the
+existing native repair after real-scene reacquisition. Both peers then retained
+ground contact, with the guest's healthy collision shape and no unsafe-motion
+verdict. This is one live preventive-repair result. The guest nevertheless
+remained stationary despite recorded movement input and cleared input-ignore
+flags. Therefore this run establishes collision restoration and retained ground
+contact, not successful post-scene movement or campaign progression. The cause
+of that separate movement refusal remains unverified.
