@@ -85,6 +85,7 @@ int main(int argc,char **argv){
  reset();put32(archive,0x14,0);invoke(b+0x489adf);CHECK(records==count);
  reset();put(map,0x108,0xabcdf);invoke(b+0x489adf);CHECK(records==count);
  reset();test_action=6;invoke(b+0x489adf);CHECK(records==count);test_action=5;
+ reset();put32(pawn,0x264,0x4000);invoke(b+0x488aeb);CHECK(records==++count&&strstr(row,"entry_net_owner"));
  reset();put32(pawn,0x264,0x4000);optimized_owner_rows=128;invoke(b+0x489adf);CHECK(records==count);
  CHECK(rejected_records==4&&optimized_owner_rejected_rows==4);
  puts("PASS optimized owner observer: five unchanged args/one original call, LastError, normal/anomaly budgets, identity/archive/header guards, pins and install");return 0;

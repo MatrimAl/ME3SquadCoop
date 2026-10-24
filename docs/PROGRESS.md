@@ -853,3 +853,22 @@ positions. Its authored-memory fixture checks unchanged five-argument forwarding
 identity bounds, installation pins and bounded recording. It does not change
 ownership or consume the payload; the actual runtime failure mechanism remains
 unverified until those call records are examined.
+
+
+### Live call-site correction and combat scope
+
+Frida observation on the protected guest proved the optimized Ashley callback
+also enters from native return site `488AEB`, the earlier compiler copy in
+ReceivedBunch. The observer had admitted only `489ADF`; its lack of rows was
+therefore not evidence that optimized movement never ran. Both exact sites
+now share the same identity/archive guards, with authored-memory coverage.
+Direct Frida samples of other Ashley replicas showed ordinary cursor advances,
+not the failing ownership condition. No owner-bit intervention has been applied.
+
+A subsequent normal-action QA tap was actually pressed and released but produced
+no traversal. Dispatch alone remains insufficient. Host mesh telemetry also
+showed animation ticks progressing with the background-animation bit already
+enabled, so enabling that bit is not justified by this run. Guest reacquisition
+was followed by a missing pawn inventory manager and no second-lease fire input.
+The exact native reference decode resolved a different class and returned null;
+its initiating packet/ownership cause is still under investigation.

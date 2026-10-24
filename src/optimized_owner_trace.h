@@ -50,7 +50,7 @@ static void optimized_owner_forward(void *pawn,void *archive,void *shadow,void *
     int capture=optimized_owner_installed&&position_receive_opted()&&progress_enabled&&
         test_action==5&&!strcmp(test_role,"client")&&has_marker(root)&&
         GetCurrentThreadId()==initial_actor_trace_thread&&optimized_owner_rows<128&&
-        caller==initial_actor_trace_base+0x489adf;
+        (caller==initial_actor_trace_base+0x488aeb||caller==initial_actor_trace_base+0x489adf);
     if(capture)before=optimized_owner_snapshot(f,(uintptr_t)pawn,(uintptr_t)archive,
                                             (uintptr_t)shadow,(uintptr_t)map,(uintptr_t)channel);
     if(capture&&!before.valid&&optimized_owner_rejected_rows<4){
