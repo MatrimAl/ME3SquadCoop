@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-24: bounded receive observation prepared; no new game test
+
+- Added default-off POSITION_RECEIVE_TRACE diagnostics to the existing protected
+  ActorChannel receive wrapper. It observes only the current-world guest Ashley,
+  logs at most64 large position or ownership/base changes, and compares stable
+  object identity before/after the unchanged native receive call. It does not
+  consume packet fields, change position or modify the ordinary player ASI.
+- The protected probe can explicitly enable this existing receive hook during
+  collision-baseline QA without enabling the separate package-map trace.
+- An actual-wrapper fixture on authored memory passed default-off forwarding
+  and12 enabled cases, covering position/role changes, identity replacement,
+  nonfinite values, record budget, missing marker, wrong role/thread/world and
+  unrelated actors. Each case checks one original call, preserved packet/channel
+  bytes and incoming/returned LastError. This is offline observer validation,
+  not evidence that the game's receive function caused the discontinuity.
+- Live testing is deferred at the owner's request. No gameplay correction or
+  successful movement/combat claim is made by this instrumentation.
+
 ## 2026-10-24: synthetic handoff exposes a position discontinuity
 
 - A new protected pair completed three ownership epochs and AI/disconnect
@@ -621,7 +639,7 @@ Next: inspect authoritative ammunition field transmission and client prediction/
 - Repeated the same protected 100-second action: 63 `GetHealthPct` resolutions accumulated 0.306 seconds, including one initial discovery; 62 warm hits averaged 41.7 microseconds and peaked at 230 microseconds. The diagnostic scope accumulated 1.263 seconds. Callback counts and scene timing differed, so this is resolver/diagnostic evidence, not a controlled FPS benchmark. See [LOOKUP-PERFORMANCE.md](LOOKUP-PERFORMANCE.md).
 - Built all three native outputs. The Windows harness passed the new synthetic function/owner/class/table-membership guards and existing safety fixtures. Separate compiled mutants truncating FName identity or removing table membership were rejected. Python discovery: 178 tests, OK, 2 skipped.
 - A subsequent protected paired run passed two ownership epochs, synthetic scene release/reacquisition and native disconnect/AI restoration. Both recorded press/release intervals were 250 ms; both pulses consumed ammunition on host and guest and stopped under the existing evaluator. Counts matched after the first pulse (3/3), then differed after the second (5/6), with reserves 210/210. Reliable ammunition reconciliation remains unverified.
-- The change trace matched pawn channel 27 and weapon channel 31 on both sides within this connection. Recorded change-sample intervals were 15ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“31 ms in this run, compared with multi-second gaps in the previous instrumented run. These observations do not establish a complete shot history or absence of all stalls. Separate channel-resolution measurements still had cold peaks around 318 ms on host and 668 ms on guest; this remaining cost has not been fixed.
+- The change trace matched pawn channel 27 and weapon channel 31 on both sides within this connection. Recorded change-sample intervals were 15ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ31 ms in this run, compared with multi-second gaps in the previous instrumented run. These observations do not establish a complete shot history or absence of all stalls. Separate channel-resolution measurements still had cold peaks around 318 ms on host and 668 ms on guest; this remaining cost has not been fixed.
 - The two single-process measurements and paired run retained original-file protection. Completed reports recorded unchanged original profiles and zero native exceptions. The paired run protected 8,210 original game/profile files, required no forced orphan cleanup, disabled the probe and left no game processes running. Raw profiles and distinct build/run fingerprints remain private.
 
 Next: inspect remaining cold channel-resolution cost and actual ammunition field updates without removing identity guards. Startup repeatability, catch-up, real dialogue, sustained progression, cross-PC Radmin and installation/rollback remain open.

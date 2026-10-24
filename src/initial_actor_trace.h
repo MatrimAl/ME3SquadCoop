@@ -34,6 +34,68 @@ static DWORD initial_actor_trace_thread = 0;
 static unsigned int initial_actor_trace_count = 0;
 static int initial_actor_trace_installed = 0, initial_actor_trace_attempted = 0;
 
+/* Default-off diagnostic on the existing receive hook, protected probe only.
+ * Never decodes/consumes a packet or corrects a pawn. Keep the original call
+ * and its LastError unchanged. Log only discontinuities, bounded to64 records. */
+static int position_receive_opted(void) {
+    static int ready,value;
+    if(!ready) {wchar_t text[8]={0};DWORD n=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_POSITION_RECEIVE_TRACE",text,8);
+        value=n==1&&text[0]==L'1';ready=1;}
+    return value;
+}
+typedef struct PositionReceiveSnapshot {
+    uintptr_t pawn,klass,world,base,controller;
+    int32_t index;
+    float position[3],relative[3];
+    unsigned char roles[2];
+    int valid;
+} PositionReceiveSnapshot;
+static unsigned int position_receive_events;
+static PositionReceiveSnapshot position_receive_snapshot(uintptr_t channel) {
+    PositionReceiveSnapshot s={0};uintptr_t base=initial_actor_trace_base;
+    if(!position_receive_opted()||!progress_enabled||test_action!=5||strcmp(test_role,"client")||
+       GetCurrentThreadId()!=initial_actor_trace_thread||position_receive_events>=64||!has_marker(root)||
+       !is_live(base,channel)||read_ptr(channel)!=base+0x11a2150)return s;
+    s.pawn=read_ptr(channel+0xa0);
+    if(!is_live(base,s.pawn)||!is_kind_of(base,s.pawn,"SFXPawn_Ashley"))return s;
+    s.klass=read_ptr(s.pawn+0x50);s.world=read_ptr(s.pawn+0x198);
+    uintptr_t world=read_ptr(base+0x18b6638);
+    uintptr_t level=read_ptr(world+0x88);GameArray actors={0};unsigned char net=0;
+    if(!is_live(base,world)||!is_live(base,level)||!read_at(level+0x60,&actors,sizeof actors)||
+       actors.count<1||actors.count>100000||actors.max<actors.count||actors.max>1000000||
+       read_ptr(actors.data)!=s.world||!is_live(base,s.world)||
+       !read_at(s.world+0x7c8,&net,1)||net!=3)return s;
+    if(!read_at(s.pawn+0x38,&s.index,4)||!read_at(s.pawn+0x108,s.position,12)||
+       !read_at(s.pawn+0x15c,s.relative,12)||!read_at(s.pawn+0x188,&s.base,8)||
+       !read_at(s.pawn+0x374,&s.controller,8)||!read_at(s.pawn+0x269,s.roles,2))return s;
+    for(int i=0;i<3;++i)if(!isfinite(s.position[i])||!isfinite(s.relative[i]))return s;
+    s.valid=1;return s;
+}
+static void position_receive_finish(uintptr_t channel,PositionReceiveSnapshot before) {
+    if(!before.valid)return;
+    PositionReceiveSnapshot after=position_receive_snapshot(channel);
+    if(!after.valid||before.pawn!=after.pawn||before.klass!=after.klass||before.index!=after.index||before.world!=after.world)return;
+    double delta=0;
+    for(int i=0;i<3;++i){double d=(double)after.position[i]-before.position[i];delta+=d*d;}
+    if(delta<256.0*256.0&&before.base==after.base&&before.controller==after.controller&&
+       !memcmp(before.roles,after.roles,2))return;
+    ++position_receive_events;
+    char row[1300];snprintf(row,sizeof row,
+        "{\"position_receive_trace\":\"change-in-original-receive\",\"event\":%u,\"pawn\":\"0x%llx\","
+        "\"before\":[%.3f,%.3f,%.3f],\"after\":[%.3f,%.3f,%.3f],"
+        "\"relative_before\":[%.3f,%.3f,%.3f],\"relative_after\":[%.3f,%.3f,%.3f],"
+        "\"base_before\":\"0x%llx\",\"base_after\":\"0x%llx\","
+        "\"controller_before\":\"0x%llx\",\"controller_after\":\"0x%llx\","
+        "\"roles_before\":[%u,%u],\"roles_after\":[%u,%u],\"original_forwarded\":true,"
+        "\"bunch_modified_by_probe\":false,\"position_written_by_probe\":false,\"monotonic_ms\":%lu}\r\n",
+        position_receive_events,(unsigned long long)before.pawn,
+        before.position[0],before.position[1],before.position[2],after.position[0],after.position[1],after.position[2],
+        before.relative[0],before.relative[1],before.relative[2],after.relative[0],after.relative[1],after.relative[2],
+        (unsigned long long)before.base,(unsigned long long)after.base,
+        (unsigned long long)before.controller,(unsigned long long)after.controller,
+        before.roles[0],before.roles[1],after.roles[0],after.roles[1],GetTickCount());line(row);
+}
+
 static void initial_actor_received_bunch(void *self, void *bunch) {
     /* Invariant: the original is assigned before the only CAS that publishes
      * this function. Never change or consume any bytes in the incoming bunch.
@@ -55,11 +117,13 @@ static void initial_actor_received_bunch(void *self, void *bunch) {
         read_at(incoming + 0xc4, &initial_byte, sizeof initial_byte) &&
         read_at(incoming + 0x38, &archive_before, sizeof archive_before);
     unsigned int event = capture ? ++initial_actor_trace_count : 0;
+    PositionReceiveSnapshot position_before=position_receive_snapshot(channel);
     AmmoWireReceive wire_frame;ammo_wire_receive_begin(&wire_frame,channel);
     SetLastError(error_before);
     forward(self, bunch); /* Always exactly one original call, unchanged args. */
     DWORD error_after = GetLastError();
     ammo_wire_receive_end(&wire_frame);
+    position_receive_finish(channel,position_before);
     if (capture) {
         uintptr_t actor_after = 0, class_after = 0;
         uint32_t flags_after = 0, archive_after = 0;

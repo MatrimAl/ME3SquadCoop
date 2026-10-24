@@ -65,3 +65,17 @@ launching a game:
 ```powershell
 python tests/native_collision_lifecycle.py C:\Tools\zig-0.15.2\zig.exe
 ```
+
+## Scoped receive diagnostic
+
+The protected probe supports `ME3_SQUAD_COOP_POSITION_RECEIVE_TRACE=1`
+(default off). It uses the existing pinned ActorChannel receive hook to compare
+current-world guest Ashley before/after the unchanged original native call.
+Only large position changes or ownership/base/role transitions are logged,
+with a64-record limit. Packet bytes and pawn state are not written. It also
+runs during collision-baseline QA when explicitly enabled; package-map tracing
+stays disabled in that mode. The ordinary player ASI does not include this code.
+
+`python tests/native_position_receive.py <zig>` exercises the actual forwarding
+wrapper on authored memory. Passing it establishes diagnostic forwarding and
+filter behavior, not movement, dialogue or combat correctness in the game.
