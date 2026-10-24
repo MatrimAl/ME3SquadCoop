@@ -81,6 +81,8 @@ static void inventory_reference_bits_forward(void *archive,void *dest,int32_t co
     }
     SetLastError(after);
 }
+/* The vector field observer reuses this already-owned scalar hook. */
+static void (*vector_decode_index_observer)(void*,uint32_t*,uint32_t,uintptr_t);
 static void inventory_reference_index_forward(void *archive,uint32_t *dest,uint32_t maximum,uintptr_t caller) {
     DWORD before=GetLastError();InventoryReferenceScope *s=inventory_reference_scope;
     int capture=inventory_reference_current(s,archive)&&s->tag_known&&
@@ -90,6 +92,7 @@ static void inventory_reference_index_forward(void *archive,uint32_t *dest,uint3
     if(capture&&inventory_reference_current(s,archive)&&dest) {
         uint32_t index=0;if(read_at((uintptr_t)dest,&index,4))inventory_reference_record(s,1,index);
     }
+    if(vector_decode_index_observer)vector_decode_index_observer(archive,dest,maximum,caller);
     SetLastError(after);
 }
 static void inventory_reference_bits(void *archive,void *dest,int32_t count) {

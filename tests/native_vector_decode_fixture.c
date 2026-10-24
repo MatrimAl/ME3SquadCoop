@@ -16,12 +16,14 @@ static int progress_enabled=1,test_action=5,marker=1,opted=1,live=1,image=1,pin_
 static int calls,records,entry_ok,change_frame;static char row[1500],test_role[8]="client",field_path[400]="Engine.Actor.Location";
 static wchar_t root[]=L"fixture";static unsigned char property[0xe0],archive[0x40],channel[0xb0];static float data[3];
 static InventoryDecodeFrame frame,*inventory_decode_frame=&frame;
+static void (*vector_decode_index_observer)(void*,uint32_t*,uint32_t,uintptr_t);
+static uint32_t scalar_value;
 static void put(void *p,size_t off,uintptr_t v){memcpy((char*)p+off,&v,8);}
 static int read_at(uintptr_t at,void *out,size_t n){
  SetLastError(999);
  if(at==initial_actor_trace_base+0x146fb0&&n==20){const unsigned char pin[20]={0x48,0x8b,0xc4,0x4c,0x89,0x40,0x18,0x48,0x89,0x48,0x08,0x55,0x56,0x57,0x41,0x54,0x41,0x55,0x41,0x56};memcpy(out,pin,20);if(!pin_valid)((char*)out)[0]=0;return 1;}
- void *buf[]={property,archive,channel,data};size_t size[]={sizeof property,sizeof archive,sizeof channel,sizeof data};
- for(unsigned i=0;i<4;i++)if(at>=(uintptr_t)buf[i]&&n<=size[i]&&at-(uintptr_t)buf[i]<=size[i]-n){memcpy(out,(void*)at,n);return 1;}
+ void *buf[]={property,archive,channel,data,&scalar_value};size_t size[]={sizeof property,sizeof archive,sizeof channel,sizeof data,sizeof scalar_value};
+ for(unsigned i=0;i<5;i++)if(at>=(uintptr_t)buf[i]&&n<=size[i]&&at-(uintptr_t)buf[i]<=size[i]-n){memcpy(out,(void*)at,n);return 1;}
  return 0;
 }
 static uintptr_t read_ptr(uintptr_t at){if(at==initial_actor_trace_base+0x10784a8+0x2f8)return slot_value;uintptr_t v=0;read_at(at,&v,8);return v;}
@@ -39,11 +41,21 @@ static PVOID fixture_cas(PVOID volatile *at,PVOID value,PVOID expected){(void)at
 static int original(void *p,void *a,void *m,void *d){
  calls++;entry_ok=GetLastError()==123;
  CHECK(p==property&&a==archive&&m==(void*)0x12345&&d==data);
+ const uintptr_t sites[4]={0x10cc41,0x10cc7d,0x10cc91,0x10cca2};const uint32_t values[4]={13,17,103,0};
+ scalar_value=13;
+ vector_decode_index_observer(a,&scalar_value,20,initial_actor_trace_base+0x10cc40);
+ vector_decode_index_observer((char*)a+4,&scalar_value,20,initial_actor_trace_base+sites[0]);
+ vector_decode_index_observer(a,&scalar_value,19,initial_actor_trace_base+sites[0]);
+ for(unsigned i=0;i<4;i++){
+  scalar_value=values[i];
+  if(i)vector_decode_index_observer(a,&scalar_value,32767,initial_actor_trace_base+sites[i]);
+  vector_decode_index_observer(a,&scalar_value,i?32768:20,initial_actor_trace_base+sites[i]);
+ }
  data[0]=-16367;data[1]=-16281;data[2]=-16384;
  if(change_frame)inventory_decode_frame=NULL;
  SetLastError(456);return 27;
 }
-static void invoke(uintptr_t caller){int old=calls;SetLastError(123);CHECK(vector_decode_forward(property,archive,(void*)0x12345,data,caller)==27);CHECK(calls==old+1&&entry_ok&&GetLastError()==456);}
+static void invoke(uintptr_t caller){int old=calls;SetLastError(123);CHECK(vector_decode_forward(property,archive,(void*)0x12345,data,caller)==27);CHECK(calls==old+1&&entry_ok&&GetLastError()==456&&vector_decode_scope==NULL);}
 int main(int argc,char **argv){
  if(argc>1&&!strcmp(argv[1],"canary"))CHECK(0);
  uintptr_t b=initial_actor_trace_base;slot_value=b+0x146fb0;
@@ -57,6 +69,7 @@ int main(int argc,char **argv){
  frame.before.valid=1;frame.before.pawn=0x789;frame.channel=(uintptr_t)channel;frame.id=19;put(channel,0xa0,frame.before.pawn);
  data[0]=-22031;data[1]=49555;data[2]=225;invoke(b+0x488ed4);
  CHECK(records==1&&strstr(row,"Engine.Actor.Location")&&strstr(row,"-16367.000")&&strstr(row,"\"receive_id\":19"));
+ CHECK(strstr(row,"\"scalar_count\":4")&&strstr(row,"\"scalar_values\":[13,17,103,0]"));
  int count=records;invoke(b+0x488ed5);CHECK(records==count);
  marker=0;invoke(b+0x488ed4);CHECK(records==count);marker=1;
  opted=0;invoke(b+0x488ed4);CHECK(records==count);opted=1;

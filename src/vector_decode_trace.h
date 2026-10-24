@@ -6,6 +6,27 @@ typedef int (*VectorDecodeOriginal)(void*,void*,void*,void*);
 static VectorDecodeOriginal vector_decode_original;
 static unsigned vector_decode_rows;
 static int vector_decode_installed;
+typedef struct VectorDecodeScope {
+    struct VectorDecodeScope *previous;
+    InventoryDecodeFrame *receive;
+    uintptr_t archive;
+    unsigned count;
+    uint32_t value[4],maximum[4];
+    int active;
+} VectorDecodeScope;
+static VectorDecodeScope *vector_decode_scope;
+static void vector_decode_index_observe(void *archive,uint32_t *dest,uint32_t maximum,uintptr_t caller) {
+    VectorDecodeScope *s=vector_decode_scope;
+    static const uintptr_t sites[4]={0x10cc41,0x10cc7d,0x10cc91,0x10cca2};
+    uint32_t value=0;
+    if(!s||!s->active||s->count>=4||s->archive!=(uintptr_t)archive||
+       inventory_decode_frame!=s->receive||GetCurrentThreadId()!=initial_actor_trace_thread||
+       caller!=initial_actor_trace_base+sites[s->count]||!read_at((uintptr_t)dest,&value,4)||
+       value>=maximum)return;
+    if((s->count==0&&maximum!=20)||(s->count>0&&
+       (s->value[0]>=20||maximum!=(UINT32_C(1)<<(s->value[0]+2)))))return;
+    s->value[s->count]=value;s->maximum[s->count]=maximum;++s->count;
+}
 static int vector_decode_finite(const float value[3]) {
     return isfinite(value[0])&&isfinite(value[1])&&isfinite(value[2]);
 }
@@ -30,9 +51,12 @@ static int vector_decode_forward(void *property,void *archive,void *map,void *da
         vector_decode_property((uintptr_t)property,path)&&
         read_at((uintptr_t)data,before,sizeof before)&&vector_decode_finite(before)&&
         read_at((uintptr_t)archive+0x38,&error_before,4);
+    VectorDecodeScope scope={0};scope.previous=vector_decode_scope;scope.receive=f;
+    scope.archive=(uintptr_t)archive;scope.active=capture;vector_decode_scope=&scope;
     SetLastError(entry_error);
     int result=vector_decode_original(property,archive,map,data);
     DWORD exit_error=GetLastError();
+    vector_decode_scope=scope.previous;
     if(capture&&inventory_decode_frame==f&&read_ptr(f->channel+0xa0)==f->before.pawn&&
        read_at((uintptr_t)data,after,sizeof after)&&vector_decode_finite(after)&&
        read_at((uintptr_t)archive+0x38,&error_after,4)) {
@@ -40,10 +64,12 @@ static int vector_decode_forward(void *property,void *archive,void *map,void *da
           "{\"vector_decode_trace\":\"field\",\"receive_id\":%u,\"field\":\"%s\","
           "\"scratch_before\":[%.3f,%.3f,%.3f],\"scratch_after\":[%.3f,%.3f,%.3f],"
           "\"native_result\":%d,\"archive_error_before\":%u,\"archive_error_after\":%u,"
+          "\"scalar_count\":%u,\"scalar_values\":[%u,%u,%u,%u],\"scalar_maxima\":[%u,%u,%u,%u],"
           "\"original_forwarded\":true,\"payload_modified\":false,\"position_written\":false,"
           "\"final_application_verified\":false,\"monotonic_ms\":%lu}\r\n",
           f->id,path,before[0],before[1],before[2],after[0],after[1],after[2],
-          result,error_before,error_after,GetTickCount());line(row);
+          result,error_before,error_after,scope.count,scope.value[0],scope.value[1],scope.value[2],scope.value[3],
+          scope.maximum[0],scope.maximum[1],scope.maximum[2],scope.maximum[3],GetTickCount());line(row);
     }
     SetLastError(exit_error);return result;
 }
@@ -63,6 +89,7 @@ static void vector_decode_install(uintptr_t base) {
     VirtualProtect((void*)slot,8,old,&ignored);
     if((uintptr_t)previous!=expected){vector_decode_original=NULL;return;}
     vector_decode_installed=1;
+    vector_decode_index_observer=vector_decode_index_observe;
     line("{\"vector_decode_trace\":\"installed\",\"limit\":128,\"observational\":true}\r\n");
 }
 #endif

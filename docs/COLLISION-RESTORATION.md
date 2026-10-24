@@ -134,3 +134,19 @@ decoded scratch values from final application. The original serializer still
 runs once with unchanged arguments; no archive read/seek, packet mutation or
 position correction is added. Its actual-header native fixture and optimized
 negative canary pass. No game has exercised this additional field observer yet.
+
+Offline analysis identified the actual three-component vector codec. A private
+controlled replay of its pinned native body round-tripped three coordinate
+sets and reproduced the observed bad coordinates when supplied width13 and
+bounded component values17,103,0. This executes only the codec against authored
+scalar callbacks in an analysis process; it starts no game and decodes no
+real packet. It proves the arithmetic can produce those values, not which
+field or sender caused the live discontinuity.
+
+The field observer now reuses the existing scalar-read hook to record the
+width and three component values at the codec's four exact return sites.
+Archive identity, field scope, thread, order and scalar bounds are checked;
+nested unrelated fields mask the outer scope. Zero or partial scalar counts
+remain incomplete evidence. No additional archive hook or read/seek is added.
+Actual-header vector, inventory-reference and27-case receive fixtures pass.
+This extension has not been exercised in a game.
