@@ -148,16 +148,20 @@ static void combat_fire_stop(uintptr_t base,const char *reason,DWORD now) {
 }
 /* Pure QA permission gate. Native local Role determines autonomous control;
  * RemoteRole describes the counterpart and is not a substitute for the
- * separately validated owned/acknowledged pawn, native channel and context. */
+ * separately validated owned/acknowledged pawn, native channel and context.
+ * Retained scene-return remote0/local2 is admitted to the ordinary FireWeapon
+ * input path. Exact owned FireWeapon/Pawn.StartFire/Weapon.StartFire scripts
+ * do not require pawn RemoteRole2/3. Engine guards still decide actual fire. */
 static int combat_fire_roles_valid(const unsigned char pawn[2],const unsigned char weapon[2],uint32_t nofire) {
-    return (pawn[0]==2||pawn[0]==3)&&pawn[1]==2&&weapon[0]==3&&weapon[1]>=1&&weapon[1]<=2&&!(nofire&0x10000);
+    return (pawn[0]==0||pawn[0]==2||pawn[0]==3)&&pawn[1]==2&&weapon[0]==3&&weapon[1]>=1&&weapon[1]<=2&&!(nofire&0x10000);
 }
 static int combat_fire_roles_selftest(void) {
     unsigned char pawn[2]={3,2},weapon[2]={3,1};
     if(!combat_fire_roles_valid(pawn,weapon,0))return 0;
     /* Actual retained scene-return tuple: autonomous pawn, simulated weapon. */
     pawn[0]=2;if(!combat_fire_roles_valid(pawn,weapon,0))return 0;
-    pawn[0]=0;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[0]=0;if(!combat_fire_roles_valid(pawn,weapon,0))return 0;
+    if(combat_fire_roles_valid(pawn,weapon,0x10000))return 0;
     pawn[0]=3;
     if(combat_fire_roles_valid(pawn,weapon,0x10000))return 0;
     pawn[1]=1;if(combat_fire_roles_valid(pawn,weapon,0))return 0;

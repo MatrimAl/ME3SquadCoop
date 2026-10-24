@@ -9,7 +9,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     check_mutations(args.zig.resolve(strict=True), {
         "restore-initial-remote-role-only": [
-            ("(pawn[0]==2||pawn[0]==3)", "(pawn[0]==3)")],
+            ("(pawn[0]==0||pawn[0]==2||pawn[0]==3)", "(pawn[0]==3)")],
+        "reject-retained-remote-zero": [("(pawn[0]==0||pawn[0]==2||pawn[0]==3)", "(pawn[0]==2||pawn[0]==3)")],
         "allow-simulated-local-pawn": [
             ("&&pawn[1]==2", "&&(pawn[1]==1||pawn[1]==2)")],
         "ignore-native-no-fire-permission": [

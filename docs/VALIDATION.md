@@ -181,3 +181,20 @@ preload completion. This content has not been reached or tested by the current
 Gatehouse route. Directly emitting its remote event would skip prerequisites
 and is not an established test. Gatehouse conversation content is mixed;
 ambient samples cannot establish that every node is ambient.
+
+## Protected fire-bot role gate correction
+
+A review of six fully decoded owned fire functions found no requirement that
+an autonomous pawn's RemoteRole must be2 or3. The protected fire bot had added
+that restriction and refused the retained localRole2/remoteRole0 tuple before
+ordinary FireWeapon could run. The QA gate now admits that tuple, while
+keeping localRole exactly2, weapon role restrictions, native NoFire permission,
+current reciprocal ownership, acknowledgement, actor channel, native combat
+context and inventory chain checks. It does not write role bytes or bypass
+engine fire logic, and does not change ordinary player input behavior.
+
+The real DLL self-test failed on the old predicate with the retained tuple.
+The corrected predicate is evaluated by the native fixture and deliberate
+mutants, including restoring the old remote-role restriction. Successful input
+dispatch, ammunition use, release and hostile damage still require runtime
+proof; this is not a combat completion claim.
