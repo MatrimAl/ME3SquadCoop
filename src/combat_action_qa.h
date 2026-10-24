@@ -167,6 +167,13 @@ static int combat_action_ready(int touching,float top_distance,float turn,float 
     return touching==1&&isfinite(top_distance)&&top_distance>=45&&top_distance<=80&&
         isfinite(turn)&&turn==0&&isfinite(speed)&&speed<15&&still>=250;
 }
+/* Recorded contact fluctuated79.8..80.8 units. Once braking starts at the
+ * original80-unit boundary, keep axes neutral through a2-unit contact margin.
+ * This never widens combat_action_ready or substitutes geometry for Touching. */
+static int combat_action_braking(int previous,int touching,float top_distance,float turn) {
+    return (previous==0||previous==1)&&touching==1&&isfinite(top_distance)&&
+        top_distance>=45&&top_distance<=(previous?82:80)&&isfinite(turn)&&turn==0;
+}
 static int combat_action_jump_context(uintptr_t base,uintptr_t pawn,uintptr_t world,
                                       const GuestCameraStamp *saved_top,float top_xyz[3],float bottom_xyz[3],int *touching) {
     *touching=0;GameArray paths={0},contacts={0},again={0};uintptr_t actors[256];uint32_t top_flags=0;
@@ -320,6 +327,15 @@ static int combat_action_qa_selftest(void) {
        combat_action_ready(1,44.9f,0,0,250)||combat_action_ready(1,81,0,0,250)||
        combat_action_ready(1,60,1,0,250)||combat_action_ready(1,60,0,15,250)||
        combat_action_ready(1,60,0,0,249))return 0;
+    const float contact_trace[]={79.843f,80.697f,80.243f,80.751f,80.384f,79.874f};
+    int braking=0;
+    for(unsigned i=0;i<sizeof contact_trace/sizeof *contact_trace;++i){
+        braking=combat_action_braking(braking,1,contact_trace[i],0);if(!braking)return 0;
+    }
+    if(combat_action_braking(0,1,80.1f,0)||combat_action_braking(1,1,82.01f,0)||
+       combat_action_braking(1,0,79,0)||combat_action_braking(1,1,79,1)||
+       combat_action_braking(1,1,44.9f,0)||combat_action_braking(2,1,79,0)||
+       combat_action_braking(1,1,NAN,0))return 0;
     return 1;
 }
 #endif

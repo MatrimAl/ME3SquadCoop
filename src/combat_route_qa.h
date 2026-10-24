@@ -122,7 +122,7 @@ static int combat_route_numbered_point(const char *name,uint32_t number,unsigned
     return 0;
 }
 typedef struct CombatRouteQA {
-    int loaded,opted,active,done,stopping,injected,action_approach,turn_injected;unsigned waypoint,first_waypoint,cleanup_tries;
+    int loaded,opted,active,done,stopping,injected,action_approach,action_braking,turn_injected;unsigned waypoint,first_waypoint,cleanup_tries;
     DWORD stable_at,started,advanced_at,report_at,discovery_at,stopped_at,still_at,paused_at;
     GuestCameraStamp pc,pawn,world,squad,input,camera,nodes[COMBAT_ROUTE_COUNT];
     uintptr_t story_player,story_initial,node_world;float progress[3],axes[2],origin[3],turn;int nodes_ready;
@@ -241,7 +241,8 @@ static void combat_route_action_approach(uintptr_t base,SessionContext c,uintptr
     float speed=sqrtf(velocity[0]*velocity[0]+velocity[1]*velocity[1]),top_distance=combat_route_horizontal(xyz,top);
     /* Stop inside the actual overlap, before approaching closer than 45 units.
      * A geometric overlap alone never substitutes for Actor.Touching evidence. */
-    int in_place=touching&&top_distance<=80&&q->turn==0;
+    q->action_braking=combat_action_braking(q->action_braking,touching,top_distance,q->turn);
+    int in_place=q->action_braking;
     if(in_place&&speed<15){if(!q->still_at)q->still_at=now;}
     else q->still_at=0;
     if(combat_action_ready(touching,top_distance,q->turn,speed,q->still_at?now-q->still_at:0)){
@@ -289,6 +290,7 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
         if(q->active){
             if(!combat_route_same(base,c)){combat_route_end(base,"aborted","host-story-or-input-changed",NULL,now);return;}
             if(!combat_route_cleanup(base)){combat_route_end(base,"aborted","pause-input-cleanup",NULL,now);return;}
+            q->action_braking=0;q->still_at=0;
             /* Observed normal landing includes a brief 54-unit step down.
              * Keep axes neutral while airborne; resume only through every
              * original guard. Never carry movement across a changed owner. */
@@ -332,7 +334,7 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
         if(combat_route_horizontal(xyz,combat_route_stop)>65){combat_route_end(base,"aborted","stop-drift",xyz,now);return;}
         if(speed<15){if(!q->still_at)q->still_at=now;if(now-q->still_at>=500){
             if(!combat_action_opted())combat_route_end(base,"approach-complete","stopped-before-drop-no-traversal",xyz,now);
-            else {q->action_approach=1;q->action_approach_at=now;q->still_at=0;
+            else {q->action_approach=1;q->action_braking=0;q->action_approach_at=now;q->still_at=0;
                 combat_route_log("action-approach-started","explicit-normal-action-opt-in",xyz,now);}
             return;
         }}

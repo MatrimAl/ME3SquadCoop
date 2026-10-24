@@ -76,3 +76,20 @@ fixtures cover opt-in, forwarding, the tap interval including timer wrap,
 matching cleanup, failed forwarding, identity replacement, touching, facing,
 clearance and time bounds. Compiled mutants check that those fixtures reject
 selected unsafe changes. These fixtures cannot prove in-game traversal.
+
+## Contact-boundary braking candidate
+
+A protected run reached the real top contact but repeatedly alternated between
+neutral and forward input as the measured distance fluctuated around the
+80-unit stop boundary. It timed out without dispatching the ordinary action.
+The QA driver now keeps braking latched through a two-unit margin after
+entering the original boundary. Actual contact and facing remain mandatory;
+losing them or leaving the margin clears braking. A context pause also clears
+the braking latch and stationary timer.
+
+The action-dispatch conditions remain distance45..80, actual contact, captured
+facing, speed below15 and at least250ms stationary. The approach still has
+its ten-second limit. The native self-test replays measured contact distances
+and rejects lost contact, wrong facing and out-of-range inputs. This removes
+a test-driver input oscillation in the fixture; actual traversal is still
+unverified. No game was launched to validate this change.
