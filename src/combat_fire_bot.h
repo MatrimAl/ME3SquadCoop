@@ -146,6 +146,29 @@ static void combat_fire_stop(uintptr_t base,const char *reason,DWORD now) {
      */
     if((called&&ar&&after==0)||!safe||p->release_attempts>=3)p->active=0;
 }
+/* Pure QA permission gate. Native local Role determines autonomous control;
+ * RemoteRole describes the counterpart and is not a substitute for the
+ * separately validated owned/acknowledged pawn, native channel and context. */
+static int combat_fire_roles_valid(const unsigned char pawn[2],const unsigned char weapon[2],uint32_t nofire) {
+    return (pawn[0]==2||pawn[0]==3)&&pawn[1]==2&&weapon[0]==3&&weapon[1]>=1&&weapon[1]<=2&&!(nofire&0x10000);
+}
+static int combat_fire_roles_selftest(void) {
+    unsigned char pawn[2]={3,2},weapon[2]={3,1};
+    if(!combat_fire_roles_valid(pawn,weapon,0))return 0;
+    /* Actual retained scene-return tuple: autonomous pawn, simulated weapon. */
+    pawn[0]=2;if(!combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[0]=0;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[0]=3;
+    if(combat_fire_roles_valid(pawn,weapon,0x10000))return 0;
+    pawn[1]=1;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[1]=0;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[1]=3;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[1]=2;weapon[1]=3;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    weapon[1]=0;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    weapon[1]=1;pawn[0]=255;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[0]=3;weapon[0]=255;
+    return !combat_fire_roles_valid(pawn,weapon,0);
+}
 static int combat_fire_conditions(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,int ordinary,
                                   int enabled,uintptr_t *mode_out,uintptr_t *weapon_out,const char **reason) {
     *reason="eligible";GuestPlayerContextLease *l=&guest_player_context_lease;
@@ -169,8 +192,7 @@ static int combat_fire_conditions(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
        !guest_camera_actor_live(base,inventory)||!is_kind_of(base,inventory,"InventoryManager")||
        read_ptr(weapon+0x2b0)!=inventory){*reason="weapon-owner-instigator-inventory-chain";return 0;}
     if(!read_at(pawn+0x269,pawn_roles,2)||!read_at(weapon+0x269,weapon_roles,2)||
-       pawn_roles[0]!=3||pawn_roles[1]<1||pawn_roles[1]>2||weapon_roles[0]!=3||weapon_roles[1]<1||weapon_roles[1]>2||
-       !read_at(pawn+0x578,&nofire,4)||(nofire&0x10000)){*reason="weapon-or-pawn-role-fire-permission";return 0;}
+       !read_at(pawn+0x578,&nofire,4)||!combat_fire_roles_valid(pawn_roles,weapon_roles,nofire)){*reason="weapon-or-pawn-role-fire-permission";return 0;}
     return 1;
 }
 static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,

@@ -43,6 +43,8 @@ probe.SquadGuestHitTraceSelfTest.restype = ctypes.c_int
 assert probe.SquadGuestHitTraceSelfTest() == 1, "hit observer changed forwarding/nesting, admitted stale targets/callbacks, or exceeded its paired record budget"
 probe.SquadDirectIPSelfTest.restype = ctypes.c_int
 assert probe.SquadDirectIPSelfTest() == 1, "native endpoint validation failed"
+probe.SquadCombatFireRolesSelfTest.restype = ctypes.c_int
+assert probe.SquadCombatFireRolesSelfTest() == 1, "fire QA confused RemoteRole with native autonomous ownership or ignored the no-fire permission"
 probe.SquadGuestContextScopeSelfTest.restype = ctypes.c_int
 assert probe.SquadGuestContextScopeSelfTest() == 1, "guest context did not resume after scene/disable without a pawn ownership change"
 probe.SquadGuestCameraSelfTest.restype = ctypes.c_int
