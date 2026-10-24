@@ -3,6 +3,11 @@
 #include "background_focus.h"
 /* Protected probe orchestration. These policies do not enter the player ASI. */
 static int combat_action_opted(void);
+static int session_manual_guest_input(void) {
+    static int loaded,value;
+    if(!loaded){wchar_t text[8]={0};loaded=1;value=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_MANUAL_GUEST_QA",text,8)==1&&text[0]==L'1';}
+    return value&&progress_enabled&&has_marker(root);
+}
 static int session_policy_is_host(void) {return test_action==6;}
 static int session_policy_enabled(void) {
     return has_marker(root);
@@ -36,7 +41,7 @@ static DWORD session_guest_disconnect_delay(int progress,int action) {
 static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     SessionContext c = session_context(engine); DWORD now = GetTickCount();
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,progress_enabled&&has_marker(root),now);
-    combat_fire_bot_tick(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root)&&!collision_baseline_qa_opted(),after,now);
+    combat_fire_bot_tick(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root)&&!collision_baseline_qa_opted()&&!session_manual_guest_input(),after,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
     guest_player_context_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
     guest_collision_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
@@ -48,7 +53,7 @@ static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     }
     session_guest_last_pawn = ashley ? c.pawn : 0;
     if (!after) {
-        if (ashley&&(!collision_baseline_qa_opted()||session_guest_epoch>=2)) {
+        if (!session_manual_guest_input()&&ashley&&(!collision_baseline_qa_opted()||session_guest_epoch>=2)) {
             uintptr_t input = read_ptr(c.pc + 0x6dc);
             if (is_live(base, input) && is_kind_of(base, input, "PlayerInput")) {
                 DWORD elapsed = now - session_guest_at;
@@ -58,7 +63,7 @@ static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
                 if (!session_disconnect_sent&&!collision_baseline_qa_opted()) progress_guest_follow_input(base,c.pc,c.pawn,input,elapsed);
             }
         }
-    } else if (session_guest_first_at && now - session_guest_first_at >= session_guest_disconnect_delay(progress_enabled,combat_action_opted()) && !session_disconnect_sent && c.pc) {
+    } else if (!session_manual_guest_input() && session_guest_first_at && now - session_guest_first_at >= session_guest_disconnect_delay(progress_enabled,combat_action_opted()) && !session_disconnect_sent && c.pc) {
         session_disconnect_sent = 1;
         char text[250]; snprintf(text, sizeof text,
             "{\"session\":\"disconnect-request\",\"source\":\"ordinary-engine-console\",\"monotonic_ms\":%lu}\r\n", now); line(text);
