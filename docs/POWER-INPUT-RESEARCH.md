@@ -30,17 +30,38 @@ it does not establish that a power was accepted in a running campaign.
   the controlled pawn to `SFXPawn_Player` before its FindPower/UsePower path.
   It cannot substitute for testing the keyboard route on a squad member.
 
-These are verified script segments, not a complete proven keyboard-to-server
-chain. `SFXSFHandler_PCPowerWheel.doHotKey` and `SquadOrderUsePower` contain
-native bridges whose implementations remain unresolved. A native bridge's
-short script must not be reported as a decompiled native body.
+## Exact native bridge findings
+
+Read-only analysis of the supported executable resolved the two native bridges.
+This combines registration data, startup pointer initialization, unwind bounds,
+class vtables and disassembly; no native power function was invoked.
+
+- `SFXSFHandler_PCPowerWheel.doHotKey`: registration thunk RVA0xb69570,
+  implementation RVA0xc5ccc0. It requires the handler's controller, valid
+  quickslot definitions and initialized cached power icons. Possessing Ashley
+  alone does not establish those prerequisites.
+- The inherited `SFXSFHandler_PowerWheel.UsePower` script forwards to
+  `m_pPlayerController.GetGameModeDefault().UsePower`. Exact owned bytecode
+  establishes this receiver; matching event names alone would not.
+- `BioPlayerController.SquadOrderUsePower`: thunk RVA0xb64a20,
+  implementation RVA0xaa38b0. The initial supplied-pawn cast accepts `BioPawn`.
+  When that pawn equals the controller's controlled pawn, it stages the normal
+  pending power order; the other-pawn branch issues a henchman order.
+
+The static route is therefore `UseAbility -> doHotKey -> inherited UsePower ->
+GameModeDefault.UsePower -> SquadOrderUsePower -> ApplyTacticalOrders`.
+These are function-entry RVAs for the supported image only, not portable hook
+signatures or permission to call a function through an assumed ABI. Native
+unwind fragments must not be mistaken for complete function boundaries.
 
 ## Next verification
 
-Resolve those native implementations and the actual guest GUI/hotkey power
-selection. Then test an available Ashley power through the intended input
-route, observing delivered input, native action acceptance, cooldown and an
-authoritative effect on the intended target. Preserve native restrictions.
+Measure the actual guest controller's quickslot definitions and the wheel's
+cached icons after acquisition. Then test an available Ashley power through
+its mapped keyboard input, observing delivered input, action acceptance,
+cooldown and an authoritative effect on the intended target. Preserve native
+restrictions. Static acceptance of the pawn base class does not prove a cast
+or a target effect occurred in a running game.
 
 The external [LExSDKv2 LE3 reference](https://github.com/llamathings/LExSDKv2/tree/000d7c3799f8f9de5db276b49008b539f5f97830/Src/LESDK/LE3)
 provided initial declaration leads. The primary

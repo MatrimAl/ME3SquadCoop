@@ -1,6 +1,6 @@
 # Validation status
 
-The latest protected pair **failed gameplay continuity** despite completing
+A preceding protected pair **failed gameplay continuity** despite completing
 three ownership epochs and native disconnect/AI return. After the synthetic
 scene release, the guest Ashley jumped roughly54,107 units toward the world
 origin. After reacquisition the host Ashley also jumped roughly54,025 units,
@@ -21,7 +21,7 @@ Original protection covered8,210 files, profiles were unchanged, native
 exceptions were zero and no game remained. The memory helper exited1 without
 a final summary, so this is not an unqualified passing observer audit.
 
-Status reviewed: 2026-10-24; the latest gameplay evidence below is from 2026-10-23.
+Status reviewed: 2026-10-24.
 Private raw logs and profiles are not published.
 
 A subsequent protected pair also failed continuity after synthetic release.
@@ -42,6 +42,16 @@ new runtime result or gameplay fix is claimed from those checks.
 
 Guest powers remain unverified. Keyboard and gamepad power inputs use different
 entry points in retained bindings; see [power input research](POWER-INPUT-RESEARCH.md).
+
+Latest protected rerun with the expanded observer completed three ownership
+epochs and native disconnect/AI return without reproducing unsafe guest motion.
+It still failed the sustained common-travel gate, and replica mismatch remained
+in the aggregate evidence. The change only adds observation: the intermittent
+tear-off/motion regression is not fixed by this result. No combat or real
+conversation success was established. Original profile/source/build stayed
+unchanged, native exceptions were zero and no game process remained. The
+read-only monitor again reported access denied and the memory helper exited1,
+so this is not a fully passing observer audit.
 
 Latest ordinary-entry host check: the separate runtime and guards-only probe
 loaded together in the protected copy. The ordinary entry opened a real native
