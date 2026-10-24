@@ -77,3 +77,21 @@ contain no player-pawn class cast. The native local-control predicate remains
 a separate verification requirement. The expanded observer passes its DLL
 self-test and seven compiled negative controls; this is observer validation,
 not a new in-game combat result.
+
+The first bounded pair with this expansion rejected observer installation on
+both sides. Live reflection confirmed that `SFXInventoryManager.StartFire`
+has a local object variable `W` after its byte parameter; the original
+weapon-only validator required the parameter to be the last child. The
+validator now pins that specific local's owner, name, offset and flags and
+continues to reject unexpected children. Installation failures also identify
+the rejected method. The corrected build passes the native harness, but its
+live installation is not yet verified. That pair dispatched no fire pulse
+because the inventory-chain eligibility gate refused it; the session lifecycle
+passed, with no native exceptions or original-profile changes. Neither combat
+nor full dialogue was verified.
+
+Read-only native-slot capture and exact-image analysis resolved the Ashley
+local-control predicate: in a network session its controlled player controller
+requires `Player` to be an `Engine.LocalPlayer`. The inspected predicate has no
+pawn-class or Role restriction. Static logic and slot identity do not prove
+the predicate's result at a particular firing tick.

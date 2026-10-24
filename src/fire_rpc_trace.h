@@ -157,7 +157,14 @@ static int fire_rpc_validate(int k) {
     if(fire_rpc_definitions[k].shape==1)return 1; /* Only locals, no parameters. */
     uintptr_t prop=read_ptr(fn+0x70);char path[180];
     snprintf(path,sizeof path,"%s.%s",fire_rpc_definitions[k].path,fire_rpc_definitions[k].shape==2?"DeltaTime":"FireModeNum");
-    return read_ptr(prop+0x40)==fn&&!read_ptr(prop+0x68)&&
+    if(!strcmp(fire_rpc_definitions[k].path,"SFXGame.SFXInventoryManager.StartFire")){
+        /* The exact owned script has a W local after its one byte parameter. */
+        uintptr_t local=read_ptr(prop+0x68);char local_path[180];
+        snprintf(local_path,sizeof local_path,"%s.W",fire_rpc_definitions[k].path);
+        if(read_ptr(local+0x40)!=fn||read_ptr(local+0x68)||
+           !combat_fire_property(fire_rpc_base,local,"ObjectProperty",local_path,4,0))return 0;
+    }else if(read_ptr(prop+0x68))return 0;
+    return read_ptr(prop+0x40)==fn&&
         combat_fire_property(fire_rpc_base,prop,fire_rpc_definitions[k].shape==2?"FloatProperty":"ByteProperty",path,0,0x80);
 }
 static int fire_rpc_collect(uintptr_t parent,int states,unsigned *found) {
@@ -185,7 +192,7 @@ static void fire_rpc_trace_prepare(void) {
     if(!fire_rpc_receiver_valid(16,inventory))return;
     fire_rpc_attempted=1;fire_rpc_base=s->base;
     uintptr_t classes[3]={s->weapon.klass,s->pawn.klass,read_ptr(inventory+0x50)};
-    unsigned found=0;int installed=0;
+    unsigned found=0;int installed=0;const char *rejected_method="";
     for(int receiver=0;receiver<3;++receiver){
         uintptr_t klass=classes[receiver];
         for(int depth=0;klass&&depth<32;++depth,klass=read_ptr(klass+0x60)){
@@ -199,7 +206,7 @@ static void fire_rpc_trace_prepare(void) {
         if(klass)goto rejected;
     }
     if(found!=((1u<<FIRE_RPC_COUNT)-1)||!guest_equipment_dispatch_pins(s->base))goto rejected;
-    for(int k=0;k<FIRE_RPC_COUNT;++k)if(!fire_rpc_validate(k))goto rejected;
+    for(int k=0;k<FIRE_RPC_COUNT;++k)if(!fire_rpc_validate(k)){rejected_method=fire_rpc_definitions[k].path;goto rejected;}
     fire_rpc_original=(FireRpcExec)(s->base+0xf52b0);
     for(int k=0;k<FIRE_RPC_COUNT;++k){
         if(InterlockedCompareExchangePointer((PVOID volatile*)(fire_rpc_methods[k].function.pointer+0xd8),
@@ -210,7 +217,7 @@ static void fire_rpc_trace_prepare(void) {
 rejected:
     for(int k=0;k<installed;++k)InterlockedCompareExchangePointer((PVOID volatile*)(fire_rpc_methods[k].function.pointer+0xd8),
         (PVOID)fire_rpc_original,(PVOID)fire_rpc_wrappers[k]);
-    line("{\"fire_rpc_trace\":\"not-installed\",\"reason\":\"exact-method-or-native-pins\"}\r\n");
+    char row[500];snprintf(row,sizeof row,"{\"fire_rpc_trace\":\"not-installed\",\"reason\":\"exact-method-or-native-pins\",\"function\":\"%s\",\"found_method_mask\":%u}\r\n",rejected_method,found);line(row);
 }
 static void *fire_rpc_fixture_args[3];static int fire_rpc_fixture_calls,fire_rpc_fixture_bad;
 static void fire_rpc_fixture_forward(void *a,void *b,void *c) {
