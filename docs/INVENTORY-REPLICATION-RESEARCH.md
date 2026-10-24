@@ -113,4 +113,10 @@ needed before choosing a narrowly scoped observation of the original decoder's
 index output. No archive payload is re-read or advanced by this addition.
 The actual receive-wrapper fixture checks the captured slot values alongside
 its forwarding and LastError invariants; the archive targets in a live run
-remain to be collected.
+were subsequently collected from a real receive: archive vtable RVA0x119dda8,
+slot0x10 target0xc2b00 and slot0x18 target0xc3060. The first slot consumes a
+bit count (the existing record labels it `archive_bytes_rva`); the second reads
+a bounded integer. Both have void ABI. Their code targets are shared with
+another archive vtable, so a future observer must select the concrete table
+and exact property/thread/archive scope. These identities do not yet reveal
+the discriminator or index from the failing receive.

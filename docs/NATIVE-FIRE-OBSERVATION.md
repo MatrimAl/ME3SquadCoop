@@ -84,8 +84,12 @@ has a local object variable `W` after its byte parameter; the original
 weapon-only validator required the parameter to be the last child. The
 validator now pins that specific local's owner, name, offset and flags and
 continues to reject unexpected children. Installation failures also identify
-the rejected method. The corrected build passes the native harness, but its
-live installation is not yet verified. That pair dispatched no fire pulse
+the rejected method. The corrected build passes the native harness. A later
+bounded pair verified installation of all20 methods on both sides. That pair
+also dispatched no fire pulse: its inventory reference became null roughly
+six seconds after the first healthy ownership baseline, before the eight-second
+fire-test baseline could complete. No weapon-call silence from this run proves
+an engine refusal to fire. The earlier pair dispatched no fire pulse
 because the inventory-chain eligibility gate refused it; the session lifecycle
 passed, with no native exceptions or original-profile changes. Neither combat
 nor full dialogue was verified.
