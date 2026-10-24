@@ -355,6 +355,11 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
     if(!q->report_at||now-q->report_at>=1000){q->report_at=now;combat_route_log("input","ordinary-host-axes",xyz,now);}
 }
 static int combat_route_qa_selftest(void) {
+    int action_loaded=combat_action_qa.loaded,action_opted=combat_action_qa.opted;
+    combat_action_qa.loaded=1;combat_action_qa.opted=1;
+    int forced_release=session_policy_synthetic(1,30001)||session_policy_synthetic(1,18001);
+    combat_action_qa.loaded=action_loaded;combat_action_qa.opted=action_opted;
+    if(forced_release)return 0;
     if(session_guest_disconnect_delay(0,1)!=40000||session_guest_disconnect_delay(1,0)!=60000||
        session_guest_disconnect_delay(1,-1)!=60000||session_guest_disconnect_delay(1,1)!=90000)return 0;
     if(combat_route_pause_budget(1)!=20000||combat_route_pause_budget(0)!=2000||combat_route_pause_budget(-1)!=2000||

@@ -33,6 +33,11 @@ With the existing action opt-in only, the synthetic guest disconnect moves
 from60 to90 seconds after first ownership so it does not terminate the final
 approach. The ordinary40/60-second scenarios and native process deadlines
 remain unchanged. This longer action scenario still needs live verification.
+The action trial now omits the synthetic three-second ownership release;
+real engine scene gates continue to apply. A protected run showed the detached
+guest beginning to fall during that artificial release, before reacquisition.
+Removing it from a gameplay route prevents that test from interrupting normal
+traversal; it does not repair or verify release/reacquisition collision behavior.
 This correction has offline fixture coverage; successful shuttle exit and the
 remaining route still require a new protected run. Captured component bounds
 are geometric leads, not proof of which component produced the collision.

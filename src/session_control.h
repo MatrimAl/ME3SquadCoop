@@ -2,12 +2,16 @@
 #include "session_admission_diagnostics.h"
 #include "background_focus.h"
 /* Protected probe orchestration. These policies do not enter the player ASI. */
+static int combat_action_opted(void);
 static int session_policy_is_host(void) {return test_action==6;}
 static int session_policy_enabled(void) {
     return has_marker(root);
 }
 static int session_policy_host_ready(void) {return host_map_refreshed;}
 static int session_policy_synthetic(DWORD first,DWORD now) {
+    /* The normal-action gameplay trial follows real scene gates only. A
+     * synthetic release made the detached guest fall before reacquisition. */
+    if(combat_action_opted())return 0;
     DWORD at=progress_enabled?30000:18000;return first&&now-first>=at&&now-first<at+3000;
 }
 static int session_policy_walk_started(void) {return progress_walk_at!=0;}
@@ -26,7 +30,6 @@ static uintptr_t session_guest_last_pawn = 0;
 static uint32_t session_guest_epoch = 0;
 static DWORD session_guest_at = 0, session_guest_first_at = 0;
 static int session_disconnect_sent = 0;
-static int combat_action_opted(void);
 static DWORD session_guest_disconnect_delay(int progress,int action) {
     return progress?(action==1?90000:60000):40000;
 }
