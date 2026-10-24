@@ -116,3 +116,18 @@ but the stricter stop gate remained unverified. Enemy damage was not measured.
 The later inventory class-mismatch receive still cleared the guest's manager,
 so this is evidence of firing while the chain is valid, not sustained combat
 or an inventory repair. Full dialogue and common travel also remain unverified.
+
+A follow-up pair exposed a release failure: mode2 start requests reached the
+host while the weapon remained Active with PendingFireMode2. Its normal
+ServerStopFire request also arrived and advanced through the original script,
+but the pending mode remained2; sampled consumption continued after release.
+The strict verifier rejected stop behavior. This contradicts treating the
+earlier short firing success as a reliable hold/release implementation.
+
+Owned script review identifies a possible explanation: Active.BeginFire can
+schedule CheckBeginFire while the port-arms animation is running. CheckBeginFire
+later begins the retained mode without checking controller input or inventory
+pending fire. Active.EndFire does not clear this timer; Active.EndState does.
+Reusing the stock ClearTimer operation for a validated pending release is a
+candidate, not an implemented or runtime-verified fix. It must preserve normal
+firing and permit a fresh press after cancellation.
