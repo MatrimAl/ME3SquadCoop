@@ -164,12 +164,12 @@ static int combat_action_approach_safe(float top_distance,float height,DWORD ela
         fabsf(height)<=120&&elapsed<10000;
 }
 static int combat_action_ready(int touching,float top_distance,float turn,float speed,DWORD still) {
-    return touching==1&&isfinite(top_distance)&&top_distance>=45&&top_distance<=80&&
+    return touching==1&&isfinite(top_distance)&&top_distance>=45&&top_distance<=82&&
         isfinite(turn)&&turn==0&&isfinite(speed)&&speed<15&&still>=250;
 }
-/* Recorded contact fluctuated79.8..80.8 units. Once braking starts at the
- * original80-unit boundary, keep axes neutral through a2-unit contact margin.
- * This never widens combat_action_ready or substitutes geometry for Touching. */
+/* Recorded contact fluctuated79.8..80.8 units and settled at80.75. Keep
+ * readiness consistent with the82-unit braking margin:80 was a QA heuristic,
+ * not a native selector limit. Actual Touching and native selection still apply. */
 static int combat_action_braking(int previous,int touching,float top_distance,float turn) {
     return (previous==0||previous==1)&&touching==1&&isfinite(top_distance)&&
         top_distance>=45&&top_distance<=(previous?82:80)&&isfinite(turn)&&turn==0;
@@ -324,9 +324,12 @@ static int combat_action_qa_selftest(void) {
        combat_action_approach_safe(231,0,0)||combat_action_approach_safe(60,121,0)||
        combat_action_approach_safe(60,0,10000)||combat_action_approach_safe(NAN,0,0))return 0;
     if(!combat_action_ready(1,60,0,0,250)||combat_action_ready(0,60,0,0,250)||
-       combat_action_ready(1,44.9f,0,0,250)||combat_action_ready(1,81,0,0,250)||
+       combat_action_ready(1,44.9f,0,0,250)||combat_action_ready(1,82.01f,0,0,250)||
        combat_action_ready(1,60,1,0,250)||combat_action_ready(1,60,0,15,250)||
        combat_action_ready(1,60,0,0,249))return 0;
+    if(!combat_action_ready(1,80.75054f,0,0,250)||
+       combat_action_ready(0,80.75054f,0,0,250)||combat_action_ready(1,80.75054f,0,15,250)||
+       combat_action_ready(1,80.75054f,0,0,249))return 0;
     const float contact_trace[]={79.843f,80.697f,80.243f,80.751f,80.384f,79.874f};
     int braking=0;
     for(unsigned i=0;i<sizeof contact_trace/sizeof *contact_trace;++i){

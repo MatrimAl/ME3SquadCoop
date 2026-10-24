@@ -809,3 +809,18 @@ and a non-loading archive. It forwards the original once and never changes
 payload, actor position or archive cursor. Authored-memory tests check sender
 identity rejection, scalar observation, forwarding and error preservation;
 these tests are not live packet matching or a gameplay fix.
+
+
+### Ordinary-action test deadlock
+
+The preceding route settled at80.75054 units from the real jump-down top with
+actual Touching, zero velocity and neutral input. Braking retained neutral input
+through82 units, but readiness rejected anything above80, so the bot waited
+until its10-second bound. The retained native selector checks Touching, node
+and reachspec eligibility and direction scores; no80-unit comparison was found.
+That80-unit threshold was an authored QA heuristic. Readiness now shares the
+existing82-unit braking margin, retaining actual contact, facing, speed and
+settling checks. The bot still sends ordinary `PC_Action`; native selection and
+traversal are untouched. Regression checks cover the recorded80.75054 case and
+reject missing contact, excessive speed and insufficient settling. Live
+traversal remains unverified.
