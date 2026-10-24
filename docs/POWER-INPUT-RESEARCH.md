@@ -56,6 +56,16 @@ unwind fragments must not be mistaken for complete function boundaries.
 
 ## Next verification
 
+An offline comparison with the already-present LEMP reconstruction found a
+concrete reuse candidate: `SFXPlayerControllerMP.CastPower` checks combat input
+and the possessed pawn's power-list index, then calls the existing
+`SquadOrderUsePower` with that power's name and the possessed pawn. Its wrapper
+does not require an MP player-pawn cast. The selected script decoded completely
+(156 serialized bytes, 244 expanded VM bytes). This corroborates reuse of the
+existing squad-power route for Ashley; it does not establish native acceptance,
+cooldown, targeting or damage in a live guest session. LEMP is a research source
+for this comparison, not a runtime requirement.
+
 Measure the actual guest controller's quickslot definitions and the wheel's
 cached icons after acquisition. Then test an available Ashley power through
 its mapped keyboard input, observing delivered input, action acceptance,

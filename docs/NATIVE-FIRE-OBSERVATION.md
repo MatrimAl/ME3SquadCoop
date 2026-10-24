@@ -59,3 +59,21 @@ runs. Repeatability with observation disabled and the cause of the difference
 remain open. No authoritative enemy health/shield change was measured, so this
 run does not establish enemy damage or full combat. Private raw captures and
 the audited build/source fingerprints are retained outside the public repository.
+
+The optional script observer now also covers `Pawn.StartFire`, both base and
+SFX inventory-manager `StartFire` implementations, `BioPawn.Tick` and
+`BioPawn.HandleWeaponFiring` (20 exact methods total). Pawn, inventory and weapon
+receivers are distinguished; inventory observations require the existing pawn
+and weapon references to agree and the manager's instigator to be that pawn.
+The two per-frame entries are recorded only while the controller's fire input
+is pressed, within the existing record budget. These hooks do not invoke an
+extra firing or gate function. Internal VM calls may bypass `UFunction.Func`,
+so missing observer entries alone cannot establish that a method did not run.
+
+Owned script analysis identifies the natural path as `BioPawn.Tick` checking
+`IsLocallyControlled`, then `HandleWeaponFiring` checking pending fire and
+`CanFireWeapon` before calling `Pawn.StartFire`. These selected script bodies
+contain no player-pawn class cast. The native local-control predicate remains
+a separate verification requirement. The expanded observer passes its DLL
+self-test and seven compiled negative controls; this is observer validation,
+not a new in-game combat result.

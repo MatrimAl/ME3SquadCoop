@@ -15,4 +15,7 @@ if __name__ == "__main__":
         "forwarded-self-changed": [("fire_rpc_original(self,frame,result);", "fire_rpc_original(NULL,frame,result);")],
         "wrong-incoming-channel-accepted": [("channel==expected&&", "")],
         "outside-script-cursor-accepted": [("code>script+(uintptr_t)length", "0")],
+        "wrong-inventory-link-accepted": [("inventory==weapon_inventory&&", "")],
+        "wrong-inventory-instigator-accepted": [("instigator==pawn&&", "")],
+        "pawn-receiver-confused-with-weapon": [("if(receiver==1)return self==pawn;", "if(receiver==1)return self==weapon;")],
     }, "fire_rpc_trace.h", "SquadFireRpcTraceSelfTest")
