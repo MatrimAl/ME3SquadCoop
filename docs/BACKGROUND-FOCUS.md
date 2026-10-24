@@ -40,6 +40,11 @@ or browser-wheel permission.
 The native candidate builds and its actual-wrapper fixture passes 26 cases,
 including original forwarding, error preservation, peer loss, wrong callers,
 cinematics, intentional pauses and context changes during the getter. These are
-temporary test objects; positive live validation is still pending. Do not infer a
-working focus fix from this research or use it to claim reliable movement,
-combat or full dialogue support. More than one guest remains a future goal.
+temporary test objects. A subsequent protected pair observed a real false
+getter result adapted at the second Tick site and normal restoration of its
+focus-owned pause. After the dialogue guard correction, 128 valid samples
+spanning 13.375 seconds showed an active mode-0 landing conversation without
+either pause flag; control returned afterward. These are bounded protected
+observations, not ordinary-runtime validation or full conversation support.
+Guest movement remained stationary during the QA pulse. Reliable movement,
+combat and full dialogue support remain unverified; more guests are future work.

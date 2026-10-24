@@ -1,23 +1,21 @@
 # Validation status
 
-Latest protected pair: the native connection persisted, but a measured custom
-focus-loss PlayersOnly pause prevented any guest possession. See
-[background focus](BACKGROUND-FOCUS.md). A pre-possession read-only capture measured the
-pause with no active conversation or cinematic bit. The collision candidate
-therefore did not execute; positive repair and shared walking remain unverified.
-See the latest [progress entry](PROGRESS.md). The earlier lifecycle/walking
-boundary below still describes separate older evidence.
+The latest protected pair completed three ownership epochs, the actual mode-0
+landing exchange, a separate synthetic handoff and native disconnect/AI return.
+The conversation remained active for 13.375 seconds across 128 valid paired
+samples without the focus-owned pause; control returned afterward. This does
+not validate full mode-7 dialogue. See [background focus](BACKGROUND-FOCUS.md).
 
-Current gameplay boundary: a recent protected pair completed three ownership
-epochs, actual landing release/reacquisition, a separate synthetic handoff and
-ordinary disconnect, with zero recorded native exceptions. Its shared-walking
-evaluator still failed: no sustained nearby common travel interval, downward
-velocity outside the walking bound, and no verified ground contact. Collision
-repair did not execute. An ownership/lifecycle pass is not usable control return.
-A process-exit permission error also affected observation, so this is not an
-unqualified passing audit. Earlier startup/disconnect crashes remain documented
-in [PROGRESS.md](PROGRESS.md). The subsequent stale-release correction passed
-offline native fixtures; positive live repair remains unverified.
+Usable walking is still unverified: guest positions remained stationary within
+all three ownership epochs despite the QA input pulse. No collision repair ran;
+the returned physical collision flags were present. Input processing must be
+checked before another collision change. Reliable combat is also unverified.
+
+No native exceptions or forced cleanup were recorded, originals and profiles
+were protected, and no game remained. A process-exit observation permission
+error made the overall wrapper fail despite its lifecycle runner returning0.
+This is not an unqualified passing audit. Earlier falling/desynchronization and
+crash observations remain in [PROGRESS.md](PROGRESS.md).
 
 Status reviewed: 2026-10-24; the latest gameplay evidence below is from 2026-10-23.
 Private raw logs and profiles are not published.

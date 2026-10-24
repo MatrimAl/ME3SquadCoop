@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-24: mode-0 landing dialogue returns; movement still unresolved
+
+- The corrected protected pair completed three ownership epochs and native
+  disconnect/AI return. Its landing conversation was active in 128 valid paired
+  samples spanning 13.375 seconds, with both PlayersOnly and the custom focus
+  owner flag false. Guest control returned after this scene. This is a mode-0
+  scripted landing exchange, not a full mode-7 conversation test.
+- No collision repair ran: the observed returned physical shape retained both
+  actor/world and blocking collision, while its type fields were custom0.
+  Do not expand the repair predicate solely to force an attempt.
+- The guest positions were stationary within all three ownership epochs despite
+  the QA movement pulse. Input delivery/processing must be distinguished from
+  an actual movement restriction before changing collision or movement flags.
+- Native exceptions were zero, original protection covered 8,210 files and
+  unchanged profiles, no forced/unknown cleanup occurred and no game remained.
+  The lifecycle runner returned0, but a process-exit monitor permission error
+  made the overall wrapper fail. The observer audit is not an unqualified pass.
+
 ## 2026-10-24: focus restoration observed; mode-0 dialogue guard corrected
 
 - The protected host logged an actual native HasFocus result0 adapted to1 at
