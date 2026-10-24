@@ -16,7 +16,7 @@ typedef struct CombatFireMethods {
     GuestPlayerContextMethod fire,stop;
 } CombatFireMethods;
 typedef struct CombatFirePulse {
-    unsigned long token,attempted_token;
+    unsigned long token,attempted_token;unsigned attempts;
     DWORD stable_at,gate_at,pressed_at,report_at,release_at;
     int active,positive_getter,ticks,release_attempts;
     GuestCameraStamp pc,pawn,world,mode,weapon;
@@ -26,6 +26,12 @@ typedef struct CombatFirePulse {
 static CombatFireMethods combat_fire_methods;
 static CombatFirePulse combat_fire_pulse;
 static const char *combat_fire_resolution_reason="not-resolved";
+static int combat_fire_repeat_opted(void) {
+    wchar_t value[8]={0};return GetEnvironmentVariableW(L"ME3_SQUAD_COOP_DELAYED_FIRE_CANCEL_QA",value,8)==1&&value[0]==L'1';
+}
+static int combat_fire_attempt_ready(unsigned long attempted,unsigned long token,unsigned attempts,int repeat,DWORD since_release) {
+    return attempted!=token||(repeat==1&&attempts==1&&since_release>=1000);
+}
 
 static int combat_fire_property(uintptr_t base,uintptr_t property,const char *kind,
                                 const char *path,int offset,uint64_t flags) {
@@ -141,7 +147,7 @@ static void combat_fire_stop(uintptr_t base,const char *reason,DWORD now) {
     if(safe){br=read_at(p->pc.pointer+0x480,&before,1);called=combat_fire_dispatch(base,p->mode.pointer,0);
         ar=read_at(p->pc.pointer+0x480,&after,1);}
     combat_fire_log(base,called&&ar&&after==0?"released":"release-unverified",reason,now,br,before,ar,after,called);
-    /* No repeat pulse. Failed cleanup retains ownership for bounded retries
+    /* Cleanup never starts another pulse. Failed cleanup retains ownership for bounded retries
      * while the exact old identity remains safe; stale objects are untouched.
      */
     if((called&&ar&&after==0)||!safe||p->release_attempts>=3)p->active=0;
@@ -156,6 +162,9 @@ static int combat_fire_roles_valid(const unsigned char pawn[2],const unsigned ch
     return (pawn[0]==0||pawn[0]==2||pawn[0]==3)&&pawn[1]==2&&weapon[0]==3&&weapon[1]>=1&&weapon[1]<=2&&!(nofire&0x10000);
 }
 static int combat_fire_roles_selftest(void) {
+    if(!combat_fire_attempt_ready(1,2,2,0,0)||combat_fire_attempt_ready(1,1,1,0,2000)||
+       combat_fire_attempt_ready(1,1,1,1,999)||!combat_fire_attempt_ready(1,1,1,1,1000)||
+       combat_fire_attempt_ready(1,1,2,1,1000)||combat_fire_attempt_ready(1,1,0,1,1000))return 0;
     unsigned char pawn[2]={3,2},weapon[2]={3,1};
     if(!combat_fire_roles_valid(pawn,weapon,0))return 0;
     /* Actual retained scene-return tuple: autonomous pawn, simulated weapon. */
@@ -220,9 +229,11 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
             combat_fire_log(base,"eligibility",reason,now,0,0,0,0,0);}
         return;
     }
-    if(p->attempted_token==l->token)return;
+    if(!combat_fire_attempt_ready(p->attempted_token,l->token,p->attempts,combat_fire_repeat_opted(),now-p->release_at))return;
     if(!same){
-        unsigned long attempted=p->attempted_token;DWORD report=p->report_at;memset(p,0,sizeof *p);
+        unsigned long attempted=p->attempted_token;unsigned attempts=p->attempts;
+        DWORD report=p->report_at,released=p->release_at;memset(p,0,sizeof *p);
+        p->attempts=attempts;p->release_at=released;
         p->attempted_token=attempted;p->report_at=report;p->token=l->token;p->channel=l->channel.pointer;p->channel_index=l->channel_index;
         if(!guest_camera_stamp_read(base,pc,&p->pc,1)||!guest_camera_stamp_read(base,pawn,&p->pawn,1)||
            !guest_camera_stamp_read(base,world,&p->world,1)||!guest_camera_stamp_read(base,mode,&p->mode,1)||
@@ -243,13 +254,14 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
             combat_fire_log(base,"method-unavailable",combat_fire_resolution_reason,now,1,before,0,0,0);}
         return;
     }
-    p->attempted_token=p->token; /* One attempt per real context/ownership lease. */
+    if(p->attempted_token!=p->token)p->attempts=0;
+    ++p->attempts;p->attempted_token=p->token; /* Default one; explicit cancellation QA permits one re-press. */
     if(guest_player_context_gate(base,"fire-bot-pre-dispatch",now)!=1||
        !combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&reason)||
        mode!=p->mode.pointer||weapon!=p->weapon.pointer||!guest_camera_stamp_matches(base,&p->pc,1)||
        !guest_camera_stamp_matches(base,&p->pawn,1)||!guest_camera_stamp_matches(base,&p->mode,1)||
        !guest_camera_stamp_matches(base,&p->weapon,1)||!read_at(pc+0x480,&before,1)||before)return;
-    p->active=1;p->pressed_at=now;p->ticks=0;
+    p->active=1;p->pressed_at=now;p->ticks=0;p->release_attempts=0;
     int called=combat_fire_dispatch(base,mode,1);unsigned char result=255;int read=read_at(pc+0x480,&result,1);
     combat_fire_log(base,called&&read&&result==1?"pressed":"press-unverified","ordinary-FireWeapon",now,1,before,read,result,called);
     if(!called||!read||result!=1)combat_fire_stop(base,"press-not-verified",now);

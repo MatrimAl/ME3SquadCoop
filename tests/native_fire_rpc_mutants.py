@@ -11,8 +11,8 @@ if __name__ == "__main__":
     parser.add_argument("zig", type=Path)
     args = parser.parse_args()
     check_mutations(args.zig.resolve(strict=True), {
-        "original-not-forwarded": [("fire_rpc_original(self,frame,result);", "(void)self;")],
-        "forwarded-self-changed": [("fire_rpc_original(self,frame,result);", "fire_rpc_original(NULL,frame,result);")],
+        "original-not-forwarded": [("delayed_fire_exec_stock(k,self,frame,result,fire_rpc_original);", "(void)self;")],
+        "forwarded-self-changed": [("delayed_fire_exec_stock(k,self,frame,result,fire_rpc_original);", "delayed_fire_exec_stock(k,NULL,frame,result,fire_rpc_original);")],
         "wrong-incoming-channel-accepted": [("channel==expected&&", "")],
         "outside-script-cursor-accepted": [("code>script+(uintptr_t)length", "0")],
         "wrong-inventory-link-accepted": [("inventory==weapon_inventory&&", "")],

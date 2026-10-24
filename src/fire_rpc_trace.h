@@ -108,6 +108,8 @@ static void fire_rpc_snapshot(int k,const char *stage,unsigned id,unsigned paren
         state_known?"true":"false",safe,state_safe,bursts_valid?"true":"false",bursts[0],bursts[1],pending,
         port_valid?"true":"false",port_flags,offset,parameter,!strcmp(stage,"leave")?"true":"false",GetTickCount());line(row);
 }
+static const FireRpcExec fire_rpc_wrappers[FIRE_RPC_COUNT];
+#include "delayed_fire_cancel_qa.h"
 static void fire_rpc_exec(int k,void *self,void *frame,void *result) {
     DWORD before=GetLastError();AmmoWireScope *s=&ammo_wire_scope;
     int capture=fire_rpc_installed&&GetCurrentThreadId()==ammo_wire_thread&&fire_rpc_rows<256&&
@@ -126,7 +128,7 @@ static void fire_rpc_exec(int k,void *self,void *frame,void *result) {
         id=++fire_rpc_calls;fire_rpc_parent=id;fire_rpc_snapshot(k,"enter",id,parent,incoming,nm,om,generation,(uintptr_t)frame);
     }
     SetLastError(before);
-    fire_rpc_original(self,frame,result);
+    delayed_fire_exec_stock(k,self,frame,result,fire_rpc_original);
     DWORD after=GetLastError();
     if(capture){fire_rpc_snapshot(k,"leave",id,parent,incoming,nm,om,generation,(uintptr_t)frame);fire_rpc_parent=parent;}
     SetLastError(after);

@@ -131,3 +131,20 @@ pending fire. Active.EndFire does not clear this timer; Active.EndState does.
 Reusing the stock ClearTimer operation for a validated pending release is a
 candidate, not an implemented or runtime-verified fix. It must preserve normal
 firing and permit a fresh press after cancellation.
+
+`ME3_SQUAD_COOP_DELAYED_FIRE_CANCEL_QA=1` now enables a protected experiment in
+the probe only. A validated incoming mode2 stop is forwarded first. If its
+original script completes with the same weapon/lease, Active state, pending
+mode2 and current mode0, the adapter calls stock Actor.ClearTimer for that
+weapon's live CheckBeginFire name and default/self target. Exact reflection,
+native bridge/body and Actor ProcessEvent pins are rechecked. It does not write
+pending mode, role, ammo, timer arrays or object references. The opt-out path
+retains original behavior; no additional stop hook is installed.
+
+The actual C helper fixture passes10 cases plus an unconditional failing canary;
+the observer's seven compiled negative controls still reject invalid forwarding
+and identities. The fixture substitutes engine capture and does not validate
+live cancellation. In this experiment only, the guest bot permits one re-press
+after at least one second with all ordinary eligibility checks preserved; the
+default bot still attempts once per lease. Successful cancellation, normal
+ongoing fire and re-press behavior require real-client evidence before promotion.
