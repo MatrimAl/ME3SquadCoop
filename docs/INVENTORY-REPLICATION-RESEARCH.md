@@ -159,3 +159,13 @@ this receive by roughly1.3 seconds. These observations do not establish a
 specific malformed payload or its origin; the next discriminant is the
 original sender's encoding of this exact property around release. Do not infer
 that every inventory loss follows the previously observed class mismatch.
+
+The same protected ObjectProperty observer now admits a host-only metadata
+entry at the exact InvManager send callsite. It records the original value,
+concrete writer table/slots and bounded current-channel lookup before original
+serialization. It does not hook writer slots, read payloads or claim which
+index was written. Only current-world Ashley fields qualify; unrelated calls
+still forward normally. The32-row cap and unreadable/ambiguous channel cases
+are checked by an authored fixture with an active failing canary; the existing
+receive-wrapper integration tests also pass. A live sender record is still
+required before choosing a writer-output observation.

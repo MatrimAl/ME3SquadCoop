@@ -25,6 +25,7 @@ static int inventory_decode_property(uintptr_t property) {
     return !strcmp(path,"Engine.Pawn.InvManager");
 }
 #include "inventory_reference_trace.h"
+#include "inventory_send_metadata.h"
 static int inventory_decode_forward(void *property,void *archive,void *map,void *data,uintptr_t caller) {
     DWORD before_error=GetLastError();InventoryDecodeFrame *f=inventory_decode_frame;
     uintptr_t base=initial_actor_trace_base,before=0,after=0;uint32_t error_before=1,error_after=1;
@@ -47,6 +48,7 @@ static int inventory_decode_forward(void *property,void *archive,void *map,void 
     InventoryReferenceScope reference_scope;
     int reference_eligible=scoped&&site_match&&property_match&&read_ptr(f->channel+0xa0)==f->before.pawn;
     inventory_reference_begin(&reference_scope,f,property,archive,map,caller,reference_eligible);
+    inventory_send_metadata_capture((uintptr_t)property,(uintptr_t)archive,(uintptr_t)map,(uintptr_t)data,caller);
     SetLastError(before_error);
     int result=inventory_decode_original(property,archive,map,data);
     DWORD after_error=GetLastError();
@@ -99,7 +101,8 @@ static void inventory_decode_end(InventoryDecodeFrame *f) {
     inventory_decode_frame=f->previous;
 }
 static void inventory_decode_install(uintptr_t base) {
-    if(!position_receive_opted()||inventory_decode_installed||!progress_enabled||test_action!=5||strcmp(test_role,"client")||!has_marker(root))return;
+    int side=(test_action==5&&!strcmp(test_role,"client"))||(test_action==6&&!strcmp(test_role,"host"));
+    if(!position_receive_opted()||inventory_decode_installed||!progress_enabled||!side||!has_marker(root))return;
     static const unsigned char pin[23]={0x49,0x8b,0,0x4d,0x8b,0xd0,0x4c,0x8b,0x81,0xd0,0,0,0,0x49,0x8b,0xca,0x48,0xff,0xa0,0xc8,2,0,0};
     unsigned char bytes[23];uintptr_t slot=base+0x1077d88+0x2f8,expected=base+0x146f60;DWORD old,ignored;
     if(!supported_image(base)||read_ptr(slot)!=expected||!read_at(expected,bytes,sizeof bytes)||memcmp(bytes,pin,sizeof pin)||
