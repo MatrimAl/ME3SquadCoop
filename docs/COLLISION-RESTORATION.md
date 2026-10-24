@@ -105,3 +105,23 @@ remained stationary despite recorded movement input and cleared input-ignore
 flags. Therefore this run establishes collision restoration and retained ground
 contact, not successful post-scene movement or campaign progression. The cause
 of that separate movement refusal remains unverified.
+
+## Later receive-time position discontinuity
+
+A subsequent protected pair reproduced a different falling sequence. The
+read-only before/after observer bracketed the guest position changing from
+approximately (-22031, 49555, 225) to (-16367, -16281, -16384) inside the
+unchanged native ActorChannel receive call. The next receive moved it near
+(153, 123, -101). Inventory and weapon pointers remained unchanged across
+these observations. No probe position write or packet modification occurred.
+The guest later fell; no collision-repair attempt was exercised in this run.
+
+All 1,073 valid guest paired snapshots reported the independently reflected
+controller position lock as false. A separate identity-checked read found
+the current default mode allowed movement. That later permission sample does
+not prove permission at every earlier frame. The exact received property,
+sender value and codec responsible for the discontinuity remain unknown;
+this evidence does not justify suppressing arbitrary updates or restoring
+coordinates. The earlier single positive collision-repair result remains
+limited to its measured release shape. Stable movement, combat damage and
+full conversations are still unverified.
