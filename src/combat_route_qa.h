@@ -228,13 +228,16 @@ static int combat_route_same(uintptr_t base,SessionContext c) {
 static void combat_route_action_approach(uintptr_t base,SessionContext c,uintptr_t input,
                                           const float xyz[3],const float velocity[3],int32_t yaw,DWORD now) {
     CombatRouteQA *q=&combat_route_qa;float top[3],bottom[3],target[3];int touching=0;
-    if(!combat_action_opted()||!combat_action_turn_property(base,input)||
-       !combat_action_jump_context(base,c.pawn,c.world,q->nodes+COMBAT_ROUTE_COUNT-1,top,bottom,&touching)||
-       !combat_action_heading(top,bottom,yaw,&q->turn,target)||
-       !combat_action_approach_safe(combat_route_horizontal(xyz,top),xyz[2]-top[2],now-q->action_approach_at)||
-       !combat_route_corridor(xyz,combat_route_stop,target)){
-        combat_route_end(base,"aborted","normal-action-top-spec-facing-or-approach-bound",xyz,now);return;
-    }
+    const char *rejected=NULL;
+    if(!combat_action_opted())rejected="normal-action-opt-in-ended";
+    else if(!combat_action_turn_property(base,input))rejected="normal-action-turn-property";
+    else if(!combat_action_jump_context(base,c.pawn,c.world,q->nodes+COMBAT_ROUTE_COUNT-1,top,bottom,&touching))
+        rejected="normal-action-top-spec-or-touch-context";
+    else if(!combat_action_heading(top,bottom,yaw,&q->turn,target))rejected="normal-action-heading-geometry";
+    else if(!combat_action_approach_safe(combat_route_horizontal(xyz,top),xyz[2]-top[2],now-q->action_approach_at))
+        rejected="normal-action-distance-height-or-time-bound";
+    else if(!combat_route_corridor(xyz,combat_route_stop,target))rejected="normal-action-approach-corridor";
+    if(rejected){combat_route_end(base,"aborted",rejected,xyz,now);return;}
     float speed=sqrtf(velocity[0]*velocity[0]+velocity[1]*velocity[1]),top_distance=combat_route_horizontal(xyz,top);
     /* Stop inside the actual overlap, before approaching closer than 45 units.
      * A geometric overlap alone never substitutes for Actor.Touching evidence. */
