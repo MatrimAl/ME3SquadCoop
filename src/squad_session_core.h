@@ -97,17 +97,19 @@ static int session_engine_blocked(SessionContext c) {
     /* Only ordinary on-foot mode has been verified. Other modes are a
        conservative handoff to the game, not a claim of vehicle support. */
     if (!c.pc || !c.world || !c.manager || c.mode != 0) return 1;
-    uint32_t flags = 0; read_at(c.pc + 0x77c, &flags, 4);
+    uint32_t flags = 0; if (!read_at(c.pc + 0x77c, &flags, 4)) return 1;
     if (flags & 0x20000) return 1; /* PlayerController.bCinematicMode */
     /* Exact-build native message-box paths can set WorldInfo.bPlayersOnly;
        the mesh animation tick then deliberately stops. Yield through normal
        lease cleanup until the engine restores control. Never clear this bit. */
     uint32_t world_flags=0;
     if(!read_at(c.world+0x7c0,&world_flags,4)||(world_flags&0x400))return 1;
-    uintptr_t conversation = read_ptr(c.world + 0x948);
+    uintptr_t conversation = 0;
+    if (!read_at(c.world + 0x948, &conversation, 8)) return 1;
     if (conversation) {
         int32_t active = 0; uint32_t activating = 0;
-        read_at(conversation + 0xd0, &active, 4); read_at(conversation + 0xe8, &activating, 4);
+        if (!read_at(conversation + 0xd0, &active, 4) || active < 0 ||
+            !read_at(conversation + 0xe8, &activating, 4)) return 1;
         if (active > 0 || (activating & 1)) return 1;
     }
     return 0;
@@ -116,6 +118,11 @@ static int session_gate_selftest(void) {
     unsigned char pc[0x800]={0},world[0x960]={0},manager[16]={0},conversation[0xf0]={0};
     SessionContext c={0};c.pc=(uintptr_t)pc;c.world=(uintptr_t)world;c.manager=(uintptr_t)manager;c.mode=0;
     if(session_engine_blocked(c))return 0;
+    uintptr_t pc_before=c.pc;c.pc=1;
+    if(!session_engine_blocked(c))return 0;c.pc=pc_before;
+    uintptr_t unreadable=1;memcpy(world+0x948,&unreadable,8);
+    if(!session_engine_blocked(c))return 0;
+    unreadable=0;memcpy(world+0x948,&unreadable,8);
     uint32_t value=0x400;memcpy(world+0x7c0,&value,4);if(!session_engine_blocked(c))return 0;
     value=0;memcpy(world+0x7c0,&value,4);if(session_engine_blocked(c))return 0;
     uintptr_t original=c.world;c.world=1;if(!session_engine_blocked(c))return 0;c.world=original;
@@ -124,6 +131,8 @@ static int session_gate_selftest(void) {
     value=0;memcpy(pc+0x77c,&value,4);
     uintptr_t cm=(uintptr_t)conversation;memcpy(world+0x948,&cm,8);
     value=1;memcpy(conversation+0xd0,&value,4);if(!session_engine_blocked(c))return 0;
+    int32_t invalid_count=-1;memcpy(conversation+0xd0,&invalid_count,4);
+    if(!session_engine_blocked(c))return 0;
     value=0;memcpy(conversation+0xd0,&value,4);value=1;memcpy(conversation+0xe8,&value,4);
     return session_engine_blocked(c);
 }
