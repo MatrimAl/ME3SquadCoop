@@ -1,5 +1,32 @@
 # Progress
 
+## 2026-10-24: synthetic handoff exposes a position discontinuity
+
+- A new protected pair completed three ownership epochs and AI/disconnect
+  restoration, but failed gameplay continuity. The guest Ashley moved about
+  54,107 units toward the world origin within 94 ms of the synthetic scene
+  release. Its sampled controller detached and network roles changed to zero.
+- About 594 ms after the next host acquisition, the host Ashley also jumped
+  about 54,025 units toward the origin, lost its previous world base and fell.
+  The guest discontinuity preceded the host discontinuity. This establishes
+  ordering, not which engine call or packet caused either change.
+- The same tracked ActorChannel identity/index survived the initial guest
+  jump. Its retained SavedMove still held the original world coordinates;
+  after reacquisition a newly generated move held the bad origin coordinates.
+  Channel closure and stale saved moves are not established as the initiating
+  cause. Receiver handling of unowned pawn location/base state needs inspection.
+- No collision repair ran. The discontinuities occurred before the attempted
+  ordinary W input, so that key is not their initiating cause. Normal key
+  delivery remains unproven; no successful walking or combat claim follows.
+- The paired read-only recorder now captures validated PlayerInput identity,
+  pressed keys and axes, explicitly labelled asynchronous. Its bounded capture
+  starts at actual acquisition so loading cannot consume the useful window.
+- The lifecycle verdict is insufficient for gameplay continuity. Originals and
+  profiles remained protected, native exceptions were zero and no game remained.
+  The memory helper exited1 without a final summary; this is not an unqualified
+  passing observer audit. Investigate release/channel/movement state across the
+  handoff before broadening collision repair or adding position corrections.
+
 ## 2026-10-24: correct the QA input sampling phase
 
 - The input-state record is sampled inside input_bot before session_guest_frame
@@ -594,7 +621,7 @@ Next: inspect authoritative ammunition field transmission and client prediction/
 - Repeated the same protected 100-second action: 63 `GetHealthPct` resolutions accumulated 0.306 seconds, including one initial discovery; 62 warm hits averaged 41.7 microseconds and peaked at 230 microseconds. The diagnostic scope accumulated 1.263 seconds. Callback counts and scene timing differed, so this is resolver/diagnostic evidence, not a controlled FPS benchmark. See [LOOKUP-PERFORMANCE.md](LOOKUP-PERFORMANCE.md).
 - Built all three native outputs. The Windows harness passed the new synthetic function/owner/class/table-membership guards and existing safety fixtures. Separate compiled mutants truncating FName identity or removing table membership were rejected. Python discovery: 178 tests, OK, 2 skipped.
 - A subsequent protected paired run passed two ownership epochs, synthetic scene release/reacquisition and native disconnect/AI restoration. Both recorded press/release intervals were 250 ms; both pulses consumed ammunition on host and guest and stopped under the existing evaluator. Counts matched after the first pulse (3/3), then differed after the second (5/6), with reserves 210/210. Reliable ammunition reconciliation remains unverified.
-- The change trace matched pawn channel 27 and weapon channel 31 on both sides within this connection. Recorded change-sample intervals were 15â€“31 ms in this run, compared with multi-second gaps in the previous instrumented run. These observations do not establish a complete shot history or absence of all stalls. Separate channel-resolution measurements still had cold peaks around 318 ms on host and 668 ms on guest; this remaining cost has not been fixed.
+- The change trace matched pawn channel 27 and weapon channel 31 on both sides within this connection. Recorded change-sample intervals were 15ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“31 ms in this run, compared with multi-second gaps in the previous instrumented run. These observations do not establish a complete shot history or absence of all stalls. Separate channel-resolution measurements still had cold peaks around 318 ms on host and 668 ms on guest; this remaining cost has not been fixed.
 - The two single-process measurements and paired run retained original-file protection. Completed reports recorded unchanged original profiles and zero native exceptions. The paired run protected 8,210 original game/profile files, required no forced orphan cleanup, disabled the probe and left no game processes running. Raw profiles and distinct build/run fingerprints remain private.
 
 Next: inspect remaining cold channel-resolution cost and actual ammunition field updates without removing identity guards. Startup repeatability, catch-up, real dialogue, sustained progression, cross-PC Radmin and installation/rollback remain open.

@@ -1,21 +1,25 @@
 # Validation status
 
-The latest protected pair completed three ownership epochs, the actual mode-0
-landing exchange, a separate synthetic handoff and native disconnect/AI return.
-The conversation remained active for 13.375 seconds across 128 valid paired
-samples without the focus-owned pause; control returned afterward. This does
-not validate full mode-7 dialogue. See [background focus](BACKGROUND-FOCUS.md).
+The latest protected pair **failed gameplay continuity** despite completing
+three ownership epochs and native disconnect/AI return. After the synthetic
+scene release, the guest Ashley jumped roughly54,107 units toward the world
+origin. After reacquisition the host Ashley also jumped roughly54,025 units,
+lost its world base and fell. Ordering is observed; the underlying engine or
+packet cause remains unproven. No collision repair ran.
 
-Usable walking is still unverified: guest positions remained stationary within
-all three ownership epochs despite the QA input pulse. No collision repair ran;
-the returned physical collision flags were present. Input processing must be
-checked before another collision change. Reliable combat is also unverified.
+An earlier mode-0 landing exchange returned control without the focus-owned
+pause. This does not validate full mode-7 dialogue or safe position continuity
+across every scene. See [background focus](BACKGROUND-FOCUS.md) and the latest
+[progress evidence](PROGRESS.md).
 
-No native exceptions or forced cleanup were recorded, originals and profiles
-were protected, and no game remained. A process-exit observation permission
-error made the overall wrapper fail despite its lifecycle runner returning0.
-This is not an unqualified passing audit. Earlier falling/desynchronization and
-crash observations remain in [PROGRESS.md](PROGRESS.md).
+Ordinary key delivery, reliable walking and combat remain unverified. The
+read-only input capture is asynchronous, not a true post-Tick observation.
+The attempted normal W key occurred after the position failure and does not
+explain its onset.
+
+Original protection covered8,210 files, profiles were unchanged, native
+exceptions were zero and no game remained. The memory helper exited1 without
+a final summary, so this is not an unqualified passing observer audit.
 
 Status reviewed: 2026-10-24; the latest gameplay evidence below is from 2026-10-23.
 Private raw logs and profiles are not published.
