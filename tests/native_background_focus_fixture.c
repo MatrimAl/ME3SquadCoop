@@ -15,7 +15,7 @@ typedef struct SessionContext {uintptr_t pc,pawn,world,squad,manager;unsigned ch
 typedef struct Object {_Alignas(8) unsigned char bytes[0x1100];} Object;
 typedef struct Registration {Object *object;const char *kind,*name,*path;} Registration;
 static Object owner,fn,tick,field,world,level,info,engine,player,pc,remote,driver,connection,manager;
-static Object class_object,world_vtable,viewport,focus_object,focus_vtable,frame,wrong_node;
+static Object class_object,world_vtable,viewport,focus_object,focus_vtable,frame,wrong_node,conversation;
 static Registration registry[40];static int registered;
 static uintptr_t base,peer_slots[2],actor_slots[1],player_slots[1];
 static unsigned char script[396];static LONG native_calls;static int original_value,original_entry_error,logs,deny_pins,break_context;
@@ -102,6 +102,7 @@ static void setup(void){
     add(&remote,"PlayerController","PC_1","Fixture.PC_1");add(&driver,"NetDriver","NetDriver_0","Fixture.NetDriver");
     add(&connection,"NetConnection","NetConnection_0","Fixture.NetConnection");add(&manager,"SFXGameModeManager","ModeManager_0","Fixture.ModeManager");
     add(&wrong_node,"Function","Other","Fixture.Other");
+    add(&conversation,"BioConversationManager","Conversation_0","Fixture.Conversation_0");
     p64(addr(&info)+0x50,addr(&owner));
     memcpy((void*)(base+0xb4fa90),background_focus_exec_pin,sizeof background_focus_exec_pin);
     memcpy((void*)(base+0xad40e0),background_focus_getter_pin,sizeof background_focus_getter_pin);
@@ -142,6 +143,11 @@ int main(void){setup();int fails=0,tests=0;
     CASE("ordinary false",71,1);CASE("second Tick site",280,1);
     p32(addr(&info)+0x7c0,0x400);p32(addr(&info)+0x9c8,0x8000);CASE("own focus pause restoration",280,1);
     p32(addr(&info)+0x9c8,0);CASE("intentional UI pause preserved",71,0);p32(addr(&info)+0x7c0,0);
+    p64(addr(&info)+0x948,addr(&conversation));p32(addr(&conversation)+0xd0,1);
+    p32(addr(&info)+0x7c0,0x400);p32(addr(&info)+0x9c8,0x8000);
+    CASE("mode0 dialogue focus pause restoration",280,1);
+    p32(addr(&info)+0x9c8,0);CASE("dialogue intentional pause preserved",280,0);
+    p64(addr(&info)+0x948,0);p32(addr(&info)+0x7c0,0);
     original_value=1;CASE("already focused true",71,1);original_value=0;
     background_focus_prepare(base,addr(&engine),0);CASE("disabled",71,0);background_focus_prepare(base,addr(&engine),1);
     p64(addr(&frame)+0x18,addr(&wrong_node));CASE("wrong caller",71,0);p64(addr(&frame)+0x18,addr(&tick));

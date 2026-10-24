@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-10-24: focus restoration observed; mode-0 dialogue guard corrected
+
+- The protected host logged an actual native HasFocus result0 adapted to1 at
+  the second verified Tick site, cursor280 to281. Paired records then observed
+  its focus-owned pause clear and Ashley's first ownership epoch begin. This
+  proves the scoped getter path executed; it does not prove campaign support.
+- A later mode-0 landing conversation again had PlayersOnly and the custom
+  focus-owner flag enabled. The candidate's conversation exclusion prevented
+  that focus pause from being restored, stalling the scene. No collision repair
+  or usable scene return was demonstrated in this run.
+- A new actual-wrapper regression reproduced this refusal. The focus candidate
+  now permits its verified mode-0 Tick caller during dialogue. Possession/input
+  handoff guards are unchanged, and a dialogue pause without focus ownership
+  still refuses adaptation. The fixture passes 26 cases after failing the new
+  dialogue case before the correction. Positive live dialogue return is pending.
+- The game run ended with no native exceptions, unchanged original files and
+  profiles, no forced cleanup and no remaining game. A process-exit read-only
+  monitor permission error prevents calling its overall observer audit clean.
+
 ## 2026-10-24: retained blocking bit measured on control return
 
 - The focus candidate installed in both protected game processes. Its first

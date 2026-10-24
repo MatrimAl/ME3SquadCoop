@@ -28,13 +28,16 @@ focus correction worked.
 
 The candidate adapts only HasFocus results requested by the two verified Tick call sites in a
 current, connected co-op world during ordinary gameplay. It forwards the actual
-native getter once. Other callers, disconnected worlds, menus, cinematics and
-conversations keep normal behavior. A PlayersOnly pause without the custom
+native getter once. Other callers, disconnected worlds, menus and cinematic modes keep normal
+behavior. Mode-0 dialogue does not suppress this focus policy: its world Tick
+must advance. The separate session gate still releases guest control to AI
+during conversations, and intentional pauses without focus ownership remain
+untouched. A PlayersOnly pause without the custom
 focus-owner flag must remain untouched. The normal Tick code should restore
 its own focus pause; the mod must not write PlayersOnly, the saved owner flag
 or browser-wheel permission.
 
-The native candidate builds and its actual-wrapper fixture passes 24 cases,
+The native candidate builds and its actual-wrapper fixture passes 26 cases,
 including original forwarding, error preservation, peer loss, wrong callers,
 cinematics, intentional pauses and context changes during the getter. These are
 temporary test objects; positive live validation is still pending. Do not infer a

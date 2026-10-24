@@ -107,12 +107,10 @@ static int background_focus_context(uintptr_t self,uintptr_t frame,int expected_
        !read_at(pc+0x77c,&flags,4)||(flags&(0x20000|0x800))||
        !read_at(self+0x7c0,&wflags,4)||!read_at(self+0x9c8,&focus,4))return background_focus_fail("not-ordinary-gameplay");
     if((wflags&0x800)||((wflags&0x400)&&!(focus&0x8000)))return background_focus_fail("intentional-or-pending-pause");
-    uintptr_t conversation=read_ptr(self+0x948);
-    if(conversation) {
-        int32_t count=-1;uint32_t activating=1;
-        if(!narrative_probe_object(b,conversation,"BioConversationManager")||
-           !read_at(conversation+0xd0,&count,4)||count!=0||!read_at(conversation+0xe8,&activating,4)||(activating&1))return background_focus_fail("conversation");
-    }
+    /* Mode-0 landing dialogue still needs the world Tick to advance. This
+     * getter policy changes no possession/input permission: the session core
+     * continues handing control to AI during a conversation. A dialogue's
+     * intentional PlayersOnly pause is refused above unless focus owns it. */
     uintptr_t driver=read_ptr(world+0x120);unsigned char net=0;
     if(!narrative_probe_object(b,driver,"NetDriver")||!read_at(self+0x7c8,&net,1))return background_focus_fail("native-driver");
     uintptr_t connection=0,remote=0;GameArray peers={0};
