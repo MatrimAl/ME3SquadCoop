@@ -120,6 +120,8 @@ static void position_receive_finish(uintptr_t channel,PositionReceiveSnapshot be
         before.roles[0],before.roles[1],after.roles[0],after.roles[1],GetTickCount());line(row);
 }
 
+#include "inventory_decode_trace.h"
+
 static void initial_actor_received_bunch(void *self, void *bunch) {
     /* Invariant: the original is assigned before the only CAS that publishes
      * this function. Never change or consume any bytes in the incoming bunch.
@@ -142,11 +144,13 @@ static void initial_actor_received_bunch(void *self, void *bunch) {
         read_at(incoming + 0x38, &archive_before, sizeof archive_before);
     unsigned int event = capture ? ++initial_actor_trace_count : 0;
     PositionReceiveSnapshot position_before=position_receive_snapshot(channel);
+    InventoryDecodeFrame inventory_frame;inventory_decode_begin(&inventory_frame,channel,position_before);
     AmmoWireReceive wire_frame;ammo_wire_receive_begin(&wire_frame,channel);
     SetLastError(error_before);
     forward(self, bunch); /* Always exactly one original call, unchanged args. */
     DWORD error_after = GetLastError();
     ammo_wire_receive_end(&wire_frame);
+    inventory_decode_end(&inventory_frame);
     position_receive_finish(channel,position_before);
     if (capture) {
         uintptr_t actor_after = 0, class_after = 0;
@@ -217,6 +221,7 @@ static int initial_actor_trace_install(uintptr_t base) {
     }
     network_actor_received_bunch_observer = (uintptr_t)initial_actor_received_bunch;
     initial_actor_trace_installed = 1;
+    inventory_decode_install(base);
     line("{\"initial_actor_trace\":\"installed\",\"original_rva\":\"0x488700\",\"slot\":\"0x2d0\",\"limit\":128,\"unverified_position_fields_omitted\":true}\r\n");
     return 1;
 }

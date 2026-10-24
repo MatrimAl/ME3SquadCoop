@@ -53,3 +53,21 @@ come from exact-file PE reads, constructor references and Capstone disassembly.
 Raw game bytes, tool evidence, source hashes and logs remain private. Unwind
 entries and fallback disassembly windows can include or split adjacent code;
 they must not be treated as complete function boundaries without inspection.
+
+## Scoped decoder observer
+
+The protected probe's existing opt-in receive trace now also observes the exact
+ObjectProperty serializer entry. It admits only the reflected
+`Engine.Pawn.InvManager` at offset0x414, an already validated Ashley receive
+frame and the exact native property-decoding return site. Nested receives push
+separate frames so unrelated decoding cannot inherit the outer Ashley scope.
+It logs scratch values, native result, archive error and map table separately
+from receive completion. No archive bytes are read, consumed or changed by the
+observer, and the original serializer is forwarded once with unchanged arguments.
+Return values and LastError are preserved. Output is bounded to64 records.
+
+The actual C wrapper passes26 authored-memory cases with unconditional checks
+and a deliberately failing negative canary. These tests cover decode without
+final application, inventory-only changes, invalid property/caller, nested
+scope and the record limit. They do not prove the runtime property layout
+matches or that any game packet resolved an inventory reference.
