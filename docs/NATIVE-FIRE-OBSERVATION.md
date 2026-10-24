@@ -148,3 +148,13 @@ live cancellation. In this experiment only, the guest bot permits one re-press
 after at least one second with all ordinary eligibility checks preserved; the
 default bot still attempts once per lease. Successful cancellation, normal
 ongoing fire and re-press behavior require real-client evidence before promotion.
+
+The first live experiment delivered both ordinary pulses and repeated firing,
+but its stops had pending mode0, so the cancellation branch was never eligible.
+The second pulse produced authoritative and guest consumption, with retained
+counts4 and5 respectively; the strict stop/agreement gate did not pass. This
+is not evidence that the new cancellation worked. To sample the measured early
+preparation window, only this explicit experiment now waits250ms of valid
+ownership instead of the normal two seconds before its first pulse. No native
+permission or identity check is skipped. That earlier experiment still needs
+a new real-client test.
