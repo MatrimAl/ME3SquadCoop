@@ -25,7 +25,10 @@ Each anchor requires its unique numbered name, shuttle package path, class,
 current world, and measured coordinates. Doorway arrival uses a 20-unit radius;
 exterior arrival also requires the measured lower ground height. Starts already
 beyond either anchor skip it so the route does not retrace the shuttle. The
-original start envelope, four-second stuck bound, and 75-second limit remain.
+original start envelope and four-second stuck bound remain. The current route
+limit is120 seconds: measured normal walking plus the landing scene exhausted
+the earlier75-second limit before the final approach. Native process deadlines
+are unchanged; this is a developer bot timing change, not a gameplay bypass.
 This correction has offline fixture coverage; successful shuttle exit and the
 remaining route still require a new protected run. Captured component bounds
 are geometric leads, not proof of which component produced the collision.
@@ -37,7 +40,7 @@ playing line Matinee. The route's two-second airborne/context allowance expired
 before this normal scene ended. Positive, readable engine scene evidence now
 permits up to 20 seconds of neutral waiting. Unknown context keeps two seconds;
 the captured identities, original story pointers, all normal input guards and
-75-second total route budget remain mandatory. Nothing closes UI, advances a
+120-second total route budget remain mandatory. Nothing closes UI, advances a
 conversation or writes pause flags. Resume still requires every original guard.
 This waiting change remains unverified in the game.
 

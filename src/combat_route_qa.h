@@ -26,6 +26,8 @@ static const CombatRoutePoint combat_route_points[]={
 };
 #define COMBAT_ROUTE_COUNT (sizeof combat_route_points/sizeof *combat_route_points)
 #define COMBAT_ROUTE_ROAD_FIRST 2u
+/* Measured route plus the ordinary landing scene exceeds the old75s QA cap. */
+#define COMBAT_ROUTE_LIMIT_MS 120000u
 static const char *combat_route_node_package(unsigned point) {
     return point<COMBAT_ROUTE_ROAD_FIRST?"BioD_ProMar_110Shuttle":"BioD_ProMar_120Gatehouse";
 }
@@ -40,7 +42,7 @@ static const float combat_route_stop[3]={-22288.13f,43674.24f,0.0f};
 typedef struct CombatRoutePolicy {int opted,authority,identity,ordinary,camera,ground,input;DWORD elapsed;} CombatRoutePolicy;
 static int combat_route_policy(const CombatRoutePolicy *p) {
     return p&&p->opted==1&&p->authority==1&&p->identity==1&&p->ordinary==1&&p->camera==1&&
-        p->ground==1&&p->input==1&&p->elapsed<75000;
+        p->ground==1&&p->input==1&&p->elapsed<COMBAT_ROUTE_LIMIT_MS;
 }
 /* A real landing conversation held the ordinary gate for 13.39 seconds.
  * Positive scene evidence may wait neutrally; unknown/airborne context keeps
@@ -271,7 +273,7 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
         combat_route_end(base,"baseline-observation-stop","second-acquisition-no-further-route",NULL,now);return;
     }
     if(!combat_route_qa_host_mode()||!has_marker(root)){if(q->active)combat_route_end(base,"aborted","opt-in-or-protection-ended",NULL,now);return;}
-    if(q->active&&now-q->started>=75000){combat_route_end(base,"aborted","75-second-bound",NULL,now);return;}
+    if(q->active&&now-q->started>=COMBAT_ROUTE_LIMIT_MS){combat_route_end(base,"aborted","120-second-bound",NULL,now);return;}
     SessionContext c=session_context(engine);float xyz[3],velocity[3];int32_t rotation[3];uintptr_t input=0,camera=0;
     if(combat_action_qa.active){
         if(!combat_route_same(base,c)){combat_route_end(base,"aborted","host-story-or-input-changed",NULL,now);return;}
@@ -319,7 +321,7 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
     }
     int same=combat_route_same(base,c);
     CombatRoutePolicy policy={1,1,same,1,1,1,1,now-q->started};
-    if(!combat_route_policy(&policy)){combat_route_end(base,"aborted",same?"75-second-bound":"host-story-or-input-changed",xyz,now);return;}
+    if(!combat_route_policy(&policy)){combat_route_end(base,"aborted",same?"120-second-bound":"host-story-or-input-changed",xyz,now);return;}
     if(q->action_approach){combat_route_action_approach(base,c,input,xyz,velocity,rotation[1],now);return;}
     if(combat_route_horizontal(xyz,combat_route_points[COMBAT_ROUTE_COUNT-1].xyz)<110){combat_route_end(base,"aborted","drop-clearance",xyz,now);return;}
     if(q->stopping){
@@ -367,7 +369,8 @@ static int combat_route_qa_selftest(void) {
     CombatRoutePolicy p={1,1,1,1,1,1,1,0};if(!combat_route_policy(&p)||combat_route_policy(NULL))return 0;
     int *fields[]={&p.opted,&p.authority,&p.identity,&p.ordinary,&p.camera,&p.ground,&p.input};
     for(unsigned i=0;i<sizeof fields/sizeof *fields;++i){*fields[i]=0;if(combat_route_policy(&p))return 0;*fields[i]=1;}
-    p.elapsed=75000;if(combat_route_policy(&p))return 0;
+    p.elapsed=COMBAT_ROUTE_LIMIT_MS-1;if(!combat_route_policy(&p))return 0;
+    p.elapsed=COMBAT_ROUTE_LIMIT_MS;if(combat_route_policy(&p))return 0;
     float position[3]={0,0,0},target[3]={100,0,0},out[2];
     if(!combat_route_axes(position,target,0,0.45f,out)||fabsf(out[0]-0.45f)>0.0001f||fabsf(out[1])>0.0001f)return 0;
     target[0]=0;target[1]=100;if(!combat_route_axes(position,target,16384,0.45f,out)||fabsf(out[0]-0.45f)>0.0001f||fabsf(out[1])>0.0001f)return 0;
