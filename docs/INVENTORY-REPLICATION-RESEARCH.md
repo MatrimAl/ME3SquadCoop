@@ -147,3 +147,15 @@ class mismatch, rather than encoded index0 or a missing channel. It does not
 yet establish why the reference selected that index, or whether the sender
 or the receiver's map/connection association caused the mismatch. Preserve
 the class check; do not repair this by accepting the wrong object.
+
+A follow-up pair compared the map's connection with the actual receiving
+channel's connection at the field read: both were identical. The sender's
+connection also used the same `PackageMapLevel` native table, excluding a
+Level-versus-SeekFree codec mismatch for those captured maps. This time the
+field decoded as static tag0/index13579432 and became null, with archive error0;
+it did not reproduce the earlier dynamic index17. The sender still had a valid
+inventory actor channel in nearby samples. Its natural scene release preceded
+this receive by roughly1.3 seconds. These observations do not establish a
+specific malformed payload or its origin; the next discriminant is the
+original sender's encoding of this exact property around release. Do not infer
+that every inventory loss follows the previously observed class mismatch.
