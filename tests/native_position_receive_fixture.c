@@ -16,7 +16,7 @@ static uintptr_t network_actor_received_bunch_observer;
 static unsigned char pawn[0x800],channel[0x100],world[0x100],level[0x100],info[0x800],bunch[0x100];
 static uintptr_t actors[1],fake_base=0x10000000;
 static int marker=1,ashley=1,forward_calls,mode,records;
-static char logged[1600];
+static char logged[2400];
 static int read_at(uintptr_t at,void *out,size_t n) {
     SetLastError(999);
     if(at==fake_base+0x18b6638&&n==8){uintptr_t w=(uintptr_t)world;memcpy(out,&w,8);return 1;}
@@ -45,6 +45,10 @@ static void original(void *self,void *incoming) {
     if(mode==2)pawn[0x269]=0;
     if(mode==3){int i=999;memcpy(pawn+0x38,&i,4);}
     if(mode==4){float v=NAN;memcpy(pawn+0x108,&v,4);}
+    if(mode==5){float v[3]={-57118,-105857,71};memcpy(pawn+0x138,v,12);}
+    if(mode==6)pawn[0x268]=10;
+    if(mode==7){putptr(channel,0xa0,0);uint32_t flags=0x4000000;memcpy(pawn+0x25c,&flags,4);pawn[0x268]=10;}
+    if(mode==8)putptr(channel,0xa0,(uintptr_t)world);
     SetLastError(456);
 }
 static void setup(void) {
@@ -65,6 +69,8 @@ static void run(int expected_records) {
     memcpy(old_bunch,bunch,sizeof bunch);memcpy(old_channel,channel,sizeof channel);
     SetLastError(123);initial_actor_received_bunch(channel,bunch);
     assert(forward_calls==1&&GetLastError()==456&&records==expected_records);
+    if(mode==7)putptr(old_channel,0xa0,0);
+    if(mode==8)putptr(old_channel,0xa0,(uintptr_t)world);
     assert(!memcmp(old_bunch,bunch,sizeof bunch)&&!memcmp(old_channel,channel,sizeof channel));
 }
 int main(int argc,char **argv) {
@@ -74,6 +80,10 @@ int main(int argc,char **argv) {
     if(argv[1][0]!='1'){puts("PASS default-off: forward once, LastError and packet preserved");return 0;}
     assert(strstr(logged,"change-in-original-receive")&&strstr(logged,"78.000,-128.000,-72.000"));
     setup();run(0);
+    setup();mode=5;run(1);assert(strstr(logged,"-57118.000,-105857.000,71.000"));
+    setup();mode=6;run(1);assert(strstr(logged,"\"physics_after\":10"));
+    setup();mode=7;run(1);assert(strstr(logged,"\"channel_actor_cleared\":true")&&strstr(logged,"\"actor_flags_after\":67108864"));
+    setup();mode=8;run(0);
     setup();mode=2;run(1);
     setup();mode=3;run(0);
     setup();mode=4;run(0);
@@ -84,6 +94,6 @@ int main(int argc,char **argv) {
     setup();mode=1;test_action=6;run(0);
     setup();mode=1;initial_actor_trace_thread++;run(0);
     setup();mode=1;info[0x7c8]=0;run(0);
-    puts("PASS 12 receive-wrapper cases: changed/unchanged, identity/nonfinite/budget/context guards, forward once, LastError and packet preserved");
+    puts("PASS 16 receive-wrapper cases: changed/unchanged, identity/nonfinite/budget/context guards, forward once, LastError and packet preserved");
     return 0;
 }

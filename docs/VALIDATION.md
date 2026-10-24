@@ -24,6 +24,22 @@ a final summary, so this is not an unqualified passing observer audit.
 Status reviewed: 2026-10-24; the latest gameplay evidence below is from 2026-10-23.
 Private raw logs and profiles are not published.
 
+A subsequent protected pair also failed continuity after synthetic release.
+The guest changed from walking with zero velocity to physics mode10, lost its
+Ashley channel association, and developed horizontal velocity above100,000
+units/s while the host remained walking. The guest actor flags changed from
+0x32b22910 to0x36326910, including the reference SDK's tear-off bit0x04000000.
+This is an observed transition, not proof of its initiating cause.
+The exact executable's ReceivedBunch tear-off branch checks actor+0x25c bit26,
+sets local role3 / remote role0 and clears channel Actor+a0 after its event.
+The previous receive observer required Actor+a0 after forwarding and could
+therefore miss that very branch. The opt-in observer now retains the validated
+pre-call actor identity when the slot becomes null, recording velocity,
+physics and actor flags as well as position. Replacement identities remain
+rejected. Authored-memory wrapper checks cover this diagnostic behavior; no
+new runtime result or gameplay fix is claimed from those checks.
+
+
 Guest powers remain unverified. Keyboard and gamepad power inputs use different
 entry points in retained bindings; see [power input research](POWER-INPUT-RESEARCH.md).
 

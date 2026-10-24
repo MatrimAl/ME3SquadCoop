@@ -46,17 +46,22 @@ static int position_receive_opted(void) {
 typedef struct PositionReceiveSnapshot {
     uintptr_t pawn,klass,world,base,controller;
     int32_t index;
-    float position[3],relative[3];
+    float position[3],relative[3],velocity[3];
+    uint32_t actor_flags;
+    unsigned char physics;
     unsigned char roles[2];
     int valid;
 } PositionReceiveSnapshot;
 static unsigned int position_receive_events;
-static PositionReceiveSnapshot position_receive_snapshot(uintptr_t channel) {
+static PositionReceiveSnapshot position_receive_snapshot_actor(uintptr_t channel,uintptr_t retained) {
     PositionReceiveSnapshot s={0};uintptr_t base=initial_actor_trace_base;
     if(!position_receive_opted()||!progress_enabled||test_action!=5||strcmp(test_role,"client")||
        GetCurrentThreadId()!=initial_actor_trace_thread||position_receive_events>=64||!has_marker(root)||
        !is_live(base,channel)||read_ptr(channel)!=base+0x11a2150)return s;
     s.pawn=read_ptr(channel+0xa0);
+    /* ReceivedBunch clears Actor+a0 on its native tear-off path. Observe the
+     * retained identity only when that slot became null, never a replacement. */
+    if(!s.pawn&&retained)s.pawn=retained;
     if(!is_live(base,s.pawn)||!is_kind_of(base,s.pawn,"SFXPawn_Ashley"))return s;
     s.klass=read_ptr(s.pawn+0x50);s.world=read_ptr(s.pawn+0x198);
     uintptr_t world=read_ptr(base+0x18b6638);
@@ -66,24 +71,35 @@ static PositionReceiveSnapshot position_receive_snapshot(uintptr_t channel) {
        read_ptr(actors.data)!=s.world||!is_live(base,s.world)||
        !read_at(s.world+0x7c8,&net,1)||net!=3)return s;
     if(!read_at(s.pawn+0x38,&s.index,4)||!read_at(s.pawn+0x108,s.position,12)||
-       !read_at(s.pawn+0x15c,s.relative,12)||!read_at(s.pawn+0x188,&s.base,8)||
+       !read_at(s.pawn+0x15c,s.relative,12)||!read_at(s.pawn+0x138,s.velocity,12)||
+       !read_at(s.pawn+0x25c,&s.actor_flags,4)||!read_at(s.pawn+0x268,&s.physics,1)||
+       !read_at(s.pawn+0x188,&s.base,8)||
        !read_at(s.pawn+0x374,&s.controller,8)||!read_at(s.pawn+0x269,s.roles,2))return s;
-    for(int i=0;i<3;++i)if(!isfinite(s.position[i])||!isfinite(s.relative[i]))return s;
+    for(int i=0;i<3;++i)if(!isfinite(s.position[i])||!isfinite(s.relative[i])||!isfinite(s.velocity[i]))return s;
     s.valid=1;return s;
+}
+static PositionReceiveSnapshot position_receive_snapshot(uintptr_t channel) {
+    return position_receive_snapshot_actor(channel,0);
 }
 static void position_receive_finish(uintptr_t channel,PositionReceiveSnapshot before) {
     if(!before.valid)return;
-    PositionReceiveSnapshot after=position_receive_snapshot(channel);
+    PositionReceiveSnapshot after=position_receive_snapshot_actor(channel,before.pawn);
     if(!after.valid||before.pawn!=after.pawn||before.klass!=after.klass||before.index!=after.index||before.world!=after.world)return;
-    double delta=0;
-    for(int i=0;i<3;++i){double d=(double)after.position[i]-before.position[i];delta+=d*d;}
-    if(delta<256.0*256.0&&before.base==after.base&&before.controller==after.controller&&
+    double delta=0,velocity_delta=0,relative_delta=0;
+    for(int i=0;i<3;++i){double d=(double)after.position[i]-before.position[i];delta+=d*d;
+        d=(double)after.velocity[i]-before.velocity[i];velocity_delta+=d*d;
+        d=(double)after.relative[i]-before.relative[i];relative_delta+=d*d;}
+    if(delta<256.0*256.0&&velocity_delta<256.0*256.0&&relative_delta<256.0*256.0&&
+       before.physics==after.physics&&!((before.actor_flags^after.actor_flags)&0x04000008)&&read_ptr(channel+0xa0)==before.pawn&&before.base==after.base&&before.controller==after.controller&&
        !memcmp(before.roles,after.roles,2))return;
     ++position_receive_events;
-    char row[1300];snprintf(row,sizeof row,
+    char row[2300];snprintf(row,sizeof row,
         "{\"position_receive_trace\":\"change-in-original-receive\",\"event\":%u,\"pawn\":\"0x%llx\","
         "\"before\":[%.3f,%.3f,%.3f],\"after\":[%.3f,%.3f,%.3f],"
         "\"relative_before\":[%.3f,%.3f,%.3f],\"relative_after\":[%.3f,%.3f,%.3f],"
+        "\"velocity_before\":[%.3f,%.3f,%.3f],\"velocity_after\":[%.3f,%.3f,%.3f],"
+        "\"physics_before\":%u,\"physics_after\":%u,\"actor_flags_before\":%u,\"actor_flags_after\":%u,"
+        "\"channel_actor_cleared\":%s,"
         "\"base_before\":\"0x%llx\",\"base_after\":\"0x%llx\","
         "\"controller_before\":\"0x%llx\",\"controller_after\":\"0x%llx\","
         "\"roles_before\":[%u,%u],\"roles_after\":[%u,%u],\"original_forwarded\":true,"
@@ -91,6 +107,8 @@ static void position_receive_finish(uintptr_t channel,PositionReceiveSnapshot be
         position_receive_events,(unsigned long long)before.pawn,
         before.position[0],before.position[1],before.position[2],after.position[0],after.position[1],after.position[2],
         before.relative[0],before.relative[1],before.relative[2],after.relative[0],after.relative[1],after.relative[2],
+        before.velocity[0],before.velocity[1],before.velocity[2],after.velocity[0],after.velocity[1],after.velocity[2],
+        before.physics,after.physics,before.actor_flags,after.actor_flags,read_ptr(channel+0xa0)?"false":"true",
         (unsigned long long)before.base,(unsigned long long)after.base,
         (unsigned long long)before.controller,(unsigned long long)after.controller,
         before.roles[0],before.roles[1],after.roles[0],after.roles[1],GetTickCount());line(row);
