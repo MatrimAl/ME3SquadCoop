@@ -43,6 +43,7 @@ static OptimizedOwnerSnapshot optimized_owner_snapshot(InventoryDecodeFrame *f,
     /* Recheck identity/header after reading. Never treat the shadow as UObject. */
     s.valid=optimized_owner_identity(f,pawn,archive,shadow,map,channel);return s;
 }
+#include "optimized_owner_consume_qa.h"
 static void optimized_owner_forward(void *pawn,void *archive,void *shadow,void *map,
         void *channel,uintptr_t caller) {
     DWORD entry_error=GetLastError();InventoryDecodeFrame *f=inventory_decode_frame;
@@ -65,9 +66,16 @@ static void optimized_owner_forward(void *pawn,void *archive,void *shadow,void *
           (unsigned long long)(read_ptr((uintptr_t)map)-initial_actor_trace_base),
           loading_valid?"true":"false",loading,size_valid?"true":"false",size,GetTickCount());line(row);
     }
+    OptimizedOwnerConsumeLease lease=optimized_owner_consume_begin(f,(uintptr_t)pawn,(uintptr_t)archive,
+        (uintptr_t)shadow,(uintptr_t)map,(uintptr_t)channel,caller);
     SetLastError(entry_error);
     optimized_owner_original(pawn,archive,shadow,map,channel); /* Exactly once, all five args unchanged. */
     DWORD exit_error=GetLastError();
+    optimized_owner_consume_end(&lease);
+    if(lease.changed){
+        uint32_t cursor=0,error=0;int valid=read_at((uintptr_t)archive+0xa0,&cursor,4)&&read_at((uintptr_t)archive+0x38,&error,4);
+        char row[450];snprintf(row,sizeof row,"{\"optimized_owner_consume_qa\":\"applied\",\"owner_bit_written\":true,\"restore_status\":%d,\"archive_valid\":%s,\"cursor_after\":%u,\"archive_error_after\":%u,\"monotonic_ms\":%lu}\r\n",lease.restore_status,valid?"true":"false",cursor,error,GetTickCount());line(row);
+    }
     if(before.valid){
         after=optimized_owner_snapshot(f,(uintptr_t)pawn,(uintptr_t)archive,
                                       (uintptr_t)shadow,(uintptr_t)map,(uintptr_t)channel);
@@ -87,7 +95,7 @@ static void optimized_owner_forward(void *pawn,void *archive,void *shadow,void *
               "\"position_before\":[%.3f,%.3f,%.3f],\"position_after\":[%.3f,%.3f,%.3f],"
               "\"shadow_before\":[%.3f,%.3f,%.3f],\"shadow_after\":[%.3f,%.3f,%.3f],"
               "\"large_position_jump\":%s,\"original_forwarded\":true,\"payload_modified\":false,"
-              "\"position_written\":false,\"owner_bit_written\":false,\"monotonic_ms\":%lu}\r\n",
+              "\"position_written\":false,\"owner_bit_written\":%s,\"monotonic_ms\":%lu}\r\n",
               f->id,optimized_owner_rows,(unsigned long long)(uintptr_t)pawn,
               (unsigned long long)(uintptr_t)channel,(unsigned long long)(uintptr_t)shadow,
               before.flags264,owner?"true":"false",after.valid?"true":"false",after.flags264,
@@ -95,7 +103,7 @@ static void optimized_owner_forward(void *pawn,void *archive,void *shadow,void *
               before.position[0],before.position[1],before.position[2],after.position[0],after.position[1],after.position[2],
               before.shadow_position[0],before.shadow_position[1],before.shadow_position[2],
               after.shadow_position[0],after.shadow_position[1],after.shadow_position[2],
-              jump_squared>=256.0*256.0?"true":"false",GetTickCount());line(row);
+              jump_squared>=256.0*256.0?"true":"false",lease.changed?"true":"false",GetTickCount());line(row);
         }
     }
     SetLastError(exit_error);

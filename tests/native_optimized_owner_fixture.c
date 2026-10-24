@@ -38,6 +38,8 @@ static BOOL fixture_protect(void *at,SIZE_T n,DWORD flags,DWORD *old){(void)at;(
 static PVOID fixture_cas(PVOID volatile *at,PVOID value,PVOID expected){(void)at;uintptr_t prev=slot_value;if(prev==(uintptr_t)expected)slot_value=(uintptr_t)value;return (PVOID)prev;}
 #undef InterlockedCompareExchangePointer
 #define InterlockedCompareExchangePointer fixture_cas
+static DWORD fixture_env(const wchar_t *n,wchar_t *v,DWORD len){(void)n;(void)v;(void)len;return 0;}
+#define GetEnvironmentVariableW fixture_env
 #include "optimized_owner_trace.h"
 static void original(void *p,void *a,void *s,void *m,void *c){
  calls++;entry_ok=GetLastError()==123;
