@@ -169,3 +169,18 @@ still forward normally. The32-row cap and unreadable/ambiguous channel cases
 are checked by an authored fixture with an active failing canary; the existing
 receive-wrapper integration tests also pass. A live sender record is still
 required before choosing a writer-output observation.
+
+After the live writer identities matched, the protected observer was extended
+to capture the original writer's tag/index scalars before and after its calls.
+Four exact send branches have distinct return-site and maximum-value guards.
+The observation stays within one exact Ashley InvManager serialization and
+preserves original forwarding, return behavior and LastError. It does not read
+or reconstruct packet payloads. Its local property id groups writer records;
+it is not a transport sequence number and cannot pair host/client events alone.
+The channel index found by metadata scanning is only a hint: zero also covers
+unreadable or ambiguous metadata and is not an encoded-null verdict.
+
+The actual-header fixture, including an active failing canary, passed branch,
+normalization, nested-scope, forwarding, budget and transactional-installation
+checks. Existing sender metadata and27 receive-wrapper cases also passed.
+No live writer-output observation has yet been collected with this extension.

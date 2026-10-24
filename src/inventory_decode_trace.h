@@ -26,6 +26,7 @@ static int inventory_decode_property(uintptr_t property) {
 }
 #include "inventory_reference_trace.h"
 #include "inventory_send_metadata.h"
+#include "inventory_send_reference_trace.h"
 static int inventory_decode_forward(void *property,void *archive,void *map,void *data,uintptr_t caller) {
     DWORD before_error=GetLastError();InventoryDecodeFrame *f=inventory_decode_frame;
     uintptr_t base=initial_actor_trace_base,before=0,after=0;uint32_t error_before=1,error_after=1;
@@ -49,9 +50,12 @@ static int inventory_decode_forward(void *property,void *archive,void *map,void 
     int reference_eligible=scoped&&site_match&&property_match&&read_ptr(f->channel+0xa0)==f->before.pawn;
     inventory_reference_begin(&reference_scope,f,property,archive,map,caller,reference_eligible);
     inventory_send_metadata_capture((uintptr_t)property,(uintptr_t)archive,(uintptr_t)map,(uintptr_t)data,caller);
+    InventorySendScope send_scope;
+    inventory_send_reference_begin(&send_scope,property,archive,map,data,caller);
     SetLastError(before_error);
     int result=inventory_decode_original(property,archive,map,data);
     DWORD after_error=GetLastError();
+    inventory_send_reference_end(&send_scope);
     inventory_reference_end(&reference_scope);
     if(capture&&inventory_decode_frame==f&&
        read_at((uintptr_t)data,&after,8)&&read_at((uintptr_t)archive+0x38,&error_after,4)) {
@@ -113,6 +117,7 @@ static void inventory_decode_install(uintptr_t base) {
     if((uintptr_t)previous!=expected){inventory_decode_original=NULL;return;}
     inventory_decode_installed=1;
     inventory_reference_install(base);
+    inventory_send_reference_install(base);
     line("{\"inventory_decode_trace\":\"installed\",\"limit\":64,\"observational\":true}\r\n");
 }
 #endif
