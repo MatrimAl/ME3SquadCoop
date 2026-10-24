@@ -790,3 +790,22 @@ Earlier bounded possession/lifecycle observations remain documented in VALIDATIO
 ### Next investigation
 
 Inspect the normal squad-follow/catch-up path and its actual ground/readiness conditions at the intro transition, then repeat ownership and equipment tests. Do not remove the distance guard or directly relocate actors to turn this failure into a pass. Reliable acquisition is required before the weapon and real-dialogue gates can be exercised.
+
+
+### Relative-location field comparison (2026-10-25)
+
+A protected pair recorded a large guest `RelativeLocation` change inside the
+original native receive call. The field observer and receive entry/exit snapshot
+agree, while world `Location` was unchanged in that call. This does not prove
+that the field caused a later position jump. Nearby host field samples were
+normal, but timestamps alone cannot identify the exact sender packet. Shared
+progression, full dialogue and combat still failed validation. Original files
+and profiles were preserved; read-only helper failures prevent an all-pass audit.
+
+The opt-in observer now also records host Ashley `RelativeLocation` serialization
+through the exact native sender call site and the existing writer scalar hook.
+It requires a live current-world Ashley, the pinned writer/package-map tables
+and a non-loading archive. It forwards the original once and never changes
+payload, actor position or archive cursor. Authored-memory tests check sender
+identity rejection, scalar observation, forwarding and error preservation;
+these tests are not live packet matching or a gameplay fix.

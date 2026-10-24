@@ -98,6 +98,7 @@ static void inventory_send_index_forward(void *archive,uint32_t *source,uint32_t
     if(capture&&inventory_send_reference_current(s,archive)){
         uint32_t after=0;int av=read_at((uintptr_t)source,&after,4);
         inventory_send_reference_record(s,1,before,after,bv,av);s->tag_known=0;}
+    if(vector_decode_index_observer)vector_decode_index_observer(archive,source,maximum,caller);
     SetLastError(after_error);
 }
 static void inventory_send_bits(void *archive,void *source,int32_t count) {

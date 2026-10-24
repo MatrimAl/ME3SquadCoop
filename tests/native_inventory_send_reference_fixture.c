@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #define CHECK(x) do{if(!(x)){fprintf(stderr,"CHECK failed line%d: %s\n",__LINE__,#x);exit(2);}}while(0)
+static void (*vector_decode_index_observer)(void*,uint32_t*,uint32_t,uintptr_t);
 typedef struct {uintptr_t data;int count,max;} GameArray;
 static uintptr_t initial_actor_trace_base=0x10000000;
 static DWORD initial_actor_trace_thread=7,current_thread=7;
@@ -46,6 +47,11 @@ static PVOID fake_exchange(PVOID volatile *slot,PVOID replacement,PVOID expected
 #undef InterlockedCompareExchangePointer
 #define InterlockedCompareExchangePointer fake_exchange
 #include "inventory_send_reference_trace.h"
+static int vector_calls;
+static void vector_observer(void *a,uint32_t *v,uint32_t maximum,uintptr_t caller){
+ CHECK(a==archive&&v==&scalar_index&&maximum==20&&caller==initial_actor_trace_base+0x10cc41);
+ ++vector_calls;SetLastError(777);
+}
 static void original_bits(void *self,void *source,int32_t count){CHECK(self==archive&&source==&scalar_tag&&count>0&&GetLastError()==123);++bitcalls;SetLastError(501);}
 static void original_index(void *self,uint32_t *source,uint32_t max){CHECK(self==archive&&source==&scalar_index&&GetLastError()==123);++intcalls;if(*source>max)*source=max;SetLastError(502);}
 static void tagcall(uintptr_t site,int count){SetLastError(123);int n=bitcalls;inventory_send_bits_forward(archive,&scalar_tag,count,site);CHECK(bitcalls==n+1&&GetLastError()==501);}
@@ -82,5 +88,7 @@ int main(int argc,char **argv){
  put(pawn,0x414,0);tagcall(base+0x602ed2,1);put(pawn,0x414,(uintptr_t)manager);CHECK(records==before);
  inventory_send_reference_rows=128;tagcall(base+0x602ed2,1);indexcall(base+0x602f12,0x3ff);CHECK(records==before&&inventory_send_reference_rows==128);
  inventory_send_reference_end(&outer);CHECK(!inventory_send_scope);tagcall(base+0x602ed2,1);CHECK(records==before);
+ vector_decode_index_observer=vector_observer;scalar_index=13;
+ indexcall(base+0x10cc41,20);CHECK(vector_calls==1&&records==before);
  puts("PASS writer scalar observer: branches, normalization, scopes, forwarding, LastError, metadata and budget");return 0;
 }
