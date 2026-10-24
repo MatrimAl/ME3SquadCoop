@@ -1,7 +1,7 @@
 #ifndef ME3_GUEST_EQUIPMENT_BOOTSTRAP_H
 #define ME3_GUEST_EQUIPMENT_BOOTSTRAP_H
 /* Test-only NORMAL host -> owning-client equipment handoff. Include after
- * combat_fire_bot.h, before session_control.h. Protected probe integration only.
+ * combat_fire_bot.h, before session_control.h. No integration in this draft.
  * Root capture18912, exactLE3 build only. No direct Owner/role/flag/ammo writes.
  * Important: false means normal active handoff; true would force Inactive.
  */
@@ -311,7 +311,7 @@ static int guest_equipment_body(uintptr_t base,uintptr_t fn,int full_size,const 
     return 1;
 }
 #define GUEST_EQUIPMENT_BODY(B,F,S,K) guest_equipment_body(B,F,S,guest_equipment_##K##_code,sizeof guest_equipment_##K##_code,guest_equipment_##K##_ops,guest_equipment_##K##_names)
-typedef struct GuestEquipmentMethods { uintptr_t base; int ready; GuestPlayerContextMethod given,super_given,weapon_set,first_weapon_set,inventory_set,notify,force_update; } GuestEquipmentMethods;
+typedef struct GuestEquipmentMethods { uintptr_t base; int ready; GuestPlayerContextMethod given,super_given,weapon_set,first_weapon_set,inventory_set,notify; } GuestEquipmentMethods;
 static GuestEquipmentMethods guest_equipment_methods;
 static uint32_t guest_equipment_attempted_epoch;
 static uintptr_t guest_equipment_attempted_remote;
@@ -332,8 +332,6 @@ static const char *guest_equipment_methods_check(uintptr_t base) {
     if(!guest_player_context_method_matches(base,&m->first_weapon_set,1)) return "match-first-weapon-set-fail";
     if(!guest_player_context_method_matches(base,&m->inventory_set,1)) return "match-inventory-set-fail";
     if(!guest_player_context_method_matches(base,&m->notify,1)) return "match-notify-fail";
-    if(!guest_player_context_method_matches(base,&m->force_update,1)) return "match-force-update-fail";
-    if(!guest_player_context_function_abi(base,m->force_update.function.pointer,"PlayerController","ForceSingleNetUpdateFor",0x20401,8,65535,0,0x4cd170,1)) return "abi-force-update-fail";
     if(!guest_player_context_function_abi(base,m->given.function.pointer,"Weapon","ClientGivenTo",0x10201c2,12,65535,0,0xf52b0,2)) return "abi-given-fail";
     if(!guest_player_context_function_abi(base,m->super_given.function.pointer,"Inventory","ClientGivenTo",0x10201c2,12,65535,0,0xf52b0,2)) return "abi-super-given-fail";
     if(!guest_player_context_function_abi(base,m->weapon_set.function.pointer,"Weapon","ClientWeaponSet",0x10241c2,8,65535,0,0xf52b0,2)) return "abi-weapon-set-fail";
@@ -362,7 +360,6 @@ static const char *guest_equipment_resolve_check(uintptr_t base,uintptr_t pc,uin
         if(guest_equipment_find_first(base,read_ptr(weapon+0x50),"ClientWeaponSet")!=m->first_weapon_set.function.pointer) return "first-weapon-set-mismatch";
         if(guest_equipment_find_first(base,read_ptr(inventory+0x50),"ClientWeaponSet")!=m->inventory_set.function.pointer) return "first-inventory-set-mismatch";
         if(guest_equipment_find_first(base,read_ptr(pc+0x50),"NotifyAddInventory")!=m->notify.function.pointer) return "first-notify-mismatch";
-        if(guest_equipment_find_first(base,read_ptr(pc+0x50),"ForceSingleNetUpdateFor")!=m->force_update.function.pointer) return "first-force-update-mismatch";
         return NULL;
     }
     if(guest_equipment_discovery_at&&now-guest_equipment_discovery_at<1000) return guest_equipment_resolve_detail;
@@ -377,8 +374,6 @@ static const char *guest_equipment_resolve_check(uintptr_t base,uintptr_t pc,uin
     if(!is) return "find-inventory-set-null";
     uintptr_t notify=guest_equipment_find_first(base,read_ptr(pc+0x50),"NotifyAddInventory");
     if(!notify) return "find-notify-null";
-    uintptr_t force_update=guest_equipment_find_first(base,read_ptr(pc+0x50),"ForceSingleNetUpdateFor");
-    if(!force_update) return "find-force-update-null";
     uintptr_t sg=guest_player_context_find_method(base,read_ptr(weapon+0x50),"Inventory","ClientGivenTo");
     if(!sg) return "find-super-given-null";
     if(!guest_player_context_method_stamp(base,given,&m->given)) return "stamp-given-fail";
@@ -387,7 +382,6 @@ static const char *guest_equipment_resolve_check(uintptr_t base,uintptr_t pc,uin
     if(!guest_player_context_method_stamp(base,first_ws,&m->first_weapon_set)) return "stamp-first-weapon-set-fail";
     if(!guest_player_context_method_stamp(base,is,&m->inventory_set)) return "stamp-inventory-set-fail";
     if(!guest_player_context_method_stamp(base,notify,&m->notify)) return "stamp-notify-fail";
-    if(!guest_player_context_method_stamp(base,force_update,&m->force_update)) return "stamp-force-update-fail";
     m->base=base;m->ready=1;
     const char *err = guest_equipment_methods_check(base);
     if(err) { m->ready=0; return err; }
@@ -475,24 +469,6 @@ static void guest_equipment_bootstrap_tick(uintptr_t base,uintptr_t host,uintptr
     struct __attribute__((packed)) { uintptr_t pawn; uint32_t do_not_activate; } parms={pawn,0};
     _Static_assert(sizeof parms==12,"ClientGivenTo ABI12");
     guest_equipment_attempted_epoch=epoch;guest_equipment_attempted_remote=remote;
-    /* Exact owned Engine.PlayerController native bridge: one Actor pointer,
-     * native handler4cd170 ->497110. The body only requests an existing channel
-     * update; it does not create inventory or change replicated references.
-     * Request dependencies first, then pawn, before the ordinary weapon RPC.
-     * This is one bounded experiment per ownership epoch, not a repair verdict. */
-    uintptr_t pc_pe=read_ptr(read_ptr(remote)+0x230);
-    if(pc_pe!=base+0x40d450)return guest_equipment_reject("force-update-process-event-pin",epoch,pawn,weapon,inventory,now);
-    uintptr_t update_targets[3]={inventory,weapon,pawn};
-    for(unsigned i=0;i<3;++i) {
-        if(!guest_camera_stamp_matches(base,&ps,1)||!guest_camera_stamp_matches(base,&ws,1)||
-           !guest_camera_stamp_matches(base,&is,1)||!guest_camera_stamp_matches(base,&rs,1)||
-           !guest_camera_stamp_matches(base,&cs,1)||read_ptr(remote+0x3bc)!=pawn||
-           read_ptr(pawn+0x374)!=remote||!guest_equipment_methods_valid(base))
-            return guest_equipment_reject("force-update-context-changed",epoch,pawn,weapon,inventory,now);
-        ((ProcessEvent)pc_pe)((void*)remote,(void*)guest_equipment_methods.force_update.function.pointer,&update_targets[i],NULL);
-    }
-    char update_row[400];snprintf(update_row,sizeof update_row,
-        "{\"guest_equipment_bootstrap\":\"native-update-requested\",\"epoch\":%u,\"target_count\":3,\"inventory_pointer_written\":false,\"client_inventory_restored_verified\":false,\"monotonic_ms\":%lu}\r\n",epoch,now);line(update_row);
     ((ProcessEvent)pe)((void*)weapon,(void*)guest_equipment_methods.given.function.pointer,&parms,NULL);
     int stable=guest_camera_stamp_matches(base,&ps,1)&&guest_camera_stamp_matches(base,&ws,1)&&guest_camera_stamp_matches(base,&is,1)&&
       guest_camera_stamp_matches(base,&rs,1)&&guest_camera_stamp_matches(base,&cs,1);

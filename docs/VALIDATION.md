@@ -147,11 +147,18 @@ while weapon identity, roles, position and physics stayed unchanged in that
 sample. This narrows the change to receive processing, which includes native
 property application and engine callbacks; it does not distinguish those two.
 
-The protected equipment handoff now experiments with the existing native
+A follow-up protected experiment requested the existing native
 PlayerController.ForceSingleNetUpdateFor for inventory, weapon and pawn before
-ClientGivenTo. Exact function identity, native handler and one-pointer ABI
-must match before dispatch; calls are bounded to one set per ownership epoch.
-No inventory pointer is assigned by the probe. This requests ordinary engine
-updates for existing channels, and is not evidence that an inventory reference
-was delivered or restored. The ordinary player ASI does not include this
-protected-probe experiment.
+ClientGivenTo, once per ownership epoch. Runtime function/ABI guards accepted
+the native calls, but the guest inventory still became null and remained
+unrestored. The pair also reproduced unsafe guest motion and an access
+violation during disconnect. The observed fault was outside the probe and game
+image; the initiating cause is unresolved. A normal250ms fire command was dispatched; later samples showed three used
+rounds on each side with reserves210/210. The fire verifier rejected weapon
+continuity and stop verification, so these counts do not prove a valid firing
+cycle. No hostile damage was verified. Movement/lifecycle/combat gates did not pass this run.
+
+The native-update experiment was removed because it did not resolve the
+inventory failure. Its result must not be presented as a repair or a usable
+player feature. Original profiles were unchanged and no game process remained;
+a read-only monitor access error was also recorded.
