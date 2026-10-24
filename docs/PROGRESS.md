@@ -872,3 +872,30 @@ enabled, so enabling that bit is not justified by this run. Guest reacquisition
 was followed by a missing pawn inventory manager and no second-lease fire input.
 The exact native reference decode resolved a different class and returned null;
 its initiating packet/ownership cause is still under investigation.
+
+
+### First scoped optimized-payload correction trial
+
+A protected baseline recorded124 optimized callbacks with `bNetOwner` set and
+no archive cursor advance, although native dispatch had already consumed the
+positive optimized-payload marker. Inventory was subsequently cleared by a
+reference decode. A default-off QA candidate now clears only that transient
+owner bit around the unchanged native callback and restores it to the same
+live actor. It does not overwrite positions, decoded values or archive cursors.
+
+The first real-client candidate run applied once, restored the bit successfully
+and advanced the archive without error. No inventory-change event was observed.
+The existing shared-travel evaluator passed a40-second interval: host Ashley
+and guest displaced about1871.7 units with direction cosine0.9966. All105
+post-acquisition guest progress samples were grounded and none below kill Z.
+This does not prove continuous ground contact between samples or every scene.
+
+The second firing pulse in each ownership epoch passed authoritative/guest
+ammunition agreement and stable stop checks (used6/reserve210 in epoch1;
+used17/reserve210 in epoch2). The first pulse in each epoch lacked sufficient
+same-weapon baseline evidence, so the aggregate fire-stop gate remains false.
+Eight authoritative hit-drain calls were observed, all with no valid target;
+enemy damage remains unverified. Full dialogue and mission completion remain
+unverified. Original profiles/source/build were unchanged, native exceptions
+were zero and no game process remained. The memory helper exited1, so the
+observer audit is not an unqualified all-pass. Repeat validation is required.
