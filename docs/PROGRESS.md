@@ -834,3 +834,22 @@ the guest fell below world kill Z. Native exceptions were zero and original
 profiles remained unchanged; the memory helper exited1. Host `Velocity` is now
 included in the same bounded observer to compare the failing field directly.
 Equal field values alone do not identify a packet by its header.
+
+
+### Optimized movement ownership observation
+
+The next route passed the corrected contact readiness but rejected before
+ordinary action dispatch. Cleanup and setup previously shared one rejection
+label; the probe now reports the first failing setup gate without relaxing it.
+
+Retained native analysis identifies a specific framing hazard: the optimized
+movement body returns without reading payload when `Actor.bNetOwner` is set.
+The receiver invokes it only after reading a nonzero optimized-payload marker,
+then continues to generic field headers. Sender ownership is computed per
+connection and later cleared, so asynchronous host/guest flag differences do
+not prove a mismatch. A protected receiver-only observer now records exact
+optimized-call entry ownership, archive cursor/end/error and pawn/shadow
+positions. Its authored-memory fixture checks unchanged five-argument forwarding,
+identity bounds, installation pins and bounded recording. It does not change
+ownership or consume the payload; the actual runtime failure mechanism remains
+unverified until those call records are examined.

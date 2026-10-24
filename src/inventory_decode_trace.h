@@ -105,6 +105,7 @@ static void inventory_decode_end(InventoryDecodeFrame *f) {
     inventory_decode_frame=f->previous;
 }
 #include "vector_decode_trace.h"
+#include "optimized_owner_trace.h"
 static void inventory_decode_install(uintptr_t base) {
     int side=(test_action==5&&!strcmp(test_role,"client"))||(test_action==6&&!strcmp(test_role,"host"));
     if(!position_receive_opted()||inventory_decode_installed||!progress_enabled||!side||!has_marker(root))return;
@@ -120,6 +121,7 @@ static void inventory_decode_install(uintptr_t base) {
     inventory_reference_install(base);
     inventory_send_reference_install(base);
     vector_decode_install(base);
+    optimized_owner_install(base);
     line("{\"inventory_decode_trace\":\"installed\",\"limit\":64,\"observational\":true}\r\n");
 }
 #endif
