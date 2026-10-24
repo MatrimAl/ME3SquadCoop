@@ -387,11 +387,18 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
             and report.get("host_launcher_exit") == 0 and report.get("original_profile_unchanged")
             and report.get("native_exception_count") == 0 and not report.get("forced_sandbox_game_cleanup_pids")
             and report["probe_disabled_after_run"])
+        # Lifecycle success is not gameplay continuity: a possessed pawn can
+        # still fall out of the world. Expose the existing movement verdict in
+        # the concise summary instead of requiring readers to open nested data.
+        progress = report.get("progress_evidence", {})
+        report["guest_can_progress_with_host"] = progress.get("guest_can_progress_with_host") is True
+        report["unsafe_guest_motion_observed"] = progress.get("unsafe_guest_motion_observed") is True
         (PRIVATE / "pair-probe-result.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         (PRIVATE / ("pair-probe-result-" + uuid.uuid4().hex[:12] + ".json")).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print(json.dumps({key: report[key] for key in (
             "host_listen_verified", "guest_client_mode_verified", "distinct_native_processes",
-            "sustained_connection_observed", "connection_states_verified", "session_lifecycle_verified", "campaign_coop_verified", "probe_disabled_after_run")}, indent=2))
+            "sustained_connection_observed", "connection_states_verified", "session_lifecycle_verified",
+            "guest_can_progress_with_host", "unsafe_guest_motion_observed", "campaign_coop_verified", "probe_disabled_after_run")}, indent=2))
         if failed is not None:
             print("Pair probe stopped: " + type(failed).__name__ + "; inspect private result.", file=sys.stderr)
     return 0 if (report["session_lifecycle_verified"] if session_test else report["connection_states_verified"]) else 1
