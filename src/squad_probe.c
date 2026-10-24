@@ -748,6 +748,7 @@ __declspec(dllexport) int SquadAmmoReconcileSelfTest(void) { return ammo_rpc_sel
 __declspec(dllexport) int SquadFireRpcTraceSelfTest(void) { return fire_rpc_selftest(); }
 __declspec(dllexport) int SquadNativeFireTraceSelfTest(void) { return native_fire_selftest(); }
 __declspec(dllexport) int SquadGuestHitTraceSelfTest(void) { return guest_hit_selftest(); }
+__declspec(dllexport) int SquadGuestContextScopeSelfTest(void) { return guest_player_context_scope_selftest(); }
 __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_adapter_selftest(); }
 __declspec(dllexport) int SquadGuestCollisionSelfTest(void) { return guest_collision_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }

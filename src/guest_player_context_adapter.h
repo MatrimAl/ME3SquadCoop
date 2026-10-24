@@ -57,6 +57,45 @@ static uintptr_t guest_player_context_last_pc,guest_player_context_last_pawn,gue
 static DWORD guest_player_context_last_rejection;
 static const char *guest_player_context_reason="not-evaluated";
 
+/* Observe the caller's ordinary control scope separately from native pawn
+ * ownership. A scene can suspend the local context without an UnPossess RPC. */
+static void guest_player_context_observe_scope(uintptr_t pc,uintptr_t pawn,uintptr_t info,
+        int owned,int ordinary_mode,int enabled) {
+    int scoped_owned=owned&&ordinary_mode&&enabled;
+    int edge=scoped_owned&&(!guest_player_context_owned_last||pc!=guest_player_context_last_pc||
+        pawn!=guest_player_context_last_pawn||info!=guest_player_context_last_info);
+    if(edge)++guest_player_context_token;
+    guest_player_context_owned_last=scoped_owned;
+    guest_player_context_last_pc=pc;guest_player_context_last_pawn=pawn;guest_player_context_last_info=info;
+}
+static int guest_player_context_scope_selftest(void) {
+    unsigned long token=guest_player_context_token;int owned=guest_player_context_owned_last,ok=1;
+    uintptr_t pc=guest_player_context_last_pc,pawn=guest_player_context_last_pawn,info=guest_player_context_last_info;
+    guest_player_context_token=0;guest_player_context_owned_last=0;
+    guest_player_context_last_pc=guest_player_context_last_pawn=guest_player_context_last_info=0;
+    guest_player_context_observe_scope(16,32,48,1,1,1);
+    ok=ok&&guest_player_context_token==1;
+    for(int i=0;i<10;++i)guest_player_context_observe_scope(16,32,48,1,1,1);
+    ok=ok&&guest_player_context_token==1;
+    /* Pause/scene while the same local PC still owns the same acknowledged pawn. */
+    for(int i=0;i<10;++i)guest_player_context_observe_scope(16,32,48,1,0,1);
+    ok=ok&&guest_player_context_token==1;
+    guest_player_context_observe_scope(16,32,48,1,1,1);
+    ok=ok&&guest_player_context_token==2;
+    for(int i=0;i<10;++i)guest_player_context_observe_scope(16,32,48,1,1,0);
+    ok=ok&&guest_player_context_token==2;
+    guest_player_context_observe_scope(16,32,48,1,1,1);
+    ok=ok&&guest_player_context_token==3;
+    guest_player_context_observe_scope(16,32,48,0,1,1);
+    guest_player_context_observe_scope(16,32,48,1,1,1);
+    ok=ok&&guest_player_context_token==4;
+    guest_player_context_observe_scope(16,64,48,1,1,1);
+    ok=ok&&guest_player_context_token==5;
+    guest_player_context_token=token;guest_player_context_owned_last=owned;
+    guest_player_context_last_pc=pc;guest_player_context_last_pawn=pawn;guest_player_context_last_info=info;
+    return ok;
+}
+
 static int guest_player_context_reject(const char *reason) {
     guest_player_context_reason=reason;return 0;
 }
@@ -470,9 +509,7 @@ static void guest_player_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t paw
         int ordinary_mode,int enabled,DWORD now) {
     GuestPlayerContextLease *l=&guest_player_context_lease;
     int owned=guest_player_context_basic_owned(base,pc,pawn,info);
-    int edge=owned&&(!guest_player_context_owned_last||pc!=guest_player_context_last_pc||pawn!=guest_player_context_last_pawn||info!=guest_player_context_last_info);
-    if(edge)++guest_player_context_token;
-    guest_player_context_owned_last=owned;guest_player_context_last_pc=pc;guest_player_context_last_pawn=pawn;guest_player_context_last_info=info;
+    guest_player_context_observe_scope(pc,pawn,info,owned,ordinary_mode,enabled);
     NetworkActorIdentityEntry channel={0};CombatContextChain chain;
     int eligible=guest_player_context_conditions(base,pc,pawn,info,ordinary_mode,enabled,!l->registered,&channel,&chain);
     if(!eligible&&owned&&(!guest_player_context_last_rejection||now-guest_player_context_last_rejection>=5000)) {
@@ -506,7 +543,7 @@ static void guest_player_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t paw
     }
     if(!guest_player_context_capture(base,pc,pawn,info,&channel,&chain))return;
     l->getter_before=guest_player_context_gate(base,"before-apply",now);
-    /* One spawn attempt per observed ownership lease; all later failures
+    /* One spawn attempt per observed ownership/control-scope lease; failures
      * retain this tracked/suppressed record, never a perframe respawn loop. */
     l->suppressed=1;
     GuestPlayerSpawnParms parms={0};parms.klass=guest_player_context_methods.klass.pointer;parms.owner=pc;
