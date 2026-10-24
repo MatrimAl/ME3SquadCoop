@@ -26,6 +26,10 @@ static uintptr_t session_guest_last_pawn = 0;
 static uint32_t session_guest_epoch = 0;
 static DWORD session_guest_at = 0, session_guest_first_at = 0;
 static int session_disconnect_sent = 0;
+static int combat_action_opted(void);
+static DWORD session_guest_disconnect_delay(int progress,int action) {
+    return progress?(action==1?90000:60000):40000;
+}
 static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     SessionContext c = session_context(engine); DWORD now = GetTickCount();
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,progress_enabled&&has_marker(root),now);
@@ -51,7 +55,7 @@ static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
                 if (!session_disconnect_sent&&!collision_baseline_qa_opted()) progress_guest_follow_input(base,c.pc,c.pawn,input,elapsed);
             }
         }
-    } else if (session_guest_first_at && now - session_guest_first_at >= (progress_enabled?60000:40000) && !session_disconnect_sent && c.pc) {
+    } else if (session_guest_first_at && now - session_guest_first_at >= session_guest_disconnect_delay(progress_enabled,combat_action_opted()) && !session_disconnect_sent && c.pc) {
         session_disconnect_sent = 1;
         char text[250]; snprintf(text, sizeof text,
             "{\"session\":\"disconnect-request\",\"source\":\"ordinary-engine-console\",\"monotonic_ms\":%lu}\r\n", now); line(text);

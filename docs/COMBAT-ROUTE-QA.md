@@ -29,6 +29,10 @@ original start envelope and four-second stuck bound remain. The current route
 limit is120 seconds: measured normal walking plus the landing scene exhausted
 the earlier75-second limit before the final approach. Native process deadlines
 are unchanged; this is a developer bot timing change, not a gameplay bypass.
+With the existing action opt-in only, the synthetic guest disconnect moves
+from60 to90 seconds after first ownership so it does not terminate the final
+approach. The ordinary40/60-second scenarios and native process deadlines
+remain unchanged. This longer action scenario still needs live verification.
 This correction has offline fixture coverage; successful shuttle exit and the
 remaining route still require a new protected run. Captured component bounds
 are geometric leads, not proof of which component produced the collision.
