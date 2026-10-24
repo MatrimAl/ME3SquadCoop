@@ -80,3 +80,11 @@ from a missed scope and does not validate the decoder path on a real packet.
 The same run consumed no rounds in sampled Ashley weapons; valid sampled
 infinite-ammo flags were false. Role-permission checks rejected the fire bot.
 Thus neither the observed animation nor installation proves a successful shot.
+
+The observer now reports at most eight coverage summaries, spaced at least five
+seconds apart, independently of its field-event budget. Cumulative scoped
+serializer calls, exact receive-callsite matches and reflected inventory-field
+matches distinguish an inactive callback from a rejected callsite/property.
+Wrong-callsite and wrong-property authored cases assert different counters;
+the actual wrapper passes27 cases plus the failing canary. Coverage counts
+alone still do not prove that a valid object was decoded or applied.

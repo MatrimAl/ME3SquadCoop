@@ -89,6 +89,8 @@ static void setup(void) {
     memcpy(property+0x70,&dim,4);memcpy(property+0x74,&size,4);memcpy(property+0x78,&flags,8);memcpy(property+0x94,&offset,4);
     putptr(map_data,0,fake_base+0x11a1030);decode_scratch=0x123456;decode_calls=0;property_name_valid=1;
     inventory_decode_original=decode_original;inventory_decode_installed=0;inventory_decode_rows=0;inventory_decode_frame=NULL;
+    inventory_decode_scoped_calls=inventory_decode_site_calls=inventory_decode_property_calls=0;
+    inventory_decode_summaries=8;inventory_decode_summary_at=0;
     progress_enabled=1;marker=ashley=1;test_action=5;mode=records=forward_calls=0;logged[0]=0;
 }
 static void run(int expected_records) {
@@ -115,10 +117,11 @@ int main(int argc,char **argv) {
     setup();mode=12;inventory_decode_installed=1;run(1);CHECK(strstr(logged,"\"native_result\":7"));
     setup();mode=15;inventory_decode_installed=1;run(0);
     setup();mode=12;inventory_decode_installed=1;int invalid_offset=0x41c;memcpy(property+0x94,&invalid_offset,4);run(0);
-    setup();mode=13;inventory_decode_installed=1;run(0);
-    setup();mode=14;inventory_decode_installed=1;property_name_valid=0;run(0);
+    setup();mode=13;inventory_decode_installed=1;run(0);CHECK(inventory_decode_scoped_calls==1&&inventory_decode_site_calls==0&&inventory_decode_property_calls==1);
+    setup();mode=14;inventory_decode_installed=1;property_name_valid=0;run(0);CHECK(inventory_decode_scoped_calls==1&&inventory_decode_site_calls==1&&inventory_decode_property_calls==0);
     setup();mode=12;inventory_decode_installed=1;inventory_decode_rows=64;run(0);
     setup();mode=12;run(0);
+    setup();mode=12;inventory_decode_installed=1;inventory_decode_summaries=0;run(2);CHECK(strstr(logged,"\"scoped_serializer_calls\":1"));
     setup();mode=9;run(1);CHECK(strstr(logged,"\"inventory_before\":\"0x123456\",\"inventory_after\":\"0x0\""));
     setup();mode=10;run(1);CHECK(strstr(logged,"\"weapon_after\":\"0x56789\""));
     setup();mode=5;run(1);CHECK(strstr(logged,"-57118.000,-105857.000,71.000"));
@@ -135,6 +138,6 @@ int main(int argc,char **argv) {
     setup();mode=1;test_action=6;run(0);
     setup();mode=1;initial_actor_trace_thread++;run(0);
     setup();mode=1;info[0x7c8]=0;run(0);
-    puts("PASS 26 receive-wrapper cases: changed/unchanged, identity/nonfinite/budget/context guards, forward once, LastError and packet preserved");
+    puts("PASS 27 receive-wrapper cases: changed/unchanged, identity/nonfinite/budget/context guards, forward once, LastError and packet preserved");
     return 0;
 }

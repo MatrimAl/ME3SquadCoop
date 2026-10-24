@@ -12,6 +12,9 @@ static InventoryDecodeOriginal inventory_decode_original;
 static InventoryDecodeFrame *inventory_decode_frame;
 static unsigned inventory_decode_next,inventory_decode_rows;
 static int inventory_decode_installed;
+static unsigned inventory_decode_scoped_calls,inventory_decode_site_calls,inventory_decode_property_calls;
+static unsigned inventory_decode_summaries;
+static DWORD inventory_decode_summary_at;
 static int inventory_decode_property(uintptr_t property) {
     uintptr_t base=initial_actor_trace_base;int32_t dim=0,size=0,offset=-1;uint64_t flags=0;char path[400];
     if(!is_live(base,property)||read_ptr(property)!=base+0x1077d88||
@@ -24,9 +27,17 @@ static int inventory_decode_property(uintptr_t property) {
 static int inventory_decode_forward(void *property,void *archive,void *map,void *data,uintptr_t caller) {
     DWORD before_error=GetLastError();InventoryDecodeFrame *f=inventory_decode_frame;
     uintptr_t base=initial_actor_trace_base,before=0,after=0;uint32_t error_before=1,error_after=1;
-    int capture=inventory_decode_installed&&position_receive_opted()&&has_marker(root)&&
-        GetCurrentThreadId()==initial_actor_trace_thread&&inventory_decode_rows<64&&
-        caller==base+0x488ed4&&f&&f->before.valid&&inventory_decode_property((uintptr_t)property)&&
+    int scoped=inventory_decode_installed&&position_receive_opted()&&has_marker(root)&&
+        GetCurrentThreadId()==initial_actor_trace_thread&&f&&f->before.valid;
+    int property_match=0,site_match=0;
+    if(scoped) {
+        if(inventory_decode_scoped_calls!=UINT32_MAX)++inventory_decode_scoped_calls;
+        site_match=caller==base+0x488ed4;
+        if(site_match&&inventory_decode_site_calls!=UINT32_MAX)++inventory_decode_site_calls;
+        property_match=inventory_decode_property((uintptr_t)property);
+        if(property_match&&inventory_decode_property_calls!=UINT32_MAX)++inventory_decode_property_calls;
+    }
+    int capture=scoped&&inventory_decode_rows<64&&site_match&&property_match&&
         read_ptr(f->channel+0xa0)==f->before.pawn&&
         read_at((uintptr_t)data,&before,8)&&read_at((uintptr_t)archive+0x38,&error_before,4);
     SetLastError(before_error);
@@ -64,6 +75,14 @@ static void inventory_decode_end(InventoryDecodeFrame *f) {
               "{\"inventory_decode_trace\":\"receive-complete\",\"receive_id\":%u,\"inventory_before\":\"0x%llx\",\"inventory_after\":\"0x%llx\",\"monotonic_ms\":%lu}\r\n",
               f->id,(unsigned long long)f->before.inventory,(unsigned long long)after.inventory,GetTickCount());line(row);
         }
+    }
+    DWORD now=GetTickCount();
+    if(f->before.valid&&inventory_decode_summaries<8&&
+       (!inventory_decode_summary_at||now-inventory_decode_summary_at>=5000)) {
+        inventory_decode_summary_at=now;++inventory_decode_summaries;char row[500];
+        snprintf(row,sizeof row,
+          "{\"inventory_decode_trace\":\"coverage\",\"scoped_serializer_calls\":%u,\"receive_site_calls\":%u,\"inventory_property_calls\":%u,\"monotonic_ms\":%lu}\r\n",
+          inventory_decode_scoped_calls,inventory_decode_site_calls,inventory_decode_property_calls,now);line(row);
     }
     inventory_decode_frame=f->previous;
 }
