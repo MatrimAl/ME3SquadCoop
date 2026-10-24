@@ -30,7 +30,7 @@ limit is120 seconds: measured normal walking plus the landing scene exhausted
 the earlier75-second limit before the final approach. Native process deadlines
 are unchanged; this is a developer bot timing change, not a gameplay bypass.
 With the existing action opt-in only, the synthetic guest disconnect moves
-from60 to90 seconds after first ownership so it does not terminate the final
+from60 to120 seconds after first ownership so it does not terminate the final
 approach. The ordinary40/60-second scenarios and native process deadlines
 remain unchanged. This longer action scenario still needs live verification.
 The action trial now omits the synthetic three-second ownership release;

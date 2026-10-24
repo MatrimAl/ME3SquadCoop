@@ -361,7 +361,7 @@ static int combat_route_qa_selftest(void) {
     combat_action_qa.loaded=action_loaded;combat_action_qa.opted=action_opted;
     if(forced_release)return 0;
     if(session_guest_disconnect_delay(0,1)!=40000||session_guest_disconnect_delay(1,0)!=60000||
-       session_guest_disconnect_delay(1,-1)!=60000||session_guest_disconnect_delay(1,1)!=90000)return 0;
+       session_guest_disconnect_delay(1,-1)!=60000||session_guest_disconnect_delay(1,1)!=120000)return 0;
     if(combat_route_pause_budget(1)!=20000||combat_route_pause_budget(0)!=2000||combat_route_pause_budget(-1)!=2000||
        !combat_route_pause_within(13390,combat_route_pause_budget(1))||combat_route_pause_within(13390,combat_route_pause_budget(0))||
        combat_route_pause_within(20000,20000)||combat_route_pause_within(2000,2000)||combat_route_pause_within(1,75000))return 0;

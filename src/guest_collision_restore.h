@@ -31,6 +31,10 @@ static int guest_collision_physical_equal(const GuestCollisionShape *a,const Gue
     return a->actor==b->actor&&a->block==b->block&&a->component==b->component&&a->type==b->type;
 }
 static int guest_collision_disabled(const GuestCollisionShape *s) {
+    /* Measured real-scene return: both Actor collision bits are off while
+     * the blocking latch and healthy cylinder response survive. Repair only
+     * this exact type0 pair after the existing stable release/new lease gates. */
+    if(s&&s->actor==0&&s->block==1&&s->component==0xaa&&s->type==0&&s->replicated==0)return 1;
     /* Measured owned return: world collision survives, actor collision does not;
      * the blocking bit can be absent or retained. Both exact states were
      * captured with the healthy cylinder response. Native type6 preserves
@@ -222,6 +226,12 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
     l->released=l->pending=0;
 }
 static int guest_collision_selftest(void) {
+    GuestCollisionShape real_release={0,1,0xaa,0,0};
+    if(!guest_collision_disabled(&real_release))return 0;
+    real_release.type=12;real_release.replicated=12;if(guest_collision_disabled(&real_release))return 0;
+    real_release.type=0;real_release.replicated=1;if(guest_collision_disabled(&real_release))return 0;
+    real_release.replicated=0;real_release.component=0x22;if(guest_collision_disabled(&real_release))return 0;
+    real_release.component=0xaa;real_release.block=2;if(guest_collision_disabled(&real_release))return 0;
     GuestCollisionShape healthy={0x60000000,1,0xaa,6,6},released={0,0,0x20,1,1},wrong=healthy;
     if(!guest_collision_healthy(&healthy)||!guest_collision_disabled(&released)||guest_collision_healthy(&released)||guest_collision_disabled(&healthy))return 0;
     wrong=healthy;wrong.replicated=10;if(!guest_collision_healthy(&wrong))return 0;

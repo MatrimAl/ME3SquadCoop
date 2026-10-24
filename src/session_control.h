@@ -31,7 +31,7 @@ static uint32_t session_guest_epoch = 0;
 static DWORD session_guest_at = 0, session_guest_first_at = 0;
 static int session_disconnect_sent = 0;
 static DWORD session_guest_disconnect_delay(int progress,int action) {
-    return progress?(action==1?90000:60000):40000;
+    return progress?(action==1?120000:60000):40000;
 }
 static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     SessionContext c = session_context(engine); DWORD now = GetTickCount();

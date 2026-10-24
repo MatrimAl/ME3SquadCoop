@@ -79,3 +79,20 @@ stays disabled in that mode. The ordinary player ASI does not include this code.
 `python tests/native_position_receive.py <zig>` exercises the actual forwarding
 wrapper on authored memory. Passing it establishes diagnostic forwarding and
 filter behavior, not movement, dialogue or combat correctness in the game.
+# Measured real-scene retained-block case
+
+A protected real-scene return reproduced falling without inventory loss or an
+out-of-range collision enum. The guest reacquired with both Actor collision
+bits disabled, block latch1, cylinder response0xaa and type/replicated type0.
+The first measured fall began five seconds after reacquisition. The existing
+release-shape predicate rejected this stable combination, clearing its pending
+repair state. The later scheduled disconnect did not cause this fall.
+
+The protected adapter now admits only that exact additional shape. All existing
+healthy-baseline, two-sample release, new-lease, identity, ordinary-scene and
+component checks remain. Repair uses the existing native collision-type call
+and masked world-collision restoration; no position, physics or role write is
+added. The lifecycle fixture checks one repair after reacquisition, preserves
+adjacent flags and rejects other component/type/block combinations. This is a
+candidate fix with offline evidence; prevention of falling still requires a
+new protected real-client run.
