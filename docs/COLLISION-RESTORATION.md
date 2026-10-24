@@ -125,3 +125,12 @@ this evidence does not justify suppressing arbitrary updates or restoring
 coordinates. The earlier single positive collision-repair result remains
 limited to its measured release shape. Stable movement, combat damage and
 full conversations are still unverified.
+
+The next diagnostic is `vector_decode_trace.h`, enabled only by the existing
+protected position-receive opt-in. It observes the stock StructProperty
+serializer for the exact Actor location, velocity and relative-location fields
+inside the existing guest Ashley receive frame. The bounded records distinguish
+decoded scratch values from final application. The original serializer still
+runs once with unchanged arguments; no archive read/seek, packet mutation or
+position correction is added. Its actual-header native fixture and optimized
+negative canary pass. No game has exercised this additional field observer yet.
