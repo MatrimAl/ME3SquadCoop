@@ -7,7 +7,7 @@
 typedef void (*OptimizedOwnerOriginal)(void*,void*,void*,void*,void*);
 static OptimizedOwnerOriginal optimized_owner_original;
 static int optimized_owner_installed;
-static unsigned optimized_owner_rows,optimized_owner_normal_rows;
+static unsigned optimized_owner_rows,optimized_owner_normal_rows,optimized_owner_rejected_rows;
 
 typedef struct OptimizedOwnerSnapshot {
     float position[3],shadow_position[3];
@@ -53,6 +53,18 @@ static void optimized_owner_forward(void *pawn,void *archive,void *shadow,void *
         caller==initial_actor_trace_base+0x489adf;
     if(capture)before=optimized_owner_snapshot(f,(uintptr_t)pawn,(uintptr_t)archive,
                                             (uintptr_t)shadow,(uintptr_t)map,(uintptr_t)channel);
+    if(capture&&!before.valid&&optimized_owner_rejected_rows<4){
+        ++optimized_owner_rejected_rows;char row[750];uint32_t loading=0;int32_t size=0;
+        int loading_valid=read_at((uintptr_t)archive+0x14,&loading,4);
+        int size_valid=read_at((uintptr_t)channel+0xcc,&size,4);
+        snprintf(row,sizeof row,"{\"optimized_owner_trace\":\"scope-rejected\",\"frame_valid\":%s,\"pawn_matches\":%s,\"channel_matches\":%s,\"pawn_vtable_rva\":\"0x%llx\",\"archive_vtable_rva\":\"0x%llx\",\"map_vtable_rva\":\"0x%llx\",\"loading_valid\":%s,\"loading\":%u,\"shadow_size_valid\":%s,\"shadow_size\":%d,\"monotonic_ms\":%lu}\r\n",
+          f&&f->before.valid?"true":"false",f&&f->before.pawn==(uintptr_t)pawn?"true":"false",
+          f&&f->channel==(uintptr_t)channel?"true":"false",
+          (unsigned long long)(read_ptr((uintptr_t)pawn)-initial_actor_trace_base),
+          (unsigned long long)(read_ptr((uintptr_t)archive)-initial_actor_trace_base),
+          (unsigned long long)(read_ptr((uintptr_t)map)-initial_actor_trace_base),
+          loading_valid?"true":"false",loading,size_valid?"true":"false",size,GetTickCount());line(row);
+    }
     SetLastError(entry_error);
     optimized_owner_original(pawn,archive,shadow,map,channel); /* Exactly once, all five args unchanged. */
     DWORD exit_error=GetLastError();

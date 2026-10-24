@@ -13,7 +13,7 @@ static DWORD initial_actor_trace_thread=7,current_thread=7;
 static DWORD fixture_thread(void){return current_thread;}
 #define GetCurrentThreadId fixture_thread
 static int progress_enabled=1,test_action=5,marker=1,opted=1,live=1,image=1,pin_valid=1,protect=1;
-static int initial_actor_trace_installed=1,calls,records,mode,entry_ok;
+static int initial_actor_trace_installed=1,calls,records,mode,entry_ok,rejected_records;
 static char row[2000],test_role[8]="client";static wchar_t root[]=L"fixture";
 static unsigned char pawn[0x500],archive[0x100],channel[0x100],shadow[0x144],map[0x120];
 static InventoryDecodeFrame frame,*inventory_decode_frame=&frame;
@@ -32,7 +32,7 @@ static int is_kind_of(uintptr_t b,uintptr_t p,const char *k){(void)b;return p==(
 static int has_marker(const wchar_t *p){(void)p;return marker;}
 static int position_receive_opted(void){return opted;}
 static int supported_image(uintptr_t b){(void)b;return image;}
-static void line(const char *s){records++;snprintf(row,sizeof row,"%s",s);SetLastError(998);}
+static void line(const char *s){if(strstr(s,"scope-rejected")){++rejected_records;CHECK(strstr(s,"frame_valid")&&strstr(s,"archive_vtable_rva")&&strstr(s,"shadow_size"));return;}records++;snprintf(row,sizeof row,"%s",s);SetLastError(998);}
 static BOOL fixture_protect(void *at,SIZE_T n,DWORD flags,DWORD *old){(void)at;(void)n;(void)flags;*old=PAGE_READONLY;return protect;}
 #define VirtualProtect fixture_protect
 static PVOID fixture_cas(PVOID volatile *at,PVOID value,PVOID expected){(void)at;uintptr_t prev=slot_value;if(prev==(uintptr_t)expected)slot_value=(uintptr_t)value;return (PVOID)prev;}
@@ -86,5 +86,6 @@ int main(int argc,char **argv){
  reset();put(map,0x108,0xabcdf);invoke(b+0x489adf);CHECK(records==count);
  reset();test_action=6;invoke(b+0x489adf);CHECK(records==count);test_action=5;
  reset();put32(pawn,0x264,0x4000);optimized_owner_rows=128;invoke(b+0x489adf);CHECK(records==count);
+ CHECK(rejected_records==4&&optimized_owner_rejected_rows==4);
  puts("PASS optimized owner observer: five unchanged args/one original call, LastError, normal/anomaly budgets, identity/archive/header guards, pins and install");return 0;
 }
