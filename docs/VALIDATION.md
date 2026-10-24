@@ -1,7 +1,8 @@
 # Validation status
 
-Latest protected pair: the native connection persisted, but host PlayersOnly
-prevented any guest possession. A pre-possession read-only capture measured the
+Latest protected pair: the native connection persisted, but a measured custom
+focus-loss PlayersOnly pause prevented any guest possession. See
+[background focus](BACKGROUND-FOCUS.md). A pre-possession read-only capture measured the
 pause with no active conversation or cinematic bit. The collision candidate
 therefore did not execute; positive repair and shared walking remain unverified.
 See the latest [progress entry](PROGRESS.md). The earlier lifecycle/walking

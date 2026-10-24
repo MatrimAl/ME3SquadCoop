@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-10-24: custom focus pause confirmed before possession
+
+- A protected pair measured 39 consecutive host samples over 10.032 seconds
+  with PlayersOnly and BioWorldInfo's saved focus-pause flag both enabled,
+  no host foreground focus, a stable world and reciprocal guest membership.
+  The guest had focus and both pause flags disabled.
+- The actual Tick script checks its own HasFocus result and uses PauseGame to
+  enter and restore this pause. The disabled stock Engine/HUD focus option
+  does not control this SFX path. No browser-wheel or pause flags were changed.
+- HasFocus reflection and native bytes matched in both processes. The narrow
+  caller-scoped candidate now builds in both entry paths, and its actual-wrapper
+  fixture passes 24 positive/negative cases. The native protection harness also
+  passes. It has no positive live result yet.
+  See [background focus](BACKGROUND-FOCUS.md).
+- This pair still never possessed Ashley. Original protection covered 8,210
+  files; profiles/source/build were unchanged, native exceptions were zero,
+  no forced cleanup was needed and no game remained. Both read-only UI and
+  paired recorders completed. The memory helper lacked a final summary.
+
 ## 2026-10-24: pre-possession pause identified independently of collision
 
 - The existing bounded read-only paired capture now starts from verified probe
@@ -506,7 +525,7 @@ Next: inspect authoritative ammunition field transmission and client prediction/
 - Repeated the same protected 100-second action: 63 `GetHealthPct` resolutions accumulated 0.306 seconds, including one initial discovery; 62 warm hits averaged 41.7 microseconds and peaked at 230 microseconds. The diagnostic scope accumulated 1.263 seconds. Callback counts and scene timing differed, so this is resolver/diagnostic evidence, not a controlled FPS benchmark. See [LOOKUP-PERFORMANCE.md](LOOKUP-PERFORMANCE.md).
 - Built all three native outputs. The Windows harness passed the new synthetic function/owner/class/table-membership guards and existing safety fixtures. Separate compiled mutants truncating FName identity or removing table membership were rejected. Python discovery: 178 tests, OK, 2 skipped.
 - A subsequent protected paired run passed two ownership epochs, synthetic scene release/reacquisition and native disconnect/AI restoration. Both recorded press/release intervals were 250 ms; both pulses consumed ammunition on host and guest and stopped under the existing evaluator. Counts matched after the first pulse (3/3), then differed after the second (5/6), with reserves 210/210. Reliable ammunition reconciliation remains unverified.
-- The change trace matched pawn channel 27 and weapon channel 31 on both sides within this connection. Recorded change-sample intervals were 15–31 ms in this run, compared with multi-second gaps in the previous instrumented run. These observations do not establish a complete shot history or absence of all stalls. Separate channel-resolution measurements still had cold peaks around 318 ms on host and 668 ms on guest; this remaining cost has not been fixed.
+- The change trace matched pawn channel 27 and weapon channel 31 on both sides within this connection. Recorded change-sample intervals were 15â€“31 ms in this run, compared with multi-second gaps in the previous instrumented run. These observations do not establish a complete shot history or absence of all stalls. Separate channel-resolution measurements still had cold peaks around 318 ms on host and 668 ms on guest; this remaining cost has not been fixed.
 - The two single-process measurements and paired run retained original-file protection. Completed reports recorded unchanged original profiles and zero native exceptions. The paired run protected 8,210 original game/profile files, required no forced orphan cleanup, disabled the probe and left no game processes running. Raw profiles and distinct build/run fingerprints remain private.
 
 Next: inspect remaining cold channel-resolution cost and actual ammunition field updates without removing identity guards. Startup repeatability, catch-up, real dialogue, sustained progression, cross-PC Radmin and installation/rollback remain open.

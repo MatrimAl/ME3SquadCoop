@@ -1,5 +1,6 @@
 #include "squad_session_core.h"
 #include "session_admission_diagnostics.h"
+#include "background_focus.h"
 /* Protected probe orchestration. These policies do not enter the player ASI. */
 static int session_policy_is_host(void) {return test_action==6;}
 static int session_policy_enabled(void) {
@@ -63,6 +64,11 @@ static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     }
 }
 static void session_frame(uintptr_t base,uintptr_t engine,int after) {
+    if(!after) {
+        static int focus_opted=-1;
+        if(focus_opted<0) {wchar_t value[8]={0};focus_opted=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_BACKGROUND_FOCUS",value,8)==1&&value[0]==L'1';}
+        background_focus_prepare(base,engine,session_enabled&&focus_opted&&progress_enabled&&has_marker(root));
+    }
     if(!session_enabled)return;
     session_engine=engine;session_game_thread=GetCurrentThreadId();
     if(test_action==5)session_guest_frame(base,engine,after);

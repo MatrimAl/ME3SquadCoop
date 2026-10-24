@@ -36,7 +36,7 @@ Equipment results remain mixed: bounded runs have produced native firing and mat
 
 ## Current work
 
-Gameplay is the priority. The current blocker is usable squadmate control after a scene: actual landing release/reacquisition has been observed, but Ashley can retain incomplete collision and fall or move out of sync. The latest walking evaluator rejected shared progression despite passing ownership handoffs. The collision candidate now cancels stale released state and reports separate refusal checks; its native fixtures pass, but a positive in-game repair is still unverified. See [collision restoration](docs/COLLISION-RESTORATION.md).
+Gameplay is the priority. The current blocker is usable squadmate control after a scene: actual landing release/reacquisition has been observed, but Ashley can retain incomplete collision and fall or move out of sync. The latest walking evaluator rejected shared progression despite passing ownership handoffs. The collision candidate now cancels stale released state and reports separate refusal checks; its native fixtures pass, but a positive in-game repair is still unverified. See [collision restoration](docs/COLLISION-RESTORATION.md). Recent local-pair tests also exposed a custom focus-loss pause before possession; a guarded candidate builds and passes native fixtures, with live verification pending. See [background focus](docs/BACKGROUND-FOCUS.md).
 
 Combat is also incomplete. Native guest firing requests have reached the authoritative host, but the host can defer firing while the port-arms animation flag remains set. A previous positive ammunition run does not establish repeatability, powers or enemy damage. Full conversations and sustained mission progression still require real gameplay evidence.
 
