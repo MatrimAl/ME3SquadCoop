@@ -162,3 +162,22 @@ The native-update experiment was removed because it did not resolve the
 inventory failure. Its result must not be presented as a repair or a usable
 player feature. Original profiles were unchanged and no game process remained;
 a read-only monitor access error was also recorded.
+
+## Parallel research follow-up
+
+The latest observer-only pair completed three ownership epochs with no native
+exception or unsafe guest motion sampled, but failed sustained common travel.
+The existing collision adapter attempted one native collision restoration;
+that event alone does not prove recovery. Original profiles and source/build
+were unchanged and no game process remained. The read-only monitor still
+reported access denied. Inventory loss was not reproduced in its receive-change
+rows, so the new decoder observer did not resolve the root cause this run.
+
+Offline dialogue research identified a stronger full-conversation candidate in
+Mars's Liara introduction: `BioD_ProMar_205BLiaraConv` links a conversation whose
+62 entries and65 replies are all nonambient. Its normal trigger requires the
+preceding scene, completed streaming, squad-dependent speaker binding and
+preload completion. This content has not been reached or tested by the current
+Gatehouse route. Directly emitting its remote event would skip prerequisites
+and is not an established test. Gatehouse conversation content is mixed;
+ambient samples cannot establish that every node is ambient.

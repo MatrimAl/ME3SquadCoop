@@ -62,8 +62,8 @@ ObjectProperty serializer entry. It admits only the reflected
 frame and the exact native property-decoding return site. Nested receives push
 separate frames so unrelated decoding cannot inherit the outer Ashley scope.
 It logs scratch values, native result, archive error and map table separately
-from receive completion. No archive bytes are read, consumed or changed by the
-observer, and the original serializer is forwarded once with unchanged arguments.
+from receive completion. No archive payload bytes are read, consumed or changed by the
+observer (the archive error field is observed), and the original serializer is forwarded once with unchanged arguments.
 Return values and LastError are preserved. Output is bounded to64 records.
 
 The actual C wrapper passes26 authored-memory cases with unconditional checks
@@ -71,3 +71,12 @@ and a deliberately failing negative canary. These tests cover decode without
 final application, inventory-only changes, invalid property/caller, nested
 scope and the record limit. They do not prove the runtime property layout
 matches or that any game packet resolved an inventory reference.
+
+A bounded paired run loaded the observer and independently confirmed the live
+InvManager property path, vtable, size, flags and offset against these guards.
+It produced no scoped field-decode record and no inventory-pointer change in
+the retained receive-change rows. This does not distinguish an absent field
+from a missed scope and does not validate the decoder path on a real packet.
+The same run consumed no rounds in sampled Ashley weapons; valid sampled
+infinite-ammo flags were false. Role-permission checks rejected the fire bot.
+Thus neither the observed animation nor installation proves a successful shot.
