@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-10-24: pre-possession pause identified independently of collision
+
+- The existing bounded read-only paired capture now starts from verified probe
+  headers instead of waiting for Ashley possession. No game behavior changed.
+  In 738 valid host and 739 valid guest snapshots, the host consistently had
+  `WorldInfo.bPlayersOnly` enabled while the guest did not. Both had an unset
+  PlayerController cinematic bit and zero active/activating conversations.
+- A separate read-only UI capture found a current-world HintBox message handler,
+  but its active, modal and force-PlayersOnly flags were all false. That object
+  is not evidence of an active owning modal and does not justify dismissing it.
+  The pause setter and its correct normal restore path remain under investigation.
+- The native connection persisted, but Ashley was never acquired, so the latest
+  collision candidate was not exercised. This run provides no collision,
+  movement or combat pass. No world flags, UI state or collision were forced.
+- The paired recorder completed. Original-file protection covered 8,210 files;
+  profiles and the frozen source/build were unchanged, native exceptions were
+  zero, no forced or unknown cleanup was needed, and no game remained. The
+  memory helper ended without its own final summary; this is not complete
+  memory-observer coverage.
+
 ## 2026-10-24: measured partial collision return; native mask corrected
 
 - The paired recorder now includes collision type and cylinder response from

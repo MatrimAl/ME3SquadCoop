@@ -1,5 +1,12 @@
 # Validation status
 
+Latest protected pair: the native connection persisted, but host PlayersOnly
+prevented any guest possession. A pre-possession read-only capture measured the
+pause with no active conversation or cinematic bit. The collision candidate
+therefore did not execute; positive repair and shared walking remain unverified.
+See the latest [progress entry](PROGRESS.md). The earlier lifecycle/walking
+boundary below still describes separate older evidence.
+
 Current gameplay boundary: a recent protected pair completed three ownership
 epochs, actual landing release/reacquisition, a separate synthetic handoff and
 ordinary disconnect, with zero recorded native exceptions. Its shared-walking
