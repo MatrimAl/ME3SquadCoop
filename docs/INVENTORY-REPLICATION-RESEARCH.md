@@ -136,3 +136,14 @@ The authored fixture covers these constraints, tag/index variants, wrong
 return sites/counts/maxima, and transactional two-slot installation/rollback.
 Both its deliberately failing CHECK canary and the existing27 receive-wrapper
 cases passed. Live index observations remain a separate requirement.
+
+The first protected pair with the observer produced a discriminating receive:
+dynamic tag1, index17, readable channel type2 with closing bit clear, and
+archive error0. The channel actor was a live `SFXTeamInfo`, while the property
+requested `Engine.InventoryManager`; the original serializer then produced
+null and the same receive applied null to the pawn. A creation-bound read-only
+capture confirmed both class identities. This sample therefore supports a
+class mismatch, rather than encoded index0 or a missing channel. It does not
+yet establish why the reference selected that index, or whether the sender
+or the receiver's map/connection association caused the mismatch. Preserve
+the class check; do not repair this by accepting the wrong object.

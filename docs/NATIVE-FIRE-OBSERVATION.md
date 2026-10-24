@@ -106,3 +106,13 @@ QA delay exceeded the measured six-second inventory window and prevented any
 input observation. Native permission checks, per-lease attempt limits,
 identity/chain validation and release behavior are unchanged. This timing
 change does not repair inventory replication or alter normal player input.
+
+A subsequent protected pair exercised that earlier pulse. The guest's normal
+250ms input reached the host's native `ServerStartFire` with mode2. Three
+original `FireAmmunition` calls per side advanced consumed count0 to3; the
+existing verifier recognized authoritative and guest firing on the same
+weapon/control window. Two retained post-release samples per side stayed at3,
+but the stricter stop gate remained unverified. Enemy damage was not measured.
+The later inventory class-mismatch receive still cleared the guest's manager,
+so this is evidence of firing while the chain is valid, not sustained combat
+or an inventory repair. Full dialogue and common travel also remain unverified.
