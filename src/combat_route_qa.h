@@ -282,7 +282,10 @@ static void combat_route_forward_tick(uintptr_t base,uintptr_t engine,SessionCon
     }
     float flat_target[3]={bottom[0],bottom[1],q->forward_origin[2]};
     if(!combat_route_corridor(checked_xyz,q->forward_origin,flat_target)||
-       !combat_route_axes(checked_xyz,flat_target,rotation[1],0.08f,q->axes)){
+       /* The slow approach gain moved only 29 units in the bounded trial.
+        * Use the existing road walking gain; retain the 2-second/180-unit
+        * input limits and stop immediately when native falling begins. */
+       !combat_route_axes(checked_xyz,flat_target,rotation[1],0.45f,q->axes)){
         combat_route_end(base,"aborted","forward-edge-normal-axis-or-corridor",xyz,now);return;
     }
     q->injected=1;q->cleanup_tries=0;
