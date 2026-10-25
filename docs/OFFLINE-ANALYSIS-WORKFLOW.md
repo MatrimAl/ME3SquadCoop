@@ -31,3 +31,11 @@ dependencies and lifecycle/restoration behavior. Rebuild native targets after
 source edits. Keep source/build verification separate from later user-approved
 gameplay validation; static analysis never proves casting, rendering, movement
 or campaign continuity. Do not commit extracted game code or raw tool logs.
+
+The [retained feature exporter](../tools/ghidra/README.md) provides a direct
+installed-Ghidra path when REA's CLI discards its ephemeral import. It compiles
+the exporter against the installed APIs, validates a private source manifest,
+keeps the project and exports related functions in one operation. Later reuse
+must follow a verified successful import/save, not merely an existing project
+filename. A ten-entry wheel batch has been launched; persistence and later
+reuse remain pending until actual output and a subsequent read establish them.

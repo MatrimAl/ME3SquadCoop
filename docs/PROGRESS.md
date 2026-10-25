@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: start a retained feature-level Ghidra batch
+
+A new offline exporter compiles against the installed Ghidra12.1.4/JDK21
+APIs and processes a private exact-entry manifest. Ten related wheel methods
+are queued together, covering power population, cached-pawn refresh, icon
+mapping, selection, quickslots and GUI lookup. Unlike the earlier ephemeral
+REA CLI import, this command keeps its project. Later reads select
+process/noanalysis/readOnly. Per-function outputs preserve earlier results
+if a later entry fails; incomplete/missing entries remain explicit.
+
+The exporter compiled and Python syntax parsed. The owned command started,
+its log confirmed PE import and its same session remained live at observation.
+No decompilation output, saved-project reuse or gameplay success is claimed
+yet. No runtime source changed; no game or tests ran. See the
+[exporter instructions](../tools/ghidra/README.md).
+
 ## 2026-10-26: permit verified empty capacity in an owned power group
 
 Native population clears unused wheel capacity; the caster guard previously
