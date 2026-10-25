@@ -584,3 +584,45 @@ retained prior power identity and conditional restoration while the same UI
 still exists. Replacement/cleanup must retire that ownership rather than write
 to a stale widget. The current keyboard bridge does not perform these writes;
 icon agreement remains unfinished. No game or tests ran for this research.
+
+## Optional native icon lease candidate
+
+The guest-only --native-power-icons planner option, requiring
+--native-power-hotkeys, enables ME3_SQUAD_COOP_NATIVE_POWER_ICONS=1. Both
+remain off by default. The keyboard callback records the existing owned wheel
+identity. The icon adapter can acquire it for one second after that observation;
+it does not search for/load/open a movie. The first real native hotkey command
+is therefore required before this candidate can acquire an icon lease.
+
+Acquisition validates the current wheel/controller/world and all eight icon
+members, exact quickslot vtables, icon Outer relationships, reflected layouts
+and native setter contracts. It retains previous power and pawn identities,
+not string-buffer snapshots. SetPower is dispatched on the icon through its
+verified0x0f4f80 ProcessEvent, with the reflected eight-byte object parameter
+and exact native function metadata/parameter layout. The controller dispatcher
+is not used for this receiver.
+
+The adapter assigns at most one slot per pre-Tick, through native SetPower,
+and revalidates current context, UI membership and power/pawn/name readback
+after every call. Empty slots use the native None name; an equal pointer with
+inconsistent caches is refused because SetPower would return without repair.
+Unreadable pointers are not interpreted as empty slots. Power dispatch remains
+last, after fresh context capture in the guest frame.
+
+An active lease survives transient action/catalog unavailability, allowing the
+native icon to keep its cooldown reference. A changed valid catalog, scene,
+ownership/registration change, disable, replaced widget or failed readback
+retires it. Retirement is bounded to eight setters and checks the current
+world/UI and each still-installed power/pawn pair before restoring. If a prior
+power/pawn identity expired, a still-owned icon is cleared through the native
+setter instead. Foreign UI changes and stale widgets are not overwritten.
+After retirement the same observation is consumed; a new native hotkey command
+is needed to acquire again, rather than repeatedly fighting native UI changes.
+
+This is a compiled candidate, not rendered icon agreement. Existing native
+refresh may replace a leased assignment; that path deliberately retires the
+lease. Mouse activation, drag/remapping, native widget rendering/cooldown and
+scene/disable restoration have not been exercised. No saved hotkey definition,
+profile, movie initialization or handler story-pawn cache is written by this
+adapter. Native compilation and Python syntax checks completed; no game,
+panel, network session or tests ran.

@@ -29,6 +29,13 @@ guest power slots, honoring the game's existing physical key bindings. It is
 off by default, independent of Ctrl+Alt shortcuts, and does not rewrite saved
 Shepard slots. Panel v6 labels the guest slot assignments; native wheel icons
 are not yet aligned. Keyboard delivery and power effects remain unverified.
+Guest-only `--native-power-icons`, requiring `--native-power-hotkeys`, adds
+`ME3_SQUAD_COOP_NATIVE_POWER_ICONS=1`. This separate compiled candidate uses
+the existing wheel observed on a native hotkey command and updates its icons
+through the native setter. It conditionally restores prior assignments when
+the same UI is still owned. It does not open a missing wheel or rewrite saved
+definitions. Rendering, mouse/drag behavior and cleanup remain unverified; the
+option is off by default. See [power input](POWER-INPUT-RESEARCH.md).
 Host-only `--auto-relisten` adds `ME3_SQUAD_COOP_AUTO_RELISTEN=1`. After an
 earlier verified runtime listener, it can schedule the checked Listen path in
 a ready standalone mission whose old world and driver were positively disposed.

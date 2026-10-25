@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-10-25: optional native quickslot icon lease candidate
+
+The guest planner now offers --native-power-icons together with native power
+hotkeys. The keyboard callback records its existing owned wheel; a pre-Tick
+adapter captures all eight native icon members and previous power identities.
+It assigns retained guest slot powers through the verified icon SetPower ABI,
+using the icon's own ProcessEvent dispatcher. It never copies native strings,
+opens a movie, changes the handler story-pawn cache or saves hotkey definitions.
+
+Normal assignment is bounded to one slot per Tick, with fresh context/UI and
+cache readback after the native call. Transient power-action unavailability
+does not discard an otherwise owned icon lease. Retirement conditionally
+restores still-owned widgets, clears expired prior powers and leaves foreign
+changes/stale worlds alone. A retired observation requires another native
+hotkey command before acquisition can recur.
+
+The candidate is off by default and needs an already-existing wheel/controller
+plus a real hotkey callback. Rendering/cooldown, mouse activation, dragging and
+scene/disable restoration remain unverified. Three native targets compiled;
+two changed Python files syntax parsed. No game, panel, network or tests ran.
+
 ## 2026-10-25: native quickslot icon setter and cleanup constraints
 
 Offline package and image reads identified the native SetPower implementation

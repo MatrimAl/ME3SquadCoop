@@ -7,6 +7,12 @@ typedef void (*RuntimeNativeHotkey)(void *handler,int slot);
 static RuntimeNativeHotkey runtime_original_hotkey;
 static uintptr_t runtime_hotkey_base;
 static int runtime_hotkey_installed;
+typedef struct RuntimeHotkeyWheel {
+    SessionHandle handler,pc,pawn,world;
+    unsigned long token;
+    ULONGLONG observed;
+} RuntimeHotkeyWheel;
+static RuntimeHotkeyWheel runtime_hotkey_wheel;
 static void runtime_native_hotkey(void *self,int slot) {
     RuntimeNativeHotkey original=runtime_original_hotkey;
     uintptr_t base=runtime_hotkey_base,handler=(uintptr_t)self;
@@ -25,6 +31,9 @@ static void runtime_native_hotkey(void *self,int slot) {
        !guest_player_context_basic_owned(base,c.pc,c.pawn,c.world)) {
         original(self,slot);return;
     }
+    runtime_hotkey_wheel=(RuntimeHotkeyWheel){session_capture_handle(handler),
+        session_capture_handle(c.pc),session_capture_handle(c.pawn),session_capture_handle(c.world),
+        guest_player_context_registration_token(),GetTickCount64()};
     /* Once identified as our wheel, consume the command even if unavailable:
      * falling through could issue a stock order through stale story icons. */
     RuntimePowerCatalog current;unsigned scope=(unsigned)runtime_power_scope;

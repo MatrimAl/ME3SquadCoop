@@ -176,8 +176,8 @@ static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordina
 }
 /* Reflected layout corroborates the retained SDK before invoking an order.
  * No property writes or method substitution are performed. */
-static int runtime_power_property(uintptr_t base,uintptr_t object,const char *owner,const char *name,
-    const char *kind,int offset,int size) {
+static int runtime_power_property_dim(uintptr_t base,uintptr_t object,const char *owner,const char *name,
+    const char *kind,int offset,int size,int dimensions) {
     uintptr_t klass=read_ptr(object+0x50),seen[48]={0};
     for(unsigned n=0;klass&&n<48;++n) {
         if(!narrative_probe_object(base,klass,"Class"))return 0;
@@ -191,7 +191,7 @@ static int runtime_power_property(uintptr_t base,uintptr_t object,const char *ow
                     int32_t got=-1,bytes=0,dim=0;
                     return read_ptr(field+0x40)==klass&&narrative_probe_object(base,field,kind)&&
                         read_at(field+0x94,&got,4)&&got==offset&&read_at(field+0x74,&bytes,4)&&bytes==size&&
-                        read_at(field+0x70,&dim,4)&&dim==1;
+                        read_at(field+0x70,&dim,4)&&dim==dimensions;
                 }
                 if(!read_at(field+0x68,&field,8))return 0;
             }
@@ -200,6 +200,10 @@ static int runtime_power_property(uintptr_t base,uintptr_t object,const char *ow
         if(!read_at(klass+0x60,&klass,8))return 0;
     }
     return 0;
+}
+static int runtime_power_property(uintptr_t base,uintptr_t object,const char *owner,const char *name,
+    const char *kind,int offset,int size) {
+    return runtime_power_property_dim(base,object,owner,name,kind,offset,size,1);
 }
 /* Campaign TryUsePower action numbers select named input properties, not
  * PowerManager array positions. Resolve only on Tick and never invent a slot. */

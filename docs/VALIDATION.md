@@ -1,5 +1,14 @@
 # Validation status
 
+An optional native icon lease is now implemented as a compiled candidate.
+It needs the existing wheel observed on a native hotkey callback, validates
+eight widget/setter identities and conditionally restores prior power
+assignments while the same UI remains owned. Rendered icon agreement, mouse
+activation/dragging, cooldown display and scene/disable restoration remain
+unverified. Three native targets compiled and two Python files syntax parsed;
+no game or tests ran. Both native keyboard and icon candidates are off by
+default, and gamepad work remains deferred.
+
 The optional native keyboard bridge now routes existing UseAbility0..7 events
 to retained guest named slots through the same power queue. Three native
 targets compiled and changed Python sources syntax parsed. Native key delivery,
