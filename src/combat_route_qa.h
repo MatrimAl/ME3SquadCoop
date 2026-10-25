@@ -330,6 +330,11 @@ static int combat_lower_discover(uintptr_t base,uintptr_t world) {
     for(unsigned j=0;j<COMBAT_LOWER_COUNT;++j)if(found[j]!=1)return 0;
     memcpy(q->lower_nodes,nodes,sizeof nodes);return 1;
 }
+static int combat_encounter_side_parking(void) {
+    static int loaded,value;
+    if(!loaded){wchar_t text[8]={0};loaded=1;value=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_ENEMY_AIM_QA",text,8)==1&&text[0]==L'1';}
+    return value;
+}
 static void combat_lower_tick(uintptr_t base,uintptr_t engine,SessionContext c,DWORD now) {
     CombatRouteQA *q=&combat_route_qa;float xyz[3],velocity[3],target[3];int32_t rotation[3];uintptr_t input=0,camera=0;
     if(!combat_lower_opted()||now-q->lower_at>=45000||!combat_route_same(base,c)){
@@ -346,7 +351,12 @@ static void combat_lower_tick(uintptr_t base,uintptr_t engine,SessionContext c,D
        !scene_readiness_finite3(target)||distance(target,combat_lower_points[j].xyz)>2||
        !combat_route_corridor(xyz,q->lower_origin,target)){
         combat_route_end(base,"aborted","lower-node-or-corridor-changed",xyz,now);return;}
-    if(combat_route_horizontal(xyz,target)<=70&&fabsf(xyz[2]-target[2])<=30){
+    /* The measured enemy-shot run hit the host parked directly ahead of the
+     * guest. In this explicit aim scenario, walk the host aside within the
+     * existing final-leg corridor; keep every ordinary ground/input guard. */
+    int side_parking=j+1==COMBAT_LOWER_COUNT&&combat_encounter_side_parking();
+    if(side_parking){target[0]+=110;target[1]-=110;}
+    if(combat_route_horizontal(xyz,target)<=(side_parking?25:70)&&fabsf(xyz[2]-target[2])<=30){
         combat_route_log("lower-waypoint",combat_lower_points[j].name,xyz,now);
         if(++q->lower_waypoint>=COMBAT_LOWER_COUNT){combat_route_end(base,"lower-route-complete","measured-lower-nav-chain",xyz,now);return;}
         memcpy(q->lower_origin,xyz,12);memcpy(q->progress,xyz,12);q->advanced_at=now;return;

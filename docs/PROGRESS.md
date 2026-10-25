@@ -1,5 +1,33 @@
 # Progress
 
+## 2026-10-25: aimed native fire and stop observed, host obstructed the shot
+
+The measured-input-floor repeat completed yaw/pitch calibration, reached the
+32-unit aim tolerance and dispatched normal FireWeapon after stable lock.
+Two seconds later it dispatched StopFiringWeapon. The authoritative host
+recorded17 original FireAmmunition calls during this burst. Host and guest
+subsequently settled at consumed28/reserve210, with stable post-release
+samples. These are bounded aimed-fire/stop observations, not complete combat.
+
+All17 corresponding host hit-drain records identified the real host Shepard,
+whose health700/shields500 stayed unchanged. The normal engine screenshot
+shows visible Shepard directly in front of Ashley; enemy health did not
+decrease. This shot therefore cannot validate hostile damage. It also provides
+rendered evidence that remote Shepard appeared in this default-appearance run,
+without proving full custom face/helmet synchronization.
+
+For the explicit encounter-aim test only, the host's final parking target is
+now shifted110 units along X and-110 along Y, using ordinary walking within
+the unchanged final-leg corridor, normal ground/input checks and45-second
+lower-route bound. No collision or actor position is assigned. Native route
+and channel checks pass after rebuilding all three outputs; side parking and
+enemy damage still need a live repeat.
+
+Original profiles were unchanged, native exceptions were zero and no game
+remained. The memory helper exited1 and a read-only monitor reported access
+denied; the observer audit is not fully passing. Full mode-7 dialogue remains
+unverified.
+
 ## 2026-10-25: retain context through measured normal-look calibration
 
 The protected cache-recovery repeat completed the encounter approach, then
