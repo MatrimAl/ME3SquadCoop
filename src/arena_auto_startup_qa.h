@@ -93,7 +93,7 @@ static int arena_auto_startup_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     uintptr_t team=0,box=0,weapon=0,record=0;int counts[4]={0};
     for(int i=0;i<objects.count;++i) {
         uintptr_t o=list[i];if(!o)continue;char name[96];object_name(base,read_ptr(o+0x50),name,sizeof name);
-        int slot=!strcmp(name,"SFXGUI_TeamSelect")?0:(!strcmp(name,"BioSFHandler_PCMessageBox")||!strcmp(name,"BioSFHandler_MessageBox"))?1:!strcmp(name,"SFXGUI_WeaponSelection")?2:!strcmp(name,"SFXGUI_SquadRecord")?3:-1;
+        int slot=!strcmp(name,"SFXGUI_TeamSelect")?0:(!strcmp(name,"BioSFHandler_PCMessageBox")||!strcmp(name,"BioSFHandler_MessageBox"))?1:!strcmp(name,"SFXGUI_WeaponSelection")?2:(!strcmp(name,"SFXGUI_SquadRecord")||!strcmp(name,"SFXGUI_PCSquadRecord"))?3:-1;
         if(slot<0||!arena_auto_movie_active(base,o,world))continue;
         if(slot==1){uint32_t active=0;if(!read_at(o+0x3a0,&active,4)||!(active&0x100))continue;}
         if(slot==0)team=o;else if(slot==1)box=o;else if(slot==2)weapon=o;else record=o;++counts[slot];
