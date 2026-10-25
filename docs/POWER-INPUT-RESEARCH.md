@@ -340,3 +340,38 @@ handler/movie identity, matching guest controller and registered squad, the
 appropriate selector branch, existing hotkey definitions and understood
 population/icon callees. These findings identify the chain without inventing
 quickslot assignments or overwriting campaign story squad membership.
+
+## Quickslot pawn identity and per-icon setup
+
+The pawn resolver directly called by SetupQuickSlotPowers and doHotKey is the
+leaf0xc4c8e0..0xc4c956. It compares the supplied two-word name with Actor.Tag
+at pawn+0x1a0/+0x1a4. It first considers the handler's player pawn at+0x710;
+only when m_bProcessSquadHenchmen is set does it consider+0x718/+0x720.
+It returns null if no complete tag matches. It does not search the world,
+substitute the possessed pawn or match by power name. The fallback disassembly
+window contains adjacent functions after this leaf and is not its body extent.
+
+Consequently native wheel/player context readiness does not prove hotkey
+readiness. A saved quickslot definition for Shepard's tag will not resolve to
+Ashley merely because the handler now has Ashley as its player pawn. This is
+a conditional integration risk, not an observed current guest-profile mismatch.
+No profile hotkey tag, pawn Tag or gameplay binding was rewritten.
+
+The adjacent per-icon helper0xc4c960..0xc4c9d0 checks a supplied pawn's existing
+PowerManager, calls its native power lookup with the supplied name and requires
+enabled/HUD-visible bits0x101 before updating the supplied icon. It refuses
+missing pawn/manager/power/icon. This corroborates the base membership filter
+already used by the mod's exposed catalog, without establishing every virtual
+override or icon-rendering behavior.
+
+The larger populate routine0xc539a0..0xc5427e contains per-player/hench UI
+bookkeeping, ProcessEvent calls and reads the supplied pawn's PowerManager.
+Its62 call sites are not all semantically resolved; identifying its entry and
+manager read does not make it a verified standalone initializer. Calling it
+before the appropriate movie objects and handler context exist remains unproven.
+
+The next integration decision must cover existing quickslot character+power
+definitions together, current owned pawn, handler selection mode, movie/icon
+lifetime and restoration when control changes. Replacing pawn tags or silently
+rewriting saved Shepard slots is not a substitute for that lifecycle design.
+Only offline image reads were performed for these findings.
