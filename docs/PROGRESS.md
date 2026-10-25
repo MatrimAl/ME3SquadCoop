@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-26: resolve native inventory lookup semantics offline
+
+Five retained-project entries decompiled in about13 seconds, covering the
+concrete reference codec, eligibility, actor-channel hash lookup, Pawn property
+selection and ActorChannel sender. The hash leaf compares the complete actor
+pointer and does not inspect channel state. Low-bit hash collisions alone
+cannot explain a wrong actor match. Dynamic CanSerialize checks lookup
+presence; sender open-state and receiver closing/class checks are separate.
+
+These findings narrow the inventory investigation but do not establish why
+the retained real samples selected the wrong class or static reference index.
+The already prepared original sender-output measurement remains deferred.
+No speculative cache/pointer repair or additional native call was added. Only
+research documentation/private evidence indexing changed; no game or tests
+ran. Input executable identity remained unchanged. See
+[inventory codec coverage](INVENTORY-REPLICATION-RESEARCH.md).
+
 ## 2026-10-26: preserve name-only native quickslot replacements
 
 Source review found that untouched icon baselines and retirement compared

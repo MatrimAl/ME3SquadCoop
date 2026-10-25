@@ -184,3 +184,50 @@ The actual-header fixture, including an active failing canary, passed branch,
 normalization, nested-scope, forwarding, budget and transactional-installation
 checks. Existing sender metadata and27 receive-wrapper cases also passed.
 No live writer-output observation has yet been collected with this extension.
+
+## Retained native codec and channel-lookup decompilation
+
+The saved exact-image Ghidra project subsequently completed five selected
+entries in about13 seconds, all with nonempty pseudocode and terminal exit0:
+
+| Native entry RVA | Reviewed responsibility |
+| --- | --- |
+| 0x602bf0 | PackageMapLevel object-reference send/receive codec |
+| 0x5f92d0 | Reference serialization eligibility |
+| 0x1c1df0 | Actor-to-channel hash lookup |
+| 0x3f6620 | Pawn replication property selection, including InvManager |
+| 0x48c350 | ActorChannel property sender, including serializer return handling |
+
+This uses the supported full PE and retained project; the earlier raw-artifact
+provider rejection remains historical and does not describe this later export.
+Pseudocode corroborates the selected instruction findings above, without
+turning inferred variable types into an ABI contract. Input, manifest and
+output identities and per-function body ranges remain in private evidence.
+
+The channel hash lookup is now explicitly bounded by its selected leaf body
+at0x1c1df0..0x1c1eea, ending at the actual return. It derives a bucket from
+the low pointer bits but compares the complete pointer key while traversing
+records. It returns the stored value without checking channel state. Thus a
+low-bit hash collision alone does not explain selecting another actor's
+channel; key equality is not truncated to those hash bits.
+
+For an ordinary dynamic actor, the inspected CanSerialize branch only asks
+whether this lookup returns nonnull. The codec's dynamic sender separately
+reads the returned channel's index and open bit. The receiver independently
+rejects a closing channel and applies the requested-class filter. Neither
+OpenChannels enumeration, index-table presence nor CanSerialize success alone
+therefore establishes that the exact native reference will be accepted by
+the remote channel lifetime. These are separate observations, not synonyms
+for equipment readiness.
+
+The missing-hash/index0 and lifetime-state explanations remain hypotheses;
+this batch does not reproduce either in a live send or explain the retained
+wrong-class index17/static-index samples. The next deferred sender observation
+must distinguish its original-written scalar, current connection/channel
+identity and state, and final serializer result. A local property id still
+does not correlate separate host/client transport events by itself.
+
+No extra native lookup, readiness restriction, inventory-pointer restoration,
+class/closing bypass, forced replication or handoff replay was implemented.
+No game, archive operation or behavioral test ran. The supported source
+executable's digest was rechecked unchanged after reviewing the output.

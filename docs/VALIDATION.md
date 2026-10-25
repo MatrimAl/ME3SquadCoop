@@ -1,5 +1,13 @@
 # Validation status
 
+The latest offline inventory batch completed five exact native entries with
+five nonempty decompilations. The actor-channel hash compares full pointer
+keys, while eligibility, sender open-state and receiver closing/class checks
+remain separate. This does not identify the cause of retained inventory losses
+or prove a live sender reference. No runtime source change, game or behavioral
+test followed from this batch; private evidence retains source/output identities.
+See [inventory research](INVENTORY-REPLICATION-RESEARCH.md).
+
 Quickslot expected-value accounting now includes both words of the power name
 for untouched baselines, painting/native refresh and retirement. Same-pointer
 native name replacements are preserved, and an original power with a changed
