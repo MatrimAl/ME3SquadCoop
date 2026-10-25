@@ -20,6 +20,8 @@ This is the intended experience, not a claim that it currently works.
 The session panel and opt-in Ctrl+Alt power shortcuts are supporting tools. They
 do not satisfy normal gameplay input or the multiplayer-style control target.
 Players should not need an external panel for individual combat actions.
+LEMP's installed DLC and source provide the concrete
+[multiplayer control reference](LEMP-CONTROL-REFERENCE.md).
 
 ## Native integration priorities
 
