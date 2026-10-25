@@ -9,6 +9,7 @@ typedef struct RuntimePanelFrame {
     LONG sequence;
     uint32_t role,enabled,startup,netmode,companion_owned,power_status,power_scope,power_count;
     uint32_t ack_id,ack_result,control_state,tick_ms;
+    uint32_t recovery_flags,readiness_state;
     uint32_t hotkeys_enabled;
     int32_t power_slot_indices[9];
     char power_names[64][80];
@@ -19,9 +20,9 @@ typedef struct RuntimePanelMemory {
     uint32_t command_id,scope,index,sent_at;
 } RuntimePanelMemory;
 #pragma pack(pop)
-_Static_assert(sizeof(RuntimePanelFrame)==5236,"panel frame v4");
-_Static_assert(offsetof(RuntimePanelMemory,command)==5236,"panel mailbox alignment");
-_Static_assert(sizeof(RuntimePanelMemory)==5256,"panel protocol v4");
+_Static_assert(sizeof(RuntimePanelFrame)==5244,"panel frame v5");
+_Static_assert(offsetof(RuntimePanelMemory,command)==5244,"panel mailbox alignment");
+_Static_assert(sizeof(RuntimePanelMemory)==5264,"panel protocol v5");
 static RuntimePanelMemory *runtime_panel_memory;
 static HANDLE runtime_panel_mapping;
 static uint64_t runtime_panel_created;
@@ -79,9 +80,12 @@ static void runtime_panel_publish(uintptr_t base,uintptr_t engine,DWORD now) {
     RuntimePanelMemory *memory=runtime_panel_memory;
     if(!memory||(runtime_panel_published&&now-runtime_panel_published<250))return;
     runtime_panel_published=now;
-    RuntimePanelFrame frame={0};frame.magic=UINT32_C(0x4d334350);frame.version=4;
+    RuntimePanelFrame frame={0};frame.magic=UINT32_C(0x4d334350);frame.version=5;
     frame.bytes=sizeof(RuntimePanelMemory);frame.pid=GetCurrentProcessId();frame.created=runtime_panel_created;
     frame.role=g_runtime_config.role;frame.enabled=runtime_control_enabled;
+    frame.recovery_flags=(runtime_auto_relisten_enabled?1u:0)|(runtime_auto_rejoin_enabled?2u:0)|
+        (runtime_auto_relisten_suspended?4u:0)|(runtime_auto_rejoin_suspended?8u:0);
+    frame.readiness_state=runtime_ready_channel_status;
     frame.startup=InterlockedCompareExchange(&runtime_network_start_status,0,0);frame.netmode=255;
     SessionContext c=session_context(engine);unsigned char net=255;
     if(session_actor_live(base,c.world)&&read_at(c.world+0x7c8,&net,1))frame.netmode=net;

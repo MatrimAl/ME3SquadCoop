@@ -33,6 +33,7 @@ static void runtime_auto_rejoin_tick(uintptr_t base,uintptr_t engine,DWORD now) 
         wchar_t value[8]={0};DWORD length=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_AUTO_REJOIN",value,8);
         opted=length==1&&value[0]==L'1';configured=1;
     }
+    runtime_auto_rejoin_enabled=opted&&g_runtime_config.role==ME3_ROLE_GUEST;
     if(!opted||runtime_auto_rejoin_suspended||!runtime_control_enabled||
        g_runtime_config.role!=ME3_ROLE_GUEST||g_config_status!=ME3_CONFIG_READY||
        !InterlockedCompareExchange(&runtime_join_attempted,0,0)||

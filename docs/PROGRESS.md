@@ -1878,3 +1878,24 @@ and integration were completed and reviewed locally. All three native outputs
 rebuilt, and planner/build Python sources syntax parsed. No game, socket, packet,
 panel, fixture or reconnect test was executed. Reachability, packet loss, timing,
 cleanup and actual cross-PC campaign continuity remain unverified.
+
+## Show recovery/readiness state and preserve the full reply window
+
+The local panel v5 frame adds bounded recovery flags and readiness states. It
+now distinguishes Manual, Automatic and process-lifetime Paused recovery, plus
+host not ready/ready, guest idle/waiting/replied-ready, channel unavailable and
+disabled states. Both native/Python frame size/version checks and status
+validation were updated. These sampled observations do not imply a native
+connection, successful cast or campaign progression.
+
+Read-only source review confirmed that the transport rotated an unanswered
+nonce at500ms despite advertising a1000ms acceptance window. It now retains
+that pending nonce through the entire window, with the send rate still bounded
+and context invalidation unchanged. Host readiness also requires the current
+root's driver to equal the captured verified listener driver, rather than
+accepting a different current driver merely because it passes endpoint checks.
+
+All three native outputs rebuilt and panel Python syntax parsed. No game,
+panel, socket, delayed packet, IPC or recovery fixture was executed. Actual
+high-latency replies, panel rendering and full campaign continuity remain
+unverified.

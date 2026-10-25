@@ -10,6 +10,7 @@ static void runtime_auto_relisten_tick(uintptr_t base,uintptr_t engine,DWORD now
         wchar_t value[8]={0};DWORD length=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_AUTO_RELISTEN",value,8);
         opted=length==1&&value[0]==L'1';configured=1;
     }
+    runtime_auto_relisten_enabled=opted&&g_runtime_config.role==ME3_ROLE_HOST;
     if(!opted||runtime_auto_relisten_suspended||!runtime_control_enabled||
        g_runtime_config.role!=ME3_ROLE_HOST||g_config_status!=ME3_CONFIG_READY||
        !InterlockedCompareExchange(&runtime_listen_successful,0,0)||

@@ -27,6 +27,11 @@ static int runtime_auto_rejoin_suspended;
 /* Ordinary entry publishes a fresh side-channel observation each Tick.
  * The protected probe does not open a side channel. Manual join ignores it. */
 static int runtime_peer_ready_required,runtime_peer_ready;
+static int runtime_auto_relisten_enabled,runtime_auto_rejoin_enabled;
+enum {RUNTIME_READY_OFF=0,RUNTIME_READY_HOST_WAIT=1,RUNTIME_READY_HOST_READY=2,
+    RUNTIME_READY_GUEST_IDLE=3,RUNTIME_READY_WAIT_HOST=4,RUNTIME_READY_PEER_READY=5,
+    RUNTIME_READY_FAILED=6,RUNTIME_READY_DISABLED=7};
+static unsigned runtime_ready_channel_status;
 static DWORD runtime_relisten_started;
 static int runtime_relisten_armed;
 static DWORD runtime_join_last_check;

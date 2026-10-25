@@ -34,7 +34,10 @@ per500ms. Its fixed24-byte packet contains magic `M3RD`, version1, message kind,
 a ready bit, reserved zero and a random16-byte request nonce. Replies must echo
 the current nonce, come from the configured host IPv4/adjacent port and arrive
 within1000ms of the request. No game object pointer, map, save, actor state or
-engine command crosses this channel. A nonce is freshness correlation, not
+engine command crosses this channel. An unanswered nonce is retained for that
+entire response window, so a valid reply after500ms is not discarded by early
+query rotation. Only expiry or local context invalidation permits replacement.
+A nonce is freshness correlation, not
 player authentication; native connection validation remains authoritative.
 
 Fatal local initialization/socket/random failures leave automatic recovery waiting rather
@@ -46,6 +49,9 @@ remain waiting conditions. Oversized datagrams are dropped; they do not close
 the channel. Send cadence is retained across local context invalidations.
 Only the ordinary entry links/uses the channel; the protected probe does not
 open a readiness socket.
+The local panel reports the sampled readiness/recovery states, including a
+channel failure which preserves manual Join/Retry. Host-ready publication also
+requires the current root's actual driver to equal the captured verified driver.
 
 Deferred execution checks must cover wire parsing/size, malformed or oversized
 datagrams, unexpected senders/nonces, expiry/context replacement, socket cleanup

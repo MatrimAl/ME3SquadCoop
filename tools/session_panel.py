@@ -13,7 +13,8 @@ class Frame(C.LittleEndianStructure):
         ("created", C.c_uint64), ("sequence", C.c_int32)] + [
         (name, C.c_uint32) for name in (
             "role", "enabled", "startup", "netmode", "companion_owned", "power_status",
-            "power_scope", "power_count", "ack_id", "ack_result", "control_state", "tick_ms")] + [
+            "power_scope", "power_count", "ack_id", "ack_result", "control_state", "tick_ms",
+            "recovery_flags", "readiness_state")] + [
         ("hotkeys_enabled", C.c_uint32), ("power_slot_indices", C.c_int32 * 9),
         ("power_names", (C.c_char * 80) * 64)]
 
@@ -46,7 +47,7 @@ class Session:
         for name, (args, result) in specifications.items():
             function = getattr(self.kernel, name)
             function.argtypes, function.restype = args, result
-        if C.sizeof(Frame) != 5236 or C.sizeof(Memory) != 5256:
+        if C.sizeof(Frame) != 5244 or C.sizeof(Memory) != 5264:
             raise RuntimeError("Unsupported panel layout")
         try:
             # Query + wait only: no process memory access, injection or termination.
@@ -88,10 +89,12 @@ class Session:
             if before != after or after & 1:
                 continue
             if (frame.magic, frame.version, frame.bytes, frame.pid, frame.created) != (
-                    0x4d334350, 4, 5256, self.pid, self.created):
+                    0x4d334350, 5, 5264, self.pid, self.created):
                 raise RuntimeError("Panel identity/version unavailable or different")
             if frame.role not in (1, 2) or frame.power_count > 64:
                 raise RuntimeError("Invalid panel frame")
+            if frame.recovery_flags & ~15 or frame.readiness_state > 7:
+                raise RuntimeError("Invalid recovery status")
             if frame.hotkeys_enabled not in (0, 1) or any(
                     value < -1 or value >= frame.power_count for value in frame.power_slot_indices):
                 raise RuntimeError("Invalid power shortcut indices")
@@ -147,6 +150,9 @@ STARTUP = {0: "Idle", 1: "Waiting for player control", 2: "Join dispatched", 3: 
 POWER = {0: "Idle", 1: "Queued", 2: "Rejected", 3: "Native order accepted", 4: "Native order refused"}
 CONTROL = {0: "Waiting for companion", 1: "Companion controlled", 2: "Scene / control suspended",
            3: "Waiting for mission transition", 4: "Control fault — restart required"}
+READINESS = {0: "Off", 1: "Host not ready", 2: "Host ready", 3: "Idle",
+             4: "Waiting for host reply", 5: "Host replied ready",
+             6: "Unavailable — manual connection available", 7: "Disabled"}
 
 
 def main():
@@ -156,7 +162,7 @@ def main():
     session = Session(args.pid)
     root = tk.Tk()
     root.title(f"ME3 Squad Co-op — {args.pid}")
-    root.geometry("590x440")
+    root.geometry("590x480")
     status, result = tk.StringVar(value="Waiting for game status"), tk.StringVar(value="")
     ttk.Label(root, textvariable=status, wraplength=550).pack(padx=15, pady=12, anchor="w")
     buttons = ttk.Frame(root)
@@ -199,10 +205,15 @@ def main():
             frame = session.snapshot()
             role = "Host" if frame.role == 1 else "Guest"
             net = {0: "Standalone", 2: "Listen server", 3: "Client"}.get(frame.netmode, "Unavailable")
+            enabled_bit, suspended_bit = (1, 4) if frame.role == 1 else (2, 8)
+            recovery = "Manual"
+            if frame.recovery_flags & enabled_bit:
+                recovery = "Paused until game restart" if frame.recovery_flags & suspended_bit else "Automatic"
             status.set(f"{role} | {net} | {'Enabled' if frame.enabled else 'Disabled'}\n"
                        f"Connection: {STARTUP.get(frame.startup, 'Unknown')} | Companion ownership: {bool(frame.companion_owned)}\n"
                        f"Control: {CONTROL.get(frame.control_state, 'Unknown')}\n"
-                       f"Power: {POWER.get(frame.power_status, 'Unknown')}")
+                       f"Power: {POWER.get(frame.power_status, 'Unknown')}\n"
+                       f"Mission recovery: {recovery} | Readiness: {READINESS.get(frame.readiness_state, 'Unknown')}")
             names = [bytes(frame.power_names[i]).split(b'\0', 1)[0].decode('utf-8', errors='replace')
                      for i in range(frame.power_count)]
             slots = tuple(frame.power_slot_indices) if frame.hotkeys_enabled else (-1,) * 9

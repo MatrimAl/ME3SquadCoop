@@ -93,6 +93,9 @@ int me3_ready_poll(const unsigned char bind_ip[4],const unsigned char peer_ip[4]
     }
     if(host||!query)return 0;
     if(s->pending&&s->confirmed&&now>=s->sent_at&&now-s->sent_at<=1000)return 1;
+    /* One unanswered nonce owns the entire response window. A second query
+     * at500ms would otherwise discard valid higher-latency replies early. */
+    if(s->pending&&now>=s->sent_at&&now-s->sent_at<=1000)return 0;
     if(s->queried&&now>=s->last_query&&now-s->last_query<500)return 0;
     s->last_query=now;s->queried=1;s->pending=s->confirmed=0;
     unsigned char packet[24]={'M','3','R','D',1,1,0,0};
