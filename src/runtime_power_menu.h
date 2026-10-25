@@ -8,7 +8,7 @@ static int runtime_power_menu_held(uintptr_t base,SessionContext c) {
     if(c.mode!=3||!runtime_power_icons_enabled()||!runtime_control_enabled||!runtime_scope_ready||
        g_runtime_config.role!=ME3_ROLE_GUEST||!InterlockedCompareExchange(&g_enable_requested,0,0)||
        !lease->active||lease->failed||lease->retiring||!runtime_power_assignment_active(base)||
-       !runtime_native_power_input_active()||session_environment_block_reason(c)||
+       !runtime_native_power_input_active()||!runtime_power_caster_active(base)||session_environment_block_reason(c)||
        c.pc!=lease->owner.pc.pointer||c.pawn!=lease->owner.pawn.pointer||
        !session_handle_matches(lease->owner.pawn)||lease->owner.token!=guest_player_context_registration_token()||
        !runtime_power_icon_owner(base,&lease->owner,c))return 0;

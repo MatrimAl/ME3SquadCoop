@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-26: owned full-wheel caster/group candidate
+
+The optional icon lease now installs a checked forwarding hook at the native
+PC wheel caster virtual. For the verified SelectCurrentPower caller, it reads
+the entire selected index group and accepts only current unique Ashley power
+icons with matching pawn/player-controller caches and no AI cache. It returns
+the owned pawn with the existing native group, allowing the stock selection,
+cancellation and tactical-order path to proceed with consistent context.
+Other wheels/callers and inactive leases retain stock behavior; malformed,
+mixed or stale leased groups refuse. Empty henchman groups remain valid.
+
+This does not populate Ashley's full power list or rewrite cached story pawns.
+That initialization remains a prerequisite: a Shepard list is refused. Three
+native targets compiled and current fingerprints matched. No game, wheel
+selection, cancellation, network session or tests ran. Native order delivery,
+effects and full-menu rendering/control remain unverified.
+
 ## 2026-10-26: full-wheel caster/group selection path resolved
 
 Offline selection inspection established that full-wheel SelectCurrentPower

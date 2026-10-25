@@ -1,5 +1,13 @@
 # Validation status
 
+The optional icon candidate now validates and supplies an owned caster/group
+to the exact native full-wheel selection caller. Every group icon and power
+must match the current Ashley/player-controller context; mixed/stale groups
+refuse. Three native targets compiled and current fingerprints matched. No
+game or tests ran. This does not initialize Ashley's full power-list icons;
+that prerequisite, native cancellation/order delivery and effects remain
+unverified. The separate mod command queue still admits casting only in mode0.
+
 The runtime now uses the native SFXGRI command-pause policy to prevent new
 command-menu pauses in an admitted co-op world, with same-world conditional
 baseline restoration. It never clears an existing PlayersOnly/Pauser state.

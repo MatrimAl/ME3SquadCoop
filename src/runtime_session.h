@@ -72,6 +72,7 @@ static int runtime_session_scope(uintptr_t base,uintptr_t engine) {
 #include "runtime_power_icons.h"
 #include "runtime_power_menu.h"
 #include "runtime_power_assignment.h"
+#include "runtime_power_caster.h"
 #include "runtime_input_bootstrap.h"
 #include "runtime_command_pause.h"
 static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {

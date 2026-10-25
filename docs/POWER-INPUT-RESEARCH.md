@@ -852,3 +852,43 @@ No caster helper, power-list group, cached pawn or tactical order was changed
 for this research. Existing quickslot/drop and command-pause candidates remain
 as previously compiled. Full-wheel selection and close-time tactical order
 delivery remain incomplete and unverified; no game or tests ran.
+
+## Owned full-wheel caster/group candidate
+
+The optional icon lease now requires a checked forwarding hook at the PC
+wheel caster virtual+0x508, whose constructor-grounded target is0xc4d740.
+Installation checks the original slot and entry bytes and uses pointer CAS.
+Other callers/wheels, inactive leases and disabled runtime retain the stock
+helper. The substituted path accepts only the exact SelectCurrentPower call
+returning at0xc5295e. It makes no native gameplay/UI call itself.
+
+For that leased guest selection, the adapter checks current menu/ordinary UI
+eligibility, world/controller/pawn/registration identities and the current
+eligible power catalog. It validates the reflected selected-index, power-icon
+array and three-index-group struct layouts, bounded signed indices and a
+single group containing the selected index. The native henchman-group policy
+is still respected. Empty henchman groups are valid; unreadable or malformed
+groups are not treated as empty.
+
+Every icon in the chosen group must be a current native PowerIcon belonging
+to this wheel, with a unique eligible full power name and exact current power
+instance. Its pPawn and the action's m_oPawn/m_oPC/m_oAI must agree with Ashley,
+the current guest controller and no AI controller. Duplicate, foreign, stale
+or incompletely rebound entries refuse the group. Headers, index values,
+icon/power identities, caches, selection and current UI context are rechecked
+before returning the owned pawn and the existing native group-array address.
+
+The adapter does not rewrite group arrays or cached story-pawn fields. Native
+SelectCurrentPower retains its normal state, cancellation, targeting, tactical
+order and icon-activation flow after this return. Because the entire group is
+owned, its cancellation pass cannot knowingly consume a foreign squad member's
+power names. The mod's explicit command queue remains mode0-only; this helper
+instead supplies context to the game's existing native wheel order path.
+
+This closes one caster-selection integration point, not full-wheel readiness.
+The existing full power-list icons/groups must already contain the owned Ashley
+powers; this change does not initialize or convert a Shepard list. Without
+that prerequisite the helper refuses rather than pretending the wheel is ready.
+The hook remains forwarding/resident until exit, and a replaced hook retires
+the optional icon lease. Three native targets compiled and build fingerprints
+matched. No game, selected power, cancellation, cast effect or tests ran.
