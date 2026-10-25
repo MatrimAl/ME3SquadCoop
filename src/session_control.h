@@ -40,7 +40,7 @@ static DWORD session_guest_disconnect_delay(int progress,int action) {
 }
 static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     SessionContext c = session_context(engine); DWORD now = GetTickCount();
-    if(after)remote_appearance_qa_tick(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
+    if(after)remote_appearance_qa_tick(base,engine,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,progress_enabled&&has_marker(root),now);
     combat_fire_bot_tick(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root)&&!collision_baseline_qa_opted()&&!session_manual_guest_input(),after,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
