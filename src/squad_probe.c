@@ -551,6 +551,7 @@ static void game_tick_diagnostics(void *self,uintptr_t base) {
     wcscpy(command, test_action == 4 || (test_action == 6 && !host_reload_mars) ? L"open BioP_ProMar?listen" :
                     L"open BioP_ProMar");
     if(arena_pair_qa&&test_action==6)wcscpy(command,L"open BioP_SPCer?listen");
+    if(arena_pair_qa&&arena_pair_auto_qa&&arena_parallel_qa&&test_action==6)wcscpy(command,L"open BioP_SPCer");
     if(arena_pair_qa&&arena_pair_auto_qa&&test_action==5)wcscpy(command,L"open BioP_SPCer");
     if (test_action == 5 && !client_prewarm && !(arena_pair_qa&&arena_pair_auto_qa)) _snwprintf(command,80,L"open %ls:%u",direct_ip_config.peer_ipv4,(unsigned)direct_ip_config.port);
     ConsoleParms parms = {0};

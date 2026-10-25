@@ -7,7 +7,7 @@ static int arena_focus_prewarm_opted(uintptr_t base,uintptr_t engine,uintptr_t i
     SessionContext c=session_context(engine);uintptr_t pauser=1;uint32_t focus=0;
     if(!read_at(info+0x670,&pauser,8)||!read_at(info+0x9c8,&focus,4)||(pauser&&!(focus&0x8000)))return 0;
     return c.world==info&&session_actor_live(base,c.pawn)&&is_kind_of(base,c.pawn,"SFXPawn_Player")&&
-        read_ptr(c.pawn+0x374)==c.pc&&((test_action==6&&net==2)||(test_action==5&&net==0));
+        read_ptr(c.pawn+0x374)==c.pc&&((test_action==6&&(net==0||net==2))||(test_action==5&&net==0));
 }
 #define ME3_PROTECTED_ARENA_FOCUS_QA 1
 #include "background_focus.h"

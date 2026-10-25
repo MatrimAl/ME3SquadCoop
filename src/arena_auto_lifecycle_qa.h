@@ -4,6 +4,7 @@
  * package GUID or story-guard edits. All travel/spawn actions are native
  * ConsoleCommand; gameplay uses the existing ordinary movement/fire paths. */
 #include "arena_auto_startup_qa.h"
+#include "arena_host_bootstrap_qa.h"
 static int arena_auto_joined,arena_auto_spawn_sent;
 static DWORD arena_auto_step_at,arena_auto_state_at;
 static GuestCameraStamp arena_auto_step_pc,arena_auto_step_input,arena_auto_step_pawn;
@@ -62,6 +63,8 @@ static void arena_auto_lifecycle_tick(uintptr_t base,uintptr_t engine,int after,
         if(clear){if(!arena_auto_ready_at)arena_auto_ready_at=now;}else arena_auto_ready_at=0;
     }
     if(!arena_pair_auto_qa)return;
+    if(!after)arena_host_bootstrap_tick(base,engine,c,current&&clear&&arena_auto_ready_at&&
+        now-arena_auto_ready_at>=5000&&arena_auto_roster_ready(base,c),now);
     if(!after&&(!arena_auto_state_at||now-arena_auto_state_at>=1000)) {
         arena_auto_state_at=now;char row[600];int roster=current&&arena_auto_roster_ready(base,c);
         snprintf(row,sizeof row,"{\"arena_auto_qa\":\"prewarm-state\",\"role\":\"%s\",\"current_spcer\":%s,\"scene_clear\":%s,\"engine_block_reason\":\"%s\",\"ready_stable_ms\":%lu,\"roster_ready\":%s,\"host_map_refreshed\":%s,\"parallel_qa\":%s,\"monotonic_ms\":%lu}\r\n",

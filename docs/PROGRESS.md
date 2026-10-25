@@ -1458,3 +1458,26 @@ the coordinator deliberately withheld until both prewarms were ready. This
 source-level dependency is addressed without changing ordinary player startup
 or clearing native pause flags. Native outputs were rebuilt; the new policy's
 fixture and live checks remain deferred. See [background focus](BACKGROUND-FOCUS.md).
+
+## Parallel arena opening and in-place listener candidate
+
+The first protected parallel run completed both native menu/roster prewarms
+and released the join event after about115 seconds, leaving over335 seconds
+on each native lifetime. The guest then rejected BioP_Global: the host had
+loaded the base carrier (GUID dfa65d51-482b1901-8337c0b1-72c320fd,332 net
+objects), while the guest had loaded DLC_EXP_Pack003's carrier (GUID
+d002cc41-4a8ecfb3-4c769494-176b4613,392 net objects). Native validation was
+unchanged. No guest Ashley acquisition or paired arena combat was established.
+Both exact owned children were stopped early after this rejection; original
+profiles were unchanged, no native exception was recorded, no game remained
+and the private arena package was restored. The memory observer still exited1.
+
+The next protected parallel candidate initializes the host as standalone too,
+then reuses the ordinary runtime's checked current-world Listen implementation
+after the complete roster and five seconds of clear control. It preserves
+normal package resolution, code/ABI pins, endpoint checks, capacity contracts,
+scene gates and the coordinator event. No package GUID or validation is edited.
+Only protected parallel arena startup selects this path; ordinary player entry
+is unchanged. Native outputs rebuilt and the existing native runtime harness
+passed. This wiring and the new host standalone focus case still require a
+live result; successful prior Mars Listen evidence does not prove arena joining.
