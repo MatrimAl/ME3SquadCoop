@@ -111,30 +111,46 @@ static int background_focus_context(uintptr_t self,uintptr_t frame,int expected_
      * getter policy changes no possession/input permission: the session core
      * continues handing control to AI during a conversation. A dialogue's
      * intentional PlayersOnly pause is refused above unless focus owns it. */
-    uintptr_t driver=read_ptr(world+0x120);unsigned char net=0;
-    if(!narrative_probe_object(b,driver,"NetDriver")||!read_at(self+0x7c8,&net,1))return background_focus_fail("native-driver");
+    uintptr_t driver=0;unsigned char net=255;int prewarm=0,prewarm_kind=0;
+    if(!read_at(world+0x120,&driver,8)||!read_at(self+0x7c8,&net,1))return background_focus_fail("native-driver");
+#ifdef ME3_PROTECTED_ARENA_FOCUS_QA
+    prewarm=arena_focus_prewarm_opted(b,s->engine,self,net);
+#endif
     uintptr_t connection=0,remote=0;GameArray peers={0};
-    if(net==2) {
-        if(!background_focus_array(driver+0x70,&peers,4)||peers.count!=1)return background_focus_fail("host-peer-count");
-        connection=read_ptr(peers.data);remote=read_ptr(connection+0x68);
-        if(!narrative_probe_object(b,connection,"NetConnection")||!guest_camera_actor_live(b,remote)||
-           !is_kind_of(b,remote,"PlayerController")||read_ptr(remote+0x67c)!=connection||read_ptr(remote+0x198)!=self||
-           read_ptr(connection+0x8c)!=driver||!read_at(remote+0x77c,&flags,4)||(flags&0x800))return background_focus_fail("host-peer-membership");
-    } else if(net==3) {
-        connection=read_ptr(driver+0x80);
-        if(!narrative_probe_object(b,connection,"NetConnection")||read_ptr(connection+0x68)!=pc||
-           read_ptr(connection+0x8c)!=driver)return background_focus_fail("guest-server-membership");
-    } else return background_focus_fail("not-network-world");
+    if(prewarm&&net==0&&!driver)prewarm_kind=1;
+    else {
+        if(!narrative_probe_object(b,driver,"NetDriver"))return background_focus_fail("native-driver");
+        if(net==2) {
+            if(!background_focus_array(driver+0x70,&peers,4))return background_focus_fail("host-peer-count");
+            uintptr_t server=1;
+            if(prewarm&&peers.count==0&&read_at(driver+0x80,&server,8)&&!server)prewarm_kind=2;
+            else {
+                if(peers.count!=1)return background_focus_fail("host-peer-count");
+                connection=read_ptr(peers.data);remote=read_ptr(connection+0x68);
+                if(!narrative_probe_object(b,connection,"NetConnection")||!guest_camera_actor_live(b,remote)||
+                   !is_kind_of(b,remote,"PlayerController")||read_ptr(remote+0x67c)!=connection||read_ptr(remote+0x198)!=self||
+                   read_ptr(connection+0x8c)!=driver||!read_at(remote+0x77c,&flags,4)||(flags&0x800))return background_focus_fail("host-peer-membership");
+            }
+        } else if(net==3) {
+            connection=read_ptr(driver+0x80);
+            if(!narrative_probe_object(b,connection,"NetConnection")||read_ptr(connection+0x68)!=pc||
+               read_ptr(connection+0x8c)!=driver)return background_focus_fail("guest-server-membership");
+        } else return background_focus_fail("not-network-world");
+    }
     if(read_ptr(b+0x18b6638)!=world||read_ptr(world+0x88)!=level||read_ptr(actors.data)!=self||
-       local_controller(s->engine)!=pc||read_ptr(pc+0x198)!=self||read_ptr(world+0x120)!=driver||
-       read_ptr(connection+0x8c)!=driver||(net==2?(read_ptr(peers.data)!=connection||read_ptr(connection+0x68)!=remote||
-       read_ptr(remote+0x67c)!=connection):read_ptr(driver+0x80)!=connection))return background_focus_fail("context-changed");
+       local_controller(s->engine)!=pc||read_ptr(pc+0x198)!=self||read_ptr(world+0x120)!=driver)return background_focus_fail("context-changed");
+    if(prewarm_kind==2) {
+        GameArray again={0};uintptr_t server=1;
+        if(!background_focus_array(driver+0x70,&again,4)||again.count||!read_at(driver+0x80,&server,8)||server)return background_focus_fail("prewarm-peer-arrived");
+    } else if(!prewarm_kind&&(read_ptr(connection+0x8c)!=driver||
+       (net==2?(read_ptr(peers.data)!=connection||read_ptr(connection+0x68)!=remote||read_ptr(remote+0x67c)!=connection):
+       read_ptr(driver+0x80)!=connection)))return background_focus_fail("context-changed");
     uintptr_t objects[7]={world,level,self,pc,driver,connection,remote};
     for(unsigned i=0;i<7;++i)if(objects[i]) {
         scope->handles[i]=session_capture_handle(objects[i]);scope->klass[i]=read_ptr(objects[i]+0x50);
         if(!scope->handles[i].pointer||!scope->klass[i]||!session_handle_matches(scope->handles[i]))return background_focus_fail("context-identity");
     }
-    background_focus_reason="verified-tick-context";
+    background_focus_reason=prewarm_kind?"verified-protected-prewarm-tick":"verified-tick-context";
     return 1;
 }
 static void background_focus_exec(void *self,void *frame,void *result) {

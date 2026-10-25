@@ -48,3 +48,33 @@ either pause flag; control returned afterward. These are bounded protected
 observations, not ordinary-runtime validation or full conversation support.
 Guest movement remained stationary during the QA pulse. Reliable movement,
 combat and full dialogue support remain unverified; more guests are future work.
+
+## Prepared private parallel-prewarm exception
+
+The parallel arena preparation exposed a source-level dependency: the existing
+focus policy required a connected host peer or client network world, while
+both full prewarms must finish before the coordinator permits connection.
+Starting a second window can therefore leave an unfocused prewarm paused.
+This is a source-level risk, not an observed successful reproduction.
+
+A compile-time protected-probe policy now permits the same pinned HasFocus
+Tick interception only during explicitly enabled arena+auto+parallel SPCer
+prewarm. It requires the current reciprocal Shepard controller and private
+marker. Standalone guest prewarm requires no driver; host listen prewarm
+requires a live driver with a repeatedly read empty peer array and no server
+connection. Missing reads are refused. The pre/post getter identity checks,
+ordinary-mode checks, caller/body pins and intentional/pending pause guards
+remain. A nonnull pause owner without focus ownership refuses this exception.
+
+This policy does not clear pause fields, force desktop focus or authorize
+possession. The engine's existing Tick must restore its own focus-loss pause,
+and the separate full scene/admission gate still controls the join. The
+ordinary player entry does not compile this exception and retains its
+connected-world policy. Once a peer is present the existing connected path
+applies; changed context during the getter remains refused.
+
+Normal native outputs were rebuilt. No game, native focus fixture or parallel
+trial was executed. The new standalone/empty-host branches, transition to a
+connected peer, mode changes and intentional pauses need deferred validation.
+Previously passing connected-world focus fixtures are not evidence for this
+new exception.

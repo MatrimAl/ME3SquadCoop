@@ -1449,3 +1449,12 @@ cannot admit acquisition while a pause owner exists or the pause-owner field
 is unreadable. No pause or story state is cleared. Normal native outputs were
 rebuilt; prepared pause/guard regression cases and live checks remain deferred.
 This is a source-level guard correction, not a demonstrated campaign-pause fix.
+
+## Parallel prewarm focus dependency
+
+The prepared parallel trial now has a protected SPCer-only focus policy for
+the two preconnection prewarms. The prior focus policy required a peer that
+the coordinator deliberately withheld until both prewarms were ready. This
+source-level dependency is addressed without changing ordinary player startup
+or clearing native pause flags. Native outputs were rebuilt; the new policy's
+fixture and live checks remain deferred. See [background focus](BACKGROUND-FOCUS.md).
