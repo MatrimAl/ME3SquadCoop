@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-25: distinguish selected mode from active damage-blocking modes
+
+Exact-build native analysis resolved SFXGameModeManager.IsActive through its
+native registration to exec RVA B399C0 and body BB2D20. The body bounds the
+mode index by GameModes count and returns the selected mode object's active
+bit at D0/mask2. It does not read manager.CurrentMode. A local CurrentMode0
+sample therefore cannot rule out a still-active lower-priority conversation
+or cinematic mode, including one on the remote controller inspected by
+SFXGRI.ModifyDamage.
+
+The private read-only capture specification now covers every live controller's
+mode7/8/10 object identities and reflected active bits, as well as GRI damage
+enablement and target protection flags. It validates array bounds and owner
+identities rather than copying the native body's unchecked pointer access.
+Only offline analysis and syntax checking ran for this update; no actual mode
+bit or damage rejection has been observed yet. No mode flag is changed and
+no narrative gate is bypassed.
+
 ## 2026-10-25: live weapon damage inputs are populated at enemy hits
 
 The protected observer validated its reflected layouts in a real pair. During
