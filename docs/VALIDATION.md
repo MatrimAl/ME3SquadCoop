@@ -1,5 +1,14 @@
 # Validation status
 
+The latest offline action-array scan selected14 native fragments. A retained
+Ghidra export completed with12 nonempty decompilations and two missing exact
+function entries; completion of the batch does not mean all14 decompiled.
+Reviewed bodies do not establish a narrow action-controller cache refresh,
+and indirect callees remain unresolved. No live stale-cache diagnosis or
+runtime repair follows from this scan. Only research documentation/private
+evidence indexing changed; no game or tests ran. See
+[action context coverage](ACTION-CONTROLLER-CONTEXT.md).
+
 Guest quickslot setup, full-wheel caster selection and queued power dispatch
 now check that the supported native first-match PowerName lookup resolves to
 the expected eligible object. Full-array prefix/header/name readback detects

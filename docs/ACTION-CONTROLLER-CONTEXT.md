@@ -123,3 +123,41 @@ refresh, action instance recreation or arbitrary field-write repair is claimed.
 The investigation narrowed which APIs are unsuitable; actual inherited native
 action initialization and live cache behavior still need to be established.
 Only the owned supported executable was read, without launching it.
+
+## Native action-array candidate review
+
+A static instruction scan selected14 unwind fragments with typed pointer or
+array-address reads at the BioPawn action-array offsets+0x6ac/+0x6cc. Each
+candidate instruction was checked against decoding from its unwind-fragment
+start. Offset matches alone do not establish the receiver's class. No selected
+fragment also contained a direct write at+0xa0/+0xa8; this is a bounded
+co-occurrence observation, not proof that native refresh does not exist.
+
+The retained Ghidra project processed all14 entries in about11 seconds, with
+terminal exit0 and12 nonempty decompilations. Exact entries0x7e5c17 and
+0xa94aae were not recognized as functions. Neither was replaced by a nearby
+function or counted as a successful decompilation.
+
+| Candidate RVA | Reviewed body evidence |
+| --- | --- |
+| 0xa864b0 | BioPawn-vtable cleanup path releases many arrays, including both action arrays |
+| 0xa8cc50,0xa8ce10 | Read a current action's scalar fields for a returned movement-related value |
+| 0xa8ff50,0xa905f0 | Read action flags or class ancestry and return a boolean |
+| 0xa908c0,0xa960b0 | Read action flags for movement-related scalar processing |
+| 0xa94db0 | Reads action flags and updates pawn/controller presentation fields |
+| 0xa97000 | Dispatches current action virtual+0x2c8 and a separate pawn delegate |
+| 0x49b4c0,0x7e82f0,0xc482d0 | Matching offsets without established BioPawn action-array receiver identity |
+
+None of these reviewed bodies establishes a narrow controller-cache refresh.
+In particular, cleanup/freeing arrays must not be used to force lazy action
+recreation. The action virtual dispatch and other indirect/native callees
+remain unresolved by this batch. Alternate addressing, pointer aliases,
+script property writes and other packages are outside the scanner's coverage.
+
+The private evidence index now retains the completed export, input identities,
+per-entry statuses, reviewed classifications and output hashes. Existing
+script initialization shows where caches are initially assigned; it still
+does not establish that Ashley retains stale caches during actual possession.
+No runtime cache write, reset, recreation or additional possession was added.
+No game or behavioral test ran. Live cache observation remains necessary
+before treating this research hypothesis as an observed gameplay fault.

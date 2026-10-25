@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: classify native action-context candidates
+
+The retained project completed a14-entry action-array candidate batch in
+about11 seconds:12 decompiled and two exact function entries missing. Reviewed
+bodies read active-action metadata, dispatch delegates or perform broad
+cleanup; none establishes a narrow controller-cache refresh. Offset matches
+on unrelated/unidentified receivers remain explicitly unassigned. Indirect
+callees and alternate addressing are not covered by the scan.
+
+The private dossier now includes this completed batch and reviewed evidence
+identities. No speculative action reset, array recreation or cache-field write
+was added. This narrows unsafe implementation leads; it does not diagnose a
+live Ashley cache fault or add a gameplay feature. No game or tests ran, and
+runtime source/binaries were unchanged. See
+[action context research](ACTION-CONTROLLER-CONTEXT.md).
+
 ## 2026-10-26: match native first-name lookup to the selected power object
 
 The exact native manager lookup was traced through registration, class
