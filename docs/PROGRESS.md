@@ -1525,3 +1525,28 @@ the new authored-memory lease fixture, ordinary runtime harness and collision
 lifecycle fixture passed. No new live run was performed. Existing native-squad
 compatibility, usable movement and guest firing are still unverified. See
 [existing squad context](EXISTING-SQUAD-CONTEXT.md).
+
+## Preserve the guest camera during native weapon draw/holster
+
+Read-only review of the connected arena recording found actual grounded
+guest movement before the short automation pulse stopped. CurrentCustomAction
+changed from0 to12, then returned to0 about one second later. The camera arm
+adapter restored its baseline during that interval and reapplied afterward.
+This does not establish a persistent movement failure or its cause. Selected
+shipped SFXGame defaults map action slot12 to DrawWeapon and11 to HolsterWeapon
+for the stock Henchman/Player tables; the live instance table was not retained.
+
+The shared camera adapter now has a separate retention policy for an already
+applied lease during a verified native draw/holster action. It resolves the
+current pawn's actual class/instance action tables and requires the exact
+allowed class, matching pawn/controller links and no requested or active
+action-owned camera. It keeps all existing scene, ownership, mode, permission,
+camera target, frozen/root-motion and channel checks. Power actions and other
+custom actions remain ineligible. Initial camera acquisition and the collision
+adapter's camera predicate keep the original strict action policy.
+
+This changes camera presentation only, with no action cancellation or movement
+permission changes. Normal native outputs rebuilt. No new fixture or live game
+execution was performed; actual retention and sustained movement remain
+unverified. The native action object may carry different links or camera fields
+than its stock defaults, in which case the candidate preserves the strict policy.

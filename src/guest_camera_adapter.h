@@ -28,7 +28,7 @@ typedef struct GuestCameraStamp {
     char full_name[600];
 } GuestCameraStamp;
 typedef struct GuestCameraLease {
-    int tracked, applied, suppressed;
+    int tracked, applied, suppressed,retained_weapon_action;
     GuestCameraStamp pc,pawn,world,camera,mode;
     uint32_t baseline_bits;
     DWORD retry_at;
@@ -145,8 +145,9 @@ static int guest_camera_cached_channel(uintptr_t base,uintptr_t pawn) {
     }
     return channel&&index>0;
 }
-static int guest_camera_conditions(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,
-                                    int ordinary_mode,int enabled,uintptr_t *camera_out,uintptr_t *mode_out) {
+#include "guest_camera_weapon_action.h"
+static int guest_camera_conditions_policy(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,
+                                    int ordinary_mode,int enabled,uintptr_t *camera_out,uintptr_t *mode_out,int retain_weapon_action) {
     unsigned char net=255,current_mode=255,ignore=255;uint32_t disable=0,pc_flags=0,pawn_flags=0,busy=0;
     int32_t action=-1,power=-1;
     guest_camera_eligibility_reason="eligible";
@@ -158,7 +159,8 @@ static int guest_camera_conditions(uintptr_t base,uintptr_t pc,uintptr_t pawn,ui
     if(read_ptr(pc+0x198)!=world||read_ptr(pawn+0x198)!=world||!read_at(world+0x7c8,&net,1)||net!=3) return guest_camera_reject("world-or-netmode");
     if(read_ptr(pc+0x3bc)!=pawn||read_ptr(pawn+0x374)!=pc||read_ptr(pc+0x694)!=pawn) return guest_camera_reject("possession-or-acknowledged-pawn");
     if(!read_at(pc+0x77c,&pc_flags,4)||(pc_flags&(0x800|0x20000))||!read_at(pc+0x781,&ignore,1)||ignore) return guest_camera_reject("controller-cinematic-or-move-input");
-    if(!read_at(pawn+0xc20,&action,4)||action||!read_at(pawn+0xc28,&power,4)||power) return guest_camera_reject("custom-action-or-power");
+    if(!read_at(pawn+0xc20,&action,4)||action<0||!read_at(pawn+0xc28,&power,4)||power||
+       (action&&(!retain_weapon_action||!guest_camera_weapon_action(base,pc,pawn,action)))) return guest_camera_reject("custom-action-or-power");
     if(
        !read_at(pawn+0xe18,&pawn_flags,4)||(pawn_flags&(0x200000|0x20000000))||
        !read_at(pawn+0xe20,&busy,4)||(busy&0x40000)) return guest_camera_reject("pawn-frozen-root-motion-or-conversation");
@@ -181,6 +183,10 @@ static int guest_camera_conditions(uintptr_t base,uintptr_t pc,uintptr_t pawn,ui
        !read_at(mode+0x11c,&mode_flags,4)||(mode_flags&0x20)||!(mode_flags&2)) return guest_camera_reject("combat-mode-target-or-flags");
     if(!guest_camera_cached_channel(base,pawn)) return guest_camera_reject("positive-channel-cache-not-ready");
     *camera_out=camera;*mode_out=mode;return 1;
+}
+static int guest_camera_conditions(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,
+                                    int ordinary_mode,int enabled,uintptr_t *camera_out,uintptr_t *mode_out) {
+    return guest_camera_conditions_policy(base,pc,pawn,world,ordinary_mode,enabled,camera_out,mode_out,0);
 }
 static void guest_camera_log_eligibility(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,
                                          int ordinary_mode,int enabled,DWORD now) {
@@ -216,7 +222,9 @@ static void guest_camera_log_eligibility(uintptr_t base,uintptr_t pc,uintptr_t p
 static void guest_camera_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,
                                int ordinary_mode,int enabled,DWORD now) {
     uintptr_t camera=0,mode=0;
-    int eligible=guest_camera_conditions(base,pc,pawn,world,ordinary_mode,enabled,&camera,&mode);
+    int holding=guest_camera_lease.tracked&&guest_camera_lease.applied&&
+        guest_camera_lease.pc.pointer==pc&&guest_camera_lease.pawn.pointer==pawn&&guest_camera_lease.world.pointer==world;
+    int eligible=guest_camera_conditions_policy(base,pc,pawn,world,ordinary_mode,enabled,&camera,&mode,holding);
     if(!eligible) guest_camera_log_eligibility(base,pc,pawn,world,ordinary_mode,enabled,now);
     if(guest_camera_lease.tracked) {
         int same=eligible&&pc==guest_camera_lease.pc.pointer&&pawn==guest_camera_lease.pawn.pointer&&world==guest_camera_lease.world.pointer&&
@@ -233,6 +241,11 @@ static void guest_camera_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintpt
             if(!guest_camera_owned_value(current)) {
                 guest_camera_log("preserved","external-scale-change",now,1,current,1);
                 guest_camera_lease.applied=0;guest_camera_lease.suppressed=1;
+            }else {
+                int32_t action=0;int weapon=read_at(pawn+0xc20,&action,4)&&action>0;
+                if(weapon&&!guest_camera_lease.retained_weapon_action)
+                    guest_camera_log("retained","verified-native-weapon-action",now,1,current,1);
+                guest_camera_lease.retained_weapon_action=weapon;
             }
         }
         return;
