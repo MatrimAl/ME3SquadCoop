@@ -98,7 +98,7 @@ class Session:
 
     def command(self, code, scope=0, index=0):
         frame = self.snapshot()
-        if code not in range(1, 8):
+        if code not in range(1, 9):
             raise ValueError("Unknown command")
         if code == 4 and (not scope or scope != frame.power_scope or not 0 <= index < frame.power_count):
             raise ValueError("Power selection expired")
@@ -138,7 +138,8 @@ STARTUP = {0: "Idle", 1: "Waiting for player control", 2: "Join dispatched", 3: 
            4: "Native contract refused", 5: "Bad request", 6: "Host unavailable", 7: "Bind refused",
            8: "Listening", 9: "Capacity refused", 10: "Listen failed", 11: "Listen verification failed",
            12: "Waiting to retry", 13: "Retry refused", 14: "Retry expired",
-           15: "Waiting for new-mission listener", 16: "New-mission listener refused", 17: "New-mission listener expired"}
+           15: "Waiting for new-mission listener", 16: "New-mission listener refused", 17: "New-mission listener expired",
+           18: "Pending connection request cancelled"}
 POWER = {0: "Idle", 1: "Queued", 2: "Rejected", 3: "Native order accepted", 4: "Native order refused"}
 CONTROL = {0: "Waiting for companion", 1: "Companion controlled", 2: "Scene / control suspended",
            3: "Waiting for mission transition", 4: "Control fault — restart required"}
@@ -173,10 +174,13 @@ def main():
     for column in range(3):
         buttons.columnconfigure(column, weight=1)
     for position, (text, code) in enumerate((("Host / Listen", 1), ("Join", 2), ("Retry join", 3),
-                                           ("Listen in new mission", 7), ("Disable mod", 5), ("Enable mod", 6))):
+                                           ("Listen in new mission", 7), ("Disable mod", 5), ("Enable mod", 6),
+                                           ("Cancel pending connection", 8))):
         button = ttk.Button(buttons, text=text, command=lambda value=code: send(value))
         button.grid(row=position // 3, column=position % 3, padx=2, pady=2, sticky="ew")
         controls.append((button, code))
+    ttk.Label(root, text="Cancel only stops requests still waiting. An active connection stays open.",
+              wraplength=550).pack(padx=15, pady=5, anchor="w")
     powers = tk.Listbox(root, exportselection=False)
     powers.pack(fill="both", expand=True, padx=15, pady=12)
     power_button = ttk.Button(root, text="Request selected power", command=lambda: send(4))
@@ -209,7 +213,7 @@ def main():
                                 frame.ack_result, "Unknown request result"))
                 pending = None
             for button, code in controls:
-                allowed = code in (5, 6) or (frame.enabled and (
+                allowed = code in (5, 6, 8) or (frame.enabled and (
                     (code in (1, 7) and frame.role == 1 and frame.netmode == 0) or
                     (code in (2, 3) and frame.role == 2 and frame.netmode == 0) or
                     (code == 4 and frame.role == 2 and frame.power_scope and frame.power_count)))

@@ -67,6 +67,7 @@ static void runtime_panel_commands(void) {
             case 5:InterlockedExchange(&g_enable_requested,0);accepted=1;break;
             case 6:InterlockedExchange(&g_enable_requested,1);accepted=1;break;
             case 7:accepted=runtime_request_relisten();break;
+            case 8:accepted=runtime_request_cancel_start();break;
             default:break;
         }
     }

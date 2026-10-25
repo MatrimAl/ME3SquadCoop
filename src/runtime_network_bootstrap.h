@@ -9,7 +9,8 @@ typedef enum RuntimeNetworkStartStatus {
     RUNTIME_START_LISTENING=8,RUNTIME_START_CAPACITY_REFUSED=9,
     RUNTIME_START_HOST_NATIVE_FAILED=10,RUNTIME_START_HOST_VERIFY_FAILED=11,
     RUNTIME_START_RETRY_WAITING=12,RUNTIME_START_RETRY_REFUSED=13,RUNTIME_START_RETRY_EXPIRED=14,
-    RUNTIME_START_RELISTEN_WAITING=15,RUNTIME_START_RELISTEN_REFUSED=16,RUNTIME_START_RELISTEN_EXPIRED=17
+    RUNTIME_START_RELISTEN_WAITING=15,RUNTIME_START_RELISTEN_REFUSED=16,RUNTIME_START_RELISTEN_EXPIRED=17,
+    RUNTIME_START_CANCELLED=18
 } RuntimeNetworkStartStatus;
 static volatile LONG runtime_join_requested,runtime_join_attempted,runtime_network_start_status;
 static volatile LONG runtime_listen_requested,runtime_listen_attempted;
@@ -21,6 +22,12 @@ static SessionHandle runtime_listen_origin_world,runtime_listen_origin_driver,ru
 static DWORD runtime_relisten_started;
 static int runtime_relisten_armed;
 static DWORD runtime_join_last_check;
+static volatile LONG runtime_cancel_start_requested;
+static int runtime_request_cancel_start(void) {
+    if(g_config_status!=ME3_CONFIG_READY||
+       (g_runtime_config.role!=ME3_ROLE_HOST&&g_runtime_config.role!=ME3_ROLE_GUEST))return 0;
+    return InterlockedCompareExchange(&runtime_cancel_start_requested,1,0)==0;
+}
 static int runtime_network_start_parse(Me3RuntimeRole role,const wchar_t *value) {
     if(!value)return 0;
     if(!wcscmp(value,L"join"))return role==ME3_ROLE_GUEST?1:-1;
@@ -90,7 +97,30 @@ static int runtime_join_travel_idle(uintptr_t world,uintptr_t engine) {
 static void runtime_join_window_reset(void) {
     memset(&runtime_join_readiness,0,sizeof runtime_join_readiness);
 }
+static int runtime_cancel_start_tick(void) {
+    if(!InterlockedExchange(&runtime_cancel_start_requested,0))return 0;
+    LONG join=InterlockedExchange(&runtime_join_requested,0),listen=InterlockedExchange(&runtime_listen_requested,0),
+        rejoin=InterlockedExchange(&runtime_rejoin_requested,0),relisten=InterlockedExchange(&runtime_relisten_requested,0);
+    int pending=join||listen||rejoin||relisten;
+    if(pending) {
+        /* Rearmed retries originated from consumed one-shot attempts. Retain
+         * that history; cancellation is not an initialization-failure reset. */
+        if(runtime_join_retry_armed)InterlockedExchange(&runtime_join_attempted,1);
+        if(runtime_relisten_armed)InterlockedExchange(&runtime_listen_attempted,1);
+        runtime_join_retry_armed=runtime_relisten_armed=0;
+        runtime_rejoin_started=runtime_relisten_started=0;
+        memset(&runtime_relisten_target,0,sizeof runtime_relisten_target);
+        runtime_join_window_reset();
+        if(listen&&!session_fault&&!InterlockedCompareExchange(&runtime_listen_attempted,0,0))
+            InterlockedExchange(&runtime_host_start_gate,1); /* Original existing-session attach policy. */
+        InterlockedExchange(&runtime_network_start_status,RUNTIME_START_CANCELLED);
+    }
+    line(pending?"{\"runtime_network\":\"pending-start-cancelled\",\"native_connection_touched\":false}\r\n":
+        "{\"runtime_network\":\"cancel-no-pending-start\",\"native_connection_touched\":false}\r\n");
+    return 1; /* Concurrent fresh requests may be considered on the next Tick. */
+}
 static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now) {
+    if(runtime_cancel_start_tick())return;
     runtime_rejoin_tick(base,engine,now);
     runtime_relisten_tick(base,engine,now);
     int host=g_runtime_config.role==ME3_ROLE_HOST;

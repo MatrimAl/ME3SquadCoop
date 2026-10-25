@@ -106,6 +106,16 @@ or disposal evidence is refused before the native call. No driver is destroyed,
 fault cleared or mission chosen by the mod. Status15/16/17 reports new-mission
 listener waiting/refusal/expiry. The separate panel exposes the explicit action.
 This path is compiled only; native mission travel/re-listening remains unverified.
+
+`ME3SquadCoopCancelPendingConnection` now queues cancellation of mod-owned
+Join/Listen/rejoin/new-mission-listen intents which have not reached native
+dispatch. Tick processes cancellation before startup, resets their readiness
+window/timers, and retains consumed-attempt history for rearmed retries. It
+does not cancel native pending travel, disconnect an active peer, clear a
+session fault or destroy a driver. Status18 means a pending mod request was
+cancelled. With nothing pending, the existing native startup status is preserved.
+The local panel provides the same explicit action. This is compiled only;
+request races and actual cancellation remain untested.
 **Protected actual-entry host startup has been observed; ordinary guest connection
 still requires verification.** Offline fixtures do not establish playable co-op
 or Radmin reachability.

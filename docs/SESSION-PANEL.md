@@ -11,6 +11,13 @@ startup status and power-order status. It cannot launch, install, inject,
 terminate or change the endpoints of a game. Native requests remain subject
 to the existing role, story, ownership, package and transport checks.
 
+Cancel pending connection clears only mod requests still waiting for readiness,
+including rejoin/new-mission-listen intents. Native dispatch which already
+happened and active peers remain untouched. Cancellation is processed on Tick,
+and its panel acknowledgment means intent was accepted, not a disconnected
+connection. A cancelled waiting request reports startup status18; if nothing
+was pending, the existing status remains. Power requests are a separate queue.
+
 The ordinary runtime must have explicit `ME3_SQUAD_COOP_PANEL=1` at startup.
 The session planner's `--panel` option includes that flag in its generated
 environment; it does not launch anything. The panel is off by default. When

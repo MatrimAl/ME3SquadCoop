@@ -1717,3 +1717,15 @@ than being treated as disposal. The panel exposes the manual new-mission action
 and its waiting/refusal/expiry statuses. Normal native outputs rebuilt and Python
 syntax parsed; no game, panel, native startup or fixture was executed. Actual
 mission/network continuity and guest reconnection remain unverified.
+
+## Cancel connection intents before native dispatch
+
+The ordinary entry and panel now expose cancellation of pending mod connection
+intents. Tick processes it before Join/Listen/retry startup. It clears only the
+waiting request flags/readiness and preserves consumed-attempt history, existing
+native travel/listeners/peers and session faults. A cancellation arriving after
+native dispatch does not masquerade as a disconnect or driver teardown.
+
+Native outputs rebuilt and panel Python syntax parsed. No game, panel, fixture
+or cancellation behavior was executed. Concurrent request behavior and actual
+native continuity remain deferred.
