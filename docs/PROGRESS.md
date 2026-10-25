@@ -1597,3 +1597,18 @@ sampling cadence is unchanged, so this is not a continuous scene observation.
 Native outputs rebuilt; no game or fixture was executed. The delegated Flash
 review timed out and supplied no findings; these changes come from local source
 inspection, not independent review or runtime evidence.
+
+## Prepare ordinary host/guest session settings
+
+A pure session-plan model and command-line preparation tool now accept the
+ordinary host/guest roles and explicit local/peer endpoints. They reuse the
+existing endpoint validation, produce matching native bind/port arguments and
+runtime environment settings, and support the normal listen/join or existing
+session attachment modes. The child-environment builder removes inherited
+probe switches and stale opposite-role/startup settings without mutating the
+parent environment. JSON output is private and created without overwriting.
+
+This is configuration preparation, not a new game launcher or working player
+installation. No socket, game, process attachment, registry or game-file write
+is performed by the planner. Sources were syntax-parsed only; behavior tests
+and integrated launch verification remain deferred. See [session setup](SESSION-SETUP.md).

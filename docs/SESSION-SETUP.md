@@ -1,0 +1,50 @@
+# Ordinary session settings
+
+The session planner prepares connection settings only. It does not install,
+launch or attach to a game, open sockets, change system environment variables
+or establish co-op gameplay. The ordinary runtime is still an experimental
+candidate; see [runtime integration](RUNTIME-INTEGRATION.md).
+
+Use a local IPv4 belonging to the machine which will run that role. For Radmin,
+use that machine's actual Radmin interface address. A guest's peer address is
+the host's address, not the guest's local address. Both roles use the same port.
+The examples below use illustrative addresses which must be replaced.
+
+```powershell
+python tools/prepare_session.py --role host --bind 26.1.2.3 --port 17779 --output host-session.json
+python tools/prepare_session.py --role guest --bind 26.2.3.4 --peer 26.1.2.3 --port 17779 --output guest-session.json
+```
+
+The default startup action is `listen` for a host and `join` for a guest.
+`--start attach` prepares configuration for attaching the mod to an existing
+native network session; it does not request Listen or a join. Host/join and
+guest/listen combinations are rejected. A guest requires an explicit peer;
+a host must not supply one. Loopback, wildcard, invalid or noncanonical IP
+literals and invalid ports are rejected through the existing endpoint validator.
+The planner does not verify interface ownership, subnet routing or reachability.
+
+Output contains private endpoint addresses and must stay local. A named output
+file must not exist already; the tool will not overwrite it. Omitting `--output`
+prints the plan to stdout. The JSON is not a game configuration file: the current
+ASI reads environment variables, not this JSON, so copying it into a game folder
+does not activate the mod.
+
+`RuntimeSessionPlan` in `src/runtime_session_plan.py` provides the shared pure
+configuration model for a future launcher or UI. `arguments` returns distinct
+native `-MULTIHOME` and `-PORT` argv elements. `environment` supplies only the
+ordinary runtime role/startup settings. `child_environment(inherited)` produces
+a new environment mapping by removing all inherited `ME3_SQUAD_COOP_` keys
+case-insensitively, then adding the plan's settings. This prevents stale peer,
+startup and protected-probe switches from leaking into a new ordinary session.
+It does not modify the supplied mapping or process environment.
+
+A future launcher must pass that returned environment and argv list to its
+verified launch path. An environment overlay alone is insufficient: absent
+keys such as an attach plan's START must actually be removed. Never interpolate
+the values into a shell command. Installation/fingerprint/DLC checks, independent
+test-copy protection, original-file locks and bounded process cleanup remain
+separate requirements. No executable path or launch operation is provided here.
+
+The two Python sources have been syntax-parsed only. No new behavior tests or
+game runs have been performed for this planner. An integrated player launcher
+and in-game session controls remain unfinished.
