@@ -121,6 +121,7 @@ static void position_receive_finish(uintptr_t channel,PositionReceiveSnapshot be
 }
 
 #include "inventory_decode_trace.h"
+#include "initial_object_trace.h"
 
 static void initial_actor_received_bunch(void *self, void *bunch) {
     /* Invariant: the original is assigned before the only CAS that publishes
@@ -146,9 +147,17 @@ static void initial_actor_received_bunch(void *self, void *bunch) {
     PositionReceiveSnapshot position_before=position_receive_snapshot(channel);
     InventoryDecodeFrame inventory_frame;inventory_decode_begin(&inventory_frame,channel,position_before);
     AmmoWireReceive wire_frame;ammo_wire_receive_begin(&wire_frame,channel);
+    int object_same_thread=GetCurrentThreadId()==initial_actor_trace_thread;
+    InitialObjectFrame object_frame={0};
+    if(object_same_thread){
+        object_frame.previous=initial_object_frame;object_frame.channel=channel;object_frame.archive=incoming;
+        object_frame.event=event;object_frame.index=index;object_frame.active=capture&&initial_byte!=0;
+        initial_object_frame=&object_frame;
+    }
     SetLastError(error_before);
     forward(self, bunch); /* Always exactly one original call, unchanged args. */
     DWORD error_after = GetLastError();
+    if(object_same_thread&&initial_object_frame==&object_frame)initial_object_frame=object_frame.previous;
     ammo_wire_receive_end(&wire_frame);
     inventory_decode_end(&inventory_frame);
     position_receive_finish(channel,position_before);
@@ -221,6 +230,7 @@ static int initial_actor_trace_install(uintptr_t base) {
     }
     network_actor_received_bunch_observer = (uintptr_t)initial_actor_received_bunch;
     initial_actor_trace_installed = 1;
+    initial_object_install(base);
     inventory_decode_install(base);
     line("{\"initial_actor_trace\":\"installed\",\"original_rva\":\"0x488700\",\"slot\":\"0x2d0\",\"limit\":128,\"unverified_position_fields_omitted\":true}\r\n");
     return 1;

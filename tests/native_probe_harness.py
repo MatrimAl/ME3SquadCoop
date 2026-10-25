@@ -23,6 +23,8 @@ probe.SquadCatchupGroundSelfTest.restype = ctypes.c_int
 assert probe.SquadCatchupGroundSelfTest() == 1, "catch-up ground checks accepted invalid surfaces or rejected world-floor readiness"
 probe.SquadCombatRouteSelfTest.restype = ctypes.c_int
 assert probe.SquadCombatRouteSelfTest() == 1, "combat route accepted unsafe context, invalid steering or off-corridor movement"
+probe.SquadInitialObjectTraceSelfTest.restype = ctypes.c_int
+assert probe.SquadInitialObjectTraceSelfTest() == 1, "initial-object observation changed original forwarding, output, return or LastError"
 probe.SquadCombatActionSelfTest.restype = ctypes.c_int
 assert probe.SquadCombatActionSelfTest() == 1, "normal action pulse lost forwarding, bounded release or captured input identity"
 probe.SquadAmmoTraceSelfTest.restype = ctypes.c_int

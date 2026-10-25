@@ -1,5 +1,19 @@
 # Progress
 
+## 2026-10-25: observe the initial actor reference without replaying its decoder
+
+Added a default-off protected guest diagnostic for the exact executable's
+FInBunch UObject reader. Its two-argument ABI and archive return were checked
+against the original native body. The observer forwards once, preserves the
+output, return and LastError, and records the first decoded object's identity
+only inside the existing initial-receive scope. It neither replays decoding
+nor repairs channel flags, actor references or packet fields.
+
+A separate review found an off-thread access to the game-thread observation
+frame; frame reads and updates now require the owning thread. Native forwarding
+checks and the low-integrity protection fixture passed after rebuilding all
+three outputs. No decoded-object live result or gameplay fix is claimed yet.
+
 ## 2026-10-25: keep the encounter test guest on the measured road
 
 The last protected pair completed the host's lower route to PathNode99, but

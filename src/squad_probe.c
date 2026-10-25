@@ -743,6 +743,7 @@ __declspec(dllexport) int SquadDirectIPSelfTest(void) { return direct_ip_native_
 __declspec(dllexport) int SquadStateReaderSelfTest(void) { return native_state_reader_selftest(); }
 __declspec(dllexport) int SquadCatchupGroundSelfTest(void) { return catchup_ground_selftest(); }
 __declspec(dllexport) int SquadCombatRouteSelfTest(void) { return combat_route_qa_selftest()&&combat_aim_selftest(); }
+__declspec(dllexport) int SquadInitialObjectTraceSelfTest(void) { return initial_object_selftest(); }
 __declspec(dllexport) int SquadCombatActionSelfTest(void) { return combat_action_qa_selftest(); }
 __declspec(dllexport) int SquadAmmoTraceSelfTest(void) { return ammo_trace_selftest(); }
 __declspec(dllexport) int SquadFunctionLookupSelfTest(void) { return function_lookup_selftest(); }
