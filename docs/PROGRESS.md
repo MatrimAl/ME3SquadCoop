@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-10-25: keep native player context across discovery-cache eviction
+
+The protected guest completed the measured encounter approach and began
+aiming. It stopped219ms later because the player-context adapter reported
+`positive-channel-not-ready`, while subsequent telemetry still showed the
+same reciprocal, autonomous Ashley channel. Target discovery resolves more
+pawns than the shared four-entry hint cache can retain; the context adapter
+had treated a missing hint as lost ownership and cleaned up its local squad.
+
+On a hint miss, the adapter now performs one existing bounded channel lookup,
+including its current-world and peer-uniqueness checks, then validates the
+positive result normally. It does not retain a stale channel or alter native
+roles. A native regression clears all hints while keeping the real fixture
+channel reciprocal; recovery succeeds and duplicate-channel recovery is
+rejected. The rebuilt native harness and low-integrity write-denial fixture
+passed. The change still requires a live aiming repeat; hostile damage and
+full conversations remain unverified.
+
+The completed run preserved original profiles, recorded no native exceptions
+and left no game process. Paired early door capture also reproduced NULL guest
+Shuttle/ShuttleDoor group actors with normal host bindings and differing pose
+hashes. The visible door's own actor/body collision was disabled on both;
+other collision states differ and the physical blocking contact is unproven.
+No collision disabling or door-state workaround was introduced.
+
 ## 2026-10-25: stop the encounter bot outside the parked host capsule
 
 The stable-landing repeat reached all lower anchors except the final arrival

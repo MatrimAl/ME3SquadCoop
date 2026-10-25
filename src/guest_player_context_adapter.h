@@ -235,13 +235,20 @@ static int guest_player_context_dispatch(uintptr_t base,uintptr_t actor,const Gu
 static int guest_player_context_channel(uintptr_t base,uintptr_t pawn,NetworkActorIdentityEntry *out) {
     memset(out,0,sizeof *out);
     if(!network_actor_layout_matches(base))return 0;
+    for(int attempt=0;attempt<2;++attempt){
     for(unsigned int i=0;i<4;++i) {
         NetworkActorIdentityEntry *cached=&network_actor_identity_cache[i],current={0};
         if(cached->base!=base||cached->pawn!=pawn||cached->index<=0)continue;
         if(!network_actor_channel_valid(base,pawn,cached->channel,cached->driver,&current)||current.index!=cached->index||current.connection!=cached->connection)continue;
         if(out->channel&&out->channel!=current.channel)return 0;*out=current;
     }
-    return out->channel&&out->index>0;
+    if(out->channel&&out->index>0)return 1;
+    /* Other observed pawns can evict this four-entry discovery hint. A
+     * cache miss is not a lost native channel: resolve once through the
+     * existing bounded, current-world/peer-unique channel lookup. */
+    if(attempt||network_actor_channel_id(base,pawn)<=0)return 0;
+    }
+    return 0;
 }
 static int guest_player_context_basic_owned(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t info) {
     unsigned char net=255;uintptr_t player=read_ptr(pc+0x67c);

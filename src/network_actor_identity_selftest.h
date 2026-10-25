@@ -1,6 +1,7 @@
 #ifndef ME3_NETWORK_ACTOR_IDENTITY_SELFTEST_H
 #define ME3_NETWORK_ACTOR_IDENTITY_SELFTEST_H
 /* Synthetic memory only. No game starts and no engine object is changed. */
+static int guest_player_context_channel(uintptr_t base,uintptr_t pawn,NetworkActorIdentityEntry *out);
 static void network_fixture_pointer(uintptr_t at,uintptr_t value) { memcpy((void*)at,&value,8); }
 static void network_fixture_array(uintptr_t at,uintptr_t data,int count,int max) {
     GameArray a={data,count,max};memcpy((void*)at,&a,sizeof a);
@@ -42,9 +43,15 @@ static int network_actor_identity_selftest(void) {
     memcpy(saved,network_actor_identity_cache,sizeof saved);unsigned int next=network_actor_identity_next;
     test_action=5;*(unsigned char*)(o[2]+0x7c8)=3;
     int ok=network_actor_channel_id(base,o[5])==7&&network_weapon_channel_id(base,o[18])==9&&network_actor_channel_id(base,o[18])<0&&network_weapon_channel_id(base,o[5])<0;
+    /* Target enumeration may replace every discovery hint while the owned
+     * pawn and reciprocal channel remain live. Context must rediscover it. */
+    memset(network_actor_identity_cache,0,sizeof network_actor_identity_cache);
+    NetworkActorIdentityEntry context_channel={0};
+    ok=ok&&guest_player_context_channel(base,o[5],&context_channel)&&context_channel.channel==o[6]&&context_channel.index==7;
     /* Existing cache entries must not conceal a duplicate or broken scope. */
     network_fixture_array(o[4]+0x5f90,(uintptr_t)channels,3,3);network_fixture_pointer(o[8]+0x60,o[4]);network_fixture_pointer(o[4]+0xf84+8*8,o[8]);
     ok=ok&&network_actor_channel_id(base,o[5])<0;
+    ok=ok&&!guest_player_context_channel(base,o[5],&context_channel);
     network_fixture_array(o[4]+0x5f90,(uintptr_t)channels,2,3);network_fixture_pointer(o[8]+0x60,o[7]);
     ok=ok&&network_actor_channel_id(base,o[5])==7;
     network_fixture_pointer(o[4]+0x8c,0);ok=ok&&network_actor_channel_id(base,o[5])<0;network_fixture_pointer(o[4]+0x8c,o[3]);
