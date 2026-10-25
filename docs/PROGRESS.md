@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: yield guest shoulder presentation during incapacitation
+
+All28 selected owned life-state functions decoded completely, with matching
+serialized/expanded lengths and88 aligned explicit destinations. Downed state
+has native collision/marker/ragdoll handling; permanent controller death can
+unpossess and clear the pawn. These are different lifecycle paths, not proof
+that campaign guest revival already works.
+
+The shoulder-camera candidate now refuses downed/dead or unreadable life state
+independently of action/input/mode flags, including retained weapon actions.
+It yields through existing conditional baseline restoration; normal recovery
+must satisfy fresh camera acquisition. No native revival, health, possession
+or fault policy changed. Three native targets compiled and fingerprints
+matched; no game or tests ran. See
+[life-state script findings](COMPANION-LIFE-STATE.md).
+
 ## 2026-10-26: tie inventory sender evidence to its source index
 
 A further native association-helper export shows an existing-entry update

@@ -158,6 +158,10 @@ static int guest_camera_conditions_policy(uintptr_t base,uintptr_t pc,uintptr_t 
        !guest_camera_actor_live(base,world)||!is_kind_of(base,world,"WorldInfo")) return guest_camera_reject("actor-identity-or-class");
     if(read_ptr(pc+0x198)!=world||read_ptr(pawn+0x198)!=world||!read_at(world+0x7c8,&net,1)||net!=3) return guest_camera_reject("world-or-netmode");
     if(read_ptr(pc+0x3bc)!=pawn||read_ptr(pawn+0x374)!=pc||read_ptr(pc+0x694)!=pawn) return guest_camera_reject("possession-or-acknowledged-pawn");
+    /* Downed state can keep possession and ordinary mode while native
+     * collision/ragdoll presentation changes. Yield the shoulder-scale
+     * lease independently of action/input flags, including weapon retention. */
+    if(!read_at(pawn+0xe20,&busy,4)||(busy&0x300)) return guest_camera_reject("pawn-life-state");
     if(!read_at(pc+0x77c,&pc_flags,4)||(pc_flags&(0x800|0x20000))||!read_at(pc+0x781,&ignore,1)||ignore) return guest_camera_reject("controller-cinematic-or-move-input");
     if(!read_at(pawn+0xc20,&action,4)||action<0||!read_at(pawn+0xc28,&power,4)||power||
        (action&&(!retain_weapon_action||!guest_camera_weapon_action(base,pc,pawn,action)))) return guest_camera_reject("custom-action-or-power");

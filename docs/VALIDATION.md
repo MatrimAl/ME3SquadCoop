@@ -1,5 +1,12 @@
 # Validation status
 
+Guest shoulder-camera acquisition/retention now refuses native downed/dead
+or unreadable life state and uses existing compare-before-restore cleanup.
+All28 selected life scripts decoded with matching lengths and88 aligned
+explicit destinations; inherited/native callbacks and real revival ownership
+remain unverified. Three native targets compiled and fingerprints matched;
+no game or tests ran. See [life-state boundary](COMPANION-LIFE-STATE.md).
+
 The protected inventory sender observer now samples the index-table slot for
 the original dynamic source scalar, including channel/actor, flags and
 reciprocal connection/index with separate validity fields and slot readback.

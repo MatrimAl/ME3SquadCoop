@@ -63,3 +63,49 @@ could not complete due to a usage limit. No extracted implementation is claimed.
 The narrower admission/power changes use the inspected SDK declaration and
 existing runtime read paths. No game, death/revival fixture or power order was
 executed; full combat and revival continuity remain unverified.
+
+## Subsequent owned script extraction and camera boundary
+
+The earlier extraction limit was subsequently resolved by a bounded read-only
+extraction from the owned SFXGame and Engine packages. All28 selected functions
+decoded with matching serialized/expanded lengths; all88 explicit branch and
+iterator destinations aligned with expression boundaries. The initially
+unsupported dynamic-array iterator was added from the already retained decoder
+format before claiming complete decoding. Package/compression-library hashes
+were unchanged. These checks establish selected decode coverage, not native
+callee semantics or actual revival behavior.
+
+The selected path distinguishes incapacitation from permanent death:
+
+| Script path | Observed responsibility |
+| --- | --- |
+| BioPawn.Died | Selects Downed versus base Pawn.Died according to native/game death policy; the nonpermanent branch enters Downed and returns false |
+| BioPawn.Downed.BeginState/EndState | Sets/clears bIsDowned and changes mesh collision-channel/ragdoll-related handling |
+| SFXPawn_PlayerParty.Downed.BeginState | Enables use under its native death/damage gates and invokes SetCollision(false,false) |
+| SFXPawn_Henchman.Downed.BeginState/EndState | Changes marker modules around inherited downed handling |
+| SFXPawn_Henchman.Resurrect | Requires IsDead, conditionally changes physics, then delegates to party/BioPawn resurrection |
+| BioPawn.Resurrect | Restores health/native damage state, clears bIsDead and chooses ragdoll/state transitions |
+| BioPlayerController.Revive | Invokes party resurrection, with separate multiplayer health/vocalization policy |
+| Engine.Controller.PawnDied | Calls the pawn's UnPossessed, clears Controller.Pawn and chooses player-dead/nonplayer cleanup behavior |
+
+The inspected downed BeginState/EndState bodies contain no explicit possession
+handoff. This does not prove that inherited/native callbacks preserve ownership
+in every real downed transition. Conversely, permanent-death controller cleanup
+cannot be handled by merely ignoring a missing reciprocal pawn pointer or
+clearing the session fault. Native Game.Killed, ragdoll/action transitions,
+Ashley-specific overrides and runtime observations remain separate work.
+
+The guest shoulder-camera policy now refuses bIsDowned/bIsDead or unreadable
+life state even when possession, mode0 and weapon-action retention otherwise
+look valid. A held scale lease follows its existing compare-before-restore
+cleanup, preserving a native replacement rather than reasserting normal
+shoulder presentation during incapacitation. The same predicate runs for new
+acquisition and final pre-write validation. After native recovery, ordinary
+camera acquisition still needs every existing ownership/input/mode/channel
+and camera condition; recovery does not force an immediate camera write.
+
+No health/life/physics flag, collision, revival method, possession or session
+fault behavior was changed by this camera boundary. Three native targets
+compiled and fingerprints matched; no game or behavioral tests ran. Actual
+downed camera appearance, restoration and usable post-revive control remain
+unverified.
