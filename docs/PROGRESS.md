@@ -927,3 +927,28 @@ no remaining game processes. Shared travel and lifecycle gates passed their
 limited scopes; connection-state aggregation failed, and a read-only monitor
 reported access denied. This is not an overall passing campaign test. Real
 full dialogue and attributed damage to a hostile remain unverified.
+
+### First remote appearance asset application
+
+In one protected pair, the guest's replicated Shepard had a null skeletal-mesh
+asset. The normal `UpdateAppearance` wrapper alone did not populate it in an
+earlier run. Exact package flags and native Actor callspace code identify a
+completion bridge without the simulated-function flag; the experiment checks
+the actual player callspace target before continuing.
+
+A separate default-off QA option checks the engine asset loader's existing
+group through `IsAsyncGroupLoaded`, then calls the normal simulated
+`ApplyAppearance` once. That run returned with the same pawn/world and a live
+asset. Thirty subsequent channel samples retained the asset, following nine
+samples without it. No role, function-flag, coordinate or asset-pointer write
+was used. This covers only the guarded default male appearance case; matching
+host face/helmet customization and rendered visibility remain unverified.
+
+A preceding run could not exercise the candidate because its incoming player
+actor never formed: the initial native receive marked its channel unusable.
+That intermittent startup failure remains unresolved. Passive Frida tracing
+in the positive run timed out without retained results and is not credited
+as successful initial-object evidence. A repeat without that tracing is needed.
+Original profiles were unchanged, native exceptions were zero and no game
+process remained; the broader campaign, observer and lifecycle checks did not
+all pass. Enemy damage and full conversations are still unverified.
