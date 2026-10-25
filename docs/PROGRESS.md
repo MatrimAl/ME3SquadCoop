@@ -1,5 +1,28 @@
 # Progress
 
+## 2026-10-25: missing guest leader and unregistered guest team
+
+The latest protected pair acquired Ashley with grounded movement state, but
+the guest remained near the start. Its bounded channel scans found no
+replicated player pawn, and every sampled follow input lacked a leader. The
+measured-route bot requires that leader, so no guest enemy-hit trial occurred.
+Two initial channel object reads returned null; their precise host identities
+and the failing resolution branch remain unknown. This repeats the missing
+Shepard symptom without establishing a new collision failure.
+
+A read-only snapshot while both controllers existed found the guest's PRI
+present with a null Team. The exact native controller getter maps that state
+to team255. Host team0, damage enablement and inactive scene modes were also
+observed. Stock hostility logic rejects an unknown team, making missing guest
+team registration a concrete candidate for the earlier no-damage hits. This
+snapshot was not taken during a shot and does not prove the rejected branch.
+
+The initial-object observer now reuses the existing original scalar hooks to
+record the reference tag and index. It does not advance or replay the archive.
+Unknown scalar observations remain explicitly unknown. All three outputs built
+and native forwarding, scope, scalar selector and low-integrity checks passed;
+the new scalar observation has not yet been exercised in a real game.
+
 ## 2026-10-25: close an enemy-hit observation gap
 
 The latest protected pair contains an accepted enemy health decrease of52.11,
