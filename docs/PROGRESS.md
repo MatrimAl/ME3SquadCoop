@@ -1,5 +1,18 @@
 # Progress
 
+## 2026-10-26: native power population decompilation completed
+
+The background REA/Ghidra operation returned successful pseudocode for the
+supported image's pawn/group population method. It confirms that the supplied
+pawn supplies the powers, but existing group capacity, controller dependencies,
+native icon state and callbacks must also be ready. This resolves a major
+initialization question without claiming a callable guest integration.
+See [population findings](POWER-WHEEL-POPULATION.md). The private dossier now
+validates the successful output identity rather than pointing only to the
+earlier timeout. The operation took about13m44s and used an ephemeral import;
+persistent project reuse remains unestablished. No runtime source changed,
+and no game or tests ran.
+
 ## 2026-10-26: retain active guest ownership through the host Shift menu
 
 The ordinary host now retains an already-active guest lease in an exact
