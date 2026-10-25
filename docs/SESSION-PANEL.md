@@ -106,6 +106,16 @@ Unknown flags/states are refused. A readiness reply is an advisory observation;
 the separate native connection and actual companion ownership still matter.
 No new control command or remote action is exposed by these status fields.
 
+The panel includes a contextual next-step message derived only from the current
+validated snapshot. Persistent control faults, disabled control, mission
+cleanup, companion life state and native scenes take precedence over connection
+advice. Native networking without companion ownership is explicitly described
+as waiting for control, not as a successful playable session. Initial connection
+and mission recovery use different button guidance; automatic recovery is not
+advertised as automatic initial connection. Failed or stale snapshots replace
+the advice and disable controls. These messages never submit, retry or cancel
+commands. Their rendering and gameplay correspondence remain untested.
+
 No new behavior tests were executed. Deferred validation must cover protocol
 layout parity, stale/changed process identity, command acknowledgment races,
 partial mailbox writers, expired/future timestamps and wraparound, role/scene refusal, catalog replacement, enable/disable

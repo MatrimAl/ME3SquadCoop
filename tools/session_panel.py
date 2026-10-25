@@ -156,6 +156,40 @@ READINESS = {0: "Off", 1: "Host not ready", 2: "Host ready", 3: "Idle",
              6: "Unavailable — manual connection available", 7: "Disabled"}
 
 
+def recovery_hint(frame):
+    """Explain sampled status without dispatching or promising recovery."""
+    if frame.control_state == 4:
+        return "A persistent control fault occurred. A new game session is required; repeated Join requests cannot clear this fault."
+    if not frame.enabled:
+        return "Mod control is disabled. Enable mod requests activation; configuration and native checks still apply."
+    if frame.control_state == 3:
+        return "Mission transition is still settling. Wait for native world cleanup before requesting another connection."
+    if frame.control_state in (5, 6):
+        return "Companion is downed or dead. Continue native revival or mission recovery in the game; reconnecting is not a revive command."
+    if frame.control_state == 7:
+        return "Companion life state cannot be read reliably. Power requests are unavailable until a valid sample returns."
+    if frame.control_state == 2:
+        return "Native scene or control suspension is active. Wait for control to return."
+    if frame.control_state == 1:
+        return "Companion control is available. Native combat, cooldown and target rules still apply."
+    if frame.netmode in (2, 3):
+        return "Native networking is active; waiting for companion control. Another Join or Listen request is not needed."
+    if frame.startup in (4, 5, 6, 7, 9, 10, 11):
+        return "Startup was refused or failed. Check runtime configuration and diagnostics before starting a new session."
+    if frame.startup in (1, 2, 12, 15):
+        if frame.role == 2 and frame.readiness_state == 4:
+            return "Waiting for the host readiness reply. The host must finish loading and open its listener."
+        return "Connection request is in progress. Wait for its result, or use Cancel pending connection."
+    if frame.startup in (13, 14, 16, 17):
+        return "Recovery did not complete. Once native loading and cleanup finish, request Retry join (guest) or Listen in new mission (host)."
+    enabled_bit, suspended_bit = (1, 4) if frame.role == 1 else (2, 8)
+    if frame.recovery_flags & enabled_bit and not frame.recovery_flags & suspended_bit:
+        return "Automatic recovery is enabled for a previously established session. Initial connection still uses Host / Listen or Join."
+    if frame.role == 1:
+        return "Use Host / Listen for the initial connection, or Listen in new mission after a mission change."
+    return "Wait for the host to listen, then use Join initially or Retry join after a previous connection attempt."
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pid", required=True, type=int, help="PID of the already running ordinary game")
@@ -163,9 +197,11 @@ def main():
     session = Session(args.pid)
     root = tk.Tk()
     root.title(f"ME3 Squad Co-op — {args.pid}")
-    root.geometry("590x480")
+    root.geometry("590x580")
     status, result = tk.StringVar(value="Waiting for game status"), tk.StringVar(value="")
+    guidance = tk.StringVar(value="")
     ttk.Label(root, textvariable=status, wraplength=550).pack(padx=15, pady=12, anchor="w")
+    ttk.Label(root, textvariable=guidance, wraplength=550).pack(padx=15, pady=5, anchor="w")
     buttons = ttk.Frame(root)
     buttons.pack(fill="x", padx=15)
     controls = []
@@ -204,6 +240,7 @@ def main():
         nonlocal last_scope, shown, pending
         try:
             frame = session.snapshot()
+            guidance.set(recovery_hint(frame))
             role = "Host" if frame.role == 1 else "Guest"
             net = {0: "Standalone", 2: "Listen server", 3: "Client"}.get(frame.netmode, "Unavailable")
             enabled_bit, suspended_bit = (1, 4) if frame.role == 1 else (2, 8)
@@ -240,6 +277,7 @@ def main():
                 button.configure(state="normal" if allowed else "disabled")
         except (OSError, RuntimeError) as error:
             status.set(str(error))
+            guidance.set("Live status is unavailable. Controls will return only after a valid current game snapshot.")
             for button, _ in controls:
                 button.configure(state="disabled")
         root.after(250, refresh)
