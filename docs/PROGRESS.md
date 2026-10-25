@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-10-25: keep the encounter test guest on the measured road
+
+The last protected pair completed the host's lower route to PathNode99, but
+Ashley stopped on the upper road. None of the 194 guest Ashley samples was
+below world kill-Z; no enemy-aim event ran because the guest never reached
+the lower platform. Five authoritative Trooper candidates were sampled with
+no health decrease. This does not validate aiming or hostile damage.
+
+The protected lower-route test bot now follows the existing, validated upper
+road anchors before resuming ordinary leader following at the drop. It keeps
+its own waypoint progress and controller/pawn/world identities, preserves the
+existing input gain and total follow window, and stops input outside the
+measured corridor. The independent two-second forward pulse is disabled in
+this encounter test so it cannot push the guest away from the route after a
+scene. Ordinary player input and the shipped runtime are unchanged.
+
+All three native outputs built; the exported route/aim checks and private
+launcher ownership/negative controls passed. The route change still needs
+live validation. Full mode-7 conversations and hostile damage remain unproven.
+
 ## 2026-10-24: stop skipping the witnessed post-scene QA firing case
 
 - Retained real-game logs show the fire bot refusing an acknowledged guest

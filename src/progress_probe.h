@@ -124,6 +124,7 @@ static uintptr_t progress_guest_leader=0;
 static DWORD progress_guest_scan_at=0;
 static int combat_action_opted(void);
 static int combat_lower_opted(void);
+static int combat_guest_road_target(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,const float position[3],float target[3],DWORD now);
 static DWORD progress_guest_follow_limit(int action) {return action==1?145000u:36000u;}
 static void progress_guest_follow_input(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t input,DWORD elapsed) {
     if (!progress_enabled) return;
@@ -144,17 +145,19 @@ static void progress_guest_follow_input(uintptr_t base,uintptr_t pc,uintptr_t pa
     if(combat_action_opted()&&combat_lower_opted())follow_limit+=60000;
     if(elapsed>=4000&&elapsed<follow_limit&&is_live(base,progress_guest_leader)&&
         read_at(progress_guest_leader+0x108,leader,sizeof leader)&&read_at(pawn+0x108,position,sizeof position)&&read_at(pc+0x114,rotation,sizeof rotation)) {
+        int road=combat_guest_road_target(base,pc,pawn,world,position,leader,now);
+        float deadzone=road==1?5.0f:125.0f;
         float dx=leader[0]-position[0],dy=leader[1]-position[1],length=sqrtf(dx*dx+dy*dy);
-        if(isfinite(length)&&length>125&&length<2000) {
+        if(road>=0&&isfinite(length)&&length>deadzone&&length<2000) {
             float yaw=(float)rotation[1]*0.00009587379924285f;
-            float gain=fminf(0.35f,(length-125.0f)*0.005f);
+            float gain=fminf(0.35f,(length-deadzone)*0.005f);
             forward=gain*(dx*cosf(yaw)+dy*sinf(yaw))/length;
             strafe=gain*(-dx*sinf(yaw)+dy*cosf(yaw))/length;
         }
     }
     /* Keep the short, independent forward-input check even if following has
        no unambiguous replicated leader. This is a test bot, not host steering. */
-    if(elapsed>=2000&&elapsed<4000) { forward=1.0f;strafe=0.0f; }
+    if(elapsed>=2000&&elapsed<4000&&!(combat_action_opted()&&combat_lower_opted())) { forward=1.0f;strafe=0.0f; }
     if(elapsed>=5000&&!progress_guest_shot) {
         progress_guest_shot=1;render_capture(base,read_ptr(base+0x18b31d0),L"guest-progress");
     }

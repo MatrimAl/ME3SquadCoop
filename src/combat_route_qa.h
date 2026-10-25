@@ -199,6 +199,39 @@ static int combat_route_discover(uintptr_t base,uintptr_t world,DWORD now) {
     for(unsigned j=0;j<COMBAT_ROUTE_COUNT;++j)if(found[j]!=1)return 0;
     memcpy(q->nodes,nodes,sizeof nodes);q->node_world=world;q->nodes_ready=1;return 1;
 }
+/* QA guest must take the measured road corners instead of cutting directly
+ * toward a host several nodes ahead. Reuse the host's validated nav inventory;
+ * leave the final drop and lower area to the existing ordinary follow input. */
+static int combat_guest_road_target(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,const float position[3],float target[3],DWORD now) {
+    static GuestCameraStamp guest_pc,guest_pawn,guest_world;
+    static unsigned point;static int started,done;static float origin[3];
+    CombatRouteQA *q=&combat_route_qa;
+    if(!combat_action_opted()||!combat_lower_opted())return 0;
+    combat_route_qa_host_mode();
+    if(!q->opted||test_action!=5||strcmp(test_role,"client")||session_manual_guest_input())return 0;
+    if(!guest_camera_stamp_matches(base,&guest_pc,1)||!guest_camera_stamp_matches(base,&guest_pawn,1)||
+       !guest_camera_stamp_matches(base,&guest_world,1)||guest_pc.pointer!=pc||guest_pawn.pointer!=pawn||guest_world.pointer!=world){
+        started=done=0;
+        if(!guest_camera_stamp_read(base,pc,&guest_pc,1)||!guest_camera_stamp_read(base,pawn,&guest_pawn,1)||
+           !guest_camera_stamp_read(base,world,&guest_world,1))return -1;
+    }
+    if(done)return 0;
+    if(!scene_readiness_finite3(position)||!combat_route_discover(base,world,now))return -1;
+    if(!started){
+        if(!combat_route_first_point(position,&point))return -1;
+        memcpy(origin,position,12);started=1;
+        line("{\"combat_guest_road_qa\":\"started\",\"position_writes\":false}\r\n");
+    }
+    if(point>=COMBAT_ROUTE_COUNT-1){done=1;line("{\"combat_guest_road_qa\":\"upper-road-complete\"}\r\n");return 0;}
+    if(!guest_camera_stamp_matches(base,&q->nodes[point],1)||read_ptr(q->nodes[point].pointer+0x198)!=world||
+       !combat_route_corridor(position,origin,combat_route_points[point].xyz))return -1;
+    if(combat_route_arrived(position,point,combat_route_points[point].xyz)){
+        memcpy(origin,combat_route_points[point].xyz,12);++point;
+        char row[180];snprintf(row,sizeof row,"{\"combat_guest_road_qa\":\"waypoint\",\"next_point\":%u,\"monotonic_ms\":%lu}\r\n",point,now);line(row);
+        if(point>=COMBAT_ROUTE_COUNT-1){done=1;return 0;}
+    }
+    memcpy(target,combat_route_points[point].xyz,12);return 1;
+}
 static int combat_route_context(uintptr_t base,uintptr_t engine,SessionContext c,float xyz[3],float velocity[3],int32_t rotation[3],uintptr_t *input,uintptr_t *camera) {
     uintptr_t local=0;unsigned char net=255,ignored=255;uint32_t flags=0,life=0;float floor[3];int32_t disabled=-1;GameArray overrides={0};
     if(!combat_context_local_pc(base,engine,&local)||local!=c.pc||!guest_camera_actor_live(base,c.pc)||
