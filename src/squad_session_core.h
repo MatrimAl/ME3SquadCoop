@@ -206,8 +206,10 @@ static void session_gate(int blocked, int synthetic, unsigned char mode, const c
         "{\"session\":\"gate-observation\",\"blocked\":%s,\"source\":\"%s\",\"reason\":\"scene\",\"engine_block_reason\":\"%s\",\"mode\":%u,\"monotonic_ms\":%lu}\r\n",
         blocked ? "true" : "false", synthetic ? "synthetic" : "engine", reason, mode, now); line(text);
 }
+#include "session_travel_retirement.h"
 static void session_release(uintptr_t base, SessionContext c, const char *reason, DWORD now) {
     if (!session_active || session_releasing) return;
+    if(session_retire_disposed_travel(base,c,now))return;
     session_releasing = 1;
 #ifdef ME3_PROTECTED_GUEST_TEAM_QA
     guest_team_qa_release(base,now);
@@ -375,6 +377,7 @@ static void session_host_frame(uintptr_t base, uintptr_t engine, int after) {
     int engine_gate = engine_reason != NULL, blocked = engine_gate || synthetic;
     session_gate(blocked, synthetic && !engine_gate, c.mode, engine_reason, now);
     if (session_active) {
+        if(session_retire_disposed_travel(base,c,now))return;
         if (c.pc != session_host || c.world != session_world || c.squad != session_squad ||
             !session_handle_matches(session_world_handle) || !session_handle_matches(session_pawn_handle) || !session_handle_matches(session_ai_handle)) {
             session_fault = 1; session_release(base, c, "ownership-lost", now); return;

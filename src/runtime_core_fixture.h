@@ -62,12 +62,28 @@ static int runtime_core_cleanup_selftest(void) {
     if(ok)FlushInstructionCache(GetCurrentProcess(),image+0x2000,sizeof stub);
     SessionContext context={0};context.world=o[5];
     if(ok) {
+        /* Prepared travel-disposal classifier cases; execution is deferred.
+         * A rename/read failure must not count as native object disposal. */
+        SessionHandle saved=session_capture_handle(o[1]);
+        uint64_t original_name=read_ptr(o[1]+0x48),renamed_name=original_name+1;
+        ok=!session_registry_retired(base,saved,&objects);
+        memcpy((void*)(o[1]+0x48),&renamed_name,8);
+        ok=ok&&!session_registry_retired(base,saved,&objects);
+        memcpy((void*)(o[1]+0x48),&original_name,8);
+        uintptr_t slots[19];memcpy(slots,o,sizeof slots);slots[1]=0;
+        GameArray disposed={(uintptr_t)slots,19,19};
+        ok=ok&&session_registry_retired(base,saved,&disposed);
+        slots[1]=o[18];ok=ok&&session_registry_retired(base,saved,&disposed);
+        GameArray unknown={1,19,19};
+        ok=ok&&!session_registry_retired(base,saved,&unknown);
+        SessionHandle outside=saved;outside.index=19;
+        ok=ok&&!session_registry_retired(base,outside,&objects);
         /* Prepare admission regression cases for the next offline harness run.
          * These are allocated fixture objects, never a live campaign world. */
         runtime_fixture_lease();
         SessionContext admission={o[3],o[4],o[5],o[6],o[18],0};
         session_admission_wait_reset();
-        ok=!session_admission_wait_ready(base,admission,1000)&&
+        ok=ok&&!session_admission_wait_ready(base,admission,1000)&&
             !session_admission_wait_ready(base,admission,1499)&&session_admission_wait_ready(base,admission,1500);
         /* Every tracked address must restart the interval; no cross-context
          * timer credit even when the replacement object is live. */

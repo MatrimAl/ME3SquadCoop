@@ -1669,3 +1669,19 @@ accepted ordinary join/listen waiting is a different stage and is unchanged.
 The protocol is now v2/5212 bytes on both sides; old versions are rejected.
 Normal native outputs rebuilt and Python syntax parsed. No game, GUI, IPC test
 or timestamp fixture was executed. Real delivery/expiry behavior remains pending.
+
+## Retire positively disposed old-world companion leases
+
+The common core can now retire an old lease without faulting solely because
+its native world and companion were positively removed from the object registry.
+It requires a verified different current host world/Shepard/squad and either a
+retired guest controller or a native peer now belonging to the new world without
+referencing the old companion. The world chain and registry evidence are checked
+twice. A rename, unreadable pointer or expired timer is not disposal evidence.
+
+This changes bookkeeping only and never clears an existing fault or pending
+disconnect cleanup. It performs no old-world possession and claims no AI return.
+Ordinary peer/AI/story admission still governs reacquisition. Other incomplete
+or retained-world transitions keep conservative behavior. Native outputs rebuilt;
+classifier fixture cases were prepared but not executed. No game or mission
+transition was run. See [mission transition](MISSION-TRANSITION.md).
