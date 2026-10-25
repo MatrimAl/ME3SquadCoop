@@ -2,6 +2,7 @@
 #define ME3_ARENA_PAIR_QA_H
 /* Protected manual SPCer pair only. Native session/scene/equipment guards
  * remain authoritative; no route, fire, save or synthetic-scene automation. */
+#include "arena_join_gate_qa.h"
 static int arena_pair_qa,arena_pair_auto_qa;
 static int arena_auto_movement_done,arena_auto_input_fault;
 static DWORD arena_auto_ready_at;

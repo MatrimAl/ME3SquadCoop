@@ -90,7 +90,9 @@ probe.SquadProbeGuardsOnlySelfTest.argtypes=[ctypes.c_wchar_p]
 probe.SquadProbeGuardsOnlySelfTest.restype=ctypes.c_int
 # The default-orchestration fixture deliberately has no session environment.
 # Keep the live arena opt-in out of that fixture, then restore it for launch.
-arena_environment = os.environ.pop("ME3_SQUAD_COOP_ARENA_PAIR_QA", None)
+arena_environment = {name: os.environ.pop(name) for name in (
+    "ME3_SQUAD_COOP_ARENA_PAIR_QA", "ME3_SQUAD_COOP_ARENA_PARALLEL_QA",
+    "ME3_SQUAD_COOP_ARENA_JOIN_GATE") if name in os.environ}
 try:
     with tempfile.TemporaryDirectory(dir=ROOT / "local") as tmp:
         folder=Path(tmp)
@@ -103,8 +105,7 @@ try:
         (folder / "ME3SquadCoop.probe.enabled").unlink()
         assert probe.SquadProbeGuardsOnlySelfTest(str(folder))==0, "guards-only accepted a missing private marker"
 finally:
-    if arena_environment is not None:
-        os.environ["ME3_SQUAD_COOP_ARENA_PAIR_QA"] = arena_environment
+    os.environ.update(arena_environment)
 
 clean_environment={k:v for k,v in os.environ.items() if k!="ME3_SQUAD_COOP_GUARDS_ONLY_QA"}
 code=("import ctypes,sys; p=ctypes.CDLL(sys.argv[1]); "

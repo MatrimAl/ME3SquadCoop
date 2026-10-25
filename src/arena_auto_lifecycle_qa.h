@@ -5,7 +5,7 @@
  * ConsoleCommand; gameplay uses the existing ordinary movement/fire paths. */
 #include "arena_auto_startup_qa.h"
 static int arena_auto_joined,arena_auto_spawn_sent;
-static DWORD arena_auto_step_at;
+static DWORD arena_auto_step_at,arena_auto_state_at;
 static GuestCameraStamp arena_auto_step_pc,arena_auto_step_input,arena_auto_step_pawn;
 static float arena_auto_step_start[3];
 static int arena_auto_step_injected;
@@ -61,11 +61,17 @@ static void arena_auto_lifecycle_tick(uintptr_t base,uintptr_t engine,int after,
         if(clear){if(!arena_auto_ready_at)arena_auto_ready_at=now;}else arena_auto_ready_at=0;
     }
     if(!arena_pair_auto_qa)return;
+    if(!after&&(!arena_auto_state_at||now-arena_auto_state_at>=1000)) {
+        arena_auto_state_at=now;char row[600];int roster=current&&arena_auto_roster_ready(base,c);
+        snprintf(row,sizeof row,"{\"arena_auto_qa\":\"prewarm-state\",\"role\":\"%s\",\"current_spcer\":%s,\"scene_clear\":%s,\"ready_stable_ms\":%lu,\"roster_ready\":%s,\"host_map_refreshed\":%s,\"parallel_qa\":%s,\"monotonic_ms\":%lu}\r\n",
+            test_role,current?"true":"false",clear?"true":"false",arena_auto_ready_at?now-arena_auto_ready_at:0,
+            roster?"true":"false",host_map_refreshed?"true":"false",arena_parallel_qa?"true":"false",now);line(row);
+    }
     if(after){
         if(arena_auto_step_injected){if(arena_auto_step_write(base,0))arena_auto_step_injected=0;else if(!arena_auto_input_fault){arena_auto_input_fault=1;arena_auto_movement_done=1;arena_auto_log("input-cleanup-unverified",now);}}
         arena_auto_startup_tick(base,engine,now);return;
     }
-    if(test_action==5&&!arena_auto_joined&&current&&clear&&arena_auto_ready_at&&now-arena_auto_ready_at>=5000&&arena_auto_roster_ready(base,c)) {
+    if(test_action==5&&!arena_auto_joined&&current&&clear&&arena_auto_ready_at&&now-arena_auto_ready_at>=5000&&arena_auto_roster_ready(base,c)&&arena_join_gate_released()) {
         unsigned char net=255;read_at(c.world+0x7c8,&net,1);
         if(net==0){arena_auto_joined=1;identity_snapshot(base,"arena-client-prewarmed");wchar_t command[80];
             _snwprintf(command,80,L"open %ls:%u",direct_ip_config.peer_ipv4,(unsigned)direct_ip_config.port);

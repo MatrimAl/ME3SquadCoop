@@ -65,3 +65,30 @@ Live validation is deferred at the owner's request.
 An arena result cannot substitute for these campaign requirements. Promote
 only demonstrated shared gameplay behavior into the ordinary player entry;
 keep setup bots, forced scene skips and private test assets out of that path.
+
+## Prepared parallel prewarm (not executed)
+
+The protected probe now has a default-off `ME3_SQUAD_COOP_ARENA_PARALLEL_QA`
+option. It requires the existing arena and automatic setup options plus a
+32-character lowercase hexadecimal run identifier. With it enabled, a guest
+that completes its own setup waits for a coordinator-owned Windows event.
+The guest can only open that event for synchronization and polls without
+blocking Tick. It cannot create or signal the event. Missing/unreleased events
+leave it waiting; its native scene and roster checks still run before travel.
+
+The private coordinator source now prepares two registered native launches
+before waiting for readiness. The proposed host/guest limits are480/450
+seconds, with120 seconds of common observation and10 seconds of cleanup
+reserved before release. This changes orchestration budgets, not gameplay
+success criteria or the ordinary player runtime. It binds readiness streams
+to the retained child identities and requires recent full readiness, the
+Ashley/James roster, and native host map refresh. Exceptions before release
+refuse the join. A new random event identifier is created for each explicit run.
+
+All three native outputs were rebuilt. The generated parallel launcher source
+was assembled and syntax-compiled without executing its launch path. No game,
+native fixture or integration test was run for this change. Deferred checks
+include missing/wrong/stale event identity; withheld host readiness; child exit
+between readiness and release; insufficient common lifetime; partial launch
+cleanup; and actual native join after full same-map prewarm. Successful compile
+and source inspection do not verify any of those behaviors.

@@ -746,6 +746,7 @@ static int probe_configure_orchestration(int guards_only) {
         arena_pair_qa=1;
         prewarm[0]=0;arena_pair_auto_qa=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_ARENA_AUTO_QA",prewarm,8)==1&&prewarm[0]==L'1';
     }
+    if(!arena_join_gate_configure(arena_pair_qa,arena_pair_auto_qa))return 0;
     return 1;
 }
 

@@ -1387,3 +1387,13 @@ at294.766 seconds also leaves less than the required240-second guest lifetime
 inside the480-second host limit. A longer readiness deadline alone is not a
 complete fix. Live tests are deferred; see [campaign integration priorities](CAMPAIGN-NEXT.md)
 for the evidence limits and proposed concurrent prewarm boundary.
+
+## Parallel arena prewarm preparation
+
+Added a default-off per-run coordinator event to the protected arena guest
+join path and once-per-second full prewarm telemetry. The private proposed
+orchestration now prepares both retained children before waiting for the host,
+with bounded common observation time. Native scene, squad, ownership and
+package validation remain authoritative. Native outputs were rebuilt and
+launcher source assembly was syntax-compiled; fixtures and live validation
+are explicitly deferred. See [campaign next steps](CAMPAIGN-NEXT.md).
