@@ -13,6 +13,11 @@ typedef struct RuntimePowerCatalog {
 static RuntimePowerCatalog runtime_power_catalog;
 static volatile LONG runtime_power_scope,runtime_power_count,runtime_power_status;
 static volatile LONG64 runtime_power_request;
+/* Serialize only queue metadata, never game reads or native calls. Both
+ * producers and Tick try once; a preempted caller cannot stall the game. */
+static SRWLOCK runtime_power_queue_lock=SRWLOCK_INIT;
+static ULONGLONG runtime_power_submitted_at;
+#define RUNTIME_POWER_REQUEST_MAX_AGE_MS 2000
 static LONG runtime_power_generation;
 static DWORD runtime_power_last_order;
 enum {RUNTIME_POWER_IDLE=0,RUNTIME_POWER_QUEUED=1,RUNTIME_POWER_REJECTED=2,
@@ -32,19 +37,45 @@ static int runtime_power_catalog_same(const RuntimePowerCatalog *a,const Runtime
 }
 static void runtime_power_invalidate(void) {
     InterlockedExchange(&runtime_power_scope,0);InterlockedExchange(&runtime_power_count,0);
+    /* Cancellation and status observers need only the atomic payload. Leave
+     * the timestamp alone: it is read/written only under the queue lock.
+     * An in-flight producer can publish an old scope after this clear; Tick
+     * rejects that scope, whose generation is never reused. */
     if(InterlockedExchange64(&runtime_power_request,0))InterlockedExchange(&runtime_power_status,RUNTIME_POWER_REJECTED);
     memset(&runtime_power_catalog,0,sizeof runtime_power_catalog);
 }
-/* Only atomics are touched by exported callers. A UI must retain the scope
+/* Only mod queue state is touched by exported callers. A UI must retain the scope
  * returned with its list; an index alone cannot identify a power after travel. */
 static int runtime_request_power(unsigned scope,unsigned index) {
+    ULONGLONG submitted=GetTickCount64();
     if(!scope||scope>0x7fffffff||index>=RUNTIME_POWER_LIMIT||
        !InterlockedCompareExchange(&g_enable_requested,0,0)||
        g_config_status!=ME3_CONFIG_READY||g_runtime_config.role!=ME3_ROLE_GUEST||
        InterlockedCompareExchange(&runtime_power_scope,0,0)!=(LONG)scope||
        index>=(unsigned)InterlockedCompareExchange(&runtime_power_count,0,0))return 0;
     LONG64 request=(LONG64)(((uint64_t)scope<<32)|(index+1));
-    return InterlockedCompareExchange64(&runtime_power_request,request,0)==0;
+    if(!TryAcquireSRWLockExclusive(&runtime_power_queue_lock))return 0;
+    int accepted=0;
+    if(InterlockedCompareExchange(&g_enable_requested,0,0)&&
+       InterlockedCompareExchange(&runtime_power_scope,0,0)==(LONG)scope&&
+       index<(unsigned)InterlockedCompareExchange(&runtime_power_count,0,0)&&
+       !InterlockedCompareExchange64(&runtime_power_request,0,0)) {
+        runtime_power_submitted_at=submitted;
+        accepted=InterlockedCompareExchange64(&runtime_power_request,request,0)==0;
+    }
+    ReleaseSRWLockExclusive(&runtime_power_queue_lock);
+    return accepted;
+}
+static LONG64 runtime_power_take_request(ULONGLONG *submitted) {
+    if(!TryAcquireSRWLockExclusive(&runtime_power_queue_lock))return 0;
+    LONG64 request=InterlockedExchange64(&runtime_power_request,0);
+    *submitted=runtime_power_submitted_at;
+    ReleaseSRWLockExclusive(&runtime_power_queue_lock);
+    return request;
+}
+static int runtime_power_request_expired(ULONGLONG submitted) {
+    ULONGLONG now=GetTickCount64();
+    return now<submitted||now-submitted>RUNTIME_POWER_REQUEST_MAX_AGE_MS;
 }
 static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordinary,RuntimePowerCatalog *out) {
     if(!ordinary||!guest_player_context_registered_for(c.pc,c.pawn)||
@@ -117,9 +148,11 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
         InterlockedExchange(&runtime_power_scope,runtime_power_generation);
     }
     if(after)return;
-    LONG64 request=InterlockedExchange64(&runtime_power_request,0);if(!request)return;
+    ULONGLONG submitted=0;
+    LONG64 request=runtime_power_take_request(&submitted);if(!request)return;
     unsigned scope=(unsigned)((uint64_t)request>>32),index=(unsigned)request-1;
     int status=RUNTIME_POWER_REJECTED;const char *reason="stale-scope-or-rate-limit";
+    if(runtime_power_request_expired(submitted)){reason="power-request-expired";goto rejected;}
     if(scope!=(unsigned)runtime_power_scope||index>=(unsigned)current.array.count||
        (runtime_power_last_order&&now-runtime_power_last_order<250))goto rejected;
     for(int i=0;i<current.array.count;++i)if((unsigned)i!=index&&
@@ -164,6 +197,7 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
         reason="context-changed-before-native-order";goto rejected;
     }
     GuestPowerOrderParms parms={0};memcpy(parms.power_name,name,8);parms.pawn=c.pawn;parms.result=UINT32_MAX;
+    if(runtime_power_request_expired(submitted)){reason="power-request-expired";goto rejected;}
     runtime_power_last_order=now;
     ((ProcessEvent)pe)((void*)c.pc,(void*)method,&parms,NULL);
     /* Do not dereference captured game objects after native execution. */

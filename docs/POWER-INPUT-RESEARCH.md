@@ -131,11 +131,20 @@ bypass the normal tactical-order/ActivatePower/server path.
 
 The ordinary entry exports `ME3SquadCoopPowerScope`, `ME3SquadCoopPowerCount`,
 `ME3SquadCoopRequestPower(scope,index)` and `ME3SquadCoopPowerStatus`. Export
-callers touch atomic state only. A scope identifies the sampled possessed
+callers touch mod-owned queue state only. A scope identifies the sampled possessed
 pawn/controller/world/manager, connection/driver/channel, player-registration
 token and its current power-array entries/names;
 scope changes cancel pending input. Scope0 means unavailable. The generation
 never wraps into a previously usable value. The list is bounded to64 entries.
+Requests carry a monotonic64-bit enqueue time and expire after2000ms, checked
+both when consumed and immediately before the native order. Expiry reports
+status2/rejected with reason `power-request-expired`; it never resends an order.
+The queue serializes payload publication and timestamp sampling through a
+nonblocking SRW lock. A busy producer returns0; a busy Tick defers consumption
+without waiting. No engine read or native call occurs while holding that lock.
+Status readers still inspect only the atomic payload, and cancellation leaves
+the lock-protected timestamp untouched. Scope invalidation independently rejects
+an obsolete request published concurrently with cancellation.
 No keyboard/gamepad/menu binding is provided yet.
 The separate local session-panel candidate now exposes explicit power requests;
 it remains unverified and adds no native keyboard/gamepad remapping.

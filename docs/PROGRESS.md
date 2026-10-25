@@ -1741,3 +1741,18 @@ another adapter. Existing power ownership, catalog and native ABI checks remain.
 All three native outputs rebuilt. No game, panel, power order or fixture was
 executed. This is an ordering correction, not evidence of a working native cast
 or completed campaign co-op.
+
+## Expire delayed guest power requests
+
+Power requests now retain a64-bit monotonic enqueue timestamp and are rejected
+after2000ms both at queue consumption and immediately before native dispatch.
+This prevents a delayed Tick from executing an old request simply because its
+catalog scope still matches. Queue publication/consumption use a nonblocking
+SRW lock for timestamp consistency; neither side waits or holds the lock across
+engine reads/calls. Atomic pending/status observations and scope cancellation
+remain independent of the timestamp. Expired requests report rejected status
+with `power-request-expired` and are not automatically retried.
+
+All three native outputs rebuilt. No game, panel, request fixture, concurrency
+test or native cast was executed. Expiry and concurrent cancellation behavior
+still require deferred execution checks.
