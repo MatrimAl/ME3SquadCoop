@@ -11,7 +11,7 @@ typedef struct RuntimePowerIconLease {
     RuntimeHotkeyWheel owner;
     RuntimePowerIconSlot slots[8];
     RuntimePowerCatalog catalog;
-    int active,failed;
+    int active,failed,drag_observed;
 } RuntimePowerIconLease;
 static RuntimePowerIconLease runtime_power_icons;
 static int runtime_power_icons_enabled(void) {
@@ -81,6 +81,7 @@ static void runtime_power_icons_release(uintptr_t base,uintptr_t engine) {
         if(!s->changed)continue;
         s->changed=0;SessionContext c=session_context(engine);
         if(!runtime_power_icon_owner(base,&lease->owner,c)||
+           runtime_power_wheel_drag_state(base,lease->owner.handler.pointer)!=0||
            !runtime_power_icon_layout(base,&lease->owner,n,s->icon)||
            !runtime_power_icon_values(s->icon.pointer,s->installed,
                s->installed.pointer?lease->owner.pawn.pointer:0))continue;
@@ -123,6 +124,7 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
            c.pc!=owner.pc.pointer||c.pawn!=owner.pawn.pointer||!session_handle_matches(owner.pawn)||
            owner.token!=guest_player_context_registration_token()||!runtime_power_icon_owner(base,&owner,c))return;
         RuntimePowerIconLease captured={0};captured.owner=owner;captured.catalog=catalog;
+        if(runtime_power_wheel_drag_state(base,owner.handler.pointer)!=0)return;
         for(unsigned n=0;n<8;++n) {
             RuntimePowerIconSlot *s=&captured.slots[n];
             s->icon=session_capture_handle(read_ptr(owner.handler.pointer+0xbd8+n*8));
@@ -136,6 +138,21 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
             } else if(pawn)return;
         }
         captured.active=1;*lease=captured;
+    }
+    int drag=runtime_power_wheel_drag_state(base,lease->owner.handler.pointer);
+    if(drag<0) {lease->failed=1;runtime_power_icons_release(base,engine);return;}
+    if(drag) {
+        if(!lease->drag_observed) {
+            /* Cancel pre-drag requests. They may identify the old slot map,
+             * even if the native drop later picks a different power. */
+            runtime_power_invalidate();lease->drag_observed=1;
+        }
+        return;
+    }
+    if(lease->drag_observed) {
+        /* Native drop can update saved quickslot definitions independently of
+         * our name map. Retire instead of repainting over that native edit. */
+        runtime_power_icons_release(base,engine);return;
     }
     /* At most one new assignment per Tick; retirement separately restores at
      * most eight. Native UI work can invalidate every handle: return after a

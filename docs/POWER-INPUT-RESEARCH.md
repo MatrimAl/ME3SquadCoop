@@ -626,3 +626,44 @@ scene/disable restoration have not been exercised. No saved hotkey definition,
 profile, movie initialization or handler story-pawn cache is written by this
 adapter. Native compilation and Python syntax checks completed; no game,
 panel, network session or tests ran.
+
+## Mouse quickslot routing and drag coordination
+
+Eleven selected mouse/quickslot exports decoded completely with matching disk
+and VM lengths; all38 explicit branch targets aligned with decoded expression
+boundaries. Package/library hashes remained unchanged. Native bridge exports
+only establish the wrapper, not full native implementation coverage.
+
+HandleQuickSlotMouseUp (173 serialized /237 VM bytes) scans the eight existing
+icon IDs and calls doHotKey for the matching slot on its non-drag path. This
+reaches the same native virtual already intercepted by the keyboard candidate.
+ExInt_IconMouseUp clears m_nDraggingIcon to -1 after that call. Consequently a
+pending source index cannot by itself reject the callback, or normal mouse
+clicks would be dropped. A queued order is instead checked again on Tick.
+This is static routing evidence, not a delivered click or successful cast.
+
+The runtime now reads reflected m_nDraggingIcon at+0xc38 and m_bDoingDrag at
++0xc54 with its exact boolean mask8. The power/key flags at that shared word
+describe drag kind and are not treated as reliable activity flags. A pending
+source or active drag suspends icon acquisition/assignment; actual dragging
+refuses native hotkey submissions. The common power queue refuses execution
+while a matching current wheel is pending/dragging or its state is unreadable,
+including a final recheck after the native combat getter. Starting an observed
+drag invalidates pre-drag queue scope. Icon retirement does not invoke setters
+while the native gesture owns transitional widget state.
+
+After a gesture observed across Tick, the adapter retires its lease, restoring
+only still-owned idle widgets under its existing identity checks. It does not
+repaint over native drop changes. A fresh native hotkey observation is needed
+for reacquisition. Gestures completed entirely between samples can still cause
+native icon changes; the ordinary membership/value checks then retire rather
+than overwrite those changes.
+
+Guest drag/remapping is not implemented. Native NewSetQuickSlotPower clears
+the destination through SetPower before virtual+0x548, and the existing native
+assignment body updates controller character+power definitions, independently
+of the mod's retained name map. Full integration must own that pre-clear and
+assignment lifecycle together. The previous proposed assignment-hook patch
+was never applied after its approval review hit a usage limit. No assignment
+hook, saved-definition write or game ran. Three native targets compiled for
+the drag-coordination change; no tests ran.

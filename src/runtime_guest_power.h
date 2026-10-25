@@ -256,6 +256,7 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
     int mapped=(selection&RUNTIME_POWER_MAPPED_SELECTION)!=0;
     int status=RUNTIME_POWER_REJECTED;const char *reason="stale-scope-or-rate-limit";
     if(runtime_power_request_expired(submitted)){reason="power-request-expired";goto rejected;}
+    if(runtime_power_wheel_input_blocked(base,c)){reason="native-wheel-drag-or-unreadable";goto rejected;}
     if(mapped) {
         int resolved=runtime_power_resolve_mapped(base,&current,requested);
         if(resolved<0){reason="mapped-power-unavailable-or-ambiguous";index=UINT32_MAX;goto rejected;}
@@ -299,6 +300,7 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
     if(pe!=base+0x40d450){reason="native-dispatch-entry";goto rejected;}
     checked=session_context(engine);
     if(session_engine_blocked(checked)||!runtime_power_read_catalog(base,checked,1,&final)||
+       runtime_power_wheel_input_blocked(base,checked)||
        !runtime_power_catalog_same(&current,&final)||
        (mapped&&runtime_power_resolve_mapped(base,&final,requested)!=(int)index)||
        !guest_player_context_conditions(base,checked.pc,checked.pawn,checked.world,1,1,1,&channel,&chain)||

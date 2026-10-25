@@ -1,5 +1,12 @@
 # Validation status
 
+Native mouse-gesture coordination was added to the optional power/icon
+candidates: pending/active drags suspend icon writes and power dispatch, while
+the stock mouse-up ordering can still queue an order before source cleanup.
+Three native targets compiled. Delivered clicks, rendered icons, drag/drop
+assignment and restoration remain unverified; guest remapping is not yet
+implemented. No game or tests ran.
+
 An optional native icon lease is now implemented as a compiled candidate.
 It needs the existing wheel observed on a native hotkey callback, validates
 eight widget/setter identities and conditionally restores prior power

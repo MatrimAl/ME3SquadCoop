@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-10-26: coordinate guest icon updates with native mouse gestures
+
+Offline decoding established that normal quickslot mouse-up reaches the
+existing doHotKey bridge before clearing its pending source index. Eleven
+exports decoded completely, all38 explicit branch targets aligned and package
+hashes stayed unchanged. This establishes a route, not delivered input.
+
+The runtime now suspends icon writes while a native gesture is pending or
+dragging, cancels pre-gesture queue scope and rechecks idle state before power
+dispatch. Mouse-up can enqueue before source cleanup, preserving the stock
+ordering; actual dragging refuses submissions. After an observed gesture,
+the icon lease retires rather than repainting over native changes. Retirement
+also avoids native setters while a gesture is active or unreadable.
+
+Native guest drag/remapping remains unimplemented. The proposed earlier
+assignment hook was not applied because automatic review hit a usage limit;
+the worktree was clean at this turn's start. Three native targets compiled
+for this separate coordination fix. No game, panel, network or tests ran.
+
 ## 2026-10-25: optional native quickslot icon lease candidate
 
 The guest planner now offers --native-power-icons together with native power

@@ -13,6 +13,47 @@ typedef struct RuntimeHotkeyWheel {
     ULONGLONG observed;
 } RuntimeHotkeyWheel;
 static RuntimeHotkeyWheel runtime_hotkey_wheel;
+/* Native drag owns the icon's transitional state. Validate the actual boolean
+ * masks as well as their shared storage offset; unreadable is not idle. */
+static int runtime_power_wheel_drag_state(uintptr_t base,uintptr_t handler) {
+    static const char *names[]={"m_bDoingDrag"};
+    static const uint64_t masks[]={8};
+    if(!narrative_probe_object(base,handler,"SFXSFHandler_PCPowerWheel"))return -1;
+    uintptr_t klass=read_ptr(handler+0x50);
+    char name[96];object_name(base,klass,name,sizeof name);
+    /* Only the exact native PC wheel is installed by this candidate. */
+    if(strcmp(name,"SFXSFHandler_PCPowerWheel"))return -1;
+    for(unsigned n=0;n<1;++n) {
+        if(!runtime_power_property(base,handler,"SFXSFHandler_PCPowerWheel",names[n],"BoolProperty",0xc54,4))return -1;
+        uintptr_t field=read_ptr(klass+0x70);int found=0;
+        for(unsigned k=0;field&&k<1024;++k) {
+            if(!is_live(base,field))return -1;
+            object_name(base,field,name,sizeof name);
+            if(!strcmp(name,names[n])) {
+                uint64_t mask=0;
+                if(!read_at(field+0xd0,&mask,8)||mask!=masks[n])return -1;
+                found=1;break;
+            }
+            if(!read_at(field+0x68,&field,8))return -1;
+        }
+        if(!found)return -1;
+    }
+    uint32_t flags=0;int32_t dragging=-2;
+    if(!runtime_power_property(base,handler,"SFXSFHandler_PCPowerWheel","m_nDraggingIcon","IntProperty",0xc38,4)||
+       !read_at(handler+0xc54,&flags,4)||!read_at(handler+0xc38,&dragging,4)||dragging< -1)return -1;
+    /* Power/key flags describe the kind of drag and may remain set after a
+     * release. The pending source index and DoingDrag flag describe activity. */
+    return (dragging>=0?2:0)|((flags&8)?1:0);
+}
+static int runtime_power_wheel_input_blocked(uintptr_t base,SessionContext c) {
+    RuntimeHotkeyWheel *owner=&runtime_hotkey_wheel;
+    if(!runtime_native_power_input_enabled()||c.pc!=owner->pc.pointer||c.pawn!=owner->pawn.pointer||
+       c.world!=owner->world.pointer||owner->token!=guest_player_context_registration_token()||
+       !session_handle_matches(owner->pc)||!session_handle_matches(owner->pawn)||
+       !session_handle_matches(owner->world)||!session_handle_matches(owner->handler))return 0;
+    if(read_ptr(owner->handler.pointer+0x6f8)!=c.pc)return 0;
+    return runtime_power_wheel_drag_state(base,owner->handler.pointer)!=0;
+}
 static void runtime_native_hotkey(void *self,int slot) {
     RuntimeNativeHotkey original=runtime_original_hotkey;
     uintptr_t base=runtime_hotkey_base,handler=(uintptr_t)self;
@@ -37,8 +78,10 @@ static void runtime_native_hotkey(void *self,int slot) {
     /* Once identified as our wheel, consume the command even if unavailable:
      * falling through could issue a stock order through stale story icons. */
     RuntimePowerCatalog current;unsigned scope=(unsigned)runtime_power_scope;
-    int index=-1;
-    if(slot>=0&&slot<8&&scope&&!session_engine_blocked(c)&&
+    int index=-1,drag=runtime_power_wheel_drag_state(base,handler);
+    /* Mouse-up calls doHotKey before clearing the pending source index.
+     * It may enqueue then; Tick still waits for the released/idle state. */
+    if(slot>=0&&slot<8&&scope&&drag>=0&&!(drag&1)&&!session_engine_blocked(c)&&
        runtime_power_read_catalog(base,c,1,&current)&&
        runtime_power_catalog_same(&runtime_power_catalog,&current))
         index=runtime_power_slot_index(&current,(unsigned)slot);
