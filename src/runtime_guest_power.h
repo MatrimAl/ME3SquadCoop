@@ -150,8 +150,10 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
         InterlockedExchange(&runtime_power_scope,runtime_power_generation);
     }
     if(after)return;
+    runtime_power_bind_slots(&current,(unsigned)runtime_power_scope);
     int action=runtime_power_input_poll((unsigned)runtime_power_scope,(unsigned)current.array.count);
-    if(action>=0)runtime_request_power((unsigned)runtime_power_scope,(unsigned)action);
+    int action_index=action>=0?runtime_power_slot_index(&current,(unsigned)action):-1;
+    if(action_index>=0)runtime_request_power((unsigned)runtime_power_scope,(unsigned)action_index);
     ULONGLONG submitted=0;
     LONG64 request=runtime_power_take_request(&submitted);if(!request)return;
     unsigned scope=(unsigned)((uint64_t)request>>32),index=(unsigned)request-1;

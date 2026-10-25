@@ -1779,3 +1779,23 @@ sampling address those source-level concerns. All three native outputs rebuilt,
 and planner Python sources syntax parsed. No game, panel, input/fixture test,
 focus switch or native power cast was executed. Keyboard compatibility and
 authoritative effects remain unverified.
+
+## Retain power shortcut names across catalog changes
+
+The optional input adapter now fills empty slots from unique complete native
+FNames, then retains occupied assignments for the runtime process lifetime.
+Catalog reordering resolves each assigned name to its current index. Missing
+or duplicate names remain unavailable; a missing power never causes its slot
+to select another entry. Later catalogs may fill previously empty slots.
+Only name values are retained, without pawn/power/world pointers. Assignments
+are not persisted across process restarts and cannot yet be edited manually.
+
+The panel v4 frame exposes the opt-in flag and nine current slot indices,
+using -1 for unavailable slots. List rows display their actual Ctrl+Alt shortcut
+independently of row number. Both native/Python sizes and version checks were
+updated; Flash's read-only protocol inventory was checked against the diff.
+
+All three native outputs rebuilt and panel Python syntax parsed. No game,
+panel, IPC/fixture test, reordered catalog, duplicate/removed power or actual
+mission transition was executed. The full campaign and native effects remain
+unverified; v3 and v4 panel/runtime components must not be mixed.

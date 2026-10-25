@@ -34,8 +34,8 @@ a missing DLC, bypass config or restart failed native initialization.
 ## Protocol and identity
 
 Each opted-in game creates `Local\ME3SquadCoopPanel_<PID>` once. An existing
-name is refused rather than reused. The bounded5216-byte, pointer-free v3
-mapping contains a5196-byte status frame and a20-byte command mailbox. The
+name is refused rather than reused. The bounded5256-byte, pointer-free v4
+mapping contains a5236-byte status frame and a20-byte command mailbox. The
 status identifies PID and exact process creation FILETIME. The client retains
 a query/synchronize-only handle, checks MassEffect3.exe's filename and creation
 identity, and refuses a terminated process or snapshots older than3 seconds.
@@ -64,7 +64,7 @@ before delivery. The panel tells the user to submit a fresh request; it does not
 resend automatically. A command accepted on time can still have its documented
 native startup waiting period, such as waiting for a scene to finish. This
 delivery deadline does not change the native startup or gameplay policies.
-Version1/2 clients/runtimes are incompatible and must not be mixed.
+Version1/2/3 clients/runtimes are incompatible and must not be mixed.
 
 Power commands carry the currently displayed catalog scope/index. Catalog
 changes clear the panel selection, and native validation rejects stale input.
@@ -72,8 +72,11 @@ Names come from the native power-name table, rather than localized display
 strings. The power list is not a promise that every listed power is ready:
 rank, action ownership, cooldown, target and native gameplay checks still apply.
 The optional guest runtime flag `ME3_SQUAD_COOP_POWER_HOTKEYS=1` maps
-Ctrl+Alt+1..9 to the first nine list entries while the game is foreground and
-control is ready. It uses the same scoped request path and can operate with
+Ctrl+Alt+1..9 to retained native power names while the game is foreground and
+control is ready. Each available power row shows its actual shortcut; the row
+number may differ after a catalog reorder. The v4 frame includes the opt-in
+flag and nine signed current catalog indices (-1 means unavailable), which the
+client bounds-checks before rendering. It uses the same scoped request path and can operate with
 the panel closed; it is not enabled by `--panel`. See the limitations and
 deferred validation in [power input](POWER-INPUT-RESEARCH.md).
 

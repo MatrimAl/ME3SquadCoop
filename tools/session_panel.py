@@ -14,6 +14,7 @@ class Frame(C.LittleEndianStructure):
         (name, C.c_uint32) for name in (
             "role", "enabled", "startup", "netmode", "companion_owned", "power_status",
             "power_scope", "power_count", "ack_id", "ack_result", "control_state", "tick_ms")] + [
+        ("hotkeys_enabled", C.c_uint32), ("power_slot_indices", C.c_int32 * 9),
         ("power_names", (C.c_char * 80) * 64)]
 
 
@@ -45,7 +46,7 @@ class Session:
         for name, (args, result) in specifications.items():
             function = getattr(self.kernel, name)
             function.argtypes, function.restype = args, result
-        if C.sizeof(Frame) != 5196 or C.sizeof(Memory) != 5216:
+        if C.sizeof(Frame) != 5236 or C.sizeof(Memory) != 5256:
             raise RuntimeError("Unsupported panel layout")
         try:
             # Query + wait only: no process memory access, injection or termination.
@@ -87,10 +88,13 @@ class Session:
             if before != after or after & 1:
                 continue
             if (frame.magic, frame.version, frame.bytes, frame.pid, frame.created) != (
-                    0x4d334350, 3, 5216, self.pid, self.created):
+                    0x4d334350, 4, 5256, self.pid, self.created):
                 raise RuntimeError("Panel identity/version unavailable or different")
             if frame.role not in (1, 2) or frame.power_count > 64:
                 raise RuntimeError("Invalid panel frame")
+            if frame.hotkeys_enabled not in (0, 1) or any(
+                    value < -1 or value >= frame.power_count for value in frame.power_slot_indices):
+                raise RuntimeError("Invalid power shortcut indices")
             if (self.kernel.GetTickCount() - frame.tick_ms) & 0xffffffff > 3000:
                 raise RuntimeError("Game status is stale; controls unavailable")
             return frame
@@ -201,11 +205,14 @@ def main():
                        f"Power: {POWER.get(frame.power_status, 'Unknown')}")
             names = [bytes(frame.power_names[i]).split(b'\0', 1)[0].decode('utf-8', errors='replace')
                      for i in range(frame.power_count)]
-            catalog = (frame.power_scope, tuple(names))
+            slots = tuple(frame.power_slot_indices) if frame.hotkeys_enabled else (-1,) * 9
+            catalog = (frame.power_scope, tuple(names), slots)
             if catalog != shown:
                 powers.delete(0, "end")
                 for index, name in enumerate(names):
-                    powers.insert("end", f"{index + 1}. {name or '(unnamed)'}")
+                    shortcut = next((f" [Ctrl+Alt+{slot + 1}]" for slot, value in enumerate(slots)
+                                     if value == index), "")
+                    powers.insert("end", f"{index + 1}. {name or '(unnamed)'}{shortcut}")
                 shown, last_scope = catalog, frame.power_scope
             if pending is not None and frame.ack_id == pending:
                 result.set({1: "Request accepted for processing", 2: "Request refused",

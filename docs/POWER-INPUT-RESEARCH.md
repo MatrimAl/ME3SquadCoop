@@ -184,10 +184,17 @@ readiness and authoritative effects remain unverified.
 
 `ME3_SQUAD_COOP_POWER_HOTKEYS=1` enables a guest-only physical-input adapter.
 The planner's guest-only `--power-hotkeys` option emits this flag; it remains
-off by default. Ctrl+Alt+1 through Ctrl+Alt+9 request the corresponding first
-nine entries in the current power catalog, using the same numbering shown in
-the local panel. These are slot actions, not persistent assignments to named
-powers. The native list may contain passive/unlearned entries; ordinary power
+off by default. Ctrl+Alt+1 through Ctrl+Alt+9 request the powers assigned to
+nine slots. Empty slots fill from distinct, unambiguous native FNames in the
+first available catalog, in catalog order. Each slot retains its complete
+two-word FName across scene/catalog/mission changes in the same process.
+Later catalogs can fill empty slots, but never replace an occupied assignment.
+Reordered catalogs resolve the same name to its current index; absent or
+ambiguous powers leave their slots unavailable. No old object pointer is kept.
+Bindings reset when the runtime process restarts; no disk persistence or manual
+assignment UI is provided. The panel annotates current entries with their actual
+Ctrl+Alt slot, independently of the list row number.
+The native list may contain passive/unlearned entries; ordinary power
 validation can refuse them. The panel is optional, and closing it does not
 disable these runtime hotkeys. Remove the startup flag to disable them.
 
