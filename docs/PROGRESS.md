@@ -1377,3 +1377,13 @@ and the existing bounded guest look/fire test against a real Trooper replica.
 Identity, scene, equipment, floor and native ownership checks still apply.
 Input cleanup failures stop the test action. Native fixtures pass; no
 unattended connection, movement, hit or kill is established by preparation.
+
+## Offline review of unattended arena startup
+
+The fixed native setup reached normal mode0 after the five normal menu
+callbacks. Full session readiness was later than the sequential launcher's
+host deadline, so the guest never started. The retained native map refresh
+at294.766 seconds also leaves less than the required240-second guest lifetime
+inside the480-second host limit. A longer readiness deadline alone is not a
+complete fix. Live tests are deferred; see [campaign integration priorities](CAMPAIGN-NEXT.md)
+for the evidence limits and proposed concurrent prewarm boundary.
