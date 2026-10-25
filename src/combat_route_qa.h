@@ -267,8 +267,8 @@ static int combat_lower_discover(uintptr_t base,uintptr_t world) {
 }
 static void combat_lower_tick(uintptr_t base,uintptr_t engine,SessionContext c,DWORD now) {
     CombatRouteQA *q=&combat_route_qa;float xyz[3],velocity[3],target[3];int32_t rotation[3];uintptr_t input=0,camera=0;
-    if(!combat_lower_opted()||now-q->lower_at>=35000||!combat_route_same(base,c)){
-        combat_route_end(base,"aborted","lower-identity-opt-in-or-35-second-bound",NULL,now);return;}
+    if(!combat_lower_opted()||now-q->lower_at>=45000||!combat_route_same(base,c)){
+        combat_route_end(base,"aborted","lower-identity-opt-in-or-45-second-bound",NULL,now);return;}
     if(!combat_route_context(base,engine,c,xyz,velocity,rotation,&input,&camera)){
         if(!combat_route_cleanup(base))combat_route_end(base,"aborted","lower-context-input-cleanup",NULL,now);
         return;

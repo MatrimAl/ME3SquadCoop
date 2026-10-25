@@ -952,3 +952,28 @@ as successful initial-object evidence. A repeat without that tracing is needed.
 Original profiles were unchanged, native exceptions were zero and no game
 process remained; the broader campaign, observer and lifecycle checks did not
 all pass. Enemy damage and full conversations are still unverified.
+
+### Appearance repeat and first lower encounter measurements
+
+A subsequent pair without Frida repeated the loaded-group appearance result:
+the same guarded normal API calls produced a live remote player mesh asset.
+This repeats native asset initialization only; the host was outside the
+inspected guest screenshot, so rendered visibility and customization still
+need verification.
+
+The new ordinary-input lower route reached measured nodes102,101,100 and21.
+Its35-second limit stopped it about400 units before node99. A separate
+read-only sampler verified the owned authoritative process and collected26
+snapshots of five visible, loaded Trooper candidates with TeamIndex1 and
+reciprocal damage-module identities. A sampled current/max health pair was
+512.5/512.5. No health/shield decrease or guest damage attribution was observed.
+These measurements establish real encounter targets for the next firing test.
+
+The protected lower test now allows45 seconds for those five nodes. Its
+bounded follow/disconnect windows are205/210 seconds, with native host/guest
+process limits420/330 seconds; other test modes retain their previous limits.
+The adjusted source compiled and offline controls passed, including evaluating
+the adapted launch assignments against those native limits. The longer test
+window has not yet been exercised. Original profiles were unchanged, native
+exceptions were zero and no game remained after the preceding run; the
+read-only monitor again reported access denied, so it was not an all-pass audit.

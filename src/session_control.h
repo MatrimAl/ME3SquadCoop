@@ -3,6 +3,7 @@
 #include "background_focus.h"
 /* Protected probe orchestration. These policies do not enter the player ASI. */
 static int combat_action_opted(void);
+static int combat_lower_opted(void);
 static int session_manual_guest_input(void) {
     static int loaded,value;
     if(!loaded){wchar_t text[8]={0};loaded=1;value=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_MANUAL_GUEST_QA",text,8)==1&&text[0]==L'1';}
@@ -40,6 +41,8 @@ static DWORD session_guest_disconnect_delay(int progress,int action) {
 }
 static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
     SessionContext c = session_context(engine); DWORD now = GetTickCount();
+    DWORD disconnect_delay=session_guest_disconnect_delay(progress_enabled,combat_action_opted());
+    if(progress_enabled&&combat_action_opted()&&combat_lower_opted())disconnect_delay+=60000;
     if(after)remote_appearance_qa_tick(base,engine,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root),now);
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,progress_enabled&&has_marker(root),now);
     combat_fire_bot_tick(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),progress_enabled&&has_marker(root)&&!collision_baseline_qa_opted()&&!session_manual_guest_input(),after,now);
@@ -64,7 +67,7 @@ static void session_guest_frame(uintptr_t base, uintptr_t engine, int after) {
                 if (!session_disconnect_sent&&!collision_baseline_qa_opted()) progress_guest_follow_input(base,c.pc,c.pawn,input,elapsed);
             }
         }
-    } else if (!session_manual_guest_input() && session_guest_first_at && now - session_guest_first_at >= session_guest_disconnect_delay(progress_enabled,combat_action_opted()) && !session_disconnect_sent && c.pc) {
+    } else if (!session_manual_guest_input() && session_guest_first_at && now - session_guest_first_at >= disconnect_delay && !session_disconnect_sent && c.pc) {
         session_disconnect_sent = 1;
         char text[250]; snprintf(text, sizeof text,
             "{\"session\":\"disconnect-request\",\"source\":\"ordinary-engine-console\",\"monotonic_ms\":%lu}\r\n", now); line(text);
