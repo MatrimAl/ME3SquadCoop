@@ -1,20 +1,20 @@
 #ifndef ME3_GUEST_EXISTING_CONTEXT_H
 #define ME3_GUEST_EXISTING_CONTEXT_H
-/* Borrow a native current-world squad's empty local player caches. Never
- * spawn/destroy that actor, replace its registration or change membership. */
+/* Use the current native squad, either already ready or with empty local
+ * player caches. Never own its actor lifetime, registration or membership. */
 enum {GEC_PC,GEC_PAWN,GEC_INFO,GEC_WORLD,GEC_LEVEL,GEC_PLAYER,GEC_SQUAD,GEC_CHANNEL,GEC_CONNECTION,GEC_DRIVER,GEC_COUNT};
 typedef struct GuestExistingContextLease {
     GuestCameraStamp objects[GEC_COUNT];
     unsigned long token;
     uintptr_t current_before;
-    int channel_index,tracked,active,registered,cleanup_calls;
+    int channel_index,tracked,active,registered,cache_writes_owned,cleanup_calls;
     DWORD reported,cleanup_at;
 } GuestExistingContextLease;
 static GuestExistingContextLease guest_existing_context;
 static void guest_existing_context_log(const char *event,const char *reason,DWORD now) {
     char row[500];snprintf(row,sizeof row,
-        "{\"guest_existing_context\":\"%s\",\"reason\":\"%s\",\"lease_token\":%lu,\"registered\":%s,\"actor_lifetime_owned\":false,\"world_slot_written\":false,\"membership_written\":false,\"monotonic_ms\":%lu}\r\n",
-        event,reason,guest_existing_context.token,guest_existing_context.registered?"true":"false",now);line(row);
+        "{\"guest_existing_context\":\"%s\",\"reason\":\"%s\",\"lease_token\":%lu,\"registered\":%s,\"cache_writes_owned\":%s,\"actor_lifetime_owned\":false,\"world_slot_written\":false,\"membership_written\":false,\"monotonic_ms\":%lu}\r\n",
+        event,reason,guest_existing_context.token,guest_existing_context.registered?"true":"false",guest_existing_context.cache_writes_owned?"true":"false",now);line(row);
 }
 /* A native replacement is preserved. The expected pawn is compared as a
  * pointer value only; cleanup never dereferences a disposed controlled pawn. */
@@ -30,6 +30,9 @@ static int guest_existing_context_restore_field(uintptr_t at,uintptr_t pawn,uint
 static int guest_existing_context_cleanup(uintptr_t base,const char *reason,DWORD now) {
     GuestExistingContextLease *l=&guest_existing_context;l->registered=0;
     if(!l->active)return 1;
+    if(!l->cache_writes_owned) {
+        l->active=0;guest_existing_context_log("released","native-ready-observation-ended-no-write",now);return 1;
+    }
     CombatContextChain chain;combat_context_read_chain(base,&chain);
     int identity=1,replaced=0;const unsigned keep[]={GEC_INFO,GEC_WORLD,GEC_LEVEL,GEC_SQUAD};
     for(unsigned i=0;i<4;++i) {
@@ -103,10 +106,12 @@ static void guest_existing_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t p
     uintptr_t squad=chain->squad,cached=1,current=1;uint32_t flags=0;
     if(!guest_camera_actor_live(base,squad)||!is_kind_of(base,squad,"BioPlayerSquad")||
        read_ptr(squad+0x198)!=info||read_ptr(squad+0x40)!=chain->level||read_ptr(pawn+0xba8)!=squad||
-       !read_at(squad+0x2a8,&cached,8)||cached||!read_at(squad+0x2cc,&current,8)||(current&&current!=pawn)||
+       !read_at(squad+0x2a8,&cached,8)||!read_at(squad+0x2cc,&current,8)||(current&&current!=pawn)||
+       (cached&&(cached!=pawn||current!=pawn))||
        !read_at(squad+0x2b0,&flags,4)||(flags&0xe)!=0xe||
        !guest_player_context_pins(base)||!guest_player_context_resolve(base,pc,now)||
        read_ptr(squad+0x50)!=guest_player_context_methods.klass.pointer)return;
+    int native_ready=cached==pawn;
     GuestExistingContextLease next={0};next.token=guest_player_context_token;next.current_before=current;
     next.channel_index=channel->index;next.tracked=1;
     uintptr_t objects[GEC_COUNT]={pc,pawn,info,chain->world,chain->level,read_ptr(pc+0x67c),squad,
@@ -116,11 +121,15 @@ static void guest_existing_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t p
     NetworkActorIdentityEntry checked_channel={0};CombatContextChain checked_chain;
     if(!guest_player_context_conditions(base,pc,pawn,info,1,1,1,&checked_channel,&checked_chain)||
        !guest_existing_context_same(base,pc,pawn,info,&checked_channel,&checked_chain)||
-       !read_at(squad+0x2a8,&cached,8)||cached||!read_at(squad+0x2cc,&current,8)||current!=l->current_before)return;
-    /* Track possible partial script writes before dispatch; one attempt per
-     * ownership/control scope. Exact verified script writes these two caches. */
-    l->active=1;uintptr_t target=pawn;
-    int dispatched=guest_player_context_dispatch(base,squad,&guest_player_context_methods.set_pawn,&target);
+       !read_at(squad+0x2a8,&cached,8)||cached!=(native_ready?pawn:0)||
+       !read_at(squad+0x2cc,&current,8)||current!=l->current_before)return;
+    /* Track the observation before native calls; one attempt per control
+     * scope. Only the initializing branch owns the two script cache writes. */
+    l->active=1;uintptr_t target=pawn;int dispatched=1;
+    if(!native_ready) {
+        l->cache_writes_owned=1;
+        dispatched=guest_player_context_dispatch(base,squad,&guest_player_context_methods.set_pawn,&target);
+    }
     int verified=dispatched&&guest_player_context_conditions(base,pc,pawn,info,1,1,0,&checked_channel,&checked_chain)&&
         guest_existing_context_same(base,pc,pawn,info,&checked_channel,&checked_chain)&&
         read_ptr(squad+0x2a8)==pawn&&read_ptr(squad+0x2cc)==pawn&&guest_existing_context_gate(base,pc);
@@ -130,7 +139,9 @@ static void guest_existing_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t p
         guest_existing_context_log("rejected","native-set-player-or-getter-not-verified",now);
         guest_existing_context_cleanup(base,"application-not-verified",now);return;
     }
-    l->registered=1;guest_existing_context_log("applied","normal-set-player-on-existing-squad",now);
+    l->registered=1;
+    guest_existing_context_log(native_ready?"adopted":"applied",native_ready?
+        "existing-native-player-context-verified":"normal-set-player-on-existing-squad",now);
 }
 static int guest_player_context_registered_for(uintptr_t pc,uintptr_t pawn) {
     return (guest_player_context_lease.registered&&guest_player_context_lease.pc.pointer==pc&&guest_player_context_lease.pawn.pointer==pawn)||

@@ -1550,3 +1550,19 @@ permission changes. Normal native outputs rebuilt. No new fixture or live game
 execution was performed; actual retention and sustained movement remain
 unverified. The native action object may carry different links or camera fields
 than its stock defaults, in which case the candidate preserves the strict policy.
+
+## Use already ready native squad contexts
+
+The existing-squad path now also accepts both native player caches already
+identifying the locally owned Ashley, after the same current-world/channel,
+story/permission and actual combat-getter checks. It records a read-only
+context lease, making the common collision registration/token interface
+available without requiring a created squad or a SetPlayerPawn dispatch.
+
+This case owns no cache writes. Scene, disable, ownership and world changes
+end only the observation and never clear the game's preexisting player caches.
+The empty-cache initialization case keeps its separate tracked cleanup policy.
+Different native player contexts remain preserved. Native outputs rebuilt;
+new authored-memory fixture cases are prepared, with execution deferred.
+No game or new fixture was run. Campaign travel and usable combat remain
+unverified; this source change removes an unnecessary created-context dependency.

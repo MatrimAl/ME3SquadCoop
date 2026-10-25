@@ -2,9 +2,9 @@
 #define ME3_GUEST_PLAYER_CONTEXT_ADAPTER_H
 #include <stddef.h>
 
-/* Opt-in experiment; game thread, pre/post Tick, including disabled contexts.
- * Include after guest_camera_adapter.h and combat_context_probe.h. enabled
- * must be the caller's PROGRESS_TEST plus private marker opt-in.
+/* Shared guest input context; game thread, pre/post Tick, including disabled
+ * contexts for cleanup. Include after camera and combat context support.
+ * Callers supply their ordinary runtime or protected-probe enable/story scope.
  *
  * Provenance: live-script-10292-player-bootstrap.json and private
  * player-bootstrap-design-research.md. Real BioPlayerSquad CDO has authored
@@ -14,9 +14,10 @@
  * the CLIENT's own actual WI, only from null, after normal actor creation.
  * No AddMember, Pawn.Squad, host, plot, permission, role or coordinate writes.
  * A successful getter is input-context evidence, never firing/damage proof.
- * An existing native squad with empty local caches can instead be borrowed
- * through the same verified SetPlayerPawn script. That path owns neither
- * actor lifetime nor registration; see guest_existing_context.h.
+ * An existing native squad can instead be used in place: initialize empty
+ * local caches through the verified script, or observe already correct native
+ * caches without writes. Neither case owns actor lifetime or registration.
+ * See guest_existing_context.h.
  */
 
 #pragma pack(push,4)

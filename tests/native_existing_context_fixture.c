@@ -74,6 +74,14 @@ int main(void){
     CHECK(VirtualProtect(readonly,4096,PAGE_READONLY,&previous));
     CHECK(!guest_existing_context_restore_field((uintptr_t)readonly,value,0)&&read_ptr((uintptr_t)readonly)==value);
     CHECK(VirtualFree(readonly,0,MEM_RELEASE));
+    reset();put(addr(6)+0x2a8,addr(1));put(addr(6)+0x2cc,addr(1));adapt(1);
+    CHECK(guest_player_context_registered_for(addr(0),addr(1))&&!native_calls&&!clear_calls&&!guest_existing_context.cache_writes_owned);
+    adapt(1);adapt(0);
+    CHECK(!guest_existing_context.active&&!native_calls&&!clear_calls&&read_ptr(addr(6)+0x2a8)==addr(1)&&read_ptr(addr(6)+0x2cc)==addr(1));
+    reset();put(addr(6)+0x2a8,addr(1));put(addr(6)+0x2cc,addr(1));getter_valid=0;adapt(1);
+    CHECK(!guest_existing_context.registered&&!native_calls&&!clear_calls&&read_ptr(addr(6)+0x2a8)==addr(1));
+    reset();put(addr(6)+0x2a8,addr(10));put(addr(6)+0x2cc,addr(10));adapt(1);
+    CHECK(!guest_existing_context.registered&&!native_calls&&!clear_calls&&read_ptr(addr(6)+0x2a8)==addr(10));
     reset();adapt(0);CHECK(!native_calls);adapt(1);
     CHECK(native_calls==1&&guest_player_context_registered_for(addr(0),addr(1))&&guest_player_context_registration_token()==1);
     CHECK(read_ptr(addr(6)+0x2a8)==addr(1)&&read_ptr(addr(6)+0x2cc)==addr(1));
