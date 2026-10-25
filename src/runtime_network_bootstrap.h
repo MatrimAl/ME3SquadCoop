@@ -1,6 +1,7 @@
 #ifndef ME3_RUNTIME_NETWORK_BOOTSTRAP_H
 #define ME3_RUNTIME_NETWORK_BOOTSTRAP_H
-/* Explicit one-shot ordinary guest join or in-place host Listen. Startup
+/* One-shot ordinary guest join or in-place host Listen, with optional checked
+ * host scheduling after disposed-world travel. Startup
  * verification is not successful guest connection or campaign evidence. */
 typedef enum RuntimeNetworkStartStatus {
     RUNTIME_START_IDLE=0,RUNTIME_START_WAITING=1,RUNTIME_START_DISPATCHED=2,
@@ -19,6 +20,8 @@ static DWORD runtime_rejoin_started;
 static int runtime_join_retry_armed;
 static volatile LONG runtime_relisten_requested,runtime_listen_successful;
 static SessionHandle runtime_listen_origin_world,runtime_listen_origin_driver,runtime_relisten_target;
+static SessionHandle runtime_auto_relisten_target;
+static int runtime_auto_relisten_suspended;
 static DWORD runtime_relisten_started;
 static int runtime_relisten_armed;
 static DWORD runtime_join_last_check;
@@ -94,11 +97,16 @@ static int runtime_join_travel_idle(uintptr_t world,uintptr_t engine) {
 #include "runtime_join_progress.h"
 #include "runtime_rejoin.h"
 #include "runtime_relisten.h"
+#include "runtime_auto_relisten.h"
 static void runtime_join_window_reset(void) {
     memset(&runtime_join_readiness,0,sizeof runtime_join_readiness);
 }
 static int runtime_cancel_start_tick(void) {
     if(!InterlockedExchange(&runtime_cancel_start_requested,0))return 0;
+    /* A cancelled automatic intent must not silently reappear next Tick.
+     * Manual Listen/relisten remains available for this process. */
+    runtime_auto_relisten_suspended=1;
+    memset(&runtime_auto_relisten_target,0,sizeof runtime_auto_relisten_target);
     LONG join=InterlockedExchange(&runtime_join_requested,0),listen=InterlockedExchange(&runtime_listen_requested,0),
         rejoin=InterlockedExchange(&runtime_rejoin_requested,0),relisten=InterlockedExchange(&runtime_relisten_requested,0);
     int pending=join||listen||rejoin||relisten;
@@ -115,13 +123,14 @@ static int runtime_cancel_start_tick(void) {
             InterlockedExchange(&runtime_host_start_gate,1); /* Original existing-session attach policy. */
         InterlockedExchange(&runtime_network_start_status,RUNTIME_START_CANCELLED);
     }
-    line(pending?"{\"runtime_network\":\"pending-start-cancelled\",\"native_connection_touched\":false}\r\n":
-        "{\"runtime_network\":\"cancel-no-pending-start\",\"native_connection_touched\":false}\r\n");
+    line(pending?"{\"runtime_network\":\"pending-start-cancelled\",\"automatic_relisten_suspended\":true,\"native_connection_touched\":false}\r\n":
+        "{\"runtime_network\":\"cancel-no-pending-start\",\"automatic_relisten_suspended\":true,\"native_connection_touched\":false}\r\n");
     return 1; /* Concurrent fresh requests may be considered on the next Tick. */
 }
 static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     if(runtime_cancel_start_tick())return;
     runtime_rejoin_tick(base,engine,now);
+    runtime_auto_relisten_tick(base,engine,now);
     runtime_relisten_tick(base,engine,now);
     int host=g_runtime_config.role==ME3_ROLE_HOST;
     volatile LONG *requested=host?&runtime_listen_requested:&runtime_join_requested,

@@ -22,6 +22,13 @@ experimental Ctrl+Alt+1..9 power slot adapter. It is off by default and does not
 require the panel. Slots capture native power names and retain them across
 catalog changes in the same process; see [power input](POWER-INPUT-RESEARCH.md). Host plans refuse this
 option. The adapter itself does not alter native key bindings.
+Host-only `--auto-relisten` adds `ME3_SQUAD_COOP_AUTO_RELISTEN=1`. After an
+earlier verified runtime listener, it can schedule the checked Listen path in
+a ready standalone mission whose old world and driver were positively disposed.
+It is off by default, does not initiate mission travel or reconnect the guest,
+and permits only one automatic intent after each successful listener. Cancel pending
+connection suspends automatic scheduling for the rest of that game process;
+manual requests remain available. See [mission transitions](MISSION-TRANSITION.md).
 `--start attach` prepares configuration for attaching the mod to an existing
 native network session; it does not request Listen or a join. Host/join and
 guest/listen combinations are rejected. A guest requires an explicit peer;

@@ -53,6 +53,28 @@ the new explicit runtime/panel re-listen action can request the ordinary Listen
 path in a different standalone mission. This is a separate manual startup
 candidate, not automatic travel or guest reconnection; see
 [runtime integration](RUNTIME-INTEGRATION.md).
+
+An additional default-off host policy, `ME3_SQUAD_COOP_AUTO_RELISTEN=1`, can
+schedule that same request without pressing the panel button. The planner
+exposes it as host-only `--auto-relisten`. It requires a previously successful
+runtime listener, positive registry disposal of its origin root and driver,
+an ordinary standalone new mission with no driver/pending travel, completed
+session/context/camera/cinematic/capacity cleanup and no persistent fault.
+It observes at500ms cadence and captures a stable target root before queuing.
+The pending automatic intent remains bound to that root until the normal
+relisten path arms; changed or unknown target identity refuses it. The normal
+readiness window, ABI, endpoint, cleanup and final target checks still apply.
+
+Each successful runtime listener permits at most one later automatic intent.
+Expiry, refusal or disable does not retry that world or hop through other
+candidate roots. A newly verified listener supplies a new origin for the next
+mission; manual recovery remains available after a refused attempt. An existing
+network world is preserved, and failed initial native Listen is not retried.
+Cancel pending connection permanently suspends this scheduler for that process,
+including when there was nothing pending, without disabling manual requests.
+No story travel, guest reconnect, driver teardown or fault clearing is added.
+This policy is compiled only; actual native travel/listener continuity remains
+unverified.
 Retiring disposed bookkeeping is allowed while the mod is disabled; it does not
 reenable the mod or permit a new acquisition. Native connection cleanup remains
 forwarded even while ownership retirement is waiting.

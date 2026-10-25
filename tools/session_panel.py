@@ -183,7 +183,7 @@ def main():
         button = ttk.Button(buttons, text=text, command=lambda value=code: send(value))
         button.grid(row=position // 3, column=position % 3, padx=2, pady=2, sticky="ew")
         controls.append((button, code))
-    ttk.Label(root, text="Cancel only stops requests still waiting. An active connection stays open.",
+    ttk.Label(root, text="Cancel stops waiting requests and automatic mission-listener scheduling. An active connection stays open.",
               wraplength=550).pack(padx=15, pady=5, anchor="w")
     powers = tk.Listbox(root, exportselection=False)
     powers.pack(fill="both", expand=True, padx=15, pady=12)

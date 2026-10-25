@@ -13,6 +13,7 @@ class RuntimeSessionPlan:
     start: str = None
     panel: bool = False
     power_hotkeys: bool = False
+    auto_relisten: bool = False
 
     def __post_init__(self):
         if self.role not in ("host", "guest"):
@@ -21,6 +22,8 @@ class RuntimeSessionPlan:
             raise ValueError("panel must be a boolean")
         if type(self.power_hotkeys) is not bool or (self.power_hotkeys and self.role != "guest"):
             raise ValueError("power hotkeys require a guest plan and a boolean option")
+        if type(self.auto_relisten) is not bool or (self.auto_relisten and self.role != "host"):
+            raise ValueError("automatic relisten requires a host plan and a boolean option")
         endpoint = DirectIPConfig(
             "host" if self.role == "host" else "client",
             self.bind_ipv4, self.port, self.peer_ipv4, loopback_qa=False)
@@ -52,6 +55,8 @@ class RuntimeSessionPlan:
             values["ME3_SQUAD_COOP_PANEL"] = "1"
         if self.power_hotkeys:
             values["ME3_SQUAD_COOP_POWER_HOTKEYS"] = "1"
+        if self.auto_relisten:
+            values["ME3_SQUAD_COOP_AUTO_RELISTEN"] = "1"
         return values
 
     def child_environment(self, inherited):

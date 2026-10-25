@@ -21,6 +21,7 @@ static void runtime_relisten_finish(int status,const char *reason,DWORD now) {
         "{\"runtime_network\":\"relisten-request\",\"reason\":\"%s\",\"status\":%d,\"implicit_travel\":false,\"connection_verified\":false,\"monotonic_ms\":%lu}\r\n",
         reason,status,now);line(row);
     runtime_relisten_started=0;InterlockedExchange(&runtime_network_start_status,status);
+    memset(&runtime_auto_relisten_target,0,sizeof runtime_auto_relisten_target);
     InterlockedExchange(&runtime_relisten_requested,0);
 }
 static void runtime_relisten_tick(uintptr_t base,uintptr_t engine,DWORD now) {
@@ -38,6 +39,11 @@ static void runtime_relisten_tick(uintptr_t base,uintptr_t engine,DWORD now) {
         runtime_relisten_finish(RUNTIME_START_RELISTEN_EXPIRED,"new-mission-readiness-timeout",now);return;
     }
     CombatContextChain chain;combat_context_read_chain(base,&chain);unsigned char net=255;
+    if(runtime_auto_relisten_target.pointer&&
+       (!chain.world_valid||chain.world!=runtime_auto_relisten_target.pointer||
+        !session_handle_matches(runtime_auto_relisten_target))) {
+        runtime_relisten_finish(RUNTIME_START_RELISTEN_REFUSED,"automatic-target-changed",now);return;
+    }
     if(chain.info_valid&&read_at(chain.info+0x7c8,&net,1)&&net!=0) {
         runtime_relisten_finish(RUNTIME_START_RELISTEN_REFUSED,"existing-network-world-preserved",now);return;
     }

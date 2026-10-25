@@ -1799,3 +1799,26 @@ All three native outputs rebuilt and panel Python syntax parsed. No game,
 panel, IPC/fixture test, reordered catalog, duplicate/removed power or actual
 mission transition was executed. The full campaign and native effects remain
 unverified; v3 and v4 panel/runtime components must not be mixed.
+
+## Schedule an optional host listener after verified mission disposal
+
+Host plans can now opt into `--auto-relisten`, emitting the default-off
+`ME3_SQUAD_COOP_AUTO_RELISTEN=1` policy. It schedules the existing checked
+relisten request only after a previous verified runtime listener's world and
+driver registry slots positively show disposal, completed session/capacity
+cleanup and a clear standalone new mission with no pending native travel.
+The observed target root remains pinned until the ordinary relisten path arms.
+Changed/unknown targets refuse the intent; all final startup gates remain.
+
+Each successful listener permits one subsequent automatic intent, preventing
+failed attempts from cycling between temporary roots. A newly successful
+listener supplies the next origin. No failed native initialization retry,
+guest reconnect, forced travel, driver teardown or fault clearing is added.
+Cancel pending connection suspends this automation for the entire remaining
+process lifetime, even if no request was pending; explicit requests still work.
+The panel helper and setup/transition documentation describe that behavior.
+
+Flash's read-only safeguard review was checked against the implementation.
+All three native outputs rebuilt and planner/panel sources syntax parsed.
+No game, panel, listener, cancellation, fixture or mission transition was run.
+Actual multi-mission connection continuity and guest rejoining remain unverified.
