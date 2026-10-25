@@ -300,3 +300,43 @@ current controller/pawn assignment and existing saved quickslot semantics remain
 the next integration questions. No UI initializer, cleanup, key assignment or
 native body was executed. Package/compression inputs remained unchanged, and
 private raw code was not added to this repository.
+
+## Native wheel setup bodies
+
+The three setup bodies were subsequently disassembled from the supported image.
+SetupPlayerPowers at0xc53910..0xc5399b checks handler+0x7f8/mask0x10, identified
+by the retained SDK as m_bProcessSquadHenchmen. The clear-bit path invokes
+virtual+0x4f0 and populates powers for handler+0x710 only; the set-bit path
+invokes+0x4e8 and processes player/hench pointers at+0x710/+0x718/+0x720.
+For the previously constructor-verified PC handler vtable0x14f6700, these
+virtuals resolve to0xc51aa0 and0xc521b0; populate slot+0x500 is0xc539a0.
+
+The non-henchman selector's complete leaf is0xc51aa0..0xc51ae1. It reads the
+handler's m_pPlayerSquad at+0x700, gets that squad's CachedPlayerPawn at+0x2a8,
+and updates m_pShepardPawn at+0x710 plus the squad-changed bit. It does not
+perform a player-pawn class cast in this leaf. This is a concrete connection
+between the guest's existing player-squad registration and native wheel pawn
+selection. It is not proof that the actual guest wheel selects this branch or
+already references that squad. The generic reader's fallback window includes
+unrelated functions after the leaf return and is not its body extent.
+
+SetupQuickSlotPowers spans three contiguous unwind fragments
+0xc54470..0xc544a3,0xc544a3..0xc545e7,0xc545e7..0xc545ed.
+It requires existing handler controller/squad/player pointers, walks eight
+cached quickslot icons, reads each controller hotkey definition at+0x92c with
+stride16, resolves its pawn, and invokes the existing per-icon setup virtual.
+Missing pawn/icon paths preserve native refusal/hiding behavior. It finally
+sets m_bEvalQuickSlotPowers at handler+0xc54/mask0x40. The selected pawn resolver,
+power population and icon setup callees remain incompletely characterized.
+
+SetupQuickSlotKeys0xc54280..0xc54462 resolves a controller through existing
+native helpers, uses its GameModeManager and formats eight key-label entries.
+It is not established as the routine that installs gameplay input bindings.
+The initial controller resolver must be understood before assuming it selects
+the same local guest controller as the handler.
+
+No native setup method was invoked. The current integration needs a live
+handler/movie identity, matching guest controller and registered squad, the
+appropriate selector branch, existing hotkey definitions and understood
+population/icon callees. These findings identify the chain without inventing
+quickslot assignments or overwriting campaign story squad membership.
