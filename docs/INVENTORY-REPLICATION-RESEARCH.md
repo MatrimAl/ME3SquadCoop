@@ -279,3 +279,38 @@ No package-map acceptance change, hash edit, pointer restoration or native
 handoff replay was added. Source executable identity remained unchanged;
 no game or behavioral test ran. The private review index separates selected
 reviewed observations from the remaining exported bodies.
+
+## Association replacement and source-index observation
+
+The association helper0xb99b0 was exported separately from the same retained
+project (one requested/one nonempty decompilation). Its existing-entry branch
+uses lookup0xba520 and writes the supplied key/value pair into the selected
+record; the new-entry branch allocates/reuses a record and links or rehashes
+it. The key lookup helper's internals were not covered by this one-entry
+follow-up. Together with removal by actor key, replacement is a concrete
+ordering lead, not proof that old/new channels overlapped during a failure.
+No engine map repair is justified by these static bodies alone.
+
+The protected sender observer now adds a bounded post-call index-table
+snapshot for a dynamic-actor index record when the original writer's source
+scalar before serialization is in1..1022. It records whether that connection
+slot is readable, its channel/actor, separately valid channel details, type,
+flags, and reciprocal connection/index. The slot pointer is read again to
+detect replacement during the snapshot. An absent channel remains distinct
+from an unreadable slot or unreadable details. Detail values are usable only
+under their explicit validity flags.
+
+This snapshot is tied to the actual source scalar at that original serializer
+call, rather than the earlier scan's metadata hint. Both pre/post scalars stay
+in the record because a writer may normalize its source. The snapshot occurs
+after forwarding; it cannot prove the table's exact contents at the earlier
+hash lookup, the emitted packet bits or delivery to a particular receive.
+Closing/open flags are observations, not an acceptance override. Static/tag
+and index0 cases do not scan this table. The existing128-record limit, exact
+scope/caller guards, one original call and LastError preservation stay intact.
+
+Only the protected observer changed. No additional hook, archive operation,
+normal-runtime lookup, inventory write or gameplay repair was added. Three
+native targets compiled and fingerprints matched; no game or tests ran.
+The new fields and association-order hypothesis still need deferred live
+evidence before the inventory issue can be closed.

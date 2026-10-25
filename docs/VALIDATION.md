@@ -1,5 +1,15 @@
 # Validation status
 
+The protected inventory sender observer now samples the index-table slot for
+the original dynamic source scalar, including channel/actor, flags and
+reciprocal connection/index with separate validity fields and slot readback.
+This is a post-call observation, not proof of earlier lookup state, wire bits
+or correlated delivery. A separately decompiled association-helper update
+branch narrows a replacement-order lead without diagnosing a real failure.
+Three native targets compiled and fingerprints matched; no game or tests ran.
+Normal runtime behavior did not change. See
+[inventory observation limits](INVENTORY-REPLICATION-RESEARCH.md).
+
 The latest offline inventory batch completed five exact native entries with
 five nonempty decompilations. The actor-channel hash compares full pointer
 keys, while eligibility, sender open-state and receiver closing/class checks

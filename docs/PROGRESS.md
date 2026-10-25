@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: tie inventory sender evidence to its source index
+
+A further native association-helper export shows an existing-entry update
+branch as well as new record allocation. This supports investigating channel
+replacement/removal ordering; it does not prove an overlapping-channel fault.
+The protected sender observer now records the exact original source index's
+post-call table slot, channel/actor, flags and reciprocal identity with separate
+read-validity fields and slot readback. This distinguishes it from the earlier
+full-table hint without calling a serializer or native lookup again.
+
+Normal runtime behavior is unchanged. The observer cannot establish earlier
+hash state, packet bits or host/client event correlation. Three native targets
+compiled and fingerprints matched; no game or tests ran. Inventory root cause
+and repair remain unverified. See
+[source-index observation](INVENTORY-REPLICATION-RESEARCH.md).
+
 ## 2026-10-26: expand inventory analysis through channel teardown
 
 The requested background inventory export processed71 entries with70 nonempty

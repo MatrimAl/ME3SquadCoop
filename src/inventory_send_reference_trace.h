@@ -54,17 +54,36 @@ static void inventory_send_reference_end(InventorySendScope *s) {
 static void inventory_send_reference_record(InventorySendScope *s,int index,uint32_t before,
         uint32_t after,int before_valid,int after_valid) {
     if(inventory_send_reference_rows>=128)return;
-    uint32_t error=0;int valid=read_at(s->archive+0x38,&error,4);char row[1200];++inventory_send_reference_rows;
+    /* This is a post-call table observation for the original writer's source
+     * index, not our earlier full-table hint and not packet correlation. A
+     * serializer may normalize its scalar; retain before/after separately. */
+    uintptr_t channel=0,actor=0,connection=0,again=0;
+    uint32_t type=0,flags=0,channel_index=0;
+    int selected=index&&s->branch==1&&before_valid&&before>0&&before<0x3ff;
+    int table_valid=selected&&read_at(s->connection+0xf84+(uintptr_t)before*8,&channel,8);
+    int details_valid=table_valid&&channel&&read_at(channel+0xa0,&actor,8)&&
+        read_at(channel+0x60,&connection,8)&&read_at(channel+0x6c,&channel_index,4)&&
+        read_at(channel+0x78,&type,4)&&read_at(channel+0x68,&flags,4);
+    if(table_valid&&(!read_at(s->connection+0xf84+(uintptr_t)before*8,&again,8)||again!=channel))
+        table_valid=details_valid=0;
+    int reciprocal=details_valid&&connection==s->connection&&channel_index==before;
+    uint32_t error=0;int valid=read_at(s->archive+0x38,&error,4);char row[2000];++inventory_send_reference_rows;
     snprintf(row,sizeof row,
       "{\"inventory_send_reference\":\"%s\",\"property_id\":%u,\"branch\":%d,\"tag\":%u,"
       "\"value_before_valid\":%s,\"value_after_valid\":%s,\"scalar_before\":%u,\"scalar_after\":%u,"
       "\"pawn\":\"0x%llx\",\"inventory\":\"0x%llx\",\"map_connection\":\"0x%llx\","
       "\"metadata_channel_index\":%u,\"archive_error_read_valid\":%s,\"archive_error\":%u,"
+      "\"source_index_table_selected\":%s,\"source_index_table_valid\":%s,"
+      "\"source_index_channel\":\"0x%llx\",\"source_index_details_valid\":%s,"
+      "\"source_index_actor\":\"0x%llx\",\"source_index_channel_type\":%u,\"source_index_channel_flags\":%u,"
+      "\"source_index_reciprocal\":%s,\"source_index_matches_inventory\":%s,"
       "\"original_forwarded\":true,\"payload_modified\":false,\"monotonic_ms\":%lu}\r\n",
       index?"index":"tag",s->id,s->branch,(unsigned)s->tag,before_valid?"true":"false",
       after_valid?"true":"false",before,after,(unsigned long long)s->pawn,
       (unsigned long long)s->value,(unsigned long long)s->connection,s->channel_index,
-      valid?"true":"false",error,GetTickCount());line(row);
+      valid?"true":"false",error,selected?"true":"false",table_valid?"true":"false",
+      (unsigned long long)channel,details_valid?"true":"false",(unsigned long long)actor,type,flags,
+      reciprocal?"true":"false",reciprocal&&type==2&&actor==s->value?"true":"false",GetTickCount());line(row);
 }
 static int inventory_send_tag_branch(uintptr_t caller) {
     uintptr_t base=initial_actor_trace_base;
