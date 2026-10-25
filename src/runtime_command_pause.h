@@ -76,4 +76,29 @@ static void runtime_command_pause_prepare(uintptr_t base,uintptr_t engine,int en
     *lease=captured;
     line("{\"runtime_command_pause\":\"disabled-for-coop\",\"forced_unpause\":false,\"gameplay_verified\":false}\r\n");
 }
+static int runtime_host_command_menu_held(uintptr_t base,SessionContext c) {
+    RuntimeCommandPause *policy=&runtime_command_pause;
+    if(c.mode!=3||g_runtime_config.role!=ME3_ROLE_HOST||!runtime_control_enabled||!runtime_scope_ready||
+       !InterlockedCompareExchange(&g_enable_requested,0,0)||!session_active||session_fault||session_releasing||
+       session_pending_reason||session_cleanup_pending||!policy->active||
+       !runtime_command_pause_same(base,c,policy)||session_environment_block_reason(c)||
+       c.pc!=session_host||c.pawn!=session_shepard||c.world!=session_world||c.squad!=session_squad||
+       !session_handle_matches(session_host_handle)||!session_handle_matches(session_shepard_handle)||
+       !session_handle_matches(session_world_handle)||!session_handle_matches(session_squad_handle)||
+       !session_story_valid(base))return 0;
+    uint32_t pause_flags=4;unsigned char net=255,mode_id=255;
+    GameArray modes={0},after={0};uintptr_t manager=read_ptr(c.pc+0xc38),mode=0;
+    if(!read_at(policy->gri.pointer+0x378,&pause_flags,4)||(pause_flags&4)||
+       !read_at(c.world+0x7c8,&net,1)||net!=2||manager!=c.manager||
+       !narrative_probe_object(base,manager,"SFXGameModeManager")||
+       !runtime_power_property(base,c.pc,"BioPlayerController","GameModeManager2","ObjectProperty",0xc38,8)||
+       !runtime_power_property(base,manager,"SFXGameModeManager","GameModes","ArrayProperty",0x70,16)||
+       !runtime_power_property(base,manager,"SFXGameModeManager","CurrentMode","ByteProperty",0xa8,1)||
+       !identity_array(manager+0x70,&modes,64)||modes.count<=3||
+       !read_at(modes.data+3*8,&mode,8)||!narrative_probe_object(base,mode,"SFXGameModePowerWheel")||
+       read_ptr(mode+0x40)!=c.pc||!read_at(manager+0xa8,&mode_id,1)||mode_id!=3)return 0;
+    return read_at(manager+0x70,&after,sizeof after)&&!memcmp(&after,&modes,sizeof after)&&
+        read_ptr(modes.data+3*8)==mode&&read_ptr(c.pc+0xc38)==manager&&
+        read_at(manager+0xa8,&mode_id,1)&&mode_id==3&&!session_environment_block_reason(c);
+}
 #endif

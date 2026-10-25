@@ -50,6 +50,9 @@ typedef struct {
     uintptr_t pc, pawn, world, squad, manager;
     unsigned char mode;
 } SessionContext;
+/* Ordinary runtime may retain an existing lease in a verified native command
+ * menu. NULL keeps the protected probe's original scene policy. */
+static int (*session_command_menu_retained)(uintptr_t,SessionContext);
 static SessionContext session_context(uintptr_t engine) {
     SessionContext c = {0}; c.mode = 255;
     c.pc = local_controller(engine);
@@ -387,6 +390,8 @@ static void session_host_frame(uintptr_t base, uintptr_t engine, int after) {
     }
     int synthetic = session_policy_synthetic(session_first_acquired,now);
     const char *engine_reason = session_engine_block_reason(c);
+    if(engine_reason&&session_active&&!synthetic&&session_command_menu_retained&&
+       session_command_menu_retained(base,c))engine_reason=NULL;
     int engine_gate = engine_reason != NULL, blocked = engine_gate || synthetic;
     session_gate(blocked, synthetic && !engine_gate, c.mode, engine_reason, now);
     if (session_active) {
@@ -409,7 +414,7 @@ static void session_host_frame(uintptr_t base, uintptr_t engine, int after) {
             session_fault = 1; session_release(base, c, "ownership-lost", now); return;
         }
         if(after)session_policy_held(base,c.pc,c.pawn,session_remote,session_connection,
-            session_pawn,c.world,session_epoch,!blocked,now);
+            session_pawn,c.world,session_epoch,!blocked&&c.mode==0,now);
         return;
     }
     if (session_fault || blocked || !session_policy_enabled() || !c.pc || !c.pawn || !c.squad) { session_admission_wait_reset(); return; }

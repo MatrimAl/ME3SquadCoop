@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-10-26: retain active guest ownership through the host Shift menu
+
+The ordinary host now retains an already-active guest lease in an exact
+unpaused native power-wheel mode3. This complements the command-pause policy;
+previously the generic mode0-only scene gate would still release Ashley even
+if simulation kept running. Retention verifies current host/story/world,
+listen-server scope, disabled command-pause policy and the actual mode-manager
+instance. Travel, disconnect, fault, conversation and reciprocal ownership
+checks remain in force. No new guest admission or equipment startup is enabled
+inside the menu. The protected probe's default policy remains unchanged.
+
+Three native targets compiled and fingerprints matched; no game or tests ran.
+Actual host-menu control continuity and gameplay remain unverified.
+
+The separate CLI decompilation completed with provider_timeout at its default
+330-second startup deadline. Its result is retained as failure evidence, not
+pseudocode. Both prior Java jobs ended before the target was closed. One new
+background CLI job was started with a two-hour startup allowance, without
+changing installed configuration. Offline feature implementation continued
+while that analysis ran.
+
 ## 2026-10-26: aggregate power-wheel evidence while Ghidra analyzes
 
 A private offline feature-dossier builder now joins8 named native roles,

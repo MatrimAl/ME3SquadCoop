@@ -892,3 +892,26 @@ that prerequisite the helper refuses rather than pretending the wheel is ready.
 The hook remains forwarding/resident until exit, and a replaced hook retires
 the optional icon lease. Three native targets compiled and build fingerprints
 matched. No game, selected power, cancellation, cast effect or tests ran.
+
+## Host power menu retains an existing guest lease
+
+Disabling command pause alone did not cover host ownership policy: the shared
+host loop still released a guest whenever the local host left mode0. The
+ordinary runtime now supplies a read-only retention predicate for a verified
+host power-wheel mode3, only while a guest lease is already active. Admission
+of a new guest remains mode0-only. The protected probe leaves the predicate
+unset and keeps its original scene policy.
+
+Retention requires the same live host/Shepard/world/story squad, a healthy
+active lease without pending cleanup/fault, admitted listen-server scope,
+the verified current SFXGRI command-pause policy still disabled, and the actual
+mode3 object's class/Outer in the current reflected mode-manager array. The
+ordinary environmental checks still reject real pause, PlayersOnly/pending,
+cinematic flags, active conversations and unreadable state. Array/mode and
+environment are checked again before returning eligibility.
+
+The host loop still performs its normal travel, story, disconnect and reciprocal
+guest ownership checks. Equipment startup receives ordinary=false during this
+menu; retaining ownership does not authorize another equipment initialization.
+Other scenes still release. Three native targets compiled and fingerprints
+matched. No game, Shift transition, guest movement/combat or tests ran.

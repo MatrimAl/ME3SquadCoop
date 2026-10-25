@@ -1,5 +1,11 @@
 # Validation status
 
+The ordinary host now retains existing guest ownership in a verified unpaused
+Shift/power-wheel mode3 while keeping disconnect/story/ownership/scene checks.
+Admission and equipment startup remain mode0-only. Three native targets
+compiled and fingerprints matched; no game or tests ran. Actual host-menu
+control continuity and gameplay remain unverified.
+
 The optional icon candidate now validates and supplies an owned caster/group
 to the exact native full-wheel selection caller. Every group icon and power
 must match the current Ashley/player-controller context; mixed/stale groups
