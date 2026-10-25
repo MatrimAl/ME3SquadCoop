@@ -238,9 +238,9 @@ static int combat_forward_step(int observing,int same,int ordinary,int walking,i
         unsigned elapsed,unsigned observing_elapsed,float horizontal,float height) {
     if((observing!=0&&observing!=1)||same!=1||!isfinite(horizontal)||!isfinite(height)||
        horizontal<0||horizontal>600||fabsf(height)>600)return COMBAT_FORWARD_ABORT;
-    if(elapsed>=7000)return COMBAT_FORWARD_DONE;
+    if(elapsed>=8000)return COMBAT_FORWARD_DONE;
     if(observing)return observing_elapsed>=5000?COMBAT_FORWARD_DONE:COMBAT_FORWARD_OBSERVE;
-    if(ordinary!=1||walking!=1||action!=0||grounded!=1||elapsed>=2000||horizontal>=180)
+    if(ordinary!=1||walking!=1||action!=0||grounded!=1||elapsed>=3000||horizontal>=280)
         return COMBAT_FORWARD_OBSERVE;
     return COMBAT_FORWARD_INPUT;
 }
@@ -283,8 +283,9 @@ static void combat_route_forward_tick(uintptr_t base,uintptr_t engine,SessionCon
     float flat_target[3]={bottom[0],bottom[1],q->forward_origin[2]};
     if(!combat_route_corridor(checked_xyz,q->forward_origin,flat_target)||
        /* The slow approach gain moved only 29 units in the bounded trial.
-        * Use the existing road walking gain; retain the 2-second/180-unit
-        * input limits and stop immediately when native falling begins. */
+        * Two seconds at road gain stopped after 167 units, still on top.
+        * Bound the last approach to 3 seconds/280 units; stop immediately
+        * when native falling begins. No traversal action is forced. */
        !combat_route_axes(checked_xyz,flat_target,rotation[1],0.45f,q->axes)){
         combat_route_end(base,"aborted","forward-edge-normal-axis-or-corridor",xyz,now);return;
     }
@@ -438,23 +439,23 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
 }
 static int combat_route_qa_selftest(void) {
     if(!(combat_forward_step(0,1,1,1,0,1,0,0,0,0)==COMBAT_FORWARD_INPUT))return 0;
-    if(!(combat_forward_step(0,1,1,1,0,1,1999,0,179.99f,0)==COMBAT_FORWARD_INPUT))return 0;
-    if(!(combat_forward_step(0,1,1,1,0,1,2000,0,50,0)==COMBAT_FORWARD_OBSERVE))return 0;
-    if(!(combat_forward_step(0,1,1,1,0,1,0,0,180,0)==COMBAT_FORWARD_OBSERVE))return 0;
+    if(!(combat_forward_step(0,1,1,1,0,1,2999,0,279.99f,0)==COMBAT_FORWARD_INPUT))return 0;
+    if(!(combat_forward_step(0,1,1,1,0,1,3000,0,50,0)==COMBAT_FORWARD_OBSERVE))return 0;
+    if(!(combat_forward_step(0,1,1,1,0,1,0,0,280,0)==COMBAT_FORWARD_OBSERVE))return 0;
     if(!(combat_forward_step(0,1,1,0,0,1,10,0,1,0)==COMBAT_FORWARD_OBSERVE))return 0;
     if(!(combat_forward_step(0,1,1,1,30,1,10,0,1,0)==COMBAT_FORWARD_OBSERVE))return 0;
     if(!(combat_forward_step(0,1,1,1,0,0,10,0,1,0)==COMBAT_FORWARD_OBSERVE))return 0;
     if(!(combat_forward_step(0,1,0,1,0,1,10,0,1,0)==COMBAT_FORWARD_OBSERVE))return 0;
     if(!(combat_forward_step(0,0,1,1,0,1,10,0,1,0)==COMBAT_FORWARD_ABORT))return 0;
     if(!(combat_forward_step(1,0,1,1,0,1,10,0,1,0)==COMBAT_FORWARD_ABORT))return 0;
-    if(!(combat_forward_step(1,1,0,0,30,0,2100,4999,267,-380)==COMBAT_FORWARD_OBSERVE))return 0;
-    if(!(combat_forward_step(1,1,1,1,0,1,7100,5000,267,-380)==COMBAT_FORWARD_DONE))return 0;
+    if(!(combat_forward_step(1,1,0,0,30,0,3100,4999,267,-380)==COMBAT_FORWARD_OBSERVE))return 0;
+    if(!(combat_forward_step(1,1,1,1,0,1,8000,5000,267,-380)==COMBAT_FORWARD_DONE))return 0;
     if(!(combat_forward_step(1,1,1,1,0,1,0,0,601,0)==COMBAT_FORWARD_ABORT))return 0;
     if(!(combat_forward_step(1,1,1,1,0,1,0,0,0,-601)==COMBAT_FORWARD_ABORT))return 0;
     if(!(combat_forward_step(0,1,1,1,0,1,0,0,NAN,0)==COMBAT_FORWARD_ABORT))return 0;
     if(!(combat_forward_step(0,1,1,1,0,1,0,0,0,INFINITY)==COMBAT_FORWARD_ABORT))return 0;
- uint32_t start=0xfffffff0u,now=0x7c0u;
-    if(!(now-start==2000u))return 0;
+ uint32_t start=0xfffffff0u,now=0xba8u;
+    if(!(now-start==3000u))return 0;
     if(!(combat_forward_step(0,1,1,1,0,1,now-start,0,0,0)==COMBAT_FORWARD_OBSERVE))return 0;
 
     int action_loaded=combat_action_qa.loaded,action_opted=combat_action_qa.opted;
