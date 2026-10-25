@@ -90,6 +90,7 @@ static int runtime_power_caster(void *self,uintptr_t *pawn_out,uintptr_t *group_
         }
         int entry=runtime_power_name_index(&catalog,name);
         if(entry<0||catalog.powers[entry].pointer!=power||
+           !runtime_power_native_lookup_matches(base,&catalog,(unsigned)entry)||
            !runtime_power_icon_matches(icon,catalog.powers[entry],c.pawn,name)||
            !runtime_power_property(base,power,"BioCustomAction","m_oPawn","ObjectProperty",0x98,8)||
            !runtime_power_property(base,power,"BioCustomAction","m_oPC","ObjectProperty",0xa0,8)||

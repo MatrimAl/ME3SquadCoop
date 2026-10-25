@@ -78,7 +78,11 @@ static int runtime_quickslot_setup(void *self,uintptr_t pawn,uint64_t name,uintp
     uint32_t mapped[2]={0};
     if(entry>=0) {
         memcpy(mapped,catalog.names[entry],8);uint64_t packed=0;memcpy(&packed,mapped,8);
-        if(!runtime_power_caster_power_owned(desired.pointer,c))return 0;
+        if(!runtime_power_caster_power_owned(desired.pointer,c)||
+           !runtime_power_native_lookup_matches(base,&catalog,(unsigned)entry)) {
+            if(tracked)paint->failed=1;
+            return 0;
+        }
         result=runtime_original_quickslot_setup(self,c.pawn,packed,icon);
     } else {
         /* Returning success would make native setup assign an active state

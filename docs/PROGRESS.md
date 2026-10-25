@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-26: match native first-name lookup to the selected power object
+
+The exact native manager lookup was traced through registration, class
+constructor and vtable. Its bounded leaf compares the complete PowerName and
+returns the first full-array match, without applying the eligible-catalog
+filters. Ghidra did not recognize that leaf as an exact function; its selected
+instructions, ending at the actual return, provide the retained evidence.
+
+A shared read-only check now requires native name lookup to select the same
+power object as the mod catalog before quickslot setup, full-wheel selection
+or queued native order dispatch. An earlier ineligible duplicate can no longer
+silently redirect this route. The check validates the actual dispatch entry,
+layout, array and prefix readback and refuses unmodeled implementations.
+Three native targets compiled and fingerprints matched; no game or tests ran.
+See the [lookup contract](POWER-LOOKUP-CONTRACT.md). Actual casting remains
+unverified.
+
 ## 2026-10-26: coordinate guest slots with native PC-wheel refresh
 
 The optional icon candidate now redirects the exact native quickslot pawn

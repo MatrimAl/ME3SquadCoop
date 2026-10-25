@@ -1,5 +1,13 @@
 # Validation status
 
+Guest quickslot setup, full-wheel caster selection and queued power dispatch
+now check that the supported native first-match PowerName lookup resolves to
+the expected eligible object. Full-array prefix/header/name readback detects
+an earlier conflicting entry omitted from the compact catalog; unknown lookup
+implementations refuse. Three native targets compiled and fingerprints matched;
+no game or tests ran. This is an identity guard, not a verified cast. See the
+[native lookup contract](POWER-LOOKUP-CONTRACT.md).
+
 The optional native-icons candidate now coordinates the stock quickslot
 refresh with the owned guest slot map through exact caller-scoped pawn/setup
 hooks. Native per-icon setup and permission/cooldown/display processing remain

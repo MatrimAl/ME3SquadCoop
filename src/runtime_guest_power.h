@@ -174,6 +174,39 @@ static int runtime_power_read_membership(uintptr_t base,SessionContext c,Runtime
         session_handle_matches(out->input)&&read_ptr(c.pc+0x6dc)==input&&read_ptr(input+0x40)==c.pc&&
         read_ptr(c.pawn+0xc18)==manager&&read_ptr(manager+0xd0)==c.pawn;
 }
+/* The supported native GetPower scans the full manager array and returns its
+ * first exact PowerName match, including entries omitted from the UI catalog.
+ * Prove that a name request will resolve to this particular eligible object. */
+static int runtime_power_native_lookup_matches(uintptr_t base,const RuntimePowerCatalog *catalog,unsigned index) {
+    static const unsigned char entry[]={0x48,0x63,0x41,0x68,0x48,0x89,0x54,0x24,0x10};
+    unsigned char bytes[sizeof entry];GameArray array={0},after={0};
+    if(index>=(unsigned)catalog->count||!session_handle_matches(catalog->manager)||
+       !session_handle_matches(catalog->powers[index])||
+       read_ptr(read_ptr(catalog->manager.pointer)+0x2b0)!=base+0xc0c4d0||
+       !read_at(base+0xc0c4d0,bytes,sizeof bytes)||memcmp(bytes,entry,sizeof bytes)||
+       !runtime_power_property(base,catalog->manager.pointer,"SFXPowerManager","Powers","ArrayProperty",0x60,16)||
+       !runtime_power_property(base,catalog->powers[index].pointer,"SFXPowerCustomActionBase","PowerName","NameProperty",0x46c,8)||
+       !identity_array(catalog->manager.pointer+0x60,&array,RUNTIME_POWER_LIMIT)||
+       memcmp(&array,&catalog->array,sizeof array))return 0;
+    uintptr_t objects[RUNTIME_POWER_LIMIT]={0};uint32_t names[RUNTIME_POWER_LIMIT][2]={{0}};int found=-1;
+    for(int n=0;n<array.count;++n) {
+        if(!read_at(array.data+(size_t)n*8,&objects[n],8))return 0;
+        if(!objects[n])continue;
+        if(!narrative_probe_object(base,objects[n],"SFXPowerCustomActionBase")||
+           !read_at(objects[n]+0x46c,names[n],8))return 0;
+        if(!memcmp(names[n],catalog->names[index],8)){found=n;break;}
+    }
+    if(found<0||objects[found]!=catalog->powers[index].pointer)return 0;
+    for(int n=0;n<=found;++n) {
+        uintptr_t object=0;uint32_t name[2]={0};
+        if(!read_at(array.data+(size_t)n*8,&object,8)||object!=objects[n]||
+           (object&&(!read_at(object+0x46c,name,8)||memcmp(name,names[n],8))))return 0;
+    }
+    return read_at(catalog->manager.pointer+0x60,&after,sizeof after)&&!memcmp(&array,&after,sizeof array)&&
+        session_handle_matches(catalog->powers[index])&&session_handle_matches(catalog->manager)&&
+        read_ptr(catalog->pawn.pointer+0xc18)==catalog->manager.pointer&&
+        read_ptr(catalog->manager.pointer+0xd0)==catalog->pawn.pointer;
+}
 static int runtime_power_dispatch_idle(SessionContext c) {
     int32_t action=-1,power=-1;unsigned char ignored=255;
     return read_at(c.pawn+0xc20,&action,4)&&!action&&read_at(c.pawn+0xc28,&power,4)&&!power&&
@@ -318,6 +351,9 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
        read_ptr(item+0x98)!=c.pawn||read_ptr(item+0xa0)!=c.pc||read_ptr(item+0xa8)||
        !guest_power_order_contract(base,method)||read_ptr(read_ptr(c.pc)+0x230)!=pe) {
         reason="context-changed-before-native-order";goto rejected;
+    }
+    if(!runtime_power_native_lookup_matches(base,&final,index)) {
+        reason="native-name-resolves-to-different-or-unverified-power";goto rejected;
     }
     GuestPowerOrderParms parms={0};memcpy(parms.power_name,name,8);parms.pawn=c.pawn;parms.result=UINT32_MAX;
     if(runtime_power_request_expired(submitted)){reason="power-request-expired";goto rejected;}
