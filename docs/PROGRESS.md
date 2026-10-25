@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-10-25: authoritative Trooper hits without a health decrease
+
+The host walked to the side parking position and remained grounded. Guest
+aim calibrated, locked and completed the normal two-second fire/stop cycle.
+The host's hit-drain records now include two actual SFXPawn_Trooper actors,
+joined by host pointer and UObject identity to the independent authoritative
+sampler: live AI_Trooper controllers, team1, combat squad and reciprocal
+SFXModule_Damage objects. Their512.5 health did not decrease in the bracketed
+calls or the39-snapshot health capture. This establishes a real hit/damage
+discrepancy; it does not establish successful hostile damage or a full fight.
+
+Selected stock LE3 script exports were fully decoded offline using the
+existing pinned LegendaryExplorer-based reader. ProcessInstantHit_Internal
+guards its TakeDamage call with bSuppressDamage and a nonnull HitActor;
+NumHits is not a damage gate in that body. GetFireModeBaseDamage reads the
+scaled Damage.Value and multiplies by DamageHench for a henchman instigator;
+GetDamageType uses the requested firing-mode entry for mode2. These identify
+the next damage inputs to observe, not permission to force damage or change
+weapon flags. The actual runtime input values remain unknown.
+
+The completed protected pair preserved original profiles, recorded zero
+native exceptions and left no game processes. The walking evaluator and
+memory helper still failed their separate checks. Full conversations and
+campaign progression remain unverified.
+
 ## 2026-10-25: aimed native fire and stop observed, host obstructed the shot
 
 The measured-input-floor repeat completed yaw/pitch calibration, reached the
