@@ -84,6 +84,44 @@ per-Tick reset or clear cinematic input locks. Inspect the native loader and
 actual missing-binding condition before implementing that recovery policy;
 its safe invocation and profile preservation remain unverified in the guest.
 
+## Native profile-loader follow-up
+
+Read-only exact-executable analysis resolved an additional prerequisite that
+the script wrapper does not check. The UTF-16 native registration name
+`intABioPlayerControllerexecLoadPCInputConfiguration` is at RVA0x13a2980;
+its member storage at0x17a5c00 is zero on disk. Initializer0x5c540 stages
+RVA0xb67b80 through stack/XMM copies and stores it at0x5c653. That thunk
+finishes script-parameter handling and jumps through receiver vtable+0xaf8.
+
+The BioPlayerController class-construction reference at0xa9e42d leads to
+the constructor trampoline0xa9fb90 and instance constructor0xa97b30. The
+trampoline's meaningful leaf is its test/branch/return sequence; a generic
+512-byte fallback window also includes unrelated adjacent code and must not
+be treated as its function body. The instance constructor's final primary
+vtable write at0xa97bf7 selects0x1340768. Its ProcessEvent slot+0x230 equals
+the already verified0x40d450, and slot+0xaf8 selects0xaa00b0. These are static
+native-base findings; an actual guest receiver's vtable still requires checking.
+
+The0xaa00b0..0xaa0252 body reads controller+0xb68, then immediately reads
+that object's profile-array count/data at+0x68/+0x60 without a null check.
+The retained SDK identifies controller+0xb68 as ProfileSettings. It searches
+0x1c-byte profile rows for identifier0x37, converts the selected value and,
+when nonempty, forwards it to a helper with controller.GameModeManager2.
+The semantics and accepted contents of that conversion/apply helper remain
+unresolved. No profile row was invented, supplied or rewritten.
+
+The loader's tail updates an existing PlayerInput's MouseSensitivity at+0x18c
+and BioPlayerInput.bUseMouseDampening at+0x3c4/mask1 from native global options.
+It therefore has effects beyond adding power keys. A valid PRI alone cannot
+authorize invoking UpdateInputConfiguration: the current profile object and
+array, input class/identity, manager and native method target must also be
+verified. Do not transplant LEMP's broad EnableInput/mode/state changes into a
+campaign cinematic or use a repeated reset to mask an unidentified input fault.
+
+This follow-up only read the supported image with SHA-256
+`b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001`.
+It did not call a native function, modify a game/profile or launch a process.
+
 The ASI repository's MIT license covers that source; it must not be assumed to
 license the DLC's game-derived content. This repository contains only authored
 findings and implementation, without extracted scripts or game assets. No
