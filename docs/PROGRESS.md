@@ -1349,3 +1349,13 @@ the adapted launch assignments against those native limits. The longer test
 window has not yet been exercised. Original profiles were unchanged, native
 exceptions were zero and no game remained after the preceding run; the
 read-only monitor again reported access denied, so it was not an all-pass audit.
+## Protected manual arena pair preparation
+
+A default-off probe-only `ME3_SQUAD_COOP_ARENA_PAIR_QA` option selects the
+private SPCer fixture instead of the Mars route. It requires private file
+protection, host/client research roles, progress/session support, manual guest
+input, host map refresh, and no Mars prewarm/reload. It disables synthetic
+scene release, host route input and companion catch-up. Acquisition still uses
+the shared native scene, squad identity, ownership and equipment guards.
+The ordinary player ASI does not use this option. Policy fixtures passed;
+this preparation alone does not establish a connected arena pair or combat.

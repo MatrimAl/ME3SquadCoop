@@ -13,6 +13,8 @@ BUILD = ROOT / "local" / "build"
 probe = ctypes.CDLL(str(BUILD / "ME3SquadCoopProbe.asi"))
 probe.SquadProbeSelfTest.restype = ctypes.c_int
 assert probe.SquadProbeSelfTest() == 1, "safe memory-read positive/negative controls failed"
+probe.SquadArenaPairQASelfTest.restype = ctypes.c_int
+assert probe.SquadArenaPairQASelfTest() == 1, "arena QA admitted nonmanual, synthetic/prewarm, wrong-role or unprotected policy"
 probe.SquadRuntimeIdentitySelfTest.restype = ctypes.c_int
 assert probe.SquadRuntimeIdentitySelfTest() == 1, "shared image landmarks accepted an invalid timestamp, signature or address"
 probe.SquadRuntimeConfigSelfTest.restype = ctypes.c_int

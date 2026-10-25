@@ -13,17 +13,17 @@ static int session_policy_is_host(void) {return test_action==6;}
 static int session_policy_enabled(void) {
     return has_marker(root);
 }
-static int session_policy_host_ready(void) {return host_map_refreshed;}
+static int session_policy_host_ready(void) {return host_map_refreshed&&(!arena_pair_qa||arena_pair_world((uintptr_t)GetModuleHandleW(NULL)));}
 static int session_policy_synthetic(DWORD first,DWORD now) {
     /* The normal-action gameplay trial follows real scene gates only. A
      * synthetic release made the detached guest fall before reacquisition. */
-    if(combat_action_opted())return 0;
+    if(arena_pair_qa||combat_action_opted())return 0;
     DWORD at=progress_enabled?30000:18000;return first&&now-first>=at&&now-first<at+3000;
 }
 static int session_policy_walk_started(void) {return progress_walk_at!=0;}
-static int session_policy_acquire_ready(DWORD now) {return !progress_enabled||(progress_walk_at&&now-progress_walk_at>=14000);}
+static int session_policy_acquire_ready(DWORD now) {return arena_pair_qa?arena_pair_world((uintptr_t)GetModuleHandleW(NULL)):!progress_enabled||(progress_walk_at&&now-progress_walk_at>=14000);}
 static void session_policy_companion_far(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t ai) {
-    progress_follow(base,pc,pawn);progress_native_catchup(base,pc,pawn,ai);
+    if(!arena_pair_qa){progress_follow(base,pc,pawn);progress_native_catchup(base,pc,pawn,ai);}
 }
 static void session_policy_acquired(DWORD now) {if(progress_enabled&&!progress_lease_at)progress_lease_at=now;}
 static void session_policy_held(uintptr_t base,uintptr_t pc,uintptr_t host_pawn,uintptr_t remote,

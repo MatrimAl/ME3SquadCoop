@@ -168,6 +168,7 @@ static void log_blocked_path(void) {
     }
     snprintf(message, sizeof message, "{\"blocked_write_count\":%ld,\"private_blocked_path\":\"%s\"}\r\n", blocked_writes, escaped);
     line(message);
+
 }
 static HRESULT WINAPI private_folder(HWND hwnd, int folder, HANDLE token, DWORD flags, LPWSTR out) {
     if ((folder & 0xff) == 5 && out) {
@@ -446,6 +447,7 @@ static int native_session_role(void) {return test_action;}
 #include "remote_appearance_qa.h"
 #define ME3_PROTECTED_GUEST_TEAM_QA 1
 static void guest_team_qa_release(uintptr_t base,DWORD now);
+#include "arena_pair_qa.h"
 #include "session_control.h"
 #include "guest_team_qa.h"
 #include "guest_team_qa_selftest.h"
@@ -472,6 +474,10 @@ static void game_tick_diagnostics(void *self,uintptr_t base) {
         "{\"game_thread\":%lu,\"elapsed_ms\":%lu,\"local_pc\":\"%s\",\"local_pawn\":\"%s\",\"pawn_class\":\"%s\",\"world\":\"%s\",\"squad_present\":%s,\"mode\":%u,\"world_time\":%.3f}\r\n",
         GetCurrentThreadId(), now - bridge_started, pc_name, pawn_name, pawn_class, world_name, squad ? "true" : "false", mode, world_time);
     line(message);
+    if(arena_pair_qa) {
+        int ready=arena_pair_world(base)&&mode==0&&is_live(base,pawn)&&is_kind_of(base,pawn,"SFXPawn_Player")&&is_live(base,squad);
+        snprintf(message,sizeof message,"{\"arena_pair_qa\":\"readiness\",\"current_spcer\":%s,\"ordinary_shepard_squad\":%s,\"mode\":%u,\"monotonic_ms\":%lu}\r\n",arena_pair_world(base)?"true":"false",ready?"true":"false",mode,now);line(message);
+    }
     if (test_action >= 4) {
         uintptr_t game = world ? read_ptr(world + 0x6b0) : 0;
         unsigned char netmode = 255;
@@ -543,6 +549,7 @@ static void game_tick_diagnostics(void *self,uintptr_t base) {
     wchar_t command[80];
     wcscpy(command, test_action == 4 || (test_action == 6 && !host_reload_mars) ? L"open BioP_ProMar?listen" :
                     L"open BioP_ProMar");
+    if(arena_pair_qa&&test_action==6)wcscpy(command,L"open BioP_SPCer?listen");
     if (test_action == 5 && !client_prewarm) _snwprintf(command,80,L"open %ls:%u",direct_ip_config.peer_ipv4,(unsigned)direct_ip_config.port);
     ConsoleParms parms = {0};
     parms.command.data = command;
@@ -562,7 +569,7 @@ static void game_tick(void *self,float delta) {
     if(!collision_baseline_qa_opted())install_package_trace(base);
     ammo_wire_install(base);
     input_bot(base,(uintptr_t)self);
-    if(!combat_route_qa_host_mode())progress_input(base,(uintptr_t)self);
+    if(!arena_pair_qa&&!combat_route_qa_host_mode())progress_input(base,(uintptr_t)self);
     combat_route_qa_tick(base,(uintptr_t)self,0,GetTickCount());
     if(session_enabled)session_frame(base,(uintptr_t)self,0);else pair_guest_input(base,(uintptr_t)self);
     combat_aim_qa_tick(base,(uintptr_t)self,0,GetTickCount());
@@ -728,6 +735,13 @@ static int probe_configure_orchestration(int guards_only) {
     prewarm[0] = 0;
     session_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_SESSION_TEST", prewarm, 8) == 1 && prewarm[0] == L'1';
     progress_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PROGRESS_TEST", prewarm, 8) == 1 && prewarm[0] == L'1';
+    prewarm[0]=0;
+    int arena=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_ARENA_PAIR_QA",prewarm,8)==1&&prewarm[0]==L'1';
+    if(arena) {
+        int manual=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_MANUAL_GUEST_QA",prewarm,8)==1&&prewarm[0]==L'1';
+        if(!arena_pair_policy(1,guards_only,test_action,progress_enabled,session_enabled,manual,refresh_host_map,host_reload_mars,client_prewarm))return 0;
+        arena_pair_qa=1;
+    }
     return 1;
 }
 
@@ -801,6 +815,7 @@ __declspec(dllexport) int SquadProbeMutexTest(void) {
            scoped_mutex_name(other, 1, alias, 96) == other && scoped_mutex_name(NULL, 1, alias, 96) == NULL;
 }
 __declspec(dllexport) int SquadProbeEnabled(const wchar_t *folder) { return has_marker(folder); }
+__declspec(dllexport) int SquadArenaPairQASelfTest(void) { return arena_pair_selftest(); }
 __declspec(dllexport) int SquadProbePathTest(void) {
     wchar_t saved[MAX_PATH]; wcscpy(saved, root); wcscpy(root, L"X:\\SANDBOX");
     int ok = path_inside_test(L"X:\\SANDBOX\\private.txt") &&
