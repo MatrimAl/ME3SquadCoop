@@ -14,6 +14,19 @@ frame; frame reads and updates now require the owning thread. Native forwarding
 checks and the low-integrity protection fixture passed after rebuilding all
 three outputs. No decoded-object live result or gameplay fix is claimed yet.
 
+The completed protected pair subsequently recorded65 initial UObject results,
+all with the original archive return preserved. The remote Shepard reference
+resolved to the real male Soldier archetype and bound normally in this run;
+the intermittent failing case did not occur, so it remains unexplained.
+All39 enemy-health snapshots showed no decrease. Shared travel failed because
+the guest QA route kept its pre-scene corridor after the stock scene moved
+Ashley. It now restarts its waypoint/origin tracking on the existing guest
+ownership epoch, including same-pawn reacquisition. This changes bot state,
+not engine transforms. Native route/forwarding checks passed after rebuilding;
+the epoch correction still needs a live repeat. The completed pair preserved
+original profiles and recorded no native exceptions or remaining game
+processes, but its memory helper exited1, preventing an all-pass observer claim.
+
 ## 2026-10-25: keep the encounter test guest on the measured road
 
 The last protected pair completed the host's lower route to PathNode99, but

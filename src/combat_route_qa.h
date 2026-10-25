@@ -204,23 +204,25 @@ static int combat_route_discover(uintptr_t base,uintptr_t world,DWORD now) {
  * leave the final drop and lower area to the existing ordinary follow input. */
 static int combat_guest_road_target(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,const float position[3],float target[3],DWORD now) {
     static GuestCameraStamp guest_pc,guest_pawn,guest_world;
-    static unsigned point;static int started,done;static float origin[3];
+    static unsigned point;static uint32_t epoch;static int started,done;static float origin[3];
     CombatRouteQA *q=&combat_route_qa;
     if(!combat_action_opted()||!combat_lower_opted())return 0;
     combat_route_qa_host_mode();
     if(!q->opted||test_action!=5||strcmp(test_role,"client")||session_manual_guest_input())return 0;
-    if(!guest_camera_stamp_matches(base,&guest_pc,1)||!guest_camera_stamp_matches(base,&guest_pawn,1)||
+    if(epoch!=session_guest_epoch||!guest_camera_stamp_matches(base,&guest_pc,1)||!guest_camera_stamp_matches(base,&guest_pawn,1)||
        !guest_camera_stamp_matches(base,&guest_world,1)||guest_pc.pointer!=pc||guest_pawn.pointer!=pawn||guest_world.pointer!=world){
         started=done=0;
         if(!guest_camera_stamp_read(base,pc,&guest_pc,1)||!guest_camera_stamp_read(base,pawn,&guest_pawn,1)||
            !guest_camera_stamp_read(base,world,&guest_world,1))return -1;
+        epoch=session_guest_epoch;
     }
     if(done)return 0;
     if(!scene_readiness_finite3(position)||!combat_route_discover(base,world,now))return -1;
     if(!started){
         if(!combat_route_first_point(position,&point))return -1;
         memcpy(origin,position,12);started=1;
-        line("{\"combat_guest_road_qa\":\"started\",\"position_writes\":false}\r\n");
+        char row[280];snprintf(row,sizeof row,"{\"combat_guest_road_qa\":\"started\",\"epoch\":%u,\"point\":%u,\"position\":[%.3f,%.3f,%.3f],\"position_writes\":false,\"monotonic_ms\":%lu}\r\n",
+            epoch,point,position[0],position[1],position[2],now);line(row);
     }
     if(point>=COMBAT_ROUTE_COUNT-1){done=1;line("{\"combat_guest_road_qa\":\"upper-road-complete\"}\r\n");return 0;}
     if(!guest_camera_stamp_matches(base,&q->nodes[point],1)||read_ptr(q->nodes[point].pointer+0x198)!=world||
