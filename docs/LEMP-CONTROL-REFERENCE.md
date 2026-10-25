@@ -122,6 +122,14 @@ This follow-up only read the supported image with SHA-256
 `b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001`.
 It did not call a native function, modify a game/profile or launch a process.
 
+The downstream manager helper at0xbb4ff0 was subsequently inspected as a
+bounded native disassembly. It consumes an archive-like argument and native
+mapping structures; full parser semantics remain unresolved. A default-off
+[guest input initialization candidate](NATIVE-INPUT-BOOTSTRAP.md) now guards
+the existing native path using current identities, reflected layouts, readable
+profile rows and a stable genuinely empty input list. This is source/build
+progress; no native invocation or repaired input has been observed.
+
 The ASI repository's MIT license covers that source; it must not be assumed to
 license the DLC's game-derived content. This repository contains only authored
 findings and implementation, without extracted scripts or game assets. No

@@ -16,6 +16,7 @@ class RuntimeSessionPlan:
     auto_relisten: bool = False
     auto_rejoin: bool = False
     ready_channel: bool = False
+    input_bootstrap: bool = False
 
     def __post_init__(self):
         if self.role not in ("host", "guest"):
@@ -30,6 +31,8 @@ class RuntimeSessionPlan:
             raise ValueError("automatic rejoin requires a guest plan and a boolean option")
         if type(self.ready_channel) is not bool:
             raise ValueError("ready channel must be a boolean")
+        if type(self.input_bootstrap) is not bool or (self.input_bootstrap and self.role != "guest"):
+            raise ValueError("input bootstrap requires a guest plan and a boolean option")
         endpoint = DirectIPConfig(
             "host" if self.role == "host" else "client",
             self.bind_ipv4, self.port, self.peer_ipv4, loopback_qa=False)
@@ -69,6 +72,8 @@ class RuntimeSessionPlan:
             values["ME3_SQUAD_COOP_AUTO_REJOIN"] = "1"
         if self.ready_channel:
             values["ME3_SQUAD_COOP_READY_CHANNEL"] = "1"
+        if self.input_bootstrap:
+            values["ME3_SQUAD_COOP_INPUT_BOOTSTRAP"] = "1"
         return values
 
     def child_environment(self, inherited):

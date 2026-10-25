@@ -40,6 +40,15 @@ report retry waiting/refusal/expiry; ordinary join statuses resume once rearmed.
 No player-facing reconnect button is wired yet. This candidate is compiled;
 request fixture execution and actual disconnection/rejoin remain deferred.
 
+Ordinary guests also have a default-off profile-aware native input initializer,
+enabled by `ME3_SQUAD_COOP_INPUT_BOOTSTRAP=1` or the planner's guest-only
+`--input-bootstrap` option. It only considers a stable empty local input list
+with the current owned Ashley, valid profile/PRI and ordinary scene context.
+It consumes one native UpdateInputConfiguration attempt per controller/input/
+manager identity and never clears cinematic locks or resets a populated list.
+This compiled candidate has not been executed; see
+[native input initialization](NATIVE-INPUT-BOOTSTRAP.md).
+
 Retry cleanup readiness remains required throughout the ordinary admission
 window and immediately before console dispatch, rather than only when the
 retry is initially queued. An observed blocked scene/travel or invalid native
