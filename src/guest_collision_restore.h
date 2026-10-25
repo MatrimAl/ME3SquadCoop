@@ -127,7 +127,7 @@ static int guest_collision_ordinary(uintptr_t base,uintptr_t pc,uintptr_t pawn,u
      * pawn checked by the caller, not this client's RemoteRole byte. Do not
      * rewrite either role or admit a local simulated/authority pawn. */
     if(!read_at(world+0x7c0,&flags,4)||(flags&0xc00)||!read_at(world+0x670,&pauser,8)||pauser||
-       !read_at(pawn+0xe20,&dead,4)||(dead&0x200)||!read_at(pawn+0xe18,&life,4)||!(life&0x40)||
+       !read_at(pawn+0xe20,&dead,4)||(dead&0x300)||!read_at(pawn+0xe18,&life,4)||!(life&0x40)||
        !read_at(pawn+0x25c,&flags,4)||(flags&0x4000000)||!read_at(pawn+0x269,roles,2)||
        (roles[0]!=2&&roles[0]!=3&&!(roles[0]==0&&guest_collision_restore.tracked))||roles[1]!=2||
        !read_at(pawn+0x268,&physics,1)||(physics!=1&&physics!=2)||!read_at(pc+0x77c,&flags,4)||(flags&0x20000)||
@@ -151,6 +151,15 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
     }
     if(l->tracked&&!guest_collision_identity(base)){guest_collision_log("retired","captured-identity-changed",now,0);l->tracked=0;l->suppressed=1;}
     if(l->suppressed)return;
+    /* Native downed/death collision is not evidence of a scene release.
+     * Keep the healthy baseline, but require a fresh release observation
+     * after recovery rather than replaying a pre-death repair candidate. */
+    if(l->tracked) {
+        uint32_t life=0;
+        if(!read_at(l->pawn.pointer+0xe20,&life,4)||(life&0x300)) {
+            l->released=l->pending=0;return;
+        }
+    }
     uintptr_t camera=0,mode=0;NetworkActorIdentityEntry channel={0};
     int owned=guest_player_context_basic_owned(base,pc,pawn,world);
     int eligible=owned&&ordinary&&guest_collision_ordinary(base,pc,pawn,world)&&guest_player_context_registered_for(pc,pawn)&&
@@ -215,6 +224,10 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
         return;
     }
     unsigned char type=l->healthy.type;
+    if(!guest_collision_ordinary(base,pc,pawn,world)) {
+        l->released=l->pending=0;
+        guest_collision_log("refused","native-life-or-scene-state-changed",now,0);return;
+    }
     int dispatched=guest_player_context_dispatch(base,pawn,&l->method,&type);uint32_t current=0;
     int stable=dispatched&&guest_collision_identity(base)&&guest_collision_components_same(base,pawn,&components,saved)&&
         guest_player_context_basic_owned(base,pc,pawn,world)&&guest_collision_ordinary(base,pc,pawn,world)&&read_at(pawn+0x260,&current,4);

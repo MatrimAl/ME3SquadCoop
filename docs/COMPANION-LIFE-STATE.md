@@ -19,6 +19,21 @@ dispatched handoff is never replayed solely because the pawn recovered. This
 does not cancel an RPC which was already dispatched or replace native inventory
 replication. Both ordinary and protected entries share this predicate.
 
+Guest player-context creation/adoption now refuses downed/dead state when
+acquiring a new registration. Existing registrations retain their existing
+monitoring and cleanup policy; the life bits alone do not trigger their
+destruction. The same acquisition predicate is checked before native spawn
+and SetPlayerPawn dispatch.
+
+The optional guest collision repair also refuses both life bits, including
+its final pre-dispatch ordinary-state check and post-call world-collision
+write guard. While tracking an existing identity, a downed/dead or unreadable
+life sample clears pending/released collision evidence and skips repair.
+The captured healthy baseline remains, but a fresh qualifying release must
+be observed after recovery. Native death collision therefore cannot itself
+arm a later scene-return repair. No death flags, revival method, camera policy
+or native ownership are changed by this boundary.
+
 The local panel distinguishes a currently owned downed companion (control
 state5), dead companion (6), and unavailable life-state read (7) from ordinary
 control (1). Death takes precedence if both native bits are set. Scene, disabled,

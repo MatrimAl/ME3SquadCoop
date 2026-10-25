@@ -274,7 +274,7 @@ static int guest_player_context_conditions(uintptr_t base,uintptr_t pc,uintptr_t
     if(acquiring&&(!read_at(pc+0x781,&ignore,1)||ignore))return guest_player_context_reject("controller-move-input");
     if(acquiring&&(!read_at(pawn+0xc20,&action,4)||action||!read_at(pawn+0xc28,&power,4)||power))return guest_player_context_reject("pawn-action-or-power");
     if(!read_at(pawn+0xe18,&pawn_flags,4)||!(pawn_flags&8)||(acquiring&&(pawn_flags&(0x200000|0x20000000)))||
-       !read_at(pawn+0xe20,&busy,4)||(busy&0x40000))return guest_player_context_reject("pawn-combat-or-busy-state");
+       !read_at(pawn+0xe20,&busy,4)||(busy&0x40000)||(acquiring&&(busy&0x300)))return guest_player_context_reject("pawn-combat-or-busy-state");
     uintptr_t manager=read_ptr(pc+0xc38);GameArray modes={0};
     if(!narrative_probe_object(base,manager,"SFXGameModeManager")||!read_at(manager+0xa8,&current_mode,1)||current_mode!=0||
        !read_at(manager+0xa4,&disable,4)||(acquiring&&(disable&1))||!read_at(manager+0x70,&modes,sizeof modes)||!modes.data||
@@ -587,7 +587,12 @@ static void guest_player_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t paw
         guest_player_context_log("apply-rejected","spawn-lifecycle-or-channel-validation",now,0);guest_player_context_cleanup(base,"spawn-validation",now);return;
     }
     uintptr_t target=pawn;
-    if(!guest_camera_stamp_matches(base,&l->pawn,1)||!guest_player_context_dispatch(base,l->squad.pointer,&guest_player_context_methods.set_pawn,&target)) {
+    NetworkActorIdentityEntry apply_channel={0};CombatContextChain apply_chain={0};
+    /* Spawn ran native script: do not reuse its pre-call action/life or
+     * transport sample when initializing the returned squad's pawn cache. */
+    if(!guest_player_context_conditions(base,pc,pawn,info,ordinary_mode,enabled,1,&apply_channel,&apply_chain)||apply_chain.squad||
+       !guest_player_context_same(base,pc,pawn,info,&apply_channel)||
+       !guest_camera_stamp_matches(base,&l->pawn,1)||!guest_player_context_dispatch(base,l->squad.pointer,&guest_player_context_methods.set_pawn,&target)) {
         guest_player_context_log("apply-rejected","ordinary-set-player-pawn-rejected",now,0);guest_player_context_cleanup(base,"set-player-pawn-rejected",now);return;
     }
     /* The script has exactly two writes. Mark ownership of their target now,
