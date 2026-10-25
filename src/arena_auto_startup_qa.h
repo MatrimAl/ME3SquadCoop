@@ -95,6 +95,7 @@ static int arena_auto_startup_tick(uintptr_t base,uintptr_t engine,DWORD now) {
         uintptr_t o=list[i];if(!o)continue;char name[96];object_name(base,read_ptr(o+0x50),name,sizeof name);
         int slot=!strcmp(name,"SFXGUI_TeamSelect")?0:(!strcmp(name,"BioSFHandler_PCMessageBox")||!strcmp(name,"BioSFHandler_MessageBox"))?1:!strcmp(name,"SFXGUI_WeaponSelection")?2:!strcmp(name,"SFXGUI_SquadRecord")?3:-1;
         if(slot<0||!arena_auto_movie_active(base,o,world))continue;
+        if(slot==1){uint32_t active=0;if(!read_at(o+0x3a0,&active,4)||!(active&0x100))continue;}
         if(slot==0)team=o;else if(slot==1)box=o;else if(slot==2)weapon=o;else record=o;++counts[slot];
     }
     HeapFree(GetProcessHeap(),0,list);
@@ -109,9 +110,27 @@ static int arena_auto_startup_tick(uintptr_t base,uintptr_t engine,DWORD now) {
         uint32_t flags=0;uintptr_t delegate=read_ptr(box+0x334);uint32_t callback[2]={0};char name[96];
         if(!read_at(box+0x3a0,&flags,4)||!(flags&0x100)||!read_at(box+0x33c,callback,8))return 0;
         name_of(base,callback[0],name,sizeof name);
-        /* The named queue can keep its callback natively; a script delegate,
-         * if present, must be exactly the TeamSelect callback we just queued. */
-        if(delegate&&(delegate!=q->team.pointer||callback[1]||strcmp(name,"FinalizeParty")))return 0;
+        /* QueueNamedMessageBox installs the GUIInteraction queue callback on
+         * the visible handler; its native queue keeps FinalizeParty. The
+         * handler must belong to the same live GUI that owns our selected
+         * TeamSelect object. Never invoke an unrelated active modal. */
+        if(callback[1])return 0;
+        int direct=delegate==q->team.pointer&&!strcmp(name,"FinalizeParty");
+        int queued=0;
+        if(!strcmp(name,"QueuedMessageBoxCallback")&&delegate==read_ptr(box+0x40)&&
+           delegate==read_ptr(q->team.pointer+0x40)&&narrative_probe_object(base,delegate,"SFXGUIInteraction")) {
+            uint32_t tag[2]={0},expected[2]={0};
+            uintptr_t tag_prop=guest_hit_damage_field(base,read_ptr(box+0x50),"SFXGUIMovie","nmTag");
+            uintptr_t queued_tag_prop=guest_hit_damage_field(base,read_ptr(delegate+0x50),"SFXGUIInteraction","MovieTag_QueuedMessageBox");
+            uintptr_t fn=guest_player_context_find_method(base,read_ptr(delegate+0x50),"SFXGUIInteraction","QueuedMessageBoxCallback");
+            uintptr_t native=read_ptr(fn+0xd8);
+            queued=arena_auto_property(base,tag_prop,"NameProperty",0x2b4,8)&&
+                arena_auto_property(base,queued_tag_prop,"NameProperty",0x338,8)&&
+                read_at(box+0x2b4,tag,8)&&read_at(delegate+0x338,expected,8)&&tag[0]&&!memcmp(tag,expected,8)&&
+                native>=base&&native<base+0x1300000&&
+                guest_player_context_function_abi(base,fn,"SFXGUIInteraction","QueuedMessageBoxCallback",0x20401,8,65535,0,native-base,2);
+        }
+        if(!direct&&!queued)return 0;
         ok=arena_auto_call(base,box,"BioSFHandler_MessageBox","MessageBoxAPressed",0x20003,0,0,empty);
         q->confirmation=ok;arena_auto_startup_log("confirm-party-normal-messagebox",ok,now);return ok;
     }
