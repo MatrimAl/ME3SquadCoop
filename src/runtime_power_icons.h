@@ -19,6 +19,8 @@ static int runtime_power_assignment_active(uintptr_t base);
 static int runtime_power_ui_allowed(uintptr_t base,SessionContext c);
 static int runtime_power_caster_install(uintptr_t base);
 static int runtime_power_caster_active(uintptr_t base);
+static int runtime_native_quickslot_install(uintptr_t base);
+static int runtime_native_quickslot_active(uintptr_t base);
 static int runtime_power_icons_enabled(void) {
     static int configured,opted;
     if(!configured) {
@@ -115,7 +117,7 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
     int ready=runtime_power_icons_enabled()&&runtime_native_power_input_active()&&runtime_control_enabled&&
         runtime_scope_ready&&runtime_power_ui_allowed(base,c)&&
         runtime_power_read_membership(base,c,&catalog);
-    if(lease->active&&(lease->failed||!runtime_power_caster_active(base)||!runtime_power_assignment_active(base)||!runtime_power_icons_enabled()||!runtime_native_power_input_active()||
+    if(lease->active&&(lease->failed||!runtime_native_quickslot_active(base)||!runtime_power_caster_active(base)||!runtime_power_assignment_active(base)||!runtime_power_icons_enabled()||!runtime_native_power_input_active()||
        !runtime_control_enabled||!runtime_scope_ready||!runtime_power_ui_allowed(base,c)||
        c.pc!=lease->owner.pc.pointer||c.pawn!=lease->owner.pawn.pointer||
        !session_handle_matches(lease->owner.pawn)||lease->owner.token!=guest_player_context_registration_token()||
@@ -149,7 +151,7 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
                    !narrative_probe_object(base,power,"SFXPowerCustomActionBase")||read_ptr(power+0x98)!=pawn)return;
             } else if(pawn)return;
         }
-        if(!runtime_power_assignment_install(base)||!runtime_power_caster_install(base))return;
+        if(!runtime_power_assignment_install(base)||!runtime_power_caster_install(base)||!runtime_native_quickslot_install(base))return;
         captured.active=1;*lease=captured;
     }
     int drag=runtime_power_wheel_drag_state(base,lease->owner.handler.pointer);

@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-26: coordinate guest slots with native PC-wheel refresh
+
+The optional icon candidate now redirects the exact native quickslot pawn
+resolver and per-icon setup callers to the registered guest and mod slot map.
+The original native helper/setup still owns icon, permission/state, cooldown
+and display processing. Unassigned entries clear through the verified setter.
+The PC Tick's saved-definition mismatch rebuild is suppressed only in the
+verified guest context; periodic native setup and display continue. Saved
+controller mappings and actor tags are untouched.
+
+Pre-call expected-value checks and post-call widget/catalog/map readback
+coordinate known native refresh with the paint lease. Dragging preserves the
+transitional icon values. Byte pins, resident MinHook forwarding, checked
+virtual CAS and post-install active checks scope the integration. Three native
+targets compiled and fingerprints matched; no game or tests ran. This is a
+source-level refresh candidate, not a verified stable HUD or cast. See
+[native quickslot refresh](NATIVE-QUICKSLOT-REFRESH.md).
+
 ## 2026-10-26: prepare a pinned native-detour dependency
 
 MinHook v1.3.4's x64-required sources are now vendored from official commit

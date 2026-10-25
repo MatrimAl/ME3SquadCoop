@@ -254,8 +254,9 @@ capacity state, reflected group indices and the exact native selection caller.
 The final context and current mode are checked again. Native targeting,
 cancellation, permissions and close-time tactical-order delivery remain in
 the original game path. A quickslot paint being retired no longer alone ends
-the full-wheel context lease. Quickslot rewriting by native PC Tick remains a
-separate unresolved display-coordination issue.
+the full-wheel context lease. Quickslot rewriting by native PC Tick is handled
+by a separate [native refresh candidate](NATIVE-QUICKSLOT-REFRESH.md); its actual
+display coordination remains unverified.
 
 Three native targets compiled and current fingerprints matched. No game or
 tests ran. Initial lease timing, natural population/rendering, all native

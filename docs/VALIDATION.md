@@ -1,5 +1,15 @@
 # Validation status
 
+The optional native-icons candidate now coordinates the stock quickslot
+refresh with the owned guest slot map through exact caller-scoped pawn/setup
+hooks. Native per-icon setup and permission/cooldown/display processing remain
+in the game path; the saved-definition mismatch rebuild is suppressed only
+for the admitted guest context. No profile/mapping writes were added. Three
+native targets compiled and fingerprints matched; no game or tests ran.
+Hook installation, forwarding, rendering, drag/drop, native state transitions
+and actual casting remain unverified. See
+[native refresh candidate](NATIVE-QUICKSLOT-REFRESH.md).
+
 The optional full-wheel candidate now leases the wheel's transient squad
 reference to the already registered guest player context and clears stale
 henchman UI caches, letting native Tick populate its normal power groups.
