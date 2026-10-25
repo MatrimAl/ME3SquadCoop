@@ -2,7 +2,9 @@
 #define ME3_ARENA_PAIR_QA_H
 /* Protected manual SPCer pair only. Native session/scene/equipment guards
  * remain authoritative; no route, fire, save or synthetic-scene automation. */
-static int arena_pair_qa;
+static int arena_pair_qa,arena_pair_auto_qa;
+static int arena_auto_movement_done,arena_auto_input_fault;
+static DWORD arena_auto_ready_at;
 static int arena_pair_policy(int opted,int guards,int action,int progress,int session,
                              int manual,int refresh,int reload,int prewarm) {
     return opted==1&&!guards&&(action==5||action==6)&&progress==1&&session==1&&manual==1&&

@@ -1359,3 +1359,21 @@ scene release, host route input and companion catch-up. Acquisition still uses
 the shared native scene, squad identity, ownership and equipment guards.
 The ordinary player ASI does not use this option. Policy fixtures passed;
 this preparation alone does not establish a connected arena pair or combat.
+
+## Unattended private arena preparation
+
+A second default-off protected-probe flag, `ME3_SQUAD_COOP_ARENA_AUTO_QA`,
+drives the fixed SPCer setup through normal TeamSelect, confirmation-box,
+loadout, character-record and scene-skip callbacks. It resolves Ashley and
+James from the live reflected roster and validates callback ABI and UObject
+ProcessEvent before dispatch. No desktop input is sent. Both roles complete
+the same map setup; the host refreshes its native package map only after
+five seconds of ordinary control, and the guest joins after its complete
+standalone roster is present. Native package/GUID checks remain unchanged.
+
+After acquisition, this opt-in allows one bounded normal movement pulse,
+the private arena console event after its stock spawn list is populated,
+and the existing bounded guest look/fire test against a real Trooper replica.
+Identity, scene, equipment, floor and native ownership checks still apply.
+Input cleanup failures stop the test action. Native fixtures pass; no
+unattended connection, movement, hit or kill is established by preparation.

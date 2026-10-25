@@ -453,6 +453,7 @@ static void guest_team_qa_release(uintptr_t base,DWORD now);
 #include "guest_team_qa_selftest.h"
 #include "combat_route_qa.h"
 #include "combat_aim_qa.h"
+#include "arena_auto_lifecycle_qa.h"
 static void game_tick_diagnostics(void *self,uintptr_t base) {
     DWORD now = GetTickCount();
     if (now - last_state < 1000) return;
@@ -494,7 +495,7 @@ static void game_tick_diagnostics(void *self,uintptr_t base) {
             line(message); max_players = 2;
         }
         char game_class[96]; object_name(base, game ? read_ptr(game + 0x50) : 0, game_class, sizeof game_class);
-        if (test_action == 6 && refresh_host_map && !host_map_attempted && netmode == 2 && pawn && squad && now - bridge_started >= 16000) {
+        if (test_action == 6 && refresh_host_map && !host_map_attempted && netmode == 2 && pawn && squad && now - bridge_started >= 16000 && (!arena_pair_qa||(arena_auto_ready_at&&now-arena_auto_ready_at>=5000))) {
             host_map_attempted = 1;
             host_map_refreshed = identity_refresh_master(base);
         }
@@ -550,15 +551,16 @@ static void game_tick_diagnostics(void *self,uintptr_t base) {
     wcscpy(command, test_action == 4 || (test_action == 6 && !host_reload_mars) ? L"open BioP_ProMar?listen" :
                     L"open BioP_ProMar");
     if(arena_pair_qa&&test_action==6)wcscpy(command,L"open BioP_SPCer?listen");
-    if (test_action == 5 && !client_prewarm) _snwprintf(command,80,L"open %ls:%u",direct_ip_config.peer_ipv4,(unsigned)direct_ip_config.port);
+    if(arena_pair_qa&&arena_pair_auto_qa&&test_action==5)wcscpy(command,L"open BioP_SPCer");
+    if (test_action == 5 && !client_prewarm && !(arena_pair_qa&&arena_pair_auto_qa)) _snwprintf(command,80,L"open %ls:%u",direct_ip_config.peer_ipv4,(unsigned)direct_ip_config.port);
     ConsoleParms parms = {0};
     parms.command.data = command;
     parms.command.count = parms.command.max = (int32_t)wcslen(command) + 1;
     parms.write_log = 1;
     action_sent = 1; /* Set before dispatch; map travel may re-enter the engine. */
-    line(test_action == 5 && !client_prewarm ? "{\"action\":\"join-loopback\",\"phase\":\"dispatch\"}\r\n" : "{\"action\":\"travel-mars\",\"phase\":\"dispatch\"}\r\n");
+    line(arena_pair_qa ? (test_action==5&&arena_pair_auto_qa?"{\"action\":\"arena-client-prewarm\",\"phase\":\"dispatch\"}\r\n":"{\"action\":\"arena-host-or-manual-join\",\"phase\":\"dispatch\"}\r\n") : test_action == 5 && !client_prewarm ? "{\"action\":\"join-loopback\",\"phase\":\"dispatch\"}\r\n" : "{\"action\":\"travel-mars\",\"phase\":\"dispatch\"}\r\n");
     ((ProcessEvent)pe)((void*)pc, (void*)fn, &parms, NULL);
-    line(test_action == 5 && !client_prewarm ? "{\"action\":\"join-loopback\",\"phase\":\"returned\"}\r\n" : "{\"action\":\"travel-mars\",\"phase\":\"returned\"}\r\n");
+    line(arena_pair_qa ? (test_action==5&&arena_pair_auto_qa?"{\"action\":\"arena-client-prewarm\",\"phase\":\"returned\"}\r\n":"{\"action\":\"arena-host-or-manual-join\",\"phase\":\"returned\"}\r\n") : test_action == 5 && !client_prewarm ? "{\"action\":\"join-loopback\",\"phase\":\"returned\"}\r\n" : "{\"action\":\"travel-mars\",\"phase\":\"returned\"}\r\n");
     /* A single diagnostic call. Any engine-owned return string lives only
        until this bounded process exits; never free it with the CRT heap. */
 }
@@ -568,13 +570,14 @@ static void game_tick(void *self,float delta) {
     if(!collision_baseline_qa_opted()||position_receive_opted())initial_actor_trace_install(base);
     if(!collision_baseline_qa_opted())install_package_trace(base);
     ammo_wire_install(base);
+    arena_auto_lifecycle_tick(base,(uintptr_t)self,0,GetTickCount());
     input_bot(base,(uintptr_t)self);
     if(!arena_pair_qa&&!combat_route_qa_host_mode())progress_input(base,(uintptr_t)self);
     combat_route_qa_tick(base,(uintptr_t)self,0,GetTickCount());
     if(session_enabled)session_frame(base,(uintptr_t)self,0);else pair_guest_input(base,(uintptr_t)self);
     combat_aim_qa_tick(base,(uintptr_t)self,0,GetTickCount());
     lookup_record("Probe","PreTick",part,0,0);part=lookup_clock();
-    original_tick(self,delta);lookup_record("Engine","OriginalTick",part,0,0);part=lookup_clock();
+    original_tick(self,delta);arena_auto_lifecycle_tick(base,(uintptr_t)self,1,GetTickCount());lookup_record("Engine","OriginalTick",part,0,0);part=lookup_clock();
     combat_aim_qa_tick(base,(uintptr_t)self,1,GetTickCount());
     if(session_enabled)session_frame(base,(uintptr_t)self,1);
     combat_route_qa_tick(base,(uintptr_t)self,1,GetTickCount());
@@ -741,6 +744,7 @@ static int probe_configure_orchestration(int guards_only) {
         int manual=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_MANUAL_GUEST_QA",prewarm,8)==1&&prewarm[0]==L'1';
         if(!arena_pair_policy(1,guards_only,test_action,progress_enabled,session_enabled,manual,refresh_host_map,host_reload_mars,client_prewarm))return 0;
         arena_pair_qa=1;
+        prewarm[0]=0;arena_pair_auto_qa=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_ARENA_AUTO_QA",prewarm,8)==1&&prewarm[0]==L'1';
     }
     return 1;
 }
