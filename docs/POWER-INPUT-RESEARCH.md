@@ -176,10 +176,17 @@ Native return1 is reported as order acceptance; return0 is native refusal.
 Neither is a completed cast, server acceptance, cooldown or target-effect verdict.
 Status0/1/2/3/4 means idle/queued/rejected/native-accepted/native-refused.
 
-The runtime catalog requires all sampled power entries to be valid instantiated
-objects; a sparse or not-yet-instantiated native list leaves the API unavailable.
-It does not initialize or rebind those objects. All-empty or stale controller
-state therefore remains an observable rejection rather than forced power use.
+The runtime catalog skips null native power entries and exposes a compact list
+of existing instantiated objects. Non-null unreadable or wrong-class entries
+still invalidate the entire sample. Each compact entry retains its native
+source position alongside its handle and FName; source-position, membership,
+name or identity changes invalidate the scope. Both null and populated source
+slots are read again before accepting the sample. An all-null list remains
+unavailable. Compact API indices are not native power-action IDs: the native
+order continues to use the selected object's validated power name and possessed
+pawn, never a compact index as a native action argument.
+The runtime does not initialize or rebind those objects. All-empty or stale
+controller state remains an observable rejection rather than forced power use.
 Normal outputs compile, but no game, request fixture, native order or performance
 measurement was run. Complete input mapping, catalog presentation, action-instance
 readiness and authoritative effects remain unverified.
@@ -220,3 +227,15 @@ cached-controller, ABI, native targeting and expiry checks still apply.
 
 Native outputs compiled and planner sources syntax parsed only. No hotkey,
 focus switch, keyboard layout, native cast, panel or game was exercised.
+
+## Normal keyboard path prerequisite review
+
+A renewed read of the retained exact-image `doHotKey` disassembly corroborates
+the eight-slot bound, its controller-relative 16-byte hotkey definitions at
+0x92c, and the selected handler icon pointer at0xbd8 + index*8. A null selected
+icon takes a refusal path before the power dispatch branch. Consequently a
+working mod catalog or a successful explicit power order does not establish
+normal keyboard quickslot readiness. Native wheel setup and its assignment
+semantics must be validated before adding a normal-input integration. No wheel
+cache or quickslot definition is written from this static finding. The gamepad
+player-pawn cast remains a separate integration gap.

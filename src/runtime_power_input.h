@@ -21,7 +21,7 @@ static int runtime_power_input_enabled(void) {
  * Keep bindings over catalog/mission changes; never silently replace one. */
 static int runtime_power_name_index(const RuntimePowerCatalog *catalog,const uint32_t name[2]) {
     int found=-1;
-    for(int i=0;i<catalog->array.count;++i)if(!memcmp(catalog->names[i],name,8)) {
+    for(int i=0;i<catalog->count;++i)if(!memcmp(catalog->names[i],name,8)) {
         if(found>=0)return -1; /* Ambiguous names cannot identify a power. */
         found=i;
     }
@@ -35,7 +35,7 @@ static void runtime_power_bind_slots(const RuntimePowerCatalog *catalog,unsigned
     static unsigned sampled_scope;
     if(!runtime_power_input_enabled()||!scope||scope==sampled_scope)return;
     sampled_scope=scope;
-    for(int i=0;i<catalog->array.count;++i) {
+    for(int i=0;i<catalog->count;++i) {
         const uint32_t *name=catalog->names[i];int existing=0,empty=-1;
         if(!name[0]||runtime_power_name_index(catalog,name)!=i)continue;
         for(int j=0;j<9;++j) {

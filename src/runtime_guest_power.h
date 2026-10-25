@@ -7,6 +7,8 @@ typedef struct RuntimePowerCatalog {
     SessionHandle pc,pawn,info,manager,channel,connection,driver;
     unsigned long registration_token;
     GameArray array;
+    int count;
+    int source_indices[RUNTIME_POWER_LIMIT];
     SessionHandle powers[RUNTIME_POWER_LIMIT];
     uint32_t names[RUNTIME_POWER_LIMIT][2];
 } RuntimePowerCatalog;
@@ -30,9 +32,10 @@ static int runtime_power_catalog_same(const RuntimePowerCatalog *a,const Runtime
        !runtime_power_same_handle(a->info,b->info)||!runtime_power_same_handle(a->manager,b->manager)||
        !runtime_power_same_handle(a->channel,b->channel)||!runtime_power_same_handle(a->connection,b->connection)||
        !runtime_power_same_handle(a->driver,b->driver)||a->registration_token!=b->registration_token||
-       memcmp(&a->array,&b->array,sizeof a->array))return 0;
-    for(int i=0;i<a->array.count;++i)
-        if(!runtime_power_same_handle(a->powers[i],b->powers[i])||memcmp(a->names[i],b->names[i],8))return 0;
+       memcmp(&a->array,&b->array,sizeof a->array)||a->count!=b->count)return 0;
+    for(int i=0;i<a->count;++i)
+        if(a->source_indices[i]!=b->source_indices[i]||
+           !runtime_power_same_handle(a->powers[i],b->powers[i])||memcmp(a->names[i],b->names[i],8))return 0;
     return 1;
 }
 static void runtime_power_invalidate(void) {
@@ -97,13 +100,27 @@ static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordina
     if(!session_handle_matches(out->pc)||!session_handle_matches(out->pawn)||
        !session_handle_matches(out->info)||!session_handle_matches(out->manager)||
        !session_handle_matches(out->channel)||!session_handle_matches(out->connection)||!session_handle_matches(out->driver))return 0;
+    uintptr_t sampled[RUNTIME_POWER_LIMIT]={0};
     for(int i=0;i<array.count;++i) {
         uintptr_t item=0;
-        if(!read_at(array.data+(size_t)i*8,&item,8)||!narrative_probe_object(base,item,"SFXPowerCustomActionBase")||
-           !read_at(item+0x46c,out->names[i],8))return 0;
-        out->powers[i]=session_capture_handle(item);if(!session_handle_matches(out->powers[i]))return 0;
+        if(!read_at(array.data+(size_t)i*8,&item,8))return 0;
+        sampled[i]=item;
+        /* Null is an absent native entry, not a reason to hide other powers.
+         * Keep source positions so a rearranged sparse array changes scope.
+         * Non-null unreadable/wrong-class entries still invalidate the list. */
+        if(!item)continue;
+        int entry=out->count;
+        if(!narrative_probe_object(base,item,"SFXPowerCustomActionBase")||
+           !read_at(item+0x46c,out->names[entry],8))return 0;
+        out->powers[entry]=session_capture_handle(item);
+        if(!session_handle_matches(out->powers[entry]))return 0;
+        out->source_indices[entry]=i;++out->count;
     }
-    return read_at(manager+0x60,&after,sizeof after)&&!memcmp(&array,&after,sizeof array)&&
+    for(int i=0;i<array.count;++i) {
+        uintptr_t item=0;
+        if(!read_at(array.data+(size_t)i*8,&item,8)||item!=sampled[i])return 0;
+    }
+    return out->count&&read_at(manager+0x60,&after,sizeof after)&&!memcmp(&array,&after,sizeof array)&&
         read_ptr(c.pawn+0xc18)==manager&&read_ptr(manager+0xd0)==c.pawn;
 }
 /* Reflected layout corroborates the retained SDK before invoking an order.
@@ -149,12 +166,12 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
         runtime_power_invalidate();
         if(runtime_power_generation==0x7fffffff)return; /* Never reuse an external scope. */
         ++runtime_power_generation;runtime_power_catalog=current;
-        InterlockedExchange(&runtime_power_count,current.array.count);
+        InterlockedExchange(&runtime_power_count,current.count);
         InterlockedExchange(&runtime_power_scope,runtime_power_generation);
     }
     if(after)return;
     runtime_power_bind_slots(&current,(unsigned)runtime_power_scope);
-    int action=runtime_power_input_poll((unsigned)runtime_power_scope,(unsigned)current.array.count);
+    int action=runtime_power_input_poll((unsigned)runtime_power_scope,(unsigned)current.count);
     int action_index=action>=0?runtime_power_slot_index(&current,(unsigned)action):-1;
     if(action_index>=0)runtime_request_power((unsigned)runtime_power_scope,(unsigned)action_index);
     ULONGLONG submitted=0;
@@ -162,9 +179,9 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
     unsigned scope=(unsigned)((uint64_t)request>>32),index=(unsigned)request-1;
     int status=RUNTIME_POWER_REJECTED;const char *reason="stale-scope-or-rate-limit";
     if(runtime_power_request_expired(submitted)){reason="power-request-expired";goto rejected;}
-    if(scope!=(unsigned)runtime_power_scope||index>=(unsigned)current.array.count||
+    if(scope!=(unsigned)runtime_power_scope||index>=(unsigned)current.count||
        (runtime_power_last_order&&now-runtime_power_last_order<250))goto rejected;
-    for(int i=0;i<current.array.count;++i)if((unsigned)i!=index&&
+    for(int i=0;i<current.count;++i)if((unsigned)i!=index&&
         !memcmp(current.names[index],current.names[i],8)) {
         reason="ambiguous-native-power-name";goto rejected;
     }
