@@ -37,7 +37,7 @@ a missing DLC, bypass config or restart failed native initialization.
 ## Protocol and identity
 
 Each opted-in game creates `Local\ME3SquadCoopPanel_<PID>` once. An existing
-name is refused rather than reused. The bounded5264-byte, pointer-free v5
+name is refused rather than reused. The bounded5264-byte, pointer-free v6
 mapping contains a5244-byte status frame and a20-byte command mailbox. The
 status identifies PID and exact process creation FILETIME. The client retains
 a query/synchronize-only handle, checks MassEffect3.exe's filename and creation
@@ -67,7 +67,7 @@ before delivery. The panel tells the user to submit a fresh request; it does not
 resend automatically. A command accepted on time can still have its documented
 native startup waiting period, such as waiting for a scene to finish. This
 delivery deadline does not change the native startup or gameplay policies.
-Version1/2/3/4 clients/runtimes are incompatible and must not be mixed.
+Version1/2/3/4/5 clients/runtimes are incompatible and must not be mixed.
 
 Power commands carry the currently displayed catalog scope/index. Catalog
 changes clear the panel selection, and native validation rejects stale input.
@@ -77,11 +77,21 @@ rank, action ownership, cooldown, target and native gameplay checks still apply.
 The optional guest runtime flag `ME3_SQUAD_COOP_POWER_HOTKEYS=1` maps
 Ctrl+Alt+1..9 to retained native power names while the game is foreground and
 control is ready. Each available power row shows its actual shortcut; the row
-number may differ after a catalog reorder. The v5 frame includes the opt-in
-flag and nine signed current catalog indices (-1 means unavailable), which the
+number may differ after a catalog reorder. The v6 frame includes shortcut-mode
+bits and nine signed current catalog indices (-1 means unavailable), which the
 client bounds-checks before rendering. It uses the same scoped request path and can operate with
 the panel closed; it is not enabled by `--panel`. See the limitations and
 deferred validation in [power input](POWER-INPUT-RESEARCH.md).
+
+The independent `ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS=1` candidate routes
+existing UseAbility0..7 commands to the first eight retained guest name slots.
+Available rows show Power slot1..8 when the checked native bridge is installed;
+these labels refer to command slots, not assumed physical keys or saved Shepard
+assignments. The hotkeys field has bit0 for Ctrl+Alt and bit1 for the native
+bridge; unknown bits are refused. Both can be enabled together. Native wheel
+icons are not updated by this candidate, and command delivery/effects remain
+unverified. The mapping remains5244+20 bytes; the version changes because the
+shortcut field now has different semantics.
 
 ## Evidence boundaries
 
@@ -98,7 +108,7 @@ controller/pawn identities; an active bookkeeping lease alone is not reported
 as companion ownership. These are sampled states, not progression verdicts.
 
 The panel also displays role-specific mission recovery as Manual, Automatic or
-Paused until game restart. The v5 frame carries recovery flag bits0/1 for opted-in
+Paused until game restart. The v6 frame carries recovery flag bits0/1 for opted-in
 host/guest policies and bits2/3 for their process-lifetime cancellation latches.
 Its readiness state0..7 distinguishes off, host not ready, host ready, guest idle,
 waiting for host reply, host replied ready, local channel unavailable and disabled.

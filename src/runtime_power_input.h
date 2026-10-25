@@ -8,6 +8,15 @@ static const RuntimePowerBinding runtime_power_bindings[]={
 };
 typedef struct RuntimePowerSlot {int bound;uint32_t name[2];} RuntimePowerSlot;
 static RuntimePowerSlot runtime_power_slots[9];
+static int runtime_native_power_input_enabled(void) {
+    static int configured,opted;
+    if(!configured) {
+        wchar_t value[8]={0};
+        DWORD length=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS",value,8);
+        opted=length==1&&value[0]==L'1';configured=1;
+    }
+    return opted;
+}
 static int runtime_power_input_enabled(void) {
     static int configured,opted;
     if(!configured) {
@@ -33,7 +42,7 @@ static int runtime_power_slot_index(const RuntimePowerCatalog *catalog,unsigned 
 }
 static void runtime_power_bind_slots(const RuntimePowerCatalog *catalog,unsigned scope) {
     static unsigned sampled_scope;
-    if(!runtime_power_input_enabled()||!scope||scope==sampled_scope)return;
+    if((!runtime_power_input_enabled()&&!runtime_native_power_input_enabled())||!scope||scope==sampled_scope)return;
     sampled_scope=scope;
     for(int i=0;i<catalog->count;++i) {
         const uint32_t *name=catalog->names[i];int existing=0,empty=-1;

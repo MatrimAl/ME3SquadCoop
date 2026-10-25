@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--start", choices=("listen", "join", "attach"))
     parser.add_argument("--panel", action="store_true", help="opt into the separate local session control panel")
     parser.add_argument("--power-hotkeys", action="store_true", help="guest only: opt into Ctrl+Alt+1..9 power slots")
+    parser.add_argument("--native-power-hotkeys", action="store_true", help="guest only: route native UseAbility 0..7 to guest named power slots")
     parser.add_argument("--auto-relisten", action="store_true", help="host only: request Listen after verified old-world disposal")
     parser.add_argument("--auto-rejoin", action="store_true", help="guest only: retry once after an owned client world's verified disposal")
     parser.add_argument("--ready-channel", action="store_true", help="opt into host readiness synchronization on UDP game port+1")
@@ -28,7 +29,8 @@ def main():
         plan = RuntimeSessionPlan(args.role, args.bind, args.port, args.peer, args.start,
                                   panel=args.panel, power_hotkeys=args.power_hotkeys,
                                   auto_relisten=args.auto_relisten, auto_rejoin=args.auto_rejoin,
-                                  ready_channel=args.ready_channel, input_bootstrap=args.input_bootstrap)
+                                  ready_channel=args.ready_channel, input_bootstrap=args.input_bootstrap,
+                                  native_power_hotkeys=args.native_power_hotkeys)
         text = json.dumps(plan.to_dict(), indent=2) + "\n"
         if args.output is None:
             sys.stdout.write(text)

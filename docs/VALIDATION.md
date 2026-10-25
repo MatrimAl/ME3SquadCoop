@@ -1,11 +1,20 @@
 # Validation status
 
+The optional native keyboard bridge now routes existing UseAbility0..7 events
+to retained guest named slots through the same power queue. Three native
+targets compiled and changed Python sources syntax parsed. Native key delivery,
+power effects and wheel-icon agreement remain unverified; the existing movie
+and controller reference are prerequisites. Gamepad work is deferred. No game
+or tests ran for this candidate. Panel v6 distinguishes native slot labels from
+the independent Ctrl+Alt shortcuts without changing frame size.
+
 Latest offline candidate: campaign mapped-power requests now resolve a verified
 BioPlayerInput property to a unique current eligible power on Tick. The input
 object participates in scope identity and the mapping is checked again after
 the native combat getter. All three native targets compiled; no gameplay or
 tests ran for this candidate. Physical gamepad capture and the ordinary input
-bridge remain unimplemented, so this is not normal-control validation.
+bridge were not implemented in that earlier candidate. The newer keyboard
+bridge above remains unverified, so neither candidate validates normal control.
 
 A preceding protected pair **failed gameplay continuity** despite completing
 three ownership epochs and native disconnect/AI return. After the synthetic

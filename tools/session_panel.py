@@ -89,13 +89,13 @@ class Session:
             if before != after or after & 1:
                 continue
             if (frame.magic, frame.version, frame.bytes, frame.pid, frame.created) != (
-                    0x4d334350, 5, 5264, self.pid, self.created):
+                    0x4d334350, 6, 5264, self.pid, self.created):
                 raise RuntimeError("Panel identity/version unavailable or different")
             if frame.role not in (1, 2) or frame.power_count > 64:
                 raise RuntimeError("Invalid panel frame")
             if frame.recovery_flags & ~15 or frame.readiness_state > 7:
                 raise RuntimeError("Invalid recovery status")
-            if frame.hotkeys_enabled not in (0, 1) or any(
+            if frame.hotkeys_enabled & ~3 or any(
                     value < -1 or value >= frame.power_count for value in frame.power_slot_indices):
                 raise RuntimeError("Invalid power shortcut indices")
             if (self.kernel.GetTickCount() - frame.tick_ms) & 0xffffffff > 3000:
@@ -255,12 +255,19 @@ def main():
             names = [bytes(frame.power_names[i]).split(b'\0', 1)[0].decode('utf-8', errors='replace')
                      for i in range(frame.power_count)]
             slots = tuple(frame.power_slot_indices) if frame.hotkeys_enabled else (-1,) * 9
-            catalog = (frame.power_scope, tuple(names), slots)
+            catalog = (frame.power_scope, tuple(names), slots, frame.hotkeys_enabled)
             if catalog != shown:
                 powers.delete(0, "end")
                 for index, name in enumerate(names):
-                    shortcut = next((f" [Ctrl+Alt+{slot + 1}]" for slot, value in enumerate(slots)
-                                     if value == index), "")
+                    labels = []
+                    for slot, value in enumerate(slots):
+                        if value != index:
+                            continue
+                        if frame.hotkeys_enabled & 1:
+                            labels.append(f"Ctrl+Alt+{slot + 1}")
+                        if frame.hotkeys_enabled & 2 and slot < 8:
+                            labels.append(f"Power slot {slot + 1}")
+                    shortcut = f" [{', '.join(labels)}]" if labels else ""
                     powers.insert("end", f"{index + 1}. {name or '(unnamed)'}{shortcut}")
                 shown, last_scope = catalog, frame.power_scope
             if pending is not None and frame.ack_id == pending:

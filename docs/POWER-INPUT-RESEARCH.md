@@ -1,7 +1,7 @@
 # Power input research
 
-Guest power use is **unverified**. No power remapping, forced unlock,
-cooldown change or replacement transport has been implemented.
+Guest power use is **unverified**. No native binding/profile rewrite, forced
+unlock, cooldown change or replacement transport has been implemented.
 An explicit ordinary-runtime request API is now implemented as a compiled
 candidate below; no player binding or live cast has been verified.
 
@@ -491,3 +491,47 @@ casts SFXPawn_Player. This addition does not fix that stock cast, initialize a
 power wheel, create Ashley mappings or rewrite a saved profile. Normal keyboard
 and gamepad power operation, casting and target effects remain unverified.
 Only offline source review and native compilation were performed.
+
+## Native keyboard command bridge candidate
+
+The ordinary guest can opt into ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS=1 through
+the planner's --native-power-hotkeys option. This routes existing UseAbility
+commands0..7 to the mod's first eight retained named power slots. Those slots
+capture unique eligible names in manager order and retain them across catalog
+or mission changes; they are not the saved Shepard quickslot definitions.
+Absent or ambiguous names refuse the command rather than selecting a new
+power by its changed list position. Panel v6 labels the actual named slot
+membership. Its labels do not assume a particular physical key binding.
+
+The bridge replaces one exact native PC wheel vtable slot, not a script Func
+pointer or input binding. The owned-image exec thunk0xb69570..0xb695ed decodes
+an integer and calls virtual+0x528 with the handler and decoded integer. The
+image's constructor-grounded PC wheel vtable0x14f6700 contains0xc5ccc0 there;
+the retained SDK declares the virtual as void doHotKey(int). This avoids
+replicating FFrame parsing. The thunk's optional debug-token handling remains
+stock. Direct byte reads corroborated the vtable target and the implementation
+entry signature independently of the short first unwind fragment.
+
+Installation occurs once on game Tick after a valid owned power catalog.
+It requires the expected vtable target and entry bytes, uses a pointer CAS
+and refuses an existing replacement. The supported executable fingerprint
+still gates the enclosing runtime. The resident wrapper forwards stock calls
+when disabled, outside the game thread or for another controller. For the
+registered local guest's verified wheel/controller, it consumes the native
+command and queues only a currently available retained-name power. The queue
+performs all ordinary final scene/life/action/controller/ABI checks later on
+Tick. It never dispatches a power recursively from the wheel callback.
+
+This bypasses the native hotkey implementation's cached story-pawn/icon
+selection for this optional guest path. It does not initialize a missing movie
+or handler controller: UseAbility still needs the existing controller-specific
+wheel and native combat gate before reaching the virtual. Wheel icons and
+saved Shepard definitions are not rewritten to match the mod's slots, so UI
+alignment remains unfinished. The panel is the available slot-label surface.
+The tiny forwarding hook stays resident until process exit, as the Tick bridge
+does; disabling returns its calls to stock behavior.
+
+Keyboard delivery, native acceptance, cooldown, target effects and icon
+agreement remain unverified. Gamepad integration is deferred. All three native
+targets compiled and the changed Python files syntax parsed; no game, panel,
+network session or tests ran.

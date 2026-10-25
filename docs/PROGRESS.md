@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-25: native keyboard power command bridge candidate
+
+An optional guest bridge now receives the engine's existing UseAbility0..7
+commands at the native PC wheel virtual. The exact exec thunk, vtable slot,
+implementation entry and retained SDK corroborate the handler/int ABI. It
+queues the corresponding retained guest power name through the ordinary power
+path, avoiding the stock implementation's cached story-pawn/icon selection.
+It forwards other controllers and disabled/out-of-thread calls to stock code.
+Installation requires the original slot/signature and uses pointer CAS.
+
+The guest-only --native-power-hotkeys planner switch enables the candidate;
+Ctrl+Alt shortcuts remain independent. Panel v6 identifies named guest slots.
+Existing saved Shepard definitions and wheel icons are unchanged, and an
+existing controller-specific movie/handler is still needed to reach the hook.
+The bridge therefore does not complete native UI alignment or prove delivery.
+Gamepad work is deferred. Three native targets compiled and three Python files
+syntax parsed. No game, panel, network session or tests ran.
+
 ## 2026-10-25: resolve campaign mapped-power requests by current name
 
 The ordinary runtime gained a mapped-action queue API for the six action

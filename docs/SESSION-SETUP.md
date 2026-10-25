@@ -22,6 +22,13 @@ experimental Ctrl+Alt+1..9 power slot adapter. It is off by default and does not
 require the panel. Slots capture native power names and retain them across
 catalog changes in the same process; see [power input](POWER-INPUT-RESEARCH.md). Host plans refuse this
 option. The adapter itself does not alter native key bindings.
+Guest-only `--native-power-hotkeys` adds
+`ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS=1` for the compiled native keyboard bridge
+candidate. Existing `UseAbility 0..7` commands select the first eight retained
+guest power slots, honoring the game's existing physical key bindings. It is
+off by default, independent of Ctrl+Alt shortcuts, and does not rewrite saved
+Shepard slots. Panel v6 labels the guest slot assignments; native wheel icons
+are not yet aligned. Keyboard delivery and power effects remain unverified.
 Host-only `--auto-relisten` adds `ME3_SQUAD_COOP_AUTO_RELISTEN=1`. After an
 earlier verified runtime listener, it can schedule the checked Listen path in
 a ready standalone mission whose old world and driver were positively disposed.

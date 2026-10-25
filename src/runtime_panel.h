@@ -10,7 +10,7 @@ typedef struct RuntimePanelFrame {
     uint32_t role,enabled,startup,netmode,companion_owned,power_status,power_scope,power_count;
     uint32_t ack_id,ack_result,control_state,tick_ms;
     uint32_t recovery_flags,readiness_state;
-    uint32_t hotkeys_enabled;
+    uint32_t hotkeys_enabled; /* bit0: Ctrl+Alt, bit1: native UseAbility bridge */
     int32_t power_slot_indices[9];
     char power_names[64][80];
 } RuntimePanelFrame;
@@ -20,9 +20,9 @@ typedef struct RuntimePanelMemory {
     uint32_t command_id,scope,index,sent_at;
 } RuntimePanelMemory;
 #pragma pack(pop)
-_Static_assert(sizeof(RuntimePanelFrame)==5244,"panel frame v5");
+_Static_assert(sizeof(RuntimePanelFrame)==5244,"panel frame v6");
 _Static_assert(offsetof(RuntimePanelMemory,command)==5244,"panel mailbox alignment");
-_Static_assert(sizeof(RuntimePanelMemory)==5264,"panel protocol v5");
+_Static_assert(sizeof(RuntimePanelMemory)==5264,"panel protocol v6");
 static RuntimePanelMemory *runtime_panel_memory;
 static HANDLE runtime_panel_mapping;
 static uint64_t runtime_panel_created;
@@ -80,7 +80,7 @@ static void runtime_panel_publish(uintptr_t base,uintptr_t engine,DWORD now) {
     RuntimePanelMemory *memory=runtime_panel_memory;
     if(!memory||(runtime_panel_published&&now-runtime_panel_published<250))return;
     runtime_panel_published=now;
-    RuntimePanelFrame frame={0};frame.magic=UINT32_C(0x4d334350);frame.version=5;
+    RuntimePanelFrame frame={0};frame.magic=UINT32_C(0x4d334350);frame.version=6;
     frame.bytes=sizeof(RuntimePanelMemory);frame.pid=GetCurrentProcessId();frame.created=runtime_panel_created;
     frame.role=g_runtime_config.role;frame.enabled=runtime_control_enabled;
     frame.recovery_flags=(runtime_auto_relisten_enabled?1u:0)|(runtime_auto_rejoin_enabled?2u:0)|
@@ -113,12 +113,13 @@ static void runtime_panel_publish(uintptr_t base,uintptr_t engine,DWORD now) {
         InterlockedCompareExchange(&runtime_power_status,0,0);
     frame.power_scope=InterlockedCompareExchange(&runtime_power_scope,0,0);
     int count=InterlockedCompareExchange(&runtime_power_count,0,0);
-    frame.hotkeys_enabled=g_runtime_config.role==ME3_ROLE_GUEST&&runtime_power_input_enabled();
+    if(g_runtime_config.role==ME3_ROLE_GUEST)frame.hotkeys_enabled=
+        (runtime_power_input_enabled()?1u:0u)|(runtime_native_power_input_active()?2u:0u);
     for(unsigned slot=0;slot<9;++slot)frame.power_slot_indices[slot]=-1;
     if(frame.power_scope&&count>=0&&count<=64) {
         frame.power_count=count;
         for(int i=0;i<count;++i)name_of(base,runtime_power_catalog.names[i][0],frame.power_names[i],80);
-        if(frame.hotkeys_enabled)for(unsigned slot=0;slot<9;++slot)
+        if(frame.hotkeys_enabled)for(unsigned slot=0;slot<9;++slot)if(slot<8||(frame.hotkeys_enabled&1))
             frame.power_slot_indices[slot]=runtime_power_slot_index(&runtime_power_catalog,slot);
     }
     frame.ack_id=runtime_panel_ack;frame.ack_result=runtime_panel_result;frame.tick_ms=now;
