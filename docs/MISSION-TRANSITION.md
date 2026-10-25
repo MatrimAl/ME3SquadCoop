@@ -105,6 +105,9 @@ exit, including when nothing was pending, and leaves manual retries available.
 
 This recovery policy is compiled only. No guest disconnect, standalone return,
 two-PC reconnect or full campaign boundary has been executed for it.
+An additional optional [readiness channel](READY-CHANNEL.md) lets automatic
+guest recovery wait for a fresh host-ready reply before scheduling and native
+dispatch. It does not change the disposal, cleanup or target pin requirements.
 
 ## Remaining ownership and progression boundaries
 

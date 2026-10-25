@@ -1849,3 +1849,32 @@ driver/connection/channel checks. All three native outputs rebuilt; planner and
 panel Python syntax parsed. No game, panel, request fixture, disconnect or
 reconnect was executed. Actual mission/host timing and full campaign continuity
 remain unverified.
+
+## Add optional host readiness synchronization for guest recovery
+
+Both session roles can opt into `--ready-channel`, emitting the default-off
+`ME3_SQUAD_COOP_READY_CHANNEL=1` flag. The ordinary entry owns an independent
+nonblocking UDP channel on the exact configured interface: host game-port+1,
+guest ephemeral. Port65535 is refused for this option. No native network state,
+story data, engine command or object pointer is sent through the channel.
+
+The host advertises readiness only for its current verified runtime listener
+and ordinary Shepard control without transition/fault. A fixed24-byte versioned
+query/reply echoes a random16-byte nonce. Guest replies require the configured
+host endpoint, current request nonce/local context and request age<=1000ms.
+Queries are limited to one per500ms; receives to four datagrams per Tick.
+Context replacement/cancel/disable invalidates cached readiness. Missing peers,
+UDP resets and oversized traffic cannot turn into readiness or a retry loop.
+
+With the flag enabled, automatic guest recovery waits for a correlated ready
+reply before consuming its one-shot intent and again before native dispatch.
+The existing stable-player and native Join/package/ownership checks remain
+authoritative. Manual Join/Retry is independent. Fatal local channel failures
+leave automatic recovery waiting and preserve manual requests. The protected
+probe does not open a side-channel socket. See [readiness channel](READY-CHANNEL.md).
+
+The delegated implementation timed out without writing files; the transport
+and integration were completed and reviewed locally. All three native outputs
+rebuilt, and planner/build Python sources syntax parsed. No game, socket, packet,
+panel, fixture or reconnect test was executed. Reachability, packet loss, timing,
+cleanup and actual cross-PC campaign continuity remain unverified.

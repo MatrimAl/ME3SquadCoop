@@ -25,6 +25,7 @@ static wchar_t g_executable[MAX_PATH];
 #include "runtime_session.h"
 #include "runtime_network_bootstrap.h"
 #include "runtime_panel.h"
+#include "runtime_ready_policy.h"
 static EngineTick runtime_original_tick;
 static DWORD runtime_last_gate;
 
@@ -53,6 +54,7 @@ static void runtime_tick(void *self,float delta) {
     runtime_panel_commands();
     runtime_control_enabled=g_dlc_active&&InterlockedCompareExchange(&g_enable_requested,0,0)&&
         g_config_status==ME3_CONFIG_READY;
+    runtime_ready_policy_tick(base,(uintptr_t)self);
     runtime_network_start_tick(base,(uintptr_t)self,now);
     runtime_session_frame(base,(uintptr_t)self,0,now);
     runtime_original_tick(self,delta);

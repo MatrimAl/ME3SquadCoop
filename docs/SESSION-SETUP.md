@@ -36,6 +36,11 @@ is ready. It does not retry failed first connections, force a disconnect or
 select a mission. Cancel suspends it until process exit, while manual Retry
 join remains available. Host readiness and successful reconnection are not
 guaranteed; see [mission transitions](MISSION-TRANSITION.md).
+Both roles can opt into `--ready-channel`, using UDP game-port+1 for advisory
+host readiness. With this flag, automatic guest recovery waits for a fresh
+reply before consuming its one-shot intent and before native dispatch. It
+requires the host to enable the same channel; manual Join/Retry is independent.
+Port65535 is refused for this option. See [readiness channel](READY-CHANNEL.md).
 `--start attach` prepares configuration for attaching the mod to an existing
 native network session; it does not request Listen or a join. Host/join and
 guest/listen combinations are rejected. A guest requires an explicit peer;

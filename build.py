@@ -25,7 +25,8 @@ def main():
                TMP=str(temp), TEMP=str(temp))
     for source, filename, extra in [
         ("squad_probe.c", "ME3SquadCoopProbe.asi", ["-shared"]),
-        ("squad_coop.c", "ME3SquadCoop.asi", ["-shared", "-lbcrypt", "-luser32"]),
+        ("squad_coop.c", "ME3SquadCoop.asi", [str(ROOT / "src" / "runtime_ready_channel.c"),
+            "-shared", "-lbcrypt", "-luser32", "-lws2_32"]),
         ("sandbox_launch.c", "sandbox_launch.exe", ["-municode", "-ladvapi32"]),
     ]:
         command = [str(compiler), "cc", "-target", "x86_64-windows-gnu", "-std=c17", "-O2", "-Wall",

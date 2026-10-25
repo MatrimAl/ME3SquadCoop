@@ -24,6 +24,9 @@ static SessionHandle runtime_auto_relisten_target;
 static int runtime_auto_relisten_suspended;
 static SessionHandle runtime_auto_rejoin_target;
 static int runtime_auto_rejoin_suspended;
+/* Ordinary entry publishes a fresh side-channel observation each Tick.
+ * The protected probe does not open a side channel. Manual join ignores it. */
+static int runtime_peer_ready_required,runtime_peer_ready;
 static DWORD runtime_relisten_started;
 static int runtime_relisten_armed;
 static DWORD runtime_join_last_check;
@@ -220,6 +223,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
         return;
     }
     wchar_t command[64];
+    if(runtime_auto_rejoin_target.pointer&&runtime_peer_ready_required&&!runtime_peer_ready)return;
     if(!runtime_join_command(&g_runtime_config,command,64)||!runtime_join_console_abi(base,c.pc)) {
         memset(&runtime_auto_rejoin_target,0,sizeof runtime_auto_rejoin_target);
         InterlockedExchange(&runtime_join_attempted,1);InterlockedExchange(&runtime_join_requested,0);

@@ -15,6 +15,7 @@ class RuntimeSessionPlan:
     power_hotkeys: bool = False
     auto_relisten: bool = False
     auto_rejoin: bool = False
+    ready_channel: bool = False
 
     def __post_init__(self):
         if self.role not in ("host", "guest"):
@@ -27,6 +28,8 @@ class RuntimeSessionPlan:
             raise ValueError("automatic relisten requires a host plan and a boolean option")
         if type(self.auto_rejoin) is not bool or (self.auto_rejoin and self.role != "guest"):
             raise ValueError("automatic rejoin requires a guest plan and a boolean option")
+        if type(self.ready_channel) is not bool:
+            raise ValueError("ready channel must be a boolean")
         endpoint = DirectIPConfig(
             "host" if self.role == "host" else "client",
             self.bind_ipv4, self.port, self.peer_ipv4, loopback_qa=False)
@@ -37,6 +40,8 @@ class RuntimeSessionPlan:
             raise ValueError("startup action does not match the session role")
         object.__setattr__(self, "start", action)
         object.__setattr__(self, "port", endpoint.port)
+        if self.ready_channel and endpoint.port == 65535:
+            raise ValueError("ready channel needs an adjacent UDP port")
         object.__setattr__(self, "bind_ipv4", endpoint.bind_ipv4)
         object.__setattr__(self, "peer_ipv4", endpoint.peer_ipv4)
 
@@ -62,6 +67,8 @@ class RuntimeSessionPlan:
             values["ME3_SQUAD_COOP_AUTO_RELISTEN"] = "1"
         if self.auto_rejoin:
             values["ME3_SQUAD_COOP_AUTO_REJOIN"] = "1"
+        if self.ready_channel:
+            values["ME3_SQUAD_COOP_READY_CHANNEL"] = "1"
         return values
 
     def child_environment(self, inherited):

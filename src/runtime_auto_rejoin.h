@@ -59,6 +59,7 @@ static void runtime_auto_rejoin_tick(uintptr_t base,uintptr_t engine,DWORD now) 
     }
     RuntimeJoinSample ready={0};
     if(net!=0||!runtime_auto_rejoin_epoch||runtime_auto_rejoin_attempted_epoch==runtime_auto_rejoin_epoch||
+       (runtime_peer_ready_required&&!runtime_peer_ready)||
        chain.world==runtime_auto_rejoin_origin_world.pointer||!runtime_auto_rejoin_old_gone(base)||
        c.world!=chain.info||!runtime_rejoin_cleanup_idle()||!runtime_join_travel_idle(chain.world,engine)||
        !runtime_join_context_sample(base,c,&chain,&ready))return;
