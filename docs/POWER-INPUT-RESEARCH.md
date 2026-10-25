@@ -150,6 +150,13 @@ getter. The native receiver is the local controller and the supplied caster is
 always its possessed Ashley. Optional target fields remain unset for ordinary
 native target selection. Accepted dispatches are limited to one per250ms.
 
+Power processing runs after the camera, player-context and collision adapters.
+The runtime rereads the current session and scene gate after those adapters,
+since collision repair can invoke native script. The power order is the final
+operation in the guest frame; no later adapter uses its pre-order context if
+native execution starts an action or changes ownership/world. This ordering is
+compiled but has not been exercised in the game.
+
 The command invokes only the game's normal SquadOrderUsePower entry. It changes
 no ranks, controller caches, cooldowns, permissions, targets or RPC routing.
 Native return1 is reported as order acceptance; return0 is native refusal.

@@ -85,12 +85,18 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,enabled,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
     guest_player_context_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
-    runtime_guest_power_tick(base,engine,c,ordinary,after,now);
     /* A scene/PlayersOnly interval suspends writes, not the captured healthy
      * collision lifetime. Keep observing the same pawn while it is released;
      * only an actual session disable/scope loss retires that baseline. */
     guest_collision_adapt(base,c.pc,c.pawn,c.world,ordinary,
         runtime_control_enabled&&runtime_scope_ready,now);
+    /* Collision repair can invoke native script. Resolve the current control
+     * context again before considering a power order. Keep the order last:
+     * its ProcessEvent may start an action or change the world/ownership, so
+     * no later adapter may consume this frame's pre-order context. */
+    c=session_context(engine);
+    ordinary=runtime_control_enabled&&runtime_scope_ready&&!session_engine_blocked(c);
+    runtime_guest_power_tick(base,engine,c,ordinary,after,now);
 }
 static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     session_engine=engine;session_game_thread=GetCurrentThreadId();

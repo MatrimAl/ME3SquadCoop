@@ -1729,3 +1729,15 @@ native dispatch does not masquerade as a disconnect or driver teardown.
 Native outputs rebuilt and panel Python syntax parsed. No game, panel, fixture
 or cancellation behavior was executed. Concurrent request behavior and actual
 native continuity remain deferred.
+
+## Place guest power dispatch after context adapters
+
+The ordinary guest frame now processes the power queue after collision repair,
+and rereads its session/scene context immediately beforehand. Collision repair
+can invoke native script; a power order can start an action or alter ownership
+or world state. Keeping the order last avoids handing its pre-call context to
+another adapter. Existing power ownership, catalog and native ABI checks remain.
+
+All three native outputs rebuilt. No game, panel, power order or fixture was
+executed. This is an ordering correction, not evidence of a working native cast
+or completed campaign co-op.
