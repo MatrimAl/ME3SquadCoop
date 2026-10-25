@@ -446,6 +446,7 @@ static int native_session_role(void) {return test_action;}
 #include "remote_appearance_qa.h"
 #include "session_control.h"
 #include "combat_route_qa.h"
+#include "combat_aim_qa.h"
 static void game_tick_diagnostics(void *self,uintptr_t base) {
     DWORD now = GetTickCount();
     if (now - last_state < 1000) return;
@@ -560,8 +561,10 @@ static void game_tick(void *self,float delta) {
     if(!combat_route_qa_host_mode())progress_input(base,(uintptr_t)self);
     combat_route_qa_tick(base,(uintptr_t)self,0,GetTickCount());
     if(session_enabled)session_frame(base,(uintptr_t)self,0);else pair_guest_input(base,(uintptr_t)self);
+    combat_aim_qa_tick(base,(uintptr_t)self,0,GetTickCount());
     lookup_record("Probe","PreTick",part,0,0);part=lookup_clock();
     original_tick(self,delta);lookup_record("Engine","OriginalTick",part,0,0);part=lookup_clock();
+    combat_aim_qa_tick(base,(uintptr_t)self,1,GetTickCount());
     if(session_enabled)session_frame(base,(uintptr_t)self,1);
     combat_route_qa_tick(base,(uintptr_t)self,1,GetTickCount());
     ammo_wire_prepare(base);
@@ -739,7 +742,7 @@ __declspec(dllexport) int SquadProbeSelfTest(void) {
 __declspec(dllexport) int SquadDirectIPSelfTest(void) { return direct_ip_native_selftest(); }
 __declspec(dllexport) int SquadStateReaderSelfTest(void) { return native_state_reader_selftest(); }
 __declspec(dllexport) int SquadCatchupGroundSelfTest(void) { return catchup_ground_selftest(); }
-__declspec(dllexport) int SquadCombatRouteSelfTest(void) { return combat_route_qa_selftest(); }
+__declspec(dllexport) int SquadCombatRouteSelfTest(void) { return combat_route_qa_selftest()&&combat_aim_selftest(); }
 __declspec(dllexport) int SquadCombatActionSelfTest(void) { return combat_action_qa_selftest(); }
 __declspec(dllexport) int SquadAmmoTraceSelfTest(void) { return ammo_trace_selftest(); }
 __declspec(dllexport) int SquadFunctionLookupSelfTest(void) { return function_lookup_selftest(); }
