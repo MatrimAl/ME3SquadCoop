@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-10-26: aggregate power-wheel evidence while Ghidra analyzes
+
+A private offline feature-dossier builder now joins8 named native roles,
+34 script-export observations and117 retained call instructions, keeping
+unresolved indirect calls and incomplete native boundaries explicit. This
+reduces repeated per-address discovery without claiming semantic completeness.
+The input executable hash was checked before and after aggregation.
+
+REA reports a configured Ghidra12.1.4/JDK21 backend, and the supported image
+opened successfully. The initial MCP batch observation timed out after120s;
+the underlying analysis was not thereby terminated. A CLI fallback was also
+started after restricted process visibility was misread. Subsequent process
+inspection confirmed both Java analyses progressing. No further import was
+started; neither had returned decompilation evidence at this observation.
+See the [offline analysis workflow](OFFLINE-ANALYSIS-WORKFLOW.md) for preventing
+duplicate imports and separating advertised capability from actual results.
+
+No runtime source/binary changed, and no game, network gameplay or tests ran.
+
 ## 2026-10-26: owned full-wheel caster/group candidate
 
 The optional icon lease now installs a checked forwarding hook at the native
