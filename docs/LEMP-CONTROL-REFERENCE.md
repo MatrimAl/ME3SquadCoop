@@ -130,6 +130,38 @@ the existing native path using current identities, reflected layouts, readable
 profile rows and a stable genuinely empty input list. This is source/build
 progress; no native invocation or repaired input has been observed.
 
+## Fire release and weapon preparation comparison
+
+A separate bounded extraction decoded these installed LEMP functions fully:
+
+| Function | Serialized / VM bytes | Observed role |
+| --- | --- | --- |
+| MPStopShoot | 11 / 15 | Assigns Controller.bFire=0 and returns |
+| MPDrawWeapons | 1175 / 1303 | Iterates SFXPawn_Player actors, checks weapon/preparation state and requests native action12 when CanDoCustomAction permits it |
+| CastPower | 156 / 244 | Reconfirms the previously inspected own-pawn power-order route |
+
+MPDrawWeapons tracks considered pawns in its MPDrawnPawns array and skips
+already-expanded weapons. Its iterator explicitly selects SFXPawn_Player;
+ordinary campaign Ashley does not enter that class-filtered path. Replaying
+this MP helper is therefore not an Ashley equipment initializer. Its normal
+CanDoCustomAction/DoCustomAction use is a lead for the correct action path,
+not permission to force an animation, clear an action cache or create weapons.
+
+MPStopShoot alone does not call weapon StopFire, cancel CheckBeginFire or
+clear PendingFireMode. This does not identify every caller or all LEMP firing
+behavior. It does establish that this small helper is not a replacement for
+the scoped delayed-start release candidate described in
+[native fire observations](NATIVE-FIRE-OBSERVATION.md). General host-side bFire=0
+sampling cannot establish that a guest released its fire button.
+
+The private decoder was extended from the retained LegendaryExplorer iterator
+and dynamic-array format readers. All three serialized/VM lengths matched;
+all ten explicit branch/iterator targets aligned with decoded expressions.
+The startup package and compression-library hashes remained unchanged.
+No helper, input pulse, cancellation experiment or game was executed. The
+protected cancellation candidate has not been promoted into the ordinary
+runtime without its deferred real-client evidence.
+
 The ASI repository's MIT license covers that source; it must not be assumed to
 license the DLC's game-derived content. This repository contains only authored
 findings and implementation, without extracted scripts or game assets. No
