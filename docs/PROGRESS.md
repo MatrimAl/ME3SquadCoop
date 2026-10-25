@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-10-25: wait for a stable landing before the aim experiment
+
+The protected guest traversed the upper anchors and reached the actual lower
+platform. Its first aim attempt began while falling and ended187ms later when
+the ordinary fire context changed, before the300ms calibration threshold.
+No firing or hostile damage was verified. Of192 acquired-Ashley samples,
+191 were walking and one falling; none was below kill-Z. The walking evaluator
+still flagged the downward velocity and rejected shared travel. That gate has
+not been weakened or reclassified as a pass.
+
+The QA driver now admits vertical gravity motion only along this measured
+drop's existing horizontal corridor and bounded height span; later road legs
+retain the original sloped-floor check. The native regression covers the
+observed guest landing and rejects the cut corner and positions below the
+drop's allowed lower height. Aim startup additionally requires500ms of
+grounded, low-vertical-speed ordinary control. Both native checks pass after
+rebuilding all three outputs; these changes await a live repeat.
+
+Raw look-input gain is unchanged. Shipped PlayerInput code applies time,
+look-scale, FOV and other processing before the controller's integer rotation
+cast. The cast alone therefore does not establish that the current gain is
+too small. Original profiles remained unchanged in the completed run, with
+zero recorded native exceptions and no remaining game processes; an access
+denied observation and memory-helper exit1 prevent an all-pass observer claim.
+
 ## 2026-10-25: preserve the measured guest route through the drop
 
 A protected repeat exercised the scene epoch correction: the guest restarted

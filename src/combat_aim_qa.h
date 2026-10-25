@@ -7,7 +7,7 @@
 typedef struct CombatAimView {float xyz[3];int32_t rotation[3];} CombatAimView;
 _Static_assert(sizeof(CombatAimView)==24,"GetPlayerViewPoint output ABI");
 typedef struct CombatAimQA {
-    int done,active,phase,firing,yaw_sign,pitch_sign;DWORD scan_at,started,phase_at,stable_at,report_at;
+    int done,active,phase,firing,yaw_sign,pitch_sign;DWORD scan_at,started,phase_at,stable_at,report_at,ready_at;
     int32_t calibration_angle;GuestCameraStamp pc,pawn,world,input,mode,target;
 } CombatAimQA;
 static CombatAimQA combat_aim_qa;
@@ -88,13 +88,16 @@ static void combat_aim_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD n
     if(!loaded){wchar_t text[8]={0};loaded=1;opted=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_ENEMY_AIM_QA",text,8)==1&&text[0]==L'1';}
     if(after){if(q->active&&!combat_aim_write(base,0,0))combat_aim_finish(base,"post-tick-input-cleanup",now);return;}
     if(q->done||!opted)return;
-    SessionContext c=session_context(engine);uintptr_t mode=0,weapon=0;const char *reason="disabled";float pos[3],target_xyz[3];unsigned char ignored=255;
+    SessionContext c=session_context(engine);uintptr_t mode=0,weapon=0;const char *reason="disabled";float pos[3],target_xyz[3],velocity[3],floor[3];unsigned char ignored=255,physics=255;
     int eligible=!session_manual_guest_input()&&test_action==5&&progress_enabled&&has_marker(root)&&
         !combat_fire_pulse.active&&!session_engine_blocked(c)&&
         combat_fire_conditions(base,c.pc,c.pawn,c.world,1,1,&mode,&weapon,&reason)&&
-        read_at(c.pc+0x782,&ignored,1)&&!ignored&&read_at(c.pawn+0x108,pos,12)&&scene_readiness_finite3(pos)&&pos[2]<-250;
-    if(!eligible){if(q->active)combat_aim_finish(base,"ordinary-owned-fire-context-ended",now);return;}
+        read_at(c.pc+0x782,&ignored,1)&&!ignored&&read_at(c.pawn+0x108,pos,12)&&scene_readiness_finite3(pos)&&pos[2]<-250&&
+        read_at(c.pawn+0x268,&physics,1)&&physics==1&&read_at(c.pawn+0x138,velocity,12)&&scene_readiness_finite3(velocity)&&fabsf(velocity[2])<15&&
+        read_at(c.pawn+0x2fc,floor,12)&&scene_readiness_finite3(floor)&&floor[2]>=0.6f&&floor[2]<=1.01f;
+    if(!eligible){q->ready_at=0;if(q->active)combat_aim_finish(base,"ordinary-owned-fire-context-ended",now);return;}
     if(!q->active){
+        if(!q->ready_at){q->ready_at=now;return;}if(now-q->ready_at<500)return;
         if(now-q->scan_at<1000)return;q->scan_at=now;
         GameArray list={0};uintptr_t *objects=identity_object_list(base,&list),target=0;float nearest=7000;
         if(!objects)return;

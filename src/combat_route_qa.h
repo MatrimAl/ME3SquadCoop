@@ -93,6 +93,14 @@ static int combat_route_corridor(const float position[3],const float from[3],con
     float nearest[3]={from[0]+t*x,from[1]+t*y,0};
     return combat_route_horizontal(position,nearest)<=180&&fabsf(position[2]-(from[2]+t*(to[2]-from[2])))<=180;
 }
+/* A ledge falls vertically rather than following a sloped floor. Preserve
+ * the same horizontal corridor, with only this measured drop's height span. */
+static int combat_guest_drop_corridor(const float position[3],const float from[3],const float to[3]) {
+    if(!scene_readiness_finite3(position)||!scene_readiness_finite3(from)||!scene_readiness_finite3(to)||
+       position[2]<to[2]-20||position[2]>from[2]+180)return 0;
+    float flat[3]={position[0],position[1],0},start[3]={from[0],from[1],0},end[3]={to[0],to[1],0};
+    return combat_route_corridor(flat,start,end);
+}
 static int combat_route_start_allowed(const float position[3]) {
     /* The joined landing position varies. Bound the first input leg by the
      * same 1500-unit range as ordinary steering, relative to the validated
@@ -234,7 +242,7 @@ static int combat_guest_road_target(uintptr_t base,uintptr_t pc,uintptr_t pawn,u
     float observed[3];
     if(!guest_camera_stamp_matches(base,node,1)||read_ptr(node->pointer+0x198)!=world||
        !read_at(node->pointer+0x108,observed,12)||!scene_readiness_finite3(observed)||distance(observed,goal)>2||
-       !combat_route_corridor(position,origin,goal))return -1;
+       !(point==COMBAT_ROUTE_COUNT?combat_guest_drop_corridor(position,origin,goal):combat_route_corridor(position,origin,goal)))return -1;
     int arrived=upper?combat_route_arrived(position,point,goal):
         combat_route_horizontal(position,goal)<=70&&fabsf(position[2]-goal[2])<=20;
     /* Begin the lower leg before entering the top node's traversal cylinder;
@@ -634,6 +642,12 @@ static int combat_route_qa_selftest(void) {
         if(!combat_route_corridor(observed_drop[i],combat_route_points[COMBAT_ROUTE_COUNT-1].xyz,combat_lower_points[0].xyz))return 0;
     const float cut_corner[3]={-22452.328f,43321.734f,0.150f};
     if(combat_route_corridor(cut_corner,combat_route_points[COMBAT_ROUTE_COUNT-1].xyz,combat_lower_points[0].xyz))return 0;
+    const float guest_landing[3]={-21996.570f,43434.570f,-379.850f};
+    if(combat_route_corridor(guest_landing,combat_route_points[COMBAT_ROUTE_COUNT-1].xyz,combat_lower_points[0].xyz)||
+       !combat_guest_drop_corridor(guest_landing,combat_route_points[COMBAT_ROUTE_COUNT-1].xyz,combat_lower_points[0].xyz)||
+       combat_guest_drop_corridor(cut_corner,combat_route_points[COMBAT_ROUTE_COUNT-1].xyz,combat_lower_points[0].xyz))return 0;
+    float too_low[3]={guest_landing[0],guest_landing[1],combat_lower_points[0].xyz[2]-21};
+    if(combat_guest_drop_corridor(too_low,combat_route_points[COMBAT_ROUTE_COUNT-1].xyz,combat_lower_points[0].xyz))return 0;
     if(!combat_route_corridor(position,from,to))return 0;position[1]=181;if(combat_route_corridor(position,from,to))return 0;
     position[1]=0;position[2]=181;if(combat_route_corridor(position,from,to))return 0;
     float joined[3]={-21897.965f,49762.996f,279.492f};
