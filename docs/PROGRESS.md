@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-26: retained Ghidra reuse verified
+
+The ten-entry wheel batch completed with exit0 and saved the project. Nine
+functions decompiled; the known short player-cache leaf was not recognized
+at an exact analyzed entry and remains explicitly missing from this export.
+Reprocessing the same manifest with readOnly/noanalysis returned identical
+function evidence in about12 seconds, compared with about14 minutes for the
+first import/export. Three additional helpers and the visibility method then
+decompiled from that same project. No replacement import was needed.
+
+The squad branch's possessed-pawn cast is BioPawn, verified through its class
+factory/name, so it does not introduce a Shepard-only class requirement.
+Full cache selection has separate active-mode/session branches. The visibility
+method also dispatches callbacks and clears/updates full-list icons on hide;
+it must not be treated as a neutral population shortcut. See the
+[population results](POWER-WHEEL-POPULATION.md). No runtime source changed,
+and no game or tests ran. Full guest-wheel initialization remains incomplete.
+
 ## 2026-10-26: retain guest menu context without optional icon readiness
 
 The guest frame's native PowerWheel context-retention predicate is now

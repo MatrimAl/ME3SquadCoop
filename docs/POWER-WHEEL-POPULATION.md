@@ -131,3 +131,38 @@ native discovery remains mode0-only and the mod order queue remains mode0-only.
 No pause/input/scene flag is cleared by retention. Three native targets
 compiled and build fingerprints matched. No game or tests ran; menu continuity,
 full-list initialization and close-time order delivery remain unverified.
+
+## Retained-project results
+
+The direct Ghidra batch completed with exit0 and saved its project. Nine of ten
+requested exact entries decompiled; cached-player leaf `0xc51aa0` was not a
+separate analyzed function. Its earlier instruction-grounded leaf evidence
+still applies. A readOnly/noanalysis export of the same manifest took about12
+seconds and returned identical per-function evidence. Initial import/export
+took about14 minutes. Three new helper entries and the visibility method then
+decompiled through that same saved project, without another import.
+
+The full squad-refresh method `0xc521b0..0xc523c4` clears the three cached
+pawns before selecting a controller-derived pawn and up to two other members.
+It contains alternate native/session branches whose conditions must remain
+explicit; its output is not equivalent to the short non-henchman cache leaf.
+Its controller helper `0xa9dfa0` first casts the possessed pawn through
+`0x551e70`, with separate mode1/mode2 handling. That cast's class factory
+`0xa8e960` identifies BioPawn through the UTF-16 class name at `0x133e1aa`.
+This path is not a Shepard-only SFXPawn_Player cast. Merely replacing that cast
+would therefore address the wrong prerequisite for Ashley.
+
+The mode query at `0xbb2d20` reads the selected mode object's active bit from
+GameModes, rather than simply comparing CurrentMode. Preserve that distinction
+when considering alternate control modes. Native list collection dispatches
+GetPowerWheelPowers through ProcessEvent; it is not a raw copy of Powers.
+Its native filtering and script overrides cannot be equated to the mod's base
+membership catalog without checking the actual instances.
+
+SetWheelVisible resolves through registration thunk `0xb63720` to
+`0xc53730..0xc5390e`. It dispatches visibility callbacks and its hiding path
+walks/updates existing full-list icons. Showing a wheel is therefore not a
+harmless refresh call to substitute for population. Some decompiler calls lack
+fully recovered argument information, and indirect-tail-call warnings remain
+in SetupPlayerPowers. These outputs are retained research, not ABI permission.
+No new runtime call or game/test execution followed from this batch.

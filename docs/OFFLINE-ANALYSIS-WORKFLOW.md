@@ -37,8 +37,13 @@ installed-Ghidra path when REA's CLI discards its ephemeral import. It compiles
 the exporter against the installed APIs, validates a private source manifest,
 keeps the project and exports related functions in one operation. Later reuse
 must follow a verified successful import/save, not merely an existing project
-filename. A ten-entry wheel batch has been launched; persistence and later
-reuse remain pending until actual output and a subsequent read establish them.
+filename. The ten-entry wheel batch completed with nine decompiled entries and
+one missing exact analyzed entry. The project saved successfully. A subsequent
+readOnly/noanalysis run completed in about12 seconds with identical per-function
+evidence; the initial import/export took about14 minutes. Later three-entry
+helper and one-entry visibility exports reused the same project successfully.
+This establishes reuse for this installed provider/project, not general native
+semantic completeness or gameplay behavior.
 
 Reuse now also requires an explicit prior terminal export directory through
 `--reuse-from`. A matching source digest and completed report with exit0 and
