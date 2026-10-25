@@ -443,6 +443,7 @@ static int native_session_role(void) {return test_action;}
 #include "guest_hit_trace.h"
 #include "guest_hit_trace_selftest.h"
 #include "initial_actor_trace.h"
+#include "remote_appearance_qa.h"
 #include "session_control.h"
 #include "combat_route_qa.h"
 static void game_tick_diagnostics(void *self,uintptr_t base) {
