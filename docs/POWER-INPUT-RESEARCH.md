@@ -266,3 +266,37 @@ cache refresh. AddPower changes the pawn action-class table and uses
 VerifyCAHasBeenInstanced before updating manager membership. Neither is called
 by this change. Extracted data remains private and source hashes were unchanged.
 Only native compilation was performed; no wheel, shortcut, power or game ran.
+
+## Wheel UI initialization boundary
+
+A separate owned-package extraction decoded nine base/PC wheel functions
+completely, with matching serialized/VM lengths and aligned explicit branches.
+Base InitDisplay is550/738 bytes; base InitPowerIcons508/788. PC InitDisplay
+is196/296; PC InitPowerIcons472/684. The PC icon initializer calls its base
+initializer, resolves movie variable objects, configures their icon properties
+and assigns m_aQuickSlotIcons. It also resolves the drag power/slot objects.
+The icons consumed by doHotKey therefore belong to an initialized Scaleform
+movie, not merely a power-manager array. Calling an icon initializer without
+the correct loaded movie/handler context is not a demonstrated keyboard fix.
+
+Base CleanupReferences116/180 clears its controller, squad, player/hench pawn
+and selection references and cleans power icons. PC CleanupReferences128/200
+delegates to the base and cleans quickslot icons. Capturing these pointers
+without accounting for native movie cleanup would be stale-context handling.
+
+SetupPlayerPowers, SetupQuickSlotKeys and SetupQuickSlotPowers each have only
+a two-byte script bridge; their native bodies require separate inspection.
+Exact executable name/function registration and thunk tail jumps resolve:
+
+| Method | Name RVA | Table pair RVA | Exec RVA | Direct body RVA |
+| --- | --- | --- | --- | --- |
+| SetupPlayerPowers | 0x13794b0 | 0x179d180 | 0xb637b0 | 0xc53910 |
+| SetupQuickSlotKeys | 0x1379650 | 0x179d260 | 0xb69080 | 0xc54280 |
+| SetupQuickSlotPowers | 0x13795e0 | 0x179d250 | 0xb69370 | 0xc54470 |
+
+These are static entry identities for the supported image, not validated
+initializers to invoke on an arbitrary handler. Their bodies, movie lifecycle,
+current controller/pawn assignment and existing saved quickslot semantics remain
+the next integration questions. No UI initializer, cleanup, key assignment or
+native body was executed. Package/compression inputs remained unchanged, and
+private raw code was not added to this repository.
