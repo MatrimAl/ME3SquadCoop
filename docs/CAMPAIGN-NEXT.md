@@ -92,3 +92,20 @@ include missing/wrong/stale event identity; withheld host readiness; child exit
 between readiness and release; insufficient common lifetime; partial launch
 cleanup; and actual native join after full same-map prewarm. Successful compile
 and source inspection do not verify any of those behaviors.
+
+## Compile-only review before deferred execution
+
+The ordinary `ME3_RUNTIME_FIXTURE` flavor was also compiled successfully for
+the current source. The generated DLL was not loaded and no fixture was
+called. This adds compile evidence for the newly prepared admission cases;
+it does not replace the deferred native harness or mutation runs. Normal
+native outputs and a fixture-flavor DLL compiling are separate from gameplay
+or callback verification.
+
+When execution resumes, first rebuild/verify the current source and run the
+probe and ordinary-runtime harnesses, then the shared scene-gate and runtime
+cleanup/admission mutants. Only after those results and the protected launcher
+failure-path checks pass should the parallel arena pair be exercised. The
+retained exception from the prior trial also needs attribution before any
+stability claim. A complete campaign result still requires sustained movement,
+combat, true dialogue return and mission travel in the ordinary entry.
