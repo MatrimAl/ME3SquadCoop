@@ -267,6 +267,17 @@ VerifyCAHasBeenInstanced before updating manager membership. Neither is called
 by this change. Extracted data remains private and source hashes were unchanged.
 Only native compilation was performed; no wheel, shortcut, power or game ran.
 
+Membership layout validation is shared within one catalog read. The first
+non-null entry verifies the three base fields; every following entry must
+inherit the same actual SFXPowerCustomActionBase Class identity, not just a
+matching class name. The declaring-class handle is rechecked during traversal
+and before returning the catalog. Class traversal is bounded and rejects cycles.
+This avoids repeating the same three property-list searches for every entry.
+Each catalog read starts fresh, including final pre-dispatch reads; no layout
+cache survives a scene, world change or native call. Live flags/rank, source
+membership and object checks remain per entry. No frame-time improvement was
+measured and no runtime behavior was exercised for this source optimization.
+
 ## Wheel UI initialization boundary
 
 A separate owned-package extraction decoded nine base/PC wheel functions

@@ -82,6 +82,17 @@ static int runtime_power_request_expired(ULONGLONG submitted) {
 }
 static int runtime_power_property(uintptr_t base,uintptr_t object,const char *owner,const char *name,
     const char *kind,int offset,int size);
+static uintptr_t runtime_power_declaring_base(uintptr_t base,uintptr_t object) {
+    uintptr_t klass=read_ptr(object+0x50),seen[48]={0};
+    for(unsigned n=0;klass&&n<48;++n) {
+        if(!narrative_probe_object(base,klass,"Class"))return 0;
+        for(unsigned j=0;j<n;++j)if(seen[j]==klass)return 0;
+        seen[n]=klass;char name[96];object_name(base,klass,name,sizeof name);
+        if(!strcmp(name,"SFXPowerCustomActionBase"))return klass;
+        if(!read_at(klass+0x60,&klass,8))return 0;
+    }
+    return 0;
+}
 static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordinary,RuntimePowerCatalog *out) {
     if(!ordinary||!guest_player_context_registered_for(c.pc,c.pawn)||
        !guest_player_context_basic_owned(base,c.pc,c.pawn,c.world))return 0;
@@ -102,7 +113,7 @@ static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordina
     if(!session_handle_matches(out->pc)||!session_handle_matches(out->pawn)||
        !session_handle_matches(out->info)||!session_handle_matches(out->manager)||
        !session_handle_matches(out->channel)||!session_handle_matches(out->connection)||!session_handle_matches(out->driver))return 0;
-    uintptr_t sampled[RUNTIME_POWER_LIMIT]={0};
+    uintptr_t sampled[RUNTIME_POWER_LIMIT]={0};SessionHandle layout={0};
     for(int i=0;i<array.count;++i) {
         uintptr_t item=0;
         if(!read_at(array.data+(size_t)i*8,&item,8))return 0;
@@ -113,10 +124,20 @@ static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordina
         if(!item)continue;
         int entry=out->count;
         uint32_t flags=0;float rank=0;
-        if(!narrative_probe_object(base,item,"SFXPowerCustomActionBase")||
-           !runtime_power_property(base,item,"SFXPowerCustomActionBase","Rank","FloatProperty",0x488,4)||
-           !runtime_power_property(base,item,"SFXPowerCustomActionBase","bEnabled","BoolProperty",0x4dc,4)||
-           !runtime_power_property(base,item,"SFXPowerCustomActionBase","DisplayInHUD","BoolProperty",0x4dc,4)||
+        if(!narrative_probe_object(base,item,"SFXPowerCustomActionBase"))return 0;
+        uintptr_t declaring=runtime_power_declaring_base(base,item);
+        if(!declaring)return 0;
+        if(!layout.pointer) {
+            layout=session_capture_handle(declaring);
+            if(!session_handle_matches(layout)||
+               !runtime_power_property(base,item,"SFXPowerCustomActionBase","Rank","FloatProperty",0x488,4)||
+               !runtime_power_property(base,item,"SFXPowerCustomActionBase","bEnabled","BoolProperty",0x4dc,4)||
+               !runtime_power_property(base,item,"SFXPowerCustomActionBase","DisplayInHUD","BoolProperty",0x4dc,4))return 0;
+        }
+        /* All entries must inherit the same actual declaring Class, not
+         * merely share its name. Reuse layout only within this read, with
+         * no engine calls and no persistent metadata cache across worlds. */
+        if(declaring!=layout.pointer||!session_handle_matches(layout)||
            !read_at(item+0x4dc,&flags,4)||!read_at(item+0x488,&rank,4)||!isfinite(rank))return 0;
         /* Match base power-wheel membership; cooldown/target/action checks
          * remain native dispatch policy, not reasons to reorder hotkeys. */
@@ -130,7 +151,7 @@ static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordina
         uintptr_t item=0;
         if(!read_at(array.data+(size_t)i*8,&item,8)||item!=sampled[i])return 0;
     }
-    return out->count&&read_at(manager+0x60,&after,sizeof after)&&!memcmp(&array,&after,sizeof array)&&
+    return out->count&&session_handle_matches(layout)&&read_at(manager+0x60,&after,sizeof after)&&!memcmp(&array,&after,sizeof array)&&
         read_ptr(c.pawn+0xc18)==manager&&read_ptr(manager+0xd0)==c.pawn;
 }
 /* Reflected layout corroborates the retained SDK before invoking an order.
