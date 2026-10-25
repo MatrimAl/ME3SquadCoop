@@ -2,6 +2,8 @@
 
 Guest power use is **unverified**. No power remapping, forced unlock,
 cooldown change or replacement transport has been implemented.
+An explicit ordinary-runtime request API is now implemented as a compiled
+candidate below; no player binding or live cast has been verified.
 
 ## Evidence from the supported package
 
@@ -124,3 +126,38 @@ ownership, native cooldown/target acceptance and actual effects remain pending.
 The next implementation must resolve power choices from the possessed pawn's
 current manager; it must not accept an arbitrary caller-supplied caster or
 bypass the normal tactical-order/ActivatePower/server path.
+
+## Explicit guest power request candidate
+
+The ordinary entry exports `ME3SquadCoopPowerScope`, `ME3SquadCoopPowerCount`,
+`ME3SquadCoopRequestPower(scope,index)` and `ME3SquadCoopPowerStatus`. Export
+callers touch atomic state only. A scope identifies the sampled possessed
+pawn/controller/world/manager, connection/driver/channel, player-registration
+token and its current power-array entries/names;
+scope changes cancel pending input. Scope0 means unavailable. The generation
+never wraps into a previously usable value. The list is bounded to64 entries.
+No keyboard/gamepad/menu binding is provided yet.
+
+Tick consumes one request only after ordinary guest ownership and an initialized
+player context are verified. It rejects invalid indices, native duplicate power
+names, stale object identities, missing/unlearned ranks and action instances
+still bound to another controller or AI. The reflected manager/power-property
+layouts and the complete native order ABI must match. A fresh catalog and
+control/scene checks run before dispatch, including after the native combat
+getter. The native receiver is the local controller and the supplied caster is
+always its possessed Ashley. Optional target fields remain unset for ordinary
+native target selection. Accepted dispatches are limited to one per250ms.
+
+The command invokes only the game's normal SquadOrderUsePower entry. It changes
+no ranks, controller caches, cooldowns, permissions, targets or RPC routing.
+Native return1 is reported as order acceptance; return0 is native refusal.
+Neither is a completed cast, server acceptance, cooldown or target-effect verdict.
+Status0/1/2/3/4 means idle/queued/rejected/native-accepted/native-refused.
+
+The runtime catalog requires all sampled power entries to be valid instantiated
+objects; a sparse or not-yet-instantiated native list leaves the API unavailable.
+It does not initialize or rebind those objects. All-empty or stale controller
+state therefore remains an observable rejection rather than forced power use.
+Normal outputs compile, but no game, request fixture, native order or performance
+measurement was run. Complete input mapping, catalog presentation, action-instance
+readiness and authoritative effects remain unverified.

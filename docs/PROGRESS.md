@@ -1626,3 +1626,19 @@ No game, fixture or power order was run. The new header is a compiled contract,
 not an implemented power binding or successful cast. Dynamic power selection,
 action-instance controller ownership and native target/cooldown acceptance
 remain the next prerequisites. See [power input research](POWER-INPUT-RESEARCH.md).
+
+## Queue ordinary guest power requests against current ownership
+
+The ordinary runtime now provides an explicit scoped power-index request API.
+Tick resolves the possessed pawn's current native manager/list, binds input to
+object identities and power names, and dispatches the verified normal native
+own-pawn tactical order after final ownership/scene/combat and layout checks.
+Changing the catalog or control scope cancels pending input. A different caster
+or caller-supplied target cannot be submitted through this API.
+
+Unlearned rank, duplicate native power name and stale cached player/AI context
+are rejected. Existing native gameplay restrictions and target selection remain;
+no action cache, cooldown, rank or RPC is patched. A boolean native acceptance is
+reported separately from a cast/effect verdict. Keyboard/menu bindings and actual
+gameplay remain unfinished. Normal native outputs rebuilt; no game, fixture or
+power order was executed. See [power input research](POWER-INPUT-RESEARCH.md).

@@ -68,6 +68,7 @@ static int runtime_session_scope(uintptr_t base,uintptr_t engine) {
     identity_host_driver=g_runtime_config.role==ME3_ROLE_HOST?driver:0;
     return 1;
 }
+#include "runtime_guest_power.h"
 static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     SessionContext c=session_context(engine);
     uint32_t world_flags=0;
@@ -84,6 +85,7 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,enabled,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
     guest_player_context_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
+    runtime_guest_power_tick(base,engine,c,ordinary,after,now);
     /* A scene/PlayersOnly interval suspends writes, not the captured healthy
      * collision lifetime. Keep observing the same pawn while it is released;
      * only an actual session disable/scope loss retires that baseline. */

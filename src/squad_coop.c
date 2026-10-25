@@ -96,6 +96,13 @@ __declspec(dllexport) int ME3SquadCoopRuntimeError(void) {return InterlockedComp
 __declspec(dllexport) int ME3SquadCoopRequestJoin(void) {return runtime_request_join();}
 __declspec(dllexport) int ME3SquadCoopRequestRejoin(void) {return runtime_request_rejoin();}
 __declspec(dllexport) int ME3SquadCoopRequestListen(void) {return runtime_request_listen();}
+__declspec(dllexport) unsigned ME3SquadCoopPowerScope(void) {return (unsigned)InterlockedCompareExchange(&runtime_power_scope,0,0);}
+__declspec(dllexport) unsigned ME3SquadCoopPowerCount(void) {return (unsigned)InterlockedCompareExchange(&runtime_power_count,0,0);}
+__declspec(dllexport) int ME3SquadCoopRequestPower(unsigned scope,unsigned index) {return runtime_request_power(scope,index);}
+__declspec(dllexport) int ME3SquadCoopPowerStatus(void) {
+    return InterlockedCompareExchange64(&runtime_power_request,0,0)?RUNTIME_POWER_QUEUED:
+        InterlockedCompareExchange(&runtime_power_status,0,0);
+}
 __declspec(dllexport) int ME3SquadCoopNetworkStartStatus(void) {
     return InterlockedCompareExchange(&runtime_network_start_status,0,0);
 }
