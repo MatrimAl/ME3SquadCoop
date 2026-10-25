@@ -89,7 +89,7 @@ static void combat_aim_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD n
     if(after){if(q->active&&!combat_aim_write(base,0,0))combat_aim_finish(base,"post-tick-input-cleanup",now);return;}
     if(q->done||!opted)return;
     SessionContext c=session_context(engine);uintptr_t mode=0,weapon=0;const char *reason="disabled";float pos[3],target_xyz[3],velocity[3],floor[3];unsigned char ignored=255,physics=255;
-    int eligible=!session_manual_guest_input()&&test_action==5&&progress_enabled&&has_marker(root)&&
+    int eligible=!session_manual_guest_input()&&test_action==5&&progress_enabled&&has_marker(root)&&combat_guest_route_finished&&
         !combat_fire_pulse.active&&!session_engine_blocked(c)&&
         combat_fire_conditions(base,c.pc,c.pawn,c.world,1,1,&mode,&weapon,&reason)&&
         read_at(c.pc+0x782,&ignored,1)&&!ignored&&read_at(c.pawn+0x108,pos,12)&&scene_readiness_finite3(pos)&&pos[2]<-250&&

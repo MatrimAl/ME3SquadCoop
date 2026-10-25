@@ -14,8 +14,10 @@ The QA driver now admits vertical gravity motion only along this measured
 drop's existing horizontal corridor and bounded height span; later road legs
 retain the original sloped-floor check. The native regression covers the
 observed guest landing and rejects the cut corner and positions below the
-drop's allowed lower height. Aim startup additionally requires500ms of
-grounded, low-vertical-speed ordinary control. Both native checks pass after
+drop's allowed lower height. Aim startup additionally requires actual completion
+of the measured encounter approach and500ms of grounded, low-vertical-speed
+ordinary control, so it cannot pause the bot on landing for a distant shot.
+Both native checks pass after
 rebuilding all three outputs; these changes await a live repeat.
 
 Raw look-input gain is unchanged. Shipped PlayerInput code applies time,

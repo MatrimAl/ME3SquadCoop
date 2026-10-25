@@ -208,25 +208,26 @@ static int combat_route_discover(uintptr_t base,uintptr_t world,DWORD now) {
     memcpy(q->nodes,nodes,sizeof nodes);q->node_world=world;q->nodes_ready=1;return 1;
 }
 static int combat_lower_discover(uintptr_t base,uintptr_t world);
+static int combat_guest_route_finished;
 /* QA guest must take the measured corners through the drop and lower road
  * instead of cutting directly toward a host several nodes ahead. Reuse the
  * host's validated nav inventory; ordinary input and gravity do the traversal. */
 static int combat_guest_road_target(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,const float position[3],float target[3],DWORD now) {
     static GuestCameraStamp guest_pc,guest_pawn,guest_world;
-    static unsigned point;static uint32_t epoch;static int started,done;static float origin[3];
+    static unsigned point;static uint32_t epoch;static int started;static float origin[3];
     CombatRouteQA *q=&combat_route_qa;
     if(!combat_action_opted()||!combat_lower_opted())return 0;
     combat_route_qa_host_mode();
     if(!q->opted||test_action!=5||strcmp(test_role,"client")||session_manual_guest_input())return 0;
     if(epoch!=session_guest_epoch||!guest_camera_stamp_matches(base,&guest_pc,1)||!guest_camera_stamp_matches(base,&guest_pawn,1)||
        !guest_camera_stamp_matches(base,&guest_world,1)||guest_pc.pointer!=pc||guest_pawn.pointer!=pawn||guest_world.pointer!=world){
-        started=done=0;
+        started=combat_guest_route_finished=0;
         if(!guest_camera_stamp_read(base,pc,&guest_pc,1)||!guest_camera_stamp_read(base,pawn,&guest_pawn,1)||
            !guest_camera_stamp_read(base,world,&guest_world,1))return -1;
         epoch=session_guest_epoch;
         memset(q->lower_nodes,0,sizeof q->lower_nodes);
     }
-    if(done)return 0;
+    if(combat_guest_route_finished)return 0;
     if(!scene_readiness_finite3(position)||!combat_route_discover(base,world,now))return -1;
     if(!started){
         if(!combat_route_first_point(position,&point))return -1;
@@ -234,7 +235,7 @@ static int combat_guest_road_target(uintptr_t base,uintptr_t pc,uintptr_t pawn,u
         char row[280];snprintf(row,sizeof row,"{\"combat_guest_road_qa\":\"started\",\"epoch\":%u,\"point\":%u,\"position\":[%.3f,%.3f,%.3f],\"position_writes\":false,\"monotonic_ms\":%lu}\r\n",
             epoch,point,position[0],position[1],position[2],now);line(row);
     }
-    if(point>=COMBAT_ROUTE_COUNT+COMBAT_LOWER_COUNT){done=1;return 0;}
+    if(point>=COMBAT_ROUTE_COUNT+COMBAT_LOWER_COUNT){combat_guest_route_finished=1;return 0;}
     int upper=point<COMBAT_ROUTE_COUNT;
     if(!upper&&!q->lower_nodes[0].pointer&&!combat_lower_discover(base,world))return -1;
     const float *goal=upper?combat_route_points[point].xyz:combat_lower_points[point-COMBAT_ROUTE_COUNT].xyz;
@@ -252,7 +253,7 @@ static int combat_guest_road_target(uintptr_t base,uintptr_t pc,uintptr_t pawn,u
         memcpy(origin,goal,12);++point;
         char row[180];snprintf(row,sizeof row,"{\"combat_guest_road_qa\":\"waypoint\",\"next_point\":%u,\"monotonic_ms\":%lu}\r\n",point,now);line(row);
         if(point==COMBAT_ROUTE_COUNT)line("{\"combat_guest_road_qa\":\"upper-road-complete\"}\r\n");
-        if(point>=COMBAT_ROUTE_COUNT+COMBAT_LOWER_COUNT){done=1;line("{\"combat_guest_road_qa\":\"route-complete\"}\r\n");return 0;}
+        if(point>=COMBAT_ROUTE_COUNT+COMBAT_LOWER_COUNT){combat_guest_route_finished=1;line("{\"combat_guest_road_qa\":\"route-complete\"}\r\n");return 0;}
         /* Validate the next node on the next frame before sending its input. */
         memcpy(target,position,12);return 1;
     }
