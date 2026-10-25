@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: full-wheel caster/group selection path resolved
+
+Offline selection inspection established that full-wheel SelectCurrentPower
+calls native SquadOrderUsePower directly and bypasses the quickslot bridge.
+Its selected caster comes from virtual+0x508, which maps selected icon indices
+to cached Shepard/henchman groups rather than reading the icon's pPawn. Other
+pending icons in that group also feed CancelLastOrderedPower before selection.
+The exact event name, helper and five contiguous selection unwind fragments
+were identified. Icon Activate itself is only a dirty/desired-state leaf.
+
+This narrows the remaining integration: Ashley's full power list, group indices
+and cached caster must agree together. Quickslot icons and mode3 context
+retention alone cannot establish full-wheel casting. Five selected exports
+decoded completely, eight explicit targets aligned and input hashes stayed
+unchanged. No runtime source, binary, game or tests changed for this research.
+
 ## 2026-10-26: co-op command-pause policy and owned power-menu context
 
 The owner requested that Shift power menus keep co-op simulation running.

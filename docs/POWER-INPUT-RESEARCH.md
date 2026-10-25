@@ -805,3 +805,50 @@ All three native targets compiled and current source/build fingerprints
 matched. No game, Shift input, pause transition, network session or tests ran.
 Native close-time ApplyTacticalOrders, full power-list initialization and
 two-player control/rendering through menu transitions remain unverified.
+
+## Full-wheel selection uses group caches, not the icon pawn
+
+Owned selection-path inspection decoded five exports completely, with matching
+serialized/VM lengths and eight explicit branch targets aligned. Source
+package/library hashes stayed unchanged. SelectCurrentWheelItem50/66 dispatches
+mode1 to SelectCurrentPower and mode2 to SelectCurrentWeapon. Its native power
+bridge resolves through registration name0x1379320/pair0x179d140/exec0xb638e0
+to implementation0xc52930. These observations do not establish live delivery.
+
+The implementation spans five contiguous unwind fragments:
+0xc52930..0xc529d1,0xc529d1..0xc529f3,0xc529f3..0xc52a7c,
+0xc52a7c..0xc52b46 and0xc52b46..0xc52be1. The first short fragment alone is
+not the whole method. It obtains the selected caster and related power-index
+array through virtual+0x508. The constructor-grounded PC wheel vtable resolves
+that virtual to0xc4d740..0xc4d85a.
+
+That helper validates selected index+0x780 against m_aPowerIcons count+0x464,
+then searches the three integer-index groups at+0x3c4,+0x3d4,+0x3e4. Membership
+in the first group selects cached m_pShepardPawn+0x710. The other two groups
+are considered only with m_bProcessSquadHenchmen mask0x10 at+0x7f8 and select
+cached henchman pawns+0x718/+0x720. It returns the matching group-array address
+together with that cached pawn. It never selects the caster from the icon's
+pPawn+0x19c or the controller's current Pawn directly.
+
+SelectCurrentPower takes the chosen icon from m_aPowerIcons, checks its native
+state, then processes other group icons in state3. Helper0xc5d170 dispatches
+CancelLastOrderedPower with the chosen caster and each relevant power name;
+the event name is grounded in global0x17a8700, name-entry0x13efbae. The native
+path later calls the already identified SquadOrderUsePower0xaa38b0 directly,
+using the selected icon's full power name and the group-derived caster.
+It does not pass through the optional doHotKey queue bridge. The selected icon
+is then activated. Activate's native leaf0xbbbd60..0xbbbd6f only marks dirty and
+sets desired state3; adjacent code in a fallback512-byte window is unrelated.
+
+The consequence is concrete: retaining a registered Ashley context, correcting
+quickslot icons or replacing a selected icon's power/pawn is insufficient to
+establish the full-wheel caster. The cached squad/pawn bootstrap and integer
+groups must agree with the owned power list, including all related pending
+orders. Blindly returning Ashley from the pawn helper could cancel or issue
+powers belonging to another group. A proper adapter must validate and scope
+the whole selected group and its initialization/restoration lifecycle.
+
+No caster helper, power-list group, cached pawn or tactical order was changed
+for this research. Existing quickslot/drop and command-pause candidates remain
+as previously compiled. Full-wheel selection and close-time tactical order
+delivery remain incomplete and unverified; no game or tests ran.
