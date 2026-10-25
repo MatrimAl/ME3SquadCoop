@@ -45,3 +45,49 @@ All seven serialized/expanded lengths matched and explicit branch targets
 aligned with decoded expressions. Package and compression-library hashes were
 unchanged before/after the offline read. Extracted bodies remain private.
 The narrowed camera change was compiled only; no game, fixture or test ran.
+
+## Base possession follow-up
+
+The owned Engine package was then inspected separately. Eight additional
+functions decoded completely with matching serialized/VM lengths:
+
+| Function | Serialized / VM bytes |
+| --- | --- |
+| Controller.Possess | 241 / 337 |
+| Controller.UnPossess | 43 / 59 |
+| PlayerController.Possess | 437 / 641 |
+| PlayerController.UnPossess | 135 / 179 |
+| Pawn.PossessedBy | 265 / 381 |
+| Pawn.UnPossessed | 48 / 68 |
+| Pawn.UpdateControllerOnPossess | 32 / 48 |
+| Weapon.CacheAIController | 50 / 78 |
+
+Pawn.PossessedBy assigns Controller and replication-related fields, invokes
+UpdateControllerOnPossess and reaches a weapon CacheAIController call. The
+player-controller possession path also invokes Restart and touches sequence
+events; replaying the whole possession sequence is not a narrow action-cache
+repair. The existing session already enters normal PlayerController.Possess.
+
+The decoded UpdateControllerOnPossess body only conditionally sets the current
+controller's rotation from the pawn's rotation according to vehicle-transition
+state. It does not refresh BioCustomAction.m_oPC/m_oAI. No same-named Function
+export override was found in the retained SFXGame symbol inventory. This bounds
+the inspected script path, not native behavior or other packages.
+
+Weapon.CacheAIController is a different cache: it assigns Weapon.AIController
+from AIController(Instigator.Controller), or clears it if Instigator is absent.
+It does not enumerate or modify the pawn's custom-action instances. It must not
+be substituted for refreshing their controller context or called repeatedly
+to conceal an unmeasured ownership problem.
+
+A targeted Function-name inventory of BioPawn, SFXPawn, SFXPawn_PlayerParty,
+SFXPawn_Henchman and BioCustomAction exposed native reset leads such as
+SoftResetMovementAndAnimationState and HardResetActionAndAnimationState, but
+their names and bridge declarations do not establish cache-refresh semantics.
+No reset, additional possession or cache write was added from these leads.
+
+All22 explicit branches in the eight decoded functions aligned with expression
+boundaries. Engine package and compression-library hashes were unchanged.
+Private extraction/decoding records retain the exact identities and outputs.
+No game or behavioral test ran; native Restart, reset bodies and actual
+action-instance transitions remain outside this evidence.
