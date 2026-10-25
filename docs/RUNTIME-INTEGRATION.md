@@ -40,6 +40,12 @@ report retry waiting/refusal/expiry; ordinary join statuses resume once rearmed.
 No player-facing reconnect button is wired yet. This candidate is compiled;
 request fixture execution and actual disconnection/rejoin remain deferred.
 
+Retry cleanup readiness remains required throughout the ordinary admission
+window and immediately before console dispatch, rather than only when the
+retry is initially queued. An observed blocked scene/travel or invalid native
+context clears the accumulated player-readiness samples. This is sampled
+startup admission at the existing250ms cadence, not continuous scene proof.
+
 An explicit host `ME3_SQUAD_COOP_START=listen` (or exported
 `ME3SquadCoopRequestListen`) now requests one **in-place native Listen** on the
 current standalone campaign world. It waits for ordinary on-foot control, no

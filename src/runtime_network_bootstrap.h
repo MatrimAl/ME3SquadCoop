@@ -14,6 +14,7 @@ static volatile LONG runtime_join_requested,runtime_join_attempted,runtime_netwo
 static volatile LONG runtime_listen_requested,runtime_listen_attempted;
 static volatile LONG runtime_rejoin_requested;
 static DWORD runtime_rejoin_started;
+static int runtime_join_retry_armed;
 static DWORD runtime_join_last_check;
 static int runtime_network_start_parse(Me3RuntimeRole role,const wchar_t *value) {
     if(!value)return 0;
@@ -71,24 +72,28 @@ static int runtime_join_travel_idle(uintptr_t world,uintptr_t engine) {
 #include "runtime_join_diagnostics.h"
 #include "runtime_join_progress.h"
 #include "runtime_rejoin.h"
+static void runtime_join_window_reset(void) {
+    memset(&runtime_join_readiness,0,sizeof runtime_join_readiness);
+}
 static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     runtime_rejoin_tick(base,engine,now);
     int host=g_runtime_config.role==ME3_ROLE_HOST;
     volatile LONG *requested=host?&runtime_listen_requested:&runtime_join_requested,
         *attempted=host?&runtime_listen_attempted:&runtime_join_attempted;
     if(!runtime_control_enabled||!InterlockedCompareExchange(requested,0,0)||
-       InterlockedCompareExchange(attempted,0,0))return;
+       InterlockedCompareExchange(attempted,0,0)){runtime_join_window_reset();return;}
     if(runtime_join_last_check&&now-runtime_join_last_check<250)return;
     runtime_join_last_check=now;
-    if(!network_actor_world_pins(base)||!combat_context_layout(base))return;
+    if(!network_actor_world_pins(base)||!combat_context_layout(base)){runtime_join_window_reset();return;}
     SessionContext c=session_context(engine);CombatContextChain before,after;
     combat_context_read_chain(base,&before);unsigned char net=255;
     uintptr_t local_pc=0,player=read_ptr(c.pc+0x67c);
     if(!before.info_valid||c.world!=before.info||!session_actor_live(base,c.pc)||
        !combat_context_local_pc(base,engine,&local_pc)||local_pc!=c.pc||
        !is_live(base,player)||!is_kind_of(base,player,"LocalPlayer")||read_ptr(player+0x68)!=c.pc||
-       read_ptr(c.pc+0x198)!=c.world||!read_at(c.world+0x7c8,&net,1))return;
+       read_ptr(c.pc+0x198)!=c.world||!read_at(c.world+0x7c8,&net,1)){runtime_join_window_reset();return;}
     if(net!=0) {
+        runtime_join_retry_armed=0;runtime_join_window_reset();
         InterlockedExchange(attempted,1);InterlockedExchange(requested,0);
         /* Existing-session attachment is the default policy. A redundant
          * listen request must not revoke an already established host lease. */
@@ -97,7 +102,10 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
     }
     /* Wait for ordinary native control; never clear pause, scene or mode flags.
      * Current-world driver/pending travel must both be absent before the call. */
-    if(session_engine_blocked(c)||!runtime_join_travel_idle(before.world,engine)||session_active)return;
+    if(session_engine_blocked(c)||!runtime_join_travel_idle(before.world,engine)||session_active||
+       (!host&&runtime_join_retry_armed&&!runtime_rejoin_cleanup_idle())) {
+        runtime_join_window_reset();return;
+    }
     /* Native transport consumes its own command line, not endpoint.bind_ipv4.
      * Refuse an unintended local interface before triggering ordinary travel. */
     if(!runtime_transport_bind_argument(base,g_runtime_config.endpoint.bind_ipv4)) {
@@ -136,12 +144,14 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
        current_context.pc!=c.pc||current_context.pawn!=c.pawn||current_context.world!=c.world||
        current_context.manager!=c.manager||current_context.squad!=c.squad||
        !runtime_join_travel_idle(before.world,engine)||!runtime_join_context_sample(base,current_context,&after,&final_ready)||
+       (runtime_join_retry_armed&&!runtime_rejoin_cleanup_idle())||
        !runtime_join_sample_same(&ready,&final_ready)) {
         memset(&runtime_join_readiness,0,sizeof runtime_join_readiness);return;
     }
     /* Mark before invoking: native travel can invalidate the captured PC/world.
      * Nothing from that old context is dereferenced after the engine call. */
     InterlockedExchange(&runtime_join_attempted,1);InterlockedExchange(&runtime_join_requested,0);
+    runtime_join_retry_armed=0;
     ConsoleParms params={0};params.command.data=command;params.command.count=params.command.max=(int32_t)wcslen(command)+1;
     params.write_log=1;runtime_join_progress_begin(engine,now);
     int dispatched=invoke(base,c.pc,"PlayerController","ConsoleCommand",&params);

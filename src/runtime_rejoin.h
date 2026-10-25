@@ -46,6 +46,7 @@ static void runtime_rejoin_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     memset(&runtime_join_readiness,0,sizeof runtime_join_readiness);
     memset(&runtime_join_progress,0,sizeof runtime_join_progress);
     runtime_join_last_check=0;
+    runtime_join_retry_armed=1;
     InterlockedExchange(&runtime_join_requested,1);
     InterlockedExchange(&runtime_join_attempted,0);
     runtime_rejoin_finish(RUNTIME_START_WAITING,"standalone-retry-queued",now);

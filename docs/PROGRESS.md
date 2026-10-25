@@ -1581,3 +1581,19 @@ mission selection or engine package-validation change is introduced. There is
 no player menu wiring yet. Request-policy fixture cases were prepared; execution
 is deferred. Native outputs rebuilt. No game or new fixture was run. Recovery
 after a real campaign disconnect remains unverified.
+
+## Keep retry cleanup valid until dispatch
+
+Source review found that rejoin cleanup was checked when rearming, while the
+ordinary stable-player admission window could continue afterward without
+checking it again. A Tick-owned retry flag now retains that requirement until
+the final console admission. It is retired on dispatch or an already networked
+world; no adapter, session fault or native network state is reset.
+
+The ordinary join path also clears its readiness samples on observed early
+scene/travel, disabled or invalid-context returns. Previously these early
+returns could skip the readiness observer's reset path. The existing250ms
+sampling cadence is unchanged, so this is not a continuous scene observation.
+Native outputs rebuilt; no game or fixture was executed. The delegated Flash
+review timed out and supplied no findings; these changes come from local source
+inspection, not independent review or runtime evidence.
