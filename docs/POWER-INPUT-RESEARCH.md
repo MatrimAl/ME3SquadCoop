@@ -414,3 +414,38 @@ The integration candidate is therefore scoped assignment from correctly
 initialized Ashley power icons, with captured original definitions and native
 lifecycle/restoration design, rather than a generic power-name call. This is
 still research: no assignment, tutorial event, profile write or game ran.
+
+## Handler bootstrap uses a different squad chain
+
+A targeted static search for stores at the handler controller displacement
+found several candidates, not all belonging to wheel objects. Candidate
+0xc58410..0xc58b37 was grounded in the PC wheel by its decoded caller
+0xc58040..0xc5840a: the caller's instruction0xc58068 invokes it directly,
+and the constructor-verified PC handler vtable has0xc58040 at slot+0x3f8.
+This establishes a wheel virtual update path, not an arbitrary displacement
+match. Other raw store candidates were not treated as wheel methods.
+
+The base path fills m_pPlayerController at+0x6f8 only while null, using existing
+native local-controller resolution/cast helpers. It fills m_pPlayerSquad at
++0x700 only while null, through controller helper0xa9dfa0 followed by the
+returned pawn's Squad at+0xba8. The helper's ordinary path casts Controller.Pawn
+through the already identified BioPawn cast0x551e70; its other branches cover
+game modes outside this ordinary path. It does not fetch WorldInfo.m_playerSquad.
+
+This differs materially from the current synthetic guest context: that adapter
+registers its local squad in WorldInfo+0x8e8 while deliberately preserving
+Ashley's existing Pawn.Squad. The combat getter's positive result therefore
+does not prove wheel context readiness. The wheel can retain the story squad
+and consequently select its cached Shepard instead of the locally controlled
+Ashley. This is an evidence-backed integration possibility; no current live
+wheel mismatch was measured.
+
+Both controller and squad are cached until native cleanup clears them; merely
+making another world-level squad available does not refresh an already non-null
+wheel reference. A future adapter needs its own handler/controller/squad/movie
+identity and cleanup policy, plus the existing quickslot character-tag handling.
+Do not move Ashley out of the host story squad, replay broad initialization or
+reset a live movie solely to make these two pointer chains coincide.
+
+No handler pointer, native input binding or game state was written. The mod's
+existing squad/context policy remains unchanged by this research.
