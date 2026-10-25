@@ -151,7 +151,11 @@ keyboard/gamepad remapping remain unimplemented.
 
 Tick consumes one request only after ordinary guest ownership and an initialized
 player context are verified. It rejects invalid indices, native duplicate power
-names, stale object identities, missing/unlearned ranks and action instances
+names and downed/dead BioPawn states. Life-state refusal invalidates the catalog
+scope and pending input, including when actions or input-ignore fields have not
+yet changed. The final catalog reads repeat this check. See
+[companion life state](COMPANION-LIFE-STATE.md).
+It also rejects stale object identities, missing/unlearned ranks and action instances
 still bound to another controller or AI. The reflected manager/power-property
 layouts and the complete native order ABI must match. A fresh catalog and
 control/scene checks run before dispatch, including after the native combat

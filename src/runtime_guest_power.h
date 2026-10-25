@@ -80,7 +80,10 @@ static int runtime_power_request_expired(ULONGLONG submitted) {
 static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordinary,RuntimePowerCatalog *out) {
     if(!ordinary||!guest_player_context_registered_for(c.pc,c.pawn)||
        !guest_player_context_basic_owned(base,c.pc,c.pawn,c.world))return 0;
-    int32_t action=-1,power=-1;unsigned char ignored=255;
+    int32_t action=-1,power=-1;unsigned char ignored=255;uint32_t life=0;
+    /* Native downed/dead state invalidates the scope and queued input even
+     * before action, input-ignore or ownership fields finish transitioning. */
+    if(!read_at(c.pawn+0xe20,&life,4)||(life&0x300))return 0;
     if(!read_at(c.pawn+0xc20,&action,4)||action||!read_at(c.pawn+0xc28,&power,4)||power||
        !read_at(c.pc+0x782,&ignored,1)||ignored)return 0;
     uintptr_t manager=0;GameArray array={0},after={0};NetworkActorIdentityEntry channel={0};

@@ -12,8 +12,10 @@ static int progress_pawn_ready(uintptr_t base, uintptr_t pawn, uintptr_t ai) {
         !read_at(pawn + 0x25c, &actor_flags, 4) || !read_at(pawn + 0x260, &attach, 4) || !read_at(pawn + 0x268, &physics, 1)) return 0;
     char state[96]; progress_state_name(base, ai, state, sizeof state);
     if (is_kind_of(base,ai,"AIController") && (read_ptr(ai+0x484) || read_ptr(ai+0x48c))) return 0;
+    /* BioPawn +e20: bIsDowned=100, bIsDead=200. Action/physics can still
+     * look ordinary during a native life-state transition. */
     return action == 0 && power == 0 && (a & 0x40) && !(a & (0x200000 | 0x20000000)) &&
-           !(b & 0x10000000) && !(c & 0x40000) && !(attach & 0x400) && !(actor_flags & 2) && physics == 1 &&
+           !(b & 0x10000000) && !(c & (0x40000|0x300)) && !(attach & 0x400) && !(actor_flags & 2) && physics == 1 &&
            !strstr(state, "Script") && !strstr(state, "Cinematic");
 }
 static int progress_companion_near(uintptr_t host, uintptr_t companion) {
