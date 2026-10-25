@@ -667,3 +667,53 @@ assignment lifecycle together. The previous proposed assignment-hook patch
 was never applied after its approval review hit a usage limit. No assignment
 hook, saved-definition write or game ran. Three native targets compiled for
 the drag-coordination change; no tests ran.
+
+## Guest quickslot drop candidate
+
+The optional native icon candidate now also owns the PC wheel assignment
+virtual at+0x548 while its exact guest wheel has an active icon lease. The
+constructor-grounded vtable contains0xc52eb0 there. Installation checks the
+original slot and entry bytes and uses pointer CAS. The forwarding wrapper
+remains resident until process exit, with stock behavior for other wheels,
+disabled runtime, non-game-thread calls and absent guest leases. A replaced
+assignment hook retires the icon lease; it is not overwritten.
+
+The accepted caller is the verified NewSetQuickSlotPower exec0xb68b50:
+its instruction0xb68c50 calls wrapper0xc505e0, whose tail jump reaches the
+assignment virtual, leaving return address0xb68c55. This distinguishes the
+decoded UI drop from MoveQuickSlotPowerByName, whose source index comes from
+saved Shepard definitions. Unsupported callers are refused for the owned
+guest wheel, rather than interpreting that saved source as a guest slot.
+
+NewSet has already cleared the destination before reaching this hook. An
+observed native empty power/pawn/None triple is recorded as the lease's current
+installed value without discarding the original baseline. If later validation
+refuses the drop, idle retirement can therefore restore that cleared slot.
+The hook itself makes no native UI or power call.
+
+Quickslot-to-quickslot drops resolve the source's retained full power name and
+require the source icon to match its current owned pawn/power. A self-drop can
+use its retained mapping after the upstream clear. Power-list drops require
+the current bounded m_aPowerIcons array, an exact native PowerIcon instance,
+its wheel Outer, reflected fields and the owned eligible catalog's unique
+name/pointer/pawn match. Stale, foreign, ambiguous and unsupported sources
+refuse and retire the lease. Destination bounds are0..7. This downstream
+check does not repair the stock wrapper's earlier unchecked icon access.
+
+An accepted drop updates only the process-local guest name map. If the name
+already occurs, its source receives the previous destination assignment; this
+also preserves an existing optional ninth Ctrl+Alt slot. Queued power commands
+and panel catalog scopes are invalidated. The icon baseline remains retained,
+and the first idle Tick repaints through the existing native setter, one slot
+per Tick. A release-cleanup latch keeps a native drag flag that clears on a
+later Tick from prematurely retiring an accepted assignment.
+
+The substituted path does not run the original controller-definition writes,
+tutorial callback or GUI sound. No guest mapping is saved across process
+restarts. A valid icon lease and existing usable source icons remain required;
+this does not initialize missing Ashley power-list icons or a missing movie.
+Rejected drops and gestures outside a valid lease do not establish guest
+remapping. Drag-to-remove and MoveByName integration are not implemented.
+Three native targets compiled and current build fingerprints matched. No game,
+mouse gesture, panel, network session or tests ran; rendered drop behavior,
+ABI delivery, swap repaint and restoration remain unverified.

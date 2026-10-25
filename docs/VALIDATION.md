@@ -1,5 +1,13 @@
 # Validation status
 
+An optional guest drag/drop assignment candidate now updates retained named
+slots through a checked native PC wheel virtual hook. It accounts for the
+wrapper's destination clear and defers repaint until idle cleanup. Three native
+targets compiled and current source/build fingerprints matched. No game or
+tests ran. Native call delivery, source-icon readiness, visible swapping and
+restoration remain unverified. Removal gestures and across-restart persistence
+are not implemented; this does not complete normal guest power control.
+
 Native mouse-gesture coordination was added to the optional power/icon
 candidates: pending/active drags suspend icon writes and power dispatch, while
 the stock mouse-up ordering can still queue an order before source cleanup.

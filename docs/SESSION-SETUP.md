@@ -36,6 +36,12 @@ through the native setter. It conditionally restores prior assignments when
 the same UI is still owned. It does not open a missing wheel or rewrite saved
 definitions. Rendering, mouse/drag behavior and cleanup remain unverified; the
 option is off by default. See [power input](POWER-INPUT-RESEARCH.md).
+While that icon lease is active, the compiled drop candidate routes supported
+native quickslot/power-list drops to the guest's retained name map, swapping
+an already-assigned name with the destination. It does not write saved Shepard
+definitions or persist the map after process exit. Existing owned source icons
+are required; removal gestures and MoveByName are unsupported. Delivery,
+rendering and restoration remain unverified.
 Host-only `--auto-relisten` adds `ME3_SQUAD_COOP_AUTO_RELISTEN=1`. After an
 earlier verified runtime listener, it can schedule the checked Listen path in
 a ready standalone mission whose old world and driver were positively disposed.

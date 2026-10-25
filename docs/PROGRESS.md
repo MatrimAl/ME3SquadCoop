@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-10-26: native guest quickslot drop candidate
+
+The optional icon lease now includes a checked forwarding hook at the native
+PC wheel assignment virtual. Its accepted NewSet exec call chain is grounded
+in the exact image. The hook accounts for the wrapper's prior destination
+clear, validates current guest source icons and resolves full power names.
+Accepted drops update the same process-local map used by keyboard commands;
+moving an existing name swaps the prior destination assignment back.
+
+The guest path substitutes for saved Shepard definition writes and native
+feedback callbacks. It invalidates queued/list selections and waits for idle
+release cleanup before bounded native icon repaint. Rejected drops retire the
+lease under existing identity/restoration rules. Other wheels and inactive
+leases retain stock handling. No across-restart mapping persistence, removal
+gesture or MoveByName integration is claimed.
+
+Three native targets compiled and the source/build fingerprint matched. No
+game, panel, network or tests ran. Actual drag delivery, rendering, swapped
+slot refresh and cleanup remain unverified; native icons still need a valid
+existing wheel and owned source powers. Gamepad work remains deferred.
+
 ## 2026-10-26: coordinate guest icon updates with native mouse gestures
 
 Offline decoding established that normal quickslot mouse-up reaches the

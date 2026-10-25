@@ -40,6 +40,20 @@ static int runtime_power_slot_index(const RuntimePowerCatalog *catalog,unsigned 
     return slot<9&&runtime_power_slots[slot].bound?
         runtime_power_name_index(catalog,runtime_power_slots[slot].name):-1;
 }
+/* Game-thread only. A native drop changes our name map, never saved Shepard
+ * definitions. Moving an existing name swaps the previous destination back. */
+static int runtime_power_assign_slot(unsigned destination,const uint32_t name[2]) {
+    if(destination>=8||!name[0])return 0;
+    int source=-1;
+    for(int n=0;n<9;++n)if(runtime_power_slots[n].bound&&!memcmp(runtime_power_slots[n].name,name,8)) {
+        if(source>=0)return 0;
+        source=n;
+    }
+    RuntimePowerSlot previous=runtime_power_slots[destination];
+    if(source>=0)runtime_power_slots[source]=previous;
+    runtime_power_slots[destination].bound=1;memcpy(runtime_power_slots[destination].name,name,8);
+    return 1;
+}
 static void runtime_power_bind_slots(const RuntimePowerCatalog *catalog,unsigned scope) {
     static unsigned sampled_scope;
     if((!runtime_power_input_enabled()&&!runtime_native_power_input_enabled())||!scope||scope==sampled_scope)return;

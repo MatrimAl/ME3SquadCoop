@@ -11,9 +11,11 @@ typedef struct RuntimePowerIconLease {
     RuntimeHotkeyWheel owner;
     RuntimePowerIconSlot slots[8];
     RuntimePowerCatalog catalog;
-    int active,failed,drag_observed;
+    int active,failed,drag_observed,drop_accepted,retiring;
 } RuntimePowerIconLease;
 static RuntimePowerIconLease runtime_power_icons;
+static int runtime_power_assignment_install(uintptr_t base);
+static int runtime_power_assignment_active(uintptr_t base);
 static int runtime_power_icons_enabled(void) {
     static int configured,opted;
     if(!configured) {
@@ -74,6 +76,7 @@ static void runtime_power_icon_set(uintptr_t base,uintptr_t object,uintptr_t met
 static void runtime_power_icons_release(uintptr_t base,uintptr_t engine) {
     RuntimePowerIconLease *lease=&runtime_power_icons;
     if(!lease->active)return;
+    lease->retiring=1;
     /* Revalidate after every native setter. Never invoke an old-world widget
      * or undo an engine/UI replacement that no longer holds our value. */
     for(unsigned n=0;n<8;++n) {
@@ -108,7 +111,7 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
     int ready=runtime_power_icons_enabled()&&runtime_native_power_input_active()&&runtime_control_enabled&&
         runtime_scope_ready&&ordinary&&!session_engine_blocked(c)&&
         runtime_power_read_catalog(base,c,1,&catalog)&&runtime_power_catalog_same(&catalog,&runtime_power_catalog);
-    if(lease->active&&(lease->failed||!runtime_power_icons_enabled()||!runtime_native_power_input_active()||
+    if(lease->active&&(lease->failed||!runtime_power_assignment_active(base)||!runtime_power_icons_enabled()||!runtime_native_power_input_active()||
        !runtime_control_enabled||!runtime_scope_ready||!ordinary||session_engine_blocked(c)||
        c.pc!=lease->owner.pc.pointer||c.pawn!=lease->owner.pawn.pointer||
        !session_handle_matches(lease->owner.pawn)||lease->owner.token!=guest_player_context_registration_token()||
@@ -137,11 +140,13 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
                    !narrative_probe_object(base,power,"SFXPowerCustomActionBase")||read_ptr(power+0x98)!=pawn)return;
             } else if(pawn)return;
         }
+        if(!runtime_power_assignment_install(base))return;
         captured.active=1;*lease=captured;
     }
     int drag=runtime_power_wheel_drag_state(base,lease->owner.handler.pointer);
     if(drag<0) {lease->failed=1;runtime_power_icons_release(base,engine);return;}
     if(drag) {
+        if(lease->drop_accepted)return; /* Native release cleanup may finish next Tick. */
         if(!lease->drag_observed) {
             /* Cancel pre-drag requests. They may identify the old slot map,
              * even if the native drop later picks a different power. */
@@ -149,6 +154,7 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
         }
         return;
     }
+    if(lease->drop_accepted) {lease->drop_accepted=0;lease->drag_observed=0;}
     if(lease->drag_observed) {
         /* Native drop can update saved quickslot definitions independently of
          * our name map. Retire instead of repainting over that native edit. */
