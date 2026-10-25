@@ -444,7 +444,11 @@ static int native_session_role(void) {return test_action;}
 #include "guest_hit_trace_selftest.h"
 #include "initial_actor_trace.h"
 #include "remote_appearance_qa.h"
+#define ME3_PROTECTED_GUEST_TEAM_QA 1
+static void guest_team_qa_release(uintptr_t base,DWORD now);
 #include "session_control.h"
+#include "guest_team_qa.h"
+#include "guest_team_qa_selftest.h"
 #include "combat_route_qa.h"
 #include "combat_aim_qa.h"
 static void game_tick_diagnostics(void *self,uintptr_t base) {
@@ -572,6 +576,7 @@ static void game_tick(void *self,float delta) {
     fire_rpc_trace_prepare();
     native_fire_trace_prepare();
     guest_hit_trace_prepare();
+    guest_team_qa_tick(base,GetTickCount());
     lookup_record("Probe","PostTick",part,0,0);part=lookup_clock();
     game_tick_diagnostics(self,base);lookup_record("Probe","Diagnostics",part,0,0);
     lookup_record("Probe","TotalTick",whole,0,0);
@@ -742,6 +747,7 @@ __declspec(dllexport) int SquadProbeSelfTest(void) {
 __declspec(dllexport) int SquadDirectIPSelfTest(void) { return direct_ip_native_selftest(); }
 __declspec(dllexport) int SquadStateReaderSelfTest(void) { return native_state_reader_selftest(); }
 __declspec(dllexport) int SquadCatchupGroundSelfTest(void) { return catchup_ground_selftest(); }
+__declspec(dllexport) int SquadGuestTeamQASelfTest(void) { return guest_team_qa_selftest(); }
 __declspec(dllexport) int SquadCombatRouteSelfTest(void) { return combat_route_qa_selftest()&&combat_aim_selftest(); }
 __declspec(dllexport) int SquadInitialObjectTraceSelfTest(void) { return initial_object_selftest(); }
 __declspec(dllexport) int SquadCombatActionSelfTest(void) { return combat_action_qa_selftest(); }

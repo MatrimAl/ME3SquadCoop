@@ -21,6 +21,8 @@ probe.SquadStateReaderSelfTest.restype = ctypes.c_int
 assert probe.SquadStateReaderSelfTest() == 1, "state reader accepted missing, invalid or special native state nodes"
 probe.SquadCatchupGroundSelfTest.restype = ctypes.c_int
 assert probe.SquadCatchupGroundSelfTest() == 1, "catch-up ground checks accepted invalid surfaces or rejected world-floor readiness"
+probe.SquadGuestTeamQASelfTest.restype = ctypes.c_int
+assert probe.SquadGuestTeamQASelfTest() == 1, "stock team QA admitted changed ownership or altered dispatch parameters/return"
 probe.SquadCombatRouteSelfTest.restype = ctypes.c_int
 assert probe.SquadCombatRouteSelfTest() == 1, "combat route accepted unsafe context, invalid steering or off-corridor movement"
 probe.SquadInitialObjectTraceSelfTest.restype = ctypes.c_int

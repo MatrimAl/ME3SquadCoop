@@ -146,6 +146,9 @@ static void session_gate(int blocked, int synthetic, unsigned char mode, DWORD n
 static void session_release(uintptr_t base, SessionContext c, const char *reason, DWORD now) {
     if (!session_active || session_releasing) return;
     session_releasing = 1;
+#ifdef ME3_PROTECTED_GUEST_TEAM_QA
+    guest_team_qa_release(base,now);
+#endif
     unsigned char scratch[64] = {0};
     int same_world = c.world == session_world && session_handle_matches(session_world_handle) && is_live(base, session_world);
     int pawn_live = same_world && session_handle_matches(session_pawn_handle) && session_actor_live(base, session_pawn);
