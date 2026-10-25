@@ -16,11 +16,13 @@ def main():
     parser.add_argument("--port", default="17779")
     parser.add_argument("--start", choices=("listen", "join", "attach"))
     parser.add_argument("--panel", action="store_true", help="opt into the separate local session control panel")
+    parser.add_argument("--power-hotkeys", action="store_true", help="guest only: opt into Ctrl+Alt+1..9 power slots")
     parser.add_argument("--output", type=Path,
                         help="create a private JSON plan; existing files are never overwritten")
     args = parser.parse_args()
     try:
-        plan = RuntimeSessionPlan(args.role, args.bind, args.port, args.peer, args.start, args.panel)
+        plan = RuntimeSessionPlan(args.role, args.bind, args.port, args.peer, args.start,
+                                  panel=args.panel, power_hotkeys=args.power_hotkeys)
         text = json.dumps(plan.to_dict(), indent=2) + "\n"
         if args.output is None:
             sys.stdout.write(text)

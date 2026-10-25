@@ -1756,3 +1756,26 @@ with `power-request-expired` and are not automatically retried.
 All three native outputs rebuilt. No game, panel, request fixture, concurrency
 test or native cast was executed. Expiry and concurrent cancellation behavior
 still require deferred execution checks.
+
+## Add optional foreground guest power slot input
+
+The ordinary guest runtime now has a default-off Ctrl+Alt+1..9 slot-action
+adapter. It samples real held-key state on pre-Tick without hooks, registered
+hotkeys or synthetic input. A request requires the game's own foreground PID,
+consecutive ready samples in one catalog scope and a new single-chord edge.
+Scene/focus/control/catalog changes and Tick gaps above500ms baseline input
+again. Held keys do not autorepeat or queue across those boundaries.
+
+Slot actions use the existing scoped power queue, including busy refusal,
+expiry and every native control/ABI/rank check. Slots follow the first nine
+current native catalog entries; passive or unavailable powers can be refused.
+There is no persistent power-name assignment or rebind UI yet. The planner
+emits the opt-in flag only for explicit guest `--power-hotkeys` plans and
+preserves it through the existing sanitized child-environment path.
+
+Flash's read-only integration review identified inherited-flag stripping and
+early-return baseline risks; explicit planner support and unavailable pre-Tick
+sampling address those source-level concerns. All three native outputs rebuilt,
+and planner Python sources syntax parsed. No game, panel, input/fixture test,
+focus switch or native power cast was executed. Keyboard compatibility and
+authoritative effects remain unverified.

@@ -135,9 +135,11 @@ static void runtime_power_log(int status,const char *reason,unsigned index,DWORD
         "{\"runtime_power\":\"order-result\",\"status\":%d,\"reason\":\"%s\",\"catalog_index\":%u,\"native_cast_verified\":false,\"target_effect_verified\":false,\"monotonic_ms\":%lu}\r\n",
         status,reason,index,now);line(row);InterlockedExchange(&runtime_power_status,status);
 }
+#include "runtime_power_input.h"
 static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionContext c,int ordinary,int after,DWORD now) {
     RuntimePowerCatalog current;
     if(!runtime_control_enabled||!runtime_scope_ready||!runtime_power_read_catalog(base,c,ordinary,&current)) {
+        if(!after)runtime_power_input_poll(0,0);
         runtime_power_invalidate();return;
     }
     if(!runtime_power_catalog_same(&runtime_power_catalog,&current)) {
@@ -148,6 +150,8 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
         InterlockedExchange(&runtime_power_scope,runtime_power_generation);
     }
     if(after)return;
+    int action=runtime_power_input_poll((unsigned)runtime_power_scope,(unsigned)current.array.count);
+    if(action>=0)runtime_request_power((unsigned)runtime_power_scope,(unsigned)action);
     ULONGLONG submitted=0;
     LONG64 request=runtime_power_take_request(&submitted);if(!request)return;
     unsigned scope=(unsigned)((uint64_t)request>>32),index=(unsigned)request-1;

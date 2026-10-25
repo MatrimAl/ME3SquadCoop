@@ -71,6 +71,11 @@ changes clear the panel selection, and native validation rejects stale input.
 Names come from the native power-name table, rather than localized display
 strings. The power list is not a promise that every listed power is ready:
 rank, action ownership, cooldown, target and native gameplay checks still apply.
+The optional guest runtime flag `ME3_SQUAD_COOP_POWER_HOTKEYS=1` maps
+Ctrl+Alt+1..9 to the first nine list entries while the game is foreground and
+control is ready. It uses the same scoped request path and can operate with
+the panel closed; it is not enabled by `--panel`. See the limitations and
+deferred validation in [power input](POWER-INPUT-RESEARCH.md).
 
 ## Evidence boundaries
 

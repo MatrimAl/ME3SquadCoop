@@ -17,6 +17,11 @@ python tools/prepare_session.py --role guest --bind 26.2.3.4 --peer 26.1.2.3 --p
 
 The default startup action is `listen` for a host and `join` for a guest.
 `--panel` adds the opt-in flag for the separate [local control panel](SESSION-PANEL.md).
+Guest-only `--power-hotkeys` adds `ME3_SQUAD_COOP_POWER_HOTKEYS=1` for the
+experimental Ctrl+Alt+1..9 power slot adapter. It is off by default and does not
+require the panel. Slots follow the current native catalog rather than fixed
+power names; see [power input](POWER-INPUT-RESEARCH.md). Host plans refuse this
+option. The adapter itself does not alter native key bindings.
 `--start attach` prepares configuration for attaching the mod to an existing
 native network session; it does not request Listen or a join. Host/join and
 guest/listen combinations are rejected. A guest requires an explicit peer;

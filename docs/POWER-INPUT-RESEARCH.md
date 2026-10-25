@@ -145,9 +145,9 @@ without waiting. No engine read or native call occurs while holding that lock.
 Status readers still inspect only the atomic payload, and cancellation leaves
 the lock-protected timestamp untouched. Scope invalidation independently rejects
 an obsolete request published concurrently with cancellation.
-No keyboard/gamepad/menu binding is provided yet.
-The separate local session-panel candidate now exposes explicit power requests;
-it remains unverified and adds no native keyboard/gamepad remapping.
+The separate local session-panel candidate exposes explicit power requests.
+An optional keyboard adapter is described below; gamepad bindings and native
+keyboard/gamepad remapping remain unimplemented.
 
 Tick consumes one request only after ordinary guest ownership and an initialized
 player context are verified. It rejects invalid indices, native duplicate power
@@ -179,3 +179,33 @@ state therefore remains an observable rejection rather than forced power use.
 Normal outputs compile, but no game, request fixture, native order or performance
 measurement was run. Complete input mapping, catalog presentation, action-instance
 readiness and authoritative effects remain unverified.
+
+## Opt-in guest power slot hotkeys
+
+`ME3_SQUAD_COOP_POWER_HOTKEYS=1` enables a guest-only physical-input adapter.
+The planner's guest-only `--power-hotkeys` option emits this flag; it remains
+off by default. Ctrl+Alt+1 through Ctrl+Alt+9 request the corresponding first
+nine entries in the current power catalog, using the same numbering shown in
+the local panel. These are slot actions, not persistent assignments to named
+powers. The native list may contain passive/unlearned entries; ordinary power
+validation can refuse them. The panel is optional, and closing it does not
+disable these runtime hotkeys. Remove the startup flag to disable them.
+
+The adapter samples the high/held bit of GetAsyncKeyState on pre-Tick only,
+detects a rising chord edge and verifies the foreground window belongs to the
+current process. It sends no synthetic input, installs no keyboard hook and
+does not register or consume Windows hotkeys. Other bindings may therefore
+also respond to the same chord; the preset is opt-in and not yet rebindable.
+Windows-modified chords and multiple simultaneous slot chords are ignored.
+
+Input is armed only after consecutive ready samples with the same nonzero
+catalog scope and focus, at most500ms apart. Startup, scene/control loss,
+focus loss, catalog replacement and longer Tick gaps reset the baseline, so
+a held chord across those boundaries does not cast on return. Unavailable
+pre-Ticks still sample/disarm input. Holding a chord does not autorepeat.
+The adapter queues through `runtime_request_power`; it never overwrites a busy
+request or retries a refused/expired order. Existing ownership, scene, rank,
+cached-controller, ABI, native targeting and expiry checks still apply.
+
+Native outputs compiled and planner sources syntax parsed only. No hotkey,
+focus switch, keyboard layout, native cast, panel or game was exercised.
