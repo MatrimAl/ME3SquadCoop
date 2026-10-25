@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-25: stock SP test scenario reaches normal gameplay
+
+The separate stock SP test map was exercised through its actual squad-selection
+GUI: Ashley and James were selected, then the normal equipment and character
+screens were confirmed. A real conversation (mode7 with an active conversation)
+and subsequent cinematic completed through normal input. The read-only observer
+then recorded seven ready samples with Ashley in the roster and grounded player
+state, first at approximately169.91 seconds. This was a single-process test;
+it does not verify guest dialogue synchronization or paired combat in this map.
+
+The normal Save screen was available and Create New Save was selected, but no
+private save file was found after shutdown. Saving and repeatable reload are
+therefore unverified. No enemy factory was exercised. The bounded run ended
+with no remaining game processes, unchanged original profiles and no observer
+errors. Reusing the compiler's content-addressed cache reduced the observed
+launcher preparation delay; the stage executable is still freshly compiled.
+
 ## 2026-10-25: native guest hits reduce a real Trooper's health
 
 A protected pair exercised the opt-in stock guest team initialization candidate.
