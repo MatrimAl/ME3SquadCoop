@@ -94,6 +94,7 @@ static DWORD WINAPI runtime_start(void *unused) {
 __declspec(dllexport) int ME3SquadCoopBridgeInstalled(void) {return InterlockedCompareExchange(&g_bridge_installed,0,0)!=0;}
 __declspec(dllexport) int ME3SquadCoopRuntimeError(void) {return InterlockedCompareExchange(&g_runtime_error,0,0);}
 __declspec(dllexport) int ME3SquadCoopRequestJoin(void) {return runtime_request_join();}
+__declspec(dllexport) int ME3SquadCoopRequestRejoin(void) {return runtime_request_rejoin();}
 __declspec(dllexport) int ME3SquadCoopRequestListen(void) {return runtime_request_listen();}
 __declspec(dllexport) int ME3SquadCoopNetworkStartStatus(void) {
     return InterlockedCompareExchange(&runtime_network_start_status,0,0);
@@ -155,6 +156,23 @@ __declspec(dllexport) int ME3RuntimeJoinRequestSelfTest(void) {
     runtime_join_requested=0;runtime_join_attempted=1;ok=ok&&!runtime_request_join();
     g_runtime_config=saved;g_config_status=status;g_enable_requested=enabled;runtime_join_requested=requested;
     runtime_join_attempted=attempted;runtime_network_start_status=network_status;runtime_control_enabled=control;return ok;
+}
+__declspec(dllexport) int ME3RuntimeRejoinRequestSelfTest(void) {
+    Me3RuntimeConfig saved=g_runtime_config;Me3RuntimeConfigStatus status=g_config_status;
+    LONG enabled=g_enable_requested,requested=runtime_join_requested,attempted=runtime_join_attempted,
+        retry=runtime_rejoin_requested,network_status=runtime_network_start_status;
+    runtime_join_requested=runtime_join_attempted=runtime_rejoin_requested=0;
+    g_enable_requested=1;g_config_status=ME3_CONFIG_READY;g_runtime_config.role=ME3_ROLE_GUEST;
+    int ok=!runtime_request_rejoin();runtime_join_attempted=1;
+    g_runtime_config.role=ME3_ROLE_HOST;ok=ok&&!runtime_request_rejoin();
+    g_runtime_config.role=ME3_ROLE_GUEST;g_enable_requested=0;ok=ok&&!runtime_request_rejoin();
+    g_enable_requested=1;runtime_join_requested=1;ok=ok&&!runtime_request_rejoin();
+    runtime_join_requested=0;
+    ok=ok&&runtime_request_rejoin()&&!runtime_request_rejoin()&&!runtime_request_join()&&
+        runtime_rejoin_requested==1&&runtime_join_attempted==1&&!runtime_join_requested;
+    g_runtime_config=saved;g_config_status=status;g_enable_requested=enabled;
+    runtime_join_requested=requested;runtime_join_attempted=attempted;runtime_rejoin_requested=retry;
+    runtime_network_start_status=network_status;return ok;
 }
 static unsigned runtime_fixture_tick_count;
 static uintptr_t runtime_fixture_tick_self;

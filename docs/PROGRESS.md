@@ -1566,3 +1566,18 @@ Different native player contexts remain preserved. Native outputs rebuilt;
 new authored-memory fixture cases are prepared, with execution deferred.
 No game or new fixture was run. Campaign travel and usable combat remain
 unverified; this source change removes an unnecessary created-context dependency.
+
+## Explicit ordinary guest rejoin request
+
+The ordinary entry now exports an explicit rejoin request after an earlier
+join attempt. Callers enqueue intent only; Tick verifies standalone ownership,
+native travel absence, story readiness and previous adapter cleanup before
+rearming the original join implementation. The normal stable-player window is
+reset and must pass again. An existing network world is refused and preserved.
+The request expires after30 seconds without eligible standalone cleanup.
+
+No automatic reconnect, forced disconnect, endpoint change, fault clearing,
+mission selection or engine package-validation change is introduced. There is
+no player menu wiring yet. Request-policy fixture cases were prepared; execution
+is deferred. Native outputs rebuilt. No game or new fixture was run. Recovery
+after a real campaign disconnect remains unverified.

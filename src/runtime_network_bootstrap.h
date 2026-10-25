@@ -7,10 +7,13 @@ typedef enum RuntimeNetworkStartStatus {
     RUNTIME_START_ALREADY_NETWORKED=3,RUNTIME_START_ABI_REFUSED=4,
     RUNTIME_START_BAD_REQUEST=5,RUNTIME_START_HOST_UNAVAILABLE=6,RUNTIME_START_BIND_REFUSED=7,
     RUNTIME_START_LISTENING=8,RUNTIME_START_CAPACITY_REFUSED=9,
-    RUNTIME_START_HOST_NATIVE_FAILED=10,RUNTIME_START_HOST_VERIFY_FAILED=11
+    RUNTIME_START_HOST_NATIVE_FAILED=10,RUNTIME_START_HOST_VERIFY_FAILED=11,
+    RUNTIME_START_RETRY_WAITING=12,RUNTIME_START_RETRY_REFUSED=13,RUNTIME_START_RETRY_EXPIRED=14
 } RuntimeNetworkStartStatus;
 static volatile LONG runtime_join_requested,runtime_join_attempted,runtime_network_start_status;
 static volatile LONG runtime_listen_requested,runtime_listen_attempted;
+static volatile LONG runtime_rejoin_requested;
+static DWORD runtime_rejoin_started;
 static DWORD runtime_join_last_check;
 static int runtime_network_start_parse(Me3RuntimeRole role,const wchar_t *value) {
     if(!value)return 0;
@@ -21,9 +24,19 @@ static int runtime_network_start_parse(Me3RuntimeRole role,const wchar_t *value)
 static int runtime_request_join(void) {
     if(g_config_status!=ME3_CONFIG_READY||g_runtime_config.role!=ME3_ROLE_GUEST||
        !InterlockedCompareExchange(&g_enable_requested,0,0)||
-       InterlockedCompareExchange(&runtime_join_attempted,0,0))return 0;
+       InterlockedCompareExchange(&runtime_join_attempted,0,0)||
+       InterlockedCompareExchange(&runtime_rejoin_requested,0,0))return 0;
     if(InterlockedCompareExchange(&runtime_join_requested,1,0))return 0;
     InterlockedExchange(&runtime_network_start_status,RUNTIME_START_WAITING);return 1;
+}
+/* Export callers only enqueue intent. Native world/cleanup state belongs
+ * exclusively to Tick, never an arbitrary caller thread. */
+static int runtime_request_rejoin(void) {
+    if(g_config_status!=ME3_CONFIG_READY||g_runtime_config.role!=ME3_ROLE_GUEST||
+       !InterlockedCompareExchange(&g_enable_requested,0,0)||
+       !InterlockedCompareExchange(&runtime_join_attempted,0,0)||
+       InterlockedCompareExchange(&runtime_join_requested,0,0))return 0;
+    return InterlockedCompareExchange(&runtime_rejoin_requested,1,0)==0;
 }
 static int runtime_request_listen(void) {
     if(g_config_status!=ME3_CONFIG_READY||g_runtime_config.role!=ME3_ROLE_HOST||
@@ -57,7 +70,9 @@ static int runtime_join_travel_idle(uintptr_t world,uintptr_t engine) {
 #include "runtime_join_readiness.h"
 #include "runtime_join_diagnostics.h"
 #include "runtime_join_progress.h"
+#include "runtime_rejoin.h"
 static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now) {
+    runtime_rejoin_tick(base,engine,now);
     int host=g_runtime_config.role==ME3_ROLE_HOST;
     volatile LONG *requested=host?&runtime_listen_requested:&runtime_join_requested,
         *attempted=host?&runtime_listen_attempted:&runtime_join_attempted;

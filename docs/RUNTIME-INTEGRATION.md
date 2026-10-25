@@ -29,7 +29,16 @@ standalone control, no driver and no pending travel, validates the reflected
 console ABI/allocator, then marks the request consumed before invoking travel.
 It selects no mission and never clears pause/story state. Dispatch is not proof
 of a connected guest. This path still requires protected actual-entry testing.
-A process accepts at most one join attempt; retry currently requires restart.
+The original join API remains one-shot. The explicit exported
+`ME3SquadCoopRequestRejoin` queues a retry after an earlier attempt. Its return
+value means only that intent was queued. Tick refuses an existing network world,
+waits at most30 seconds for standalone player readiness, no driver/pending
+travel and completed camera/context/cinematic cleanup, then rearms the same
+ordinary join path with a fresh stable-player window. It never disconnects an
+existing peer, clears faults or automatically retries. Startup statuses12/13/14
+report retry waiting/refusal/expiry; ordinary join statuses resume once rearmed.
+No player-facing reconnect button is wired yet. This candidate is compiled;
+request fixture execution and actual disconnection/rejoin remain deferred.
 
 An explicit host `ME3_SQUAD_COOP_START=listen` (or exported
 `ME3SquadCoopRequestListen`) now requests one **in-place native Listen** on the
