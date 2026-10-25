@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-10-25: live weapon damage inputs are populated at enemy hits
+
+The protected observer validated its reflected layouts in a real pair. During
+the aimed burst,26 input records reported Damage.Value38.6, DamageHench0.3,
+bSuppressDamage=false and a four-entry damage-type array selecting the live
+assault-rifle class for mode2. Three admitted hit records joined two actual
+Trooper targets to the independent host sampler. Their health still did not
+decrease. Missing weapon values, a null damage-type entry and the weapon's
+suppression bit were therefore not observed causes in this run.
+
+Further stock-script review fully decoded the damage module's3650-byte body
+using the existing LegendaryExplorer DynArrayFindStruct token format. Damage
+also passes SFXGRI.ModifyDamage and BioPawn.ModifyDamage; either can reject it.
+Relevant conditions include general damage enablement, active conversation/
+cinematic modes, plot protection, actor damage permission and hostility
+relative to the attacking controller. These runtime gates remain unmeasured;
+none is assigned or bypassed. Difficulty scaling is additive in the multiplier:
+OutHenchDamageScale zero alone does not imply zero damage.
+
+The completed pair preserved original profiles, recorded zero native
+exceptions and left no game process. The read-only monitor reported access
+denied and the memory helper exited1. A subsequent read-only routing capture
+was not executed because automatic approval review hit its usage limit.
+No gameplay fix or full combat/dialogue success is established by this result.
+
 ## 2026-10-25: observe actual weapon damage inputs at the existing hit drain
 
 Added bounded read-only damage-input rows to the existing protected
