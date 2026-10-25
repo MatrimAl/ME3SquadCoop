@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: prepare a pinned native-detour dependency
+
+MinHook v1.3.4's x64-required sources are now vendored from official commit
+c3fcafdc10146beb5919319d0683e44e3c30d537, with upstream notices and archive
+identity retained. Only the ordinary runtime links the sources; the probe and
+launcher do not. Build fingerprints include the vendored tree and the license
+notice copied beside the ASIs. Three native targets compiled and fingerprints
+matched; no game or tests ran.
+
+This prepares interception of the observed direct quickslot pawn-resolution
+call, which a setup-vtable hook alone cannot cover. No MinHook initialization,
+detour creation or enabling call has been added yet. The eventual adapter
+must preserve stock forwarding outside the owned guest wheel and retain
+native icon/cooldown/permission handling without writing saved mappings.
+Quickslot refresh coordination remains incomplete.
+
 ## 2026-10-26: align native wheel squad with registered guest context
 
 The optional wheel context now has an independent transient-reference lease.
