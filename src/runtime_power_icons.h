@@ -16,6 +16,7 @@ typedef struct RuntimePowerIconLease {
 static RuntimePowerIconLease runtime_power_icons;
 static int runtime_power_assignment_install(uintptr_t base);
 static int runtime_power_assignment_active(uintptr_t base);
+static int runtime_power_ui_allowed(uintptr_t base,SessionContext c);
 static int runtime_power_icons_enabled(void) {
     static int configured,opted;
     if(!configured) {
@@ -109,10 +110,10 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
     if(GetCurrentThreadId()!=session_game_thread)return;
     SessionContext c=session_context(engine);RuntimePowerCatalog catalog;
     int ready=runtime_power_icons_enabled()&&runtime_native_power_input_active()&&runtime_control_enabled&&
-        runtime_scope_ready&&ordinary&&!session_engine_blocked(c)&&
+        runtime_scope_ready&&runtime_power_ui_allowed(base,c)&&
         runtime_power_read_membership(base,c,&catalog);
     if(lease->active&&(lease->failed||!runtime_power_assignment_active(base)||!runtime_power_icons_enabled()||!runtime_native_power_input_active()||
-       !runtime_control_enabled||!runtime_scope_ready||!ordinary||session_engine_blocked(c)||
+       !runtime_control_enabled||!runtime_scope_ready||!runtime_power_ui_allowed(base,c)||
        c.pc!=lease->owner.pc.pointer||c.pawn!=lease->owner.pawn.pointer||
        !session_handle_matches(lease->owner.pawn)||lease->owner.token!=guest_player_context_registration_token()||
        !guest_player_context_registered_for(c.pc,c.pawn)||!guest_player_context_basic_owned(base,c.pc,c.pawn,c.world)||

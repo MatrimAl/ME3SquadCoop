@@ -1,5 +1,27 @@
 # Progress
 
+## 2026-10-26: co-op command-pause policy and owned power-menu context
+
+The owner requested that Shift power menus keep co-op simulation running.
+Owned BioWorldInfo.PauseGame shows the native command-pause policy gate:
+with a valid SFXGRI and bPauseForCommand false, it does not write PlayersOnly.
+The runtime now clears only that verified policy bit in an admitted host or
+guest network world, beginning from an ordinary unpaused frame. It retains
+the baseline for conditional same-world restoration on disable/scope loss.
+Existing pause state is never forcibly cleared, and an already-open paused
+menu is left to its stock close path. Missing/unverified GRI refuses the policy.
+
+The optional icon candidate also gained an exact mode3 UI retention predicate.
+It preserves an existing registered matching guest context while the power
+wheel, mode manager, network/catalog and squad caches remain valid and no
+pause/conversation/cinematic environmental block is present. Other scenes
+still clean up; native power dispatch remains mode0-only. UI consumers can
+retain/reassign icons under that limited menu predicate.
+
+Three native targets compiled and current fingerprints matched. No game,
+Shift press, network session or tests ran. Actual pause prevention, menu
+rendering/control and close-time native tactical orders remain unverified.
+
 ## 2026-10-26: split UI power membership and identify full wheel-mode gap
 
 UI icon/drop consumers now read owned eligible power membership separately

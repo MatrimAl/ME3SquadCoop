@@ -757,3 +757,51 @@ tactical orders. Simply exempting every nonordinary mode or keeping a stale
 lease would also affect conversations/cinematics. No mode, pause or native
 game state was changed for this finding. Three native targets compiled for
 the membership/readiness separation; no game or tests ran.
+
+## Co-op command menus without command pause
+
+The owner requests that opening the Shift power menu must not stop co-op
+simulation. Owned BioWorldInfo.PauseGame decoded completely (68 serialized /
+104 VM bytes). It casts WorldInfo.GRI to SFXGRI, then writes bPlayersOnly from
+the supplied bPause only when that cast is null or bPauseForCommand is true.
+Thus the game's existing SFXGRI command-pause policy provides a narrower
+integration point than forcibly clearing WorldInfo pause state every frame.
+
+The ordinary runtime now disables bPauseForCommand in a verified native host
+or guest network world. The retained SDK places it at+0x378, mask4; current
+reflection checks owner/type/offset/size/dimension and the exact boolean mask.
+WorldInfo.GRI at+0x6a8, the live GRI/world identities and writable aligned
+storage are verified. A CAS clears only that bit. Starting the policy requires
+an ordinary unpaused frame: a menu that was already paused must retain its
+stock close/unpause path instead of being stranded by a mid-pause policy change.
+
+The baseline bit is retained and conditionally restored on disable/scope loss
+only while the same current world/GRI still exists and the installed bit is
+still clear. A disposed/replaced world is not written. Already-disabled native
+policy requires no write/restoration. No PlayersOnly, Pauser, conversation,
+input-ignore, animation or time-dilation field is cleared. The policy affects
+the native command-pause route for the co-op session; it is not a global
+replacement for all pause mechanisms. Missing/unverified GRI refuses policy
+installation, so this is not guaranteed Shift-menu behavior yet.
+
+## Retain an existing UI context in an unpaused power wheel
+
+With the optional native icon candidate, a pre-existing owned icon/context
+lease can now be retained in exact native power-wheel mode3. Current manager
+and GameModes/CurrentMode reflection, the mode3 object's class/Outer, live
+world/controller/pawn, registration token, channel/catalog and synthetic or
+existing squad caches are verified. The ordinary environmental gate is shared
+without altering the observed mode. Cinematic flags, PlayersOnly/pending,
+Pauser, active conversation and unreadable state still refuse UI retention.
+
+This exception skips context teardown only for an already-registered matching
+menu lease; it does not initialize a context inside a menu. The icon/drop
+consumers can use that read-only UI eligibility. Gameplay dispatch continues
+to require mode0 and its original native combat/action checks. Other modes
+and invalid menu identities still take scene cleanup. The command-pause policy
+above is independent of optional icon/keyboard flags and runs for both roles.
+
+All three native targets compiled and current source/build fingerprints
+matched. No game, Shift input, pause transition, network session or tests ran.
+Native close-time ApplyTacticalOrders, full power-list initialization and
+two-player control/rendering through menu transitions remain unverified.

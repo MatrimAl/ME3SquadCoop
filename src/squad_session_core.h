@@ -122,10 +122,8 @@ static int session_story_valid(uintptr_t base) {
 }
 /* One read-only predicate supplies both admission and its first blocking
  * reason. Logging must never run a looser copy of the gameplay gate. */
-static const char *session_engine_block_reason(SessionContext c) {
+static const char *session_environment_block_reason(SessionContext c) {
     if (!c.pc || !c.world || !c.manager) return "missing-context";
-    /* Ordinary on-foot control remains the only admitted mode. */
-    if (c.mode != 0) return "nonordinary-mode";
     uint32_t flags = 0;
     if (!read_at(c.pc + 0x77c, &flags, 4)) return "controller-flags-unreadable";
     if (flags & 0x20000) return "controller-cinematic-mode";
@@ -152,6 +150,12 @@ static const char *session_engine_block_reason(SessionContext c) {
         if (activating & 1) return "conversation-activating";
     }
     return NULL;
+}
+static const char *session_engine_block_reason(SessionContext c) {
+    /* Native gameplay remains mode0-only. A separate read-only UI policy can
+     * reuse environmental checks without pretending the engine changed mode. */
+    if(c.mode!=0)return "nonordinary-mode";
+    return session_environment_block_reason(c);
 }
 static int session_engine_blocked(SessionContext c) {
     return session_engine_block_reason(c) != NULL;

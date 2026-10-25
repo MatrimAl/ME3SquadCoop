@@ -16,6 +16,13 @@ python tools/prepare_session.py --role guest --bind 26.2.3.4 --peer 26.1.2.3 --p
 ```
 
 The default startup action is `listen` for a host and `join` for a guest.
+In an admitted host/guest world, the compiled runtime now disables the game's
+native command-pause policy so opening a Shift power menu should leave co-op
+simulation running. It starts only from an ordinary unpaused frame and needs
+a verified live SFXGRI. Existing pauses are not forced open; standalone play
+is not admitted. The previous policy bit is conditionally restored on disable
+while the same world still exists. No extra option is needed. This behavior
+has compiled only; actual Shift-menu pause prevention remains unverified.
 `--panel` adds the opt-in flag for the separate [local control panel](SESSION-PANEL.md).
 Guest-only `--power-hotkeys` adds `ME3_SQUAD_COOP_POWER_HOTKEYS=1` for the
 experimental Ctrl+Alt+1..9 power slot adapter. It is off by default and does not

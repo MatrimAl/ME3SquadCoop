@@ -1,5 +1,14 @@
 # Validation status
 
+The runtime now uses the native SFXGRI command-pause policy to prevent new
+command-menu pauses in an admitted co-op world, with same-world conditional
+baseline restoration. It never clears an existing PlayersOnly/Pauser state.
+The optional icon candidate can retain an already-owned registered UI context
+in a verified unpaused power-wheel mode3. Actual casting remains mode0-only.
+Three native targets compiled and current fingerprints matched; no game,
+Shift input or tests ran. Pause prevention, menu continuity and close-time
+tactical orders remain unverified, and missing GRI refuses policy installation.
+
 Source review identified a concrete full-wheel limitation: native power wheel
 mode3 fails the existing mode0-only session/context policy. Earlier ordinary
 quickslot/drop candidates do not establish support inside that menu. Owned

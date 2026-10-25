@@ -70,8 +70,10 @@ static int runtime_session_scope(uintptr_t base,uintptr_t engine) {
 }
 #include "runtime_guest_power.h"
 #include "runtime_power_icons.h"
+#include "runtime_power_menu.h"
 #include "runtime_power_assignment.h"
 #include "runtime_input_bootstrap.h"
+#include "runtime_command_pause.h"
 static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     SessionContext c=session_context(engine);
     uint32_t world_flags=0;
@@ -87,7 +89,10 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
     }
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,enabled,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
-    guest_player_context_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
+    /* A verified already-owned power menu may retain context, without
+     * admitting gameplay orders or rebuilding a context inside the menu. */
+    if(!runtime_power_menu_held(base,c))
+        guest_player_context_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
     /* A scene/PlayersOnly interval suspends writes, not the captured healthy
      * collision lifetime. Keep observing the same pawn while it is released;
      * only an actual session disable/scope loss retires that baseline. */
@@ -106,6 +111,7 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
 static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     session_engine=engine;session_game_thread=GetCurrentThreadId();
     runtime_scope_ready=runtime_session_scope(base,engine);
+    runtime_command_pause_prepare(base,engine,runtime_control_enabled&&runtime_scope_ready);
     if(!after)background_focus_prepare(base,engine,runtime_control_enabled&&runtime_scope_ready);
     if(g_runtime_config.role==ME3_ROLE_GUEST) {
         runtime_guest_frame(base,engine,after,now);return;
