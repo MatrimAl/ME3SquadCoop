@@ -4,7 +4,7 @@
  * the GUI registry or hotkey call; never load a movie or copy native strings. */
 typedef struct RuntimePowerIconSlot {
     SessionHandle icon,original,original_pawn,installed;
-    uint32_t installed_name[2];
+    uint32_t original_name[2],installed_name[2];
     int changed;
 } RuntimePowerIconSlot;
 typedef struct RuntimePowerIconLease {
@@ -71,6 +71,23 @@ static int runtime_power_icon_matches(uintptr_t object,SessionHandle power,uintp
     uint32_t got[2]={0};
     return runtime_power_icon_values(object,power,pawn)&&read_at(object+0x1a4,got,8)&&!memcmp(got,name,8);
 }
+static int runtime_power_icon_expected(const RuntimePowerIconSlot *slot,uintptr_t pawn) {
+    /* A native refresh can replace the name without replacing either object.
+     * Account for the whole UI identity before adopting or undoing a value. */
+    return slot->changed?
+        runtime_power_icon_matches(slot->icon.pointer,slot->installed,
+            slot->installed.pointer?pawn:0,slot->installed_name):
+        runtime_power_icon_matches(slot->icon.pointer,slot->original,
+            slot->original_pawn.pointer,slot->original_name);
+}
+static int runtime_power_icon_original_live(uintptr_t base,const RuntimePowerIconSlot *slot) {
+    uint32_t name[2]={0};
+    return slot->original.pointer&&session_handle_matches(slot->original)&&
+        session_handle_matches(slot->original_pawn)&&
+        narrative_probe_object(base,slot->original.pointer,"SFXPowerCustomActionBase")&&
+        read_ptr(slot->original.pointer+0x98)==slot->original_pawn.pointer&&
+        read_at(slot->original.pointer+0x46c,name,8)&&!memcmp(name,slot->original_name,8);
+}
 static int runtime_power_icon_none(uintptr_t base,uintptr_t object,uint32_t name[2]) {
     char text[80];
     if(!read_at(object+0x1a4,name,8)||name[1])return 0;
@@ -92,12 +109,10 @@ static void runtime_power_icons_release(uintptr_t base,uintptr_t engine) {
         if(!runtime_power_icon_owner(base,&lease->owner,c)||
            runtime_power_wheel_drag_state(base,lease->owner.handler.pointer)!=0||
            !runtime_power_icon_layout(base,&lease->owner,n,s->icon)||
-           !runtime_power_icon_values(s->icon.pointer,s->installed,
-               s->installed.pointer?lease->owner.pawn.pointer:0))continue;
+           !runtime_power_icon_matches(s->icon.pointer,s->installed,
+               s->installed.pointer?lease->owner.pawn.pointer:0,s->installed_name))continue;
         uintptr_t original=0;
-        if(s->original.pointer&&session_handle_matches(s->original)&&session_handle_matches(s->original_pawn)&&
-           narrative_probe_object(base,s->original.pointer,"SFXPowerCustomActionBase")&&
-           read_ptr(s->original.pointer+0x98)==s->original_pawn.pointer)original=s->original.pointer;
+        if(runtime_power_icon_original_live(base,s))original=s->original.pointer;
         uintptr_t method=runtime_power_icon_setter(base,s->icon.pointer);
         if(method)runtime_power_icon_set(base,s->icon.pointer,method,original);
     }
@@ -144,12 +159,13 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
             s->icon=session_capture_handle(read_ptr(owner.handler.pointer+0xbd8+n*8));
             if(!runtime_power_icon_layout(base,&owner,n,s->icon)||!runtime_power_icon_setter(base,s->icon.pointer))return;
             uintptr_t power=0,pawn=0;
-            if(!read_at(s->icon.pointer+0x194,&power,8)||!read_at(s->icon.pointer+0x19c,&pawn,8))return;
+            if(!read_at(s->icon.pointer+0x194,&power,8)||!read_at(s->icon.pointer+0x19c,&pawn,8)||
+               !read_at(s->icon.pointer+0x1a4,s->original_name,8))return;
             if(power) {
                 s->original=session_capture_handle(power);s->original_pawn=session_capture_handle(pawn);
-                if(!session_handle_matches(s->original)||!session_handle_matches(s->original_pawn)||
-                   !narrative_probe_object(base,power,"SFXPowerCustomActionBase")||read_ptr(power+0x98)!=pawn)return;
-            } else if(pawn)return;
+                if(!runtime_power_icon_original_live(base,s))return;
+            } else if(pawn||!runtime_power_icon_none(base,s->icon.pointer,s->original_name))return;
+            if(!runtime_power_icon_expected(s,c.pawn))return;
         }
         if(!runtime_power_assignment_install(base)||!runtime_power_caster_install(base)||!runtime_native_quickslot_install(base))return;
         captured.active=1;*lease=captured;
@@ -182,9 +198,7 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
         uintptr_t pawn=desired.pointer?c.pawn:0;
         uint32_t name[2]={0};
         if(index>=0)memcpy(name,catalog.names[index],8);
-        if(s->changed&&!runtime_power_icon_matches(s->icon.pointer,s->installed,
-               s->installed.pointer?lease->owner.pawn.pointer:0,s->installed_name)) {lease->failed=1;break;}
-        if(!s->changed&&!runtime_power_icon_values(s->icon.pointer,s->original,s->original_pawn.pointer)) {lease->failed=1;break;}
+        if(!runtime_power_icon_expected(s,lease->owner.pawn.pointer)) {lease->failed=1;break;}
         if(!desired.pointer&&!read_ptr(s->icon.pointer+0x194)) {
             if(read_ptr(s->icon.pointer+0x19c)||!runtime_power_icon_none(base,s->icon.pointer,name)) {lease->failed=1;break;}
             continue;

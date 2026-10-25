@@ -1,5 +1,14 @@
 # Validation status
 
+Quickslot expected-value accounting now includes both words of the power name
+for untouched baselines, painting/native refresh and retirement. Same-pointer
+native name replacements are preserved, and an original power with a changed
+PowerName is not restored as its earlier assignment. This fixes a source-level
+ownership gap; it is not a diagnosis of an observed menu failure. Three native
+targets compiled and fingerprints matched; no game or tests ran. Actual
+rendering, drag/drop and cleanup still require gameplay evidence. See
+[native quickslot accounting](NATIVE-QUICKSLOT-REFRESH.md).
+
 The latest offline action-array scan selected14 native fragments. A retained
 Ghidra export completed with12 nonempty decompilations and two missing exact
 function entries; completion of the batch does not mean all14 decompiled.

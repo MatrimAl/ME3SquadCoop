@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-26: preserve name-only native quickslot replacements
+
+Source review found that untouched icon baselines and retirement compared
+only power/pawn pointers. Native setup or cleanup could therefore change the
+icon's full name while leaving those addresses unchanged, and later mod work
+could overwrite that replacement. This is a source-level gap, not an observed
+runtime failure.
+
+The lease now captures baseline full names and uses one exact expected-value
+predicate for painting, native setup and non-cleared assignment destinations.
+Retirement also checks the installed full name. Baseline capture requires the
+power's current PowerName to match; a later changed baseline name cannot be
+restored as the original assignment. Empty baselines use actual native None.
+Native setters still own UI state and text; no direct name/profile writes were
+added. Three native targets compiled and fingerprints matched; no game or
+tests ran. Rendering and cleanup behavior remain unverified. See
+[native refresh accounting](NATIVE-QUICKSLOT-REFRESH.md).
+
 ## 2026-10-26: classify native action-context candidates
 
 The retained project completed a14-entry action-array candidate batch in

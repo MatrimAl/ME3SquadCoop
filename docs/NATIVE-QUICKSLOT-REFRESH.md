@@ -33,12 +33,26 @@ for the mod's guest slot map. No saved definition, input profile, actor tag,
 gameplay permission, cooldown or tactical-order state is rewritten.
 
 Before a native UI call, an active paint lease must still hold its expected
-icon value. After the call, the adapter rechecks registration, catalog, map,
+power/pawn/full-name value, including slots the mod has not changed yet. The
+captured baseline includes both FName words. Acquisition refuses a populated
+baseline whose icon name disagrees with its power's current PowerName, and
+empty baselines require the native None name. After the call, the adapter
+rechecks registration, catalog, map,
 widget and exact resulting power/pawn/name before acknowledging the refresh
 to that lease. Foreign replacements are not adopted. During an actual or
 pending drag, the per-icon adapter preserves its transitional pointer values;
 the pawn resolver remains nonnull so stock setup cannot clear them first.
 This adapter does not enqueue or execute a gameplay power request.
+
+Retirement likewise requires the exact last installed power/pawn/full-name
+triple before invoking a restore setter. A native name-only replacement is
+preserved even if its object addresses still match. A retained original power
+whose PowerName has changed is no longer a valid restoration baseline; that
+slot clears through native SetPower(None) only if the current installed triple
+still belongs to the lease. No name field is written directly. Tick painting,
+native setup and the non-cleared drag/drop destination use the same expected
+value predicate. The independently verified native drop wrapper's destination
+clear remains an explicit accounted transition.
 
 Unrelated callers, other wheels, other threads, disabled runtime and inactive
 owned context retain original forwarding. A partially published hook also

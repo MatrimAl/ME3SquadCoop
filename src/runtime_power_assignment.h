@@ -38,9 +38,7 @@ static void runtime_power_assignment(void *self,int destination,int source,uint3
         /* Retain the pre-lease baseline. A rejected drop must still own the
          * wrapper's clear, allowing idle retirement to restore this slot. */
         target->installed=(SessionHandle){0};memcpy(target->installed_name,empty,8);target->changed=1;
-    } else if(target->changed?!runtime_power_icon_matches(target->icon.pointer,target->installed,
-              target->installed.pointer?lease->owner.pawn.pointer:0,target->installed_name):
-              !runtime_power_icon_values(target->icon.pointer,target->original,target->original_pawn.pointer)) {
+    } else if(!runtime_power_icon_expected(target,lease->owner.pawn.pointer)) {
         lease->failed=1;return;
     }
     /* The verified NewSet exec calls the wrapper, which tail-jumps here.

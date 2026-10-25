@@ -68,9 +68,7 @@ static int runtime_quickslot_setup(void *self,uintptr_t pawn,uint64_t name,uintp
     int tracked=paint->active&&paint->owner.handler.pointer==handler&&paint->owner.token==owner.token;
     if(tracked&&(paint->failed||paint->retiring||
        !runtime_power_same_handle(captured->icon,widget)||
-       (captured->changed?!runtime_power_icon_matches(icon,captured->installed,
-           captured->installed.pointer?c.pawn:0,captured->installed_name):
-           !runtime_power_icon_values(icon,captured->original,captured->original_pawn.pointer)))) {
+       !runtime_power_icon_expected(captured,c.pawn))) {
         paint->failed=1;return 0;
     }
     int entry=runtime_power_slot_index(&catalog,(unsigned)slot),result=0;
