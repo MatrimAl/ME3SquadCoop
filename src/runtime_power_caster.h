@@ -18,6 +18,16 @@ static int runtime_power_caster_power_owned(uintptr_t power,SessionContext c) {
     return read_at(power+0x98,&pawn,8)&&pawn==c.pawn&&read_at(power+0xa0,&pc,8)&&pc==c.pc&&
         read_at(power+0xa8,&ai,8)&&!ai;
 }
+static int runtime_power_caster_empty(uintptr_t base,uintptr_t icon) {
+    uint32_t name[2]={0};unsigned char states[2]={0};
+    /* Native SetPower(None) clears pawn/name and sets current/desired state5.
+     * Such capacity slots cannot enter the state3 cancellation pass. */
+    return runtime_power_icon_values(icon,(SessionHandle){0},0)&&
+        runtime_power_icon_none(base,icon,name)&&
+        runtime_power_property(base,icon,"SFXGUIValue_PowerIcon","eState","ByteProperty",0x1bc,1)&&
+        runtime_power_property(base,icon,"SFXGUIValue_PowerIcon","eDesiredState","ByteProperty",0x1bd,1)&&
+        read_at(icon+0x1bc,states,2)&&states[0]==5&&states[1]==5;
+}
 static int runtime_power_caster(void *self,uintptr_t *pawn_out,uintptr_t *group_out) {
     uintptr_t caller=(uintptr_t)__builtin_return_address(0),base=runtime_caster_base,handler=(uintptr_t)self;
     RuntimePowerIconLease *lease=&runtime_power_icons;
@@ -61,6 +71,7 @@ static int runtime_power_caster(void *self,uintptr_t *pawn_out,uintptr_t *group_
     GameArray group=groups[chosen];SessionHandle icon_handles[RUNTIME_POWER_LIMIT]={{0}};
     int membership[RUNTIME_POWER_LIMIT]={0};
     for(int j=0;j<group.count;++j) {
+        membership[j]=-1;
         int index=indices[chosen][j];uintptr_t icon=0,power=0;uint32_t name[2]={0};
         for(int k=0;k<j;++k)if(indices[chosen][k]==index)return 0;
         if(!read_at(icons.data+(size_t)index*8,&icon,8)||
@@ -70,6 +81,12 @@ static int runtime_power_caster(void *self,uintptr_t *pawn_out,uintptr_t *group_
            !runtime_power_property(base,icon,"SFXGUIValue_PowerIcon","pPawn","ObjectProperty",0x19c,8)||
            !runtime_power_property(base,icon,"SFXGUIValue_PowerIcon","nmPowerName","NameProperty",0x1a4,8)||
            !read_at(icon+0x194,&power,8)||!read_at(icon+0x1a4,name,8))return 0;
+        icon_handles[j]=session_capture_handle(icon);
+        if(!session_handle_matches(icon_handles[j]))return 0;
+        if(!power) {
+            if(index==selected||!runtime_power_caster_empty(base,icon))return 0;
+            continue;
+        }
         int entry=runtime_power_name_index(&catalog,name);
         if(entry<0||catalog.powers[entry].pointer!=power||
            !runtime_power_icon_matches(icon,catalog.powers[entry],c.pawn,name)||
@@ -78,8 +95,7 @@ static int runtime_power_caster(void *self,uintptr_t *pawn_out,uintptr_t *group_
            !runtime_power_property(base,power,"BioCustomAction","m_oAI","ObjectProperty",0xa8,8)||
            !runtime_power_caster_power_owned(power,c))return 0;
         for(int k=0;k<j;++k)if(membership[k]==entry)return 0;
-        membership[j]=entry;icon_handles[j]=session_capture_handle(icon);
-        if(!session_handle_matches(icon_handles[j]))return 0;
+        membership[j]=entry;
     }
     for(unsigned n=0;n<3;++n) {
         if(!read_at(handler+0x3c4+n*16,&after,sizeof after)||memcmp(&after,&groups[n],sizeof after))return 0;
@@ -91,8 +107,12 @@ static int runtime_power_caster(void *self,uintptr_t *pawn_out,uintptr_t *group_
     for(int j=0;j<group.count;++j) {
         int entry=membership[j];
         if(!session_handle_matches(icon_handles[j])||
-           read_ptr(icons.data+(size_t)indices[chosen][j]*8)!=icon_handles[j].pointer||
-           !runtime_power_icon_matches(icon_handles[j].pointer,catalog.powers[entry],c.pawn,catalog.names[entry])||
+           read_ptr(icons.data+(size_t)indices[chosen][j]*8)!=icon_handles[j].pointer)return 0;
+        if(entry<0) {
+            if(!runtime_power_caster_empty(base,icon_handles[j].pointer))return 0;
+            continue;
+        }
+        if(!runtime_power_icon_matches(icon_handles[j].pointer,catalog.powers[entry],c.pawn,catalog.names[entry])||
            !runtime_power_caster_power_owned(catalog.powers[entry].pointer,c))return 0;
     }
     int32_t last=-1;uint32_t last_flags=0;SessionContext current=session_context(session_engine);

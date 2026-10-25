@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-26: permit verified empty capacity in an owned power group
+
+Native population clears unused wheel capacity; the caster guard previously
+rejected any group containing those empty icons. It now accepts only
+unselected, fully cleared native icons: null power/pawn, actual None name and
+current/desired state5, with reflected layout and final identity/value
+readback. The selected power and every populated icon still require current
+owned catalog membership. Duplicate/stale/foreign populated entries refuse.
+Three native targets compiled and fingerprints matched; no game or tests ran.
+
+Six population-dependency script exports decoded completely. The initial
+event is GetCurrentHenchmanOrder, and controller+0xc50 is declared as the
+selection component. The native icon callback also depends on cached pawn
+fields for mapping display. These findings narrow the remaining full-list
+bootstrap and retirement work; they do not establish completed initialization.
+See [population dependencies](POWER-WHEEL-POPULATION.md).
+
 ## 2026-10-26: discover the existing guest wheel before a hotkey
 
 The optional icon lease now reads the native GUI manager's two bounded movie

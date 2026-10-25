@@ -1,5 +1,13 @@
 # Validation status
 
+The owned caster candidate now admits unselected native empty capacity icons
+only when their power/pawn are null, their name is actual None and both native
+states are5. The selected icon and all populated group entries remain subject
+to the original ownership/catalog checks. This removes a source-level blocker
+for groups larger than Ashley's available power list. Three native targets
+compiled and fingerprints matched; no game or tests ran. Full-list population,
+actual selection/cancellation/casting and gameplay remain unverified.
+
 The optional icon candidate can discover an existing guest PC wheel through
 the bounded native GUI registry without a prior power hotkey. Discovery is
 read-only and mode0-only; it still requires a registered guest and ready native

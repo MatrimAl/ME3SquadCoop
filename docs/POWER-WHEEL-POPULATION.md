@@ -42,3 +42,49 @@ provider, operation, exact procedure and nonempty pseudocode before labeling
 it verified target pseudocode. It also records the evidence/output identities,
 duration and import mode. These checks establish artifact identity, not
 semantic completeness or gameplay correctness. No game or tests ran.
+
+## Population dependencies resolved further
+
+Six selected owned script exports decoded completely: immediate-order
+permission180/260 serialized/VM bytes, queued-order permission146/218,
+IsPawnBlocked88/124, GetCurrentHenchmanOrder122/178, base InitDisplay550/738
+and PC InitDisplay196/296. The private feature dossier retains these sources.
+
+The handler event at the beginning of population is GetCurrentHenchmanOrder.
+The executable name pointer at RVA `0x17a8ae8` identifies name entry
+`0x142fbd4`. Its script returns None for a missing pawn or a pawn whose
+Controller is not SFXAI_Henchman. The henchman path reads GetNextOrder(1)'s
+power name. It is not a new order submission. Immediate/queued permission
+checks dispatch through either the henchman controller or BioPlayerController,
+and refuse when neither exists. They do not require a Shepard pawn class.
+
+The retained SDK identifies controller `+0xc50` as
+BioPlayerController.m_oPlayerSelection, a BioPlayerSelection, whose `+0x70`
+is m_oCurrentSelectionTarget. These declaration leads need reflected runtime
+layout/owner validation before a new native population call. The helper at
+`0xa97a50` is a class-hierarchy cast of the input object, not an input
+configuration/reset call; its null path returns zero.
+
+The PC wheel's `+0x520` callback resolves to `0xc4bdc0`. Its initial fragment
+is only ten instructions; the next fragment contains mapping display work.
+It compares each icon's pawn with cached player/henchman fields and reads
+player input's named mappings. Replacing the population pawn alone can leave
+mapping display inconsistent with those cached fields. Full callback extent,
+menu refresh ownership and conditional retirement still require integration.
+
+## Empty group capacity must remain selectable around
+
+Native population clears unused capacity icons with SetPower(None). The
+observed null-power branch writes the actual None name and current/desired
+state5 (`0x505` at icon offset `0x1bc`). Native SelectCurrentPower only enters
+the other-icon cancellation pass for current state3. Requiring every capacity
+slot to hold an eligible power therefore prevented a valid smaller Ashley
+list from passing the mod's caster check.
+
+The caster candidate now accepts an unselected empty icon only with null
+power/pawn, the actual None name, reflected byte-state fields and both states
+exactly5. It captures/rechecks those icon identities and values with the rest
+of the group. The selected slot still must contain an owned eligible power;
+populated foreign/stale/duplicate entries still refuse the entire group.
+This does not populate a group or relax native cast permissions. Three native
+targets compiled and fingerprints matched. No game or tests ran.
