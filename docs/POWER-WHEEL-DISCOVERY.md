@@ -37,9 +37,12 @@ caster/drop protections, drag rules and restoration policy remain responsible
 for any later UI modifications.
 
 Discovery admits only an already registered guest in ordinary mode0. It does
-not acquire context inside an already open menu. Opening Shift immediately
-before the initial lease is ready can still take the ordinary scene-release
-path. Missing/unready/oversized lists or widgets refuse; no menu is fabricated.
+not acquire context inside an already open menu. Existing player-context
+retention now has a separate verified mode3 predicate, independent of icon
+lease readiness or the optional icon flag. An early Shift opening therefore
+does not alone require releasing a healthy existing registration. It still
+cannot acquire a new icon lease inside the menu. Missing/unready/oversized
+lists or widgets refuse; no menu is fabricated.
 This change also does not populate Ashley's full wheel groups. See
 [population prerequisites](POWER-WHEEL-POPULATION.md).
 

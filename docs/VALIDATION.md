@@ -1,5 +1,13 @@
 # Validation status
 
+Existing guest registration can now remain in an exact unpaused PowerWheel
+mode3 independently of optional icon readiness. Admission, reciprocal identity,
+world/channel/squad caches and pawn-life restrictions still apply. Icon
+modification retains its separate lease/catalog/hook checks, and new context
+acquisition and mod casting remain mode0-only. Three native targets compiled
+and fingerprints matched; no game or tests ran. Menu control continuity,
+first-menu behavior and full-list population remain unverified.
+
 The owned caster candidate now admits unselected native empty capacity icons
 only when their power/pawn are null, their name is actual None and both native
 states are5. The selected icon and all populated group entries remain subject

@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: retain guest menu context without optional icon readiness
+
+The guest frame's native PowerWheel context-retention predicate is now
+independent of the optional icon lease and catalog. Previously an early Shift
+opening or disabling icons could retire healthy existing squad registration.
+The new predicate still requires current reciprocal Ashley ownership, client
+world, existing registered epoch, channel/world/squad identities, matching
+squad caches, exact mode-manager/mode ownership and unpaused scene state.
+Downed/dead/invalid-busy and noncombat pawn states refuse retention.
+
+The separate UI predicate still requires the complete valid icon lease and
+catalog. No registration/icon acquisition or mod casting is enabled inside
+the menu. Three native targets compiled and fingerprints matched; no game or
+tests ran. Actual menu continuity and full power-list initialization remain
+unverified. The retained Ghidra batch continues in its original session.
+
 ## 2026-10-26: gate saved-project reuse on a terminal export
 
 The retained-analysis runner now requires a matching successful prior export

@@ -90,9 +90,9 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
     }
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,enabled,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
-    /* A verified already-owned power menu may retain context, without
-     * admitting gameplay orders or rebuilding a context inside the menu. */
-    if(!runtime_power_menu_held(base,c))
+    /* Context retention is independent of optional icon initialization.
+     * This admits no orders and never rebuilds context inside the menu. */
+    if(!runtime_power_menu_context_held(base,c))
         guest_player_context_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
     /* A scene/PlayersOnly interval suspends writes, not the captured healthy
      * collision lifetime. Keep observing the same pawn while it is released;

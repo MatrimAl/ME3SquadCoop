@@ -108,3 +108,26 @@ cast on menu close: an additional delivery path could duplicate a native
 order. The conditional cover movement delay is also native behavior, not
 evidence by itself of a new co-op pause fault. No close event was executed;
 actual order delivery and movement recovery remain unverified.
+
+## Keep registration independent of optional icons
+
+The guest frame now uses a dedicated read-only mode3 context-retention
+predicate before the normal scene adapter. Previously it reused the icon
+lease's stricter eligibility, so disabling optional icons or opening Shift
+before icon capture could retire an otherwise healthy registered context.
+
+Retention requires an already registered and reciprocally owned current local
+Ashley/controller in a client world, a positive current registration epoch,
+live channel/world/squad identities, matching native squad pawn caches, the
+actual PowerWheel mode object owned by that controller and unpaused scene
+state. Missing/downed/dead/busy-invalid or noncombat pawn state refuses it.
+Native and synthetic squad-registration paths retain their own identity and
+cleanup checks. Mode/header, environment, epoch and ownership are rechecked.
+
+This predicate only skips releasing the current registration during that
+verified menu. It does not create/register a context there. UI modification
+still requires its active valid optional icon lease, hooks and current catalog;
+native discovery remains mode0-only and the mod order queue remains mode0-only.
+No pause/input/scene flag is cleared by retention. Three native targets
+compiled and build fingerprints matched. No game or tests ran; menu continuity,
+full-list initialization and close-time order delivery remain unverified.
