@@ -16,6 +16,10 @@ static InventoryReferenceBits inventory_reference_bits_original;
 static InventoryReferenceIndex inventory_reference_index_original;
 static unsigned inventory_reference_rows;
 static int inventory_reference_installed;
+/* Reuse the original scalar hooks for the separately scoped initial object.
+ * Observers run after the one original call and may only inspect its output. */
+static void (*initial_reference_bits_observer)(void*,void*,int32_t,uintptr_t);
+static void (*initial_reference_index_observer)(void*,uint32_t*,uint32_t,uintptr_t);
 static int inventory_reference_current(InventoryReferenceScope *s,void *archive) {
     uintptr_t base=initial_actor_trace_base;
     return inventory_reference_installed&&s&&s==inventory_reference_scope&&s->active&&
@@ -79,6 +83,7 @@ static void inventory_reference_bits_forward(void *archive,void *dest,int32_t co
         uint8_t tag=0;if(read_at((uintptr_t)dest,&tag,1)&&tag<=1){s->tag=tag;s->tag_known=1;
             inventory_reference_record(s,0,0);}
     }
+    if(initial_reference_bits_observer)initial_reference_bits_observer(archive,dest,count,caller);
     SetLastError(after);
 }
 /* The vector field observer reuses this already-owned scalar hook. */
@@ -93,6 +98,7 @@ static void inventory_reference_index_forward(void *archive,uint32_t *dest,uint3
         uint32_t index=0;if(read_at((uintptr_t)dest,&index,4))inventory_reference_record(s,1,index);
     }
     if(vector_decode_index_observer)vector_decode_index_observer(archive,dest,maximum,caller);
+    if(initial_reference_index_observer)initial_reference_index_observer(archive,dest,maximum,caller);
     SetLastError(after);
 }
 static void inventory_reference_bits(void *archive,void *dest,int32_t count) {
