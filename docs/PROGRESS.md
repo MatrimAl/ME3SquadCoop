@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: discover the existing guest wheel before a hotkey
+
+The optional icon lease now reads the native GUI manager's two bounded movie
+lists to locate a unique existing PC wheel belonging to the current registered
+guest/controller/world. This removes the hotkey-only discovery prerequisite
+from candidate code. It calls no native getter and loads no movie. Instruction
+pins, reflected owner/widget layouts and registry/ownership readback gate the
+observation; ambiguous or incomplete state refuses it. Registry observations
+must be current on the acquisition Tick. See
+[wheel discovery](POWER-WHEEL-DISCOVERY.md).
+
+Three native targets compiled and fingerprints matched; no game or tests ran.
+Discovery is mode0-only, so an immediate first-menu opening before lease
+readiness remains a limitation. Full Ashley power-group initialization and
+actual gameplay remain incomplete and unverified.
+
 ## 2026-10-26: native power population decompilation completed
 
 The background REA/Ghidra operation returned successful pseudocode for the

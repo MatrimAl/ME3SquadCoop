@@ -1,5 +1,13 @@
 # Validation status
 
+The optional icon candidate can discover an existing guest PC wheel through
+the bounded native GUI registry without a prior power hotkey. Discovery is
+read-only and mode0-only; it still requires a registered guest and ready native
+widgets. Three native targets compiled and fingerprints matched; no game or
+tests ran. Immediate first-menu readiness, actual discovery/rendering and full
+Ashley power-list initialization remain unverified. See
+[wheel discovery](POWER-WHEEL-DISCOVERY.md).
+
 The ordinary host now retains existing guest ownership in a verified unpaused
 Shift/power-wheel mode3 while keeping disconnect/story/ownership/scene checks.
 Admission and equipment startup remain mode0-only. Three native targets

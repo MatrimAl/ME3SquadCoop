@@ -11,6 +11,7 @@ typedef struct RuntimeHotkeyWheel {
     SessionHandle handler,pc,pawn,world;
     unsigned long token;
     ULONGLONG observed;
+    int registry_observation;
 } RuntimeHotkeyWheel;
 static RuntimeHotkeyWheel runtime_hotkey_wheel;
 /* Native drag owns the icon's transitional state. Validate the actual boolean
@@ -74,7 +75,7 @@ static void runtime_native_hotkey(void *self,int slot) {
     }
     runtime_hotkey_wheel=(RuntimeHotkeyWheel){session_capture_handle(handler),
         session_capture_handle(c.pc),session_capture_handle(c.pawn),session_capture_handle(c.world),
-        guest_player_context_registration_token(),GetTickCount64()};
+        guest_player_context_registration_token(),GetTickCount64(),0};
     /* Once identified as our wheel, consume the command even if unavailable:
      * falling through could issue a stock order through stale story icons. */
     RuntimePowerCatalog current;unsigned scope=(unsigned)runtime_power_scope;

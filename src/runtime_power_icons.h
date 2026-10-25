@@ -1,7 +1,7 @@
 #ifndef ME3_RUNTIME_POWER_ICONS_H
 #define ME3_RUNTIME_POWER_ICONS_H
 /* Optional native UI lease. Observe the controller's existing wheel through
- * its hotkey call; never load a movie or copy native FString allocations. */
+ * the GUI registry or hotkey call; never load a movie or copy native strings. */
 typedef struct RuntimePowerIconSlot {
     SessionHandle icon,original,original_pawn,installed;
     uint32_t installed_name[2];
@@ -48,6 +48,7 @@ static int runtime_power_icon_layout(uintptr_t base,const RuntimeHotkeyWheel *ow
         runtime_power_property(base,object,"SFXGUIValue_PowerIcon","pPawn","ObjectProperty",0x19c,8)&&
         runtime_power_property(base,object,"SFXGUIValue_PowerIcon","nmPowerName","NameProperty",0x1a4,8);
 }
+#include "runtime_power_wheel_discovery.h"
 static uintptr_t runtime_power_icon_setter(uintptr_t base,uintptr_t object) {
     uintptr_t fn=guest_player_context_find_method(base,read_ptr(object+0x50),"SFXGUIValue_PowerIcon","SetPower");
     if(read_ptr(read_ptr(object)+0x230)!=base+0xf4f80||
@@ -125,6 +126,10 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
     }
     if(!ready)return;
     if(!lease->active) {
+        /* A registry observation is usable only on the Tick that rechecked
+         * its lists. A genuine hotkey invocation keeps its existing window. */
+        if(runtime_hotkey_wheel.registry_observation)runtime_hotkey_wheel.observed=0;
+        runtime_power_wheel_discover(base,c,ordinary);
         RuntimeHotkeyWheel owner=runtime_hotkey_wheel;ULONGLONG now=GetTickCount64();
         if(!owner.observed||now<owner.observed||now-owner.observed>1000||
            c.pc!=owner.pc.pointer||c.pawn!=owner.pawn.pointer||!session_handle_matches(owner.pawn)||
