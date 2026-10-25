@@ -32,6 +32,8 @@ def main():
     for flag in ("source", "manifest", "project-root", "output", "ghidra", "java-home"):
         parser.add_argument("--" + flag, type=Path, required=True)
     parser.add_argument("--prepare-only", action="store_true")
+    parser.add_argument("--reuse-from", type=Path,
+                        help="Prior successful export directory required before reusing a saved project")
     args = parser.parse_args()
     source = args.source.resolve(strict=True)
     manifest_path = args.manifest.resolve(strict=True)
@@ -70,6 +72,22 @@ def main():
         raise RuntimeError("Refusing an unidentified existing project")
     else:
         save(identity_path, identity)
+    if project.exists():
+        if args.reuse_from is None:
+            raise RuntimeError("Existing project requires --reuse-from a verified terminal export")
+        previous = args.reuse_from.resolve(strict=True)
+        receipt = json.loads((previous / "run-status.json").read_text())
+        report = json.loads((previous / "feature.json").read_text())
+        prior_rows = report.get("functions", [])
+        prior_roles = [row.get("role") for row in prior_rows]
+        if not (receipt.get("status") == "export-complete" and receipt.get("exit_code") == 0 and
+                receipt.get("project_retained") is True and receipt.get("sha256") == expected and
+                report.get("status") == "export-complete" and report.get("sha256") == expected and
+                report.get("program") == source.name and prior_rows and
+                len(prior_rows) == receipt.get("functions_requested") and
+                len(set(prior_roles)) == len(prior_rows) and
+                receipt.get("project_root", str(root)) == str(root)):
+            raise RuntimeError("Prior export does not establish completed source-matching analysis")
     script = Path(__file__).with_name("ExportFeature.java").resolve()
     classes = root / "compiled-exporter"
     classes.mkdir(exist_ok=True)
@@ -96,6 +114,7 @@ def main():
                 str(manifest_path), str(output), "-max-cpu", "2",
                 "-log", str(output / "headless.log"), "-scriptlog", str(output / "script.log")]
     status = {"status": "prepared", "mode": mode, "sha256": expected,
+              "project_root": str(root),
               "manifest_sha256": digest(manifest_path), "script_sha256": digest(script),
               "functions_requested": len(targets), "game_executed": False, "tests_run": False}
     if args.prepare_only:

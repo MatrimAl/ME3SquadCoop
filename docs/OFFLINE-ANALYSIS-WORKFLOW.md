@@ -39,3 +39,9 @@ keeps the project and exports related functions in one operation. Later reuse
 must follow a verified successful import/save, not merely an existing project
 filename. A ten-entry wheel batch has been launched; persistence and later
 reuse remain pending until actual output and a subsequent read establish them.
+
+Reuse now also requires an explicit prior terminal export directory through
+`--reuse-from`. A matching source digest and completed report with exit0 and
+retained-project status are checked before selecting noanalysis. A still-live
+first import must keep running in its original session, never be replaced by
+an attempted reuse.

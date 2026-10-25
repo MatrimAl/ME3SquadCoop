@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: gate saved-project reuse on a terminal export
+
+The retained-analysis runner now requires a matching successful prior export
+receipt before allowing saved-project noanalysis mode. It checks exit0,
+completed report, retained-project status, entry count and source identity.
+New receipts also identify their project root. Python syntax parsed and diff
+whitespace checks passed; no game or tests ran. The original batch remains in
+its same live command session, so no replacement import was launched.
+
+Review of the complete native menu-deactivation script confirms delivery is
+through its Outer controller's ApplyTacticalOrders under the BioPawn combat
+flag. Population integration must retain that controller context through
+deactivation and avoid a second close-time dispatch. See
+[close-time delivery](POWER-WHEEL-POPULATION.md). This is static evidence,
+not a new successful cast or completed full-list initialization.
+
 ## 2026-10-26: start a retained feature-level Ghidra batch
 
 A new offline exporter compiles against the installed Ghidra12.1.4/JDK21

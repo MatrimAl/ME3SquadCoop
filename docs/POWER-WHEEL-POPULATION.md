@@ -88,3 +88,23 @@ of the group. The selected slot still must contain an owned eligible power;
 populated foreign/stale/duplicate entries still refuse the entire group.
 This does not populate a group or relax native cast permissions. Three native
 targets compiled and fingerprints matched. No game or tests ran.
+
+## Preserve native close-time delivery
+
+The retained complete SFXGameModePowerWheel.Deactivated script
+(387 serialized/563 VM bytes) calls the base deactivation, obtains the GUI
+interaction, requests PauseGame(false), then checks the mode's Outer
+controller's Pawn cast to BioPawn and its bCombatPawn flag. Only that branch
+invokes the same Outer controller's ApplyTacticalOrders. The GUI sound and
+hint restoration follow. A later positive DisableMoveTime/cover-state branch
+temporarily ignores movement and schedules EnableMovement.
+
+The mode's Outer/controller identity is therefore part of delivery, not merely
+a UI owner label. The existing mode-retention guard already checks that Outer
+against the current guest PC. A population adapter should preserve the
+registered context until native deactivation has consumed pending orders.
+It must not independently replay ApplyTacticalOrders or emit a replacement
+cast on menu close: an additional delivery path could duplicate a native
+order. The conditional cover movement delay is also native behavior, not
+evidence by itself of a new co-op pause fault. No close event was executed;
+actual order delivery and movement recovery remain unverified.
