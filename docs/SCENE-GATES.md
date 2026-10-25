@@ -42,3 +42,28 @@ All native outputs were rebuilt after this change. Existing gate fixtures and
 live tests are deferred at the owner's request; successful compilation is the
 only new executable validation. The diagnostic fields alone prove no dialogue
 handoff, AI restoration, reacquisition or mission-travel support.
+
+## Admission stability belongs to the current host context
+
+The shared core's500ms clear-control wait is now tied to captured identities
+for the host controller, Shepard, WorldInfo, squad, mode manager and native
+network driver. Previously `session_free_at` held only a timestamp, and the
+early return for unavailable host scope left it intact. A changed context
+could therefore inherit elapsed time from an earlier context. This is a
+source-level finding; no retained run proves it caused a gameplay failure.
+
+The new window validates live object-table membership, index and name for all
+six captured objects. A missing, unreadable, replaced or renamed object resets
+the wait; losing host readiness, enablement or the clear scene gate also
+resets it. Context observations run before and after Tick, while acquisition
+still occurs only after Tick. Existing scene, peer, ownership, story, equipment
+and package checks remain required. No fault latch is cleared and no retired
+world is written to. This does not implement or validate continuous travel.
+
+Regression source was prepared for each changed context address, renamed
+object identity, disappearing driver, explicit reset,500ms boundary and clock
+wrap. Existing scene-gate mutation definitions were updated for the reason
+predicate, and the unreadable PlayersOnly case now has a readable later
+conversation slot so another read failure cannot hide that guard. These
+fixtures/mutants have not been executed. All three normal native outputs were
+rebuilt; ordinary fixture-flavor compilation and runtime checks remain deferred.

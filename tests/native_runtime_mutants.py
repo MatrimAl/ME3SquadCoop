@@ -21,6 +21,10 @@ def main():
                        ZIG_LOCAL_CACHE_DIR=str(ROOT / "local/zig-local-cache"),
                        TMP=str(ROOT / "local/compiler-tmp"), TEMP=str(ROOT / "local/compiler-tmp"))
     faults = {
+        "skip-admission-stability-wait": ("return now-session_free_at>=500;", "return 1;"),
+        "ignore-reused-admission-identity": (
+            "previous->pointer!=current[i].pointer||previous->index!=current[i].index||previous->name!=current[i].name",
+            "previous->pointer!=current[i].pointer"),
         "unpossess-reused-pawn": ("if (pc_live && pawn_live &&", "if (pc_live &&"),
         "omit-ai-restore": ("if (pawn_live && detached && !owner && ai_live &&",
                             "if (0 && pawn_live && detached && !owner && ai_live &&"),

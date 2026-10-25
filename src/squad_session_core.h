@@ -55,6 +55,29 @@ static SessionContext session_context(uintptr_t engine) {
     if (c.manager) read_at(c.manager + 0xa8, &c.mode, 1);
     return c;
 }
+/* The500ms clear-control interval belongs to one current host context.
+ * A timer from an earlier world, pawn or driver cannot authorize acquisition. */
+typedef struct SessionAdmissionWindow { SessionHandle objects[6]; int tracked; } SessionAdmissionWindow;
+static SessionAdmissionWindow session_admission_window;
+static void session_admission_wait_reset(void) {
+    session_free_at=0;memset(&session_admission_window,0,sizeof session_admission_window);
+}
+static int session_admission_wait_ready(uintptr_t base,SessionContext c,DWORD now) {
+    uintptr_t objects[6]={c.pc,c.pawn,c.world,c.squad,c.manager,identity_host_driver};
+    SessionHandle current[6];int same=session_admission_window.tracked;
+    for(unsigned i=0;i<6;++i) {
+        if(!is_live(base,objects[i])){session_admission_wait_reset();return 0;}
+        current[i]=session_capture_handle(objects[i]);
+        if(!current[i].pointer||!session_handle_matches(current[i])){session_admission_wait_reset();return 0;}
+        SessionHandle *previous=&session_admission_window.objects[i];
+        if(previous->pointer!=current[i].pointer||previous->index!=current[i].index||previous->name!=current[i].name)same=0;
+    }
+    if(!same) {
+        memcpy(session_admission_window.objects,current,sizeof current);
+        session_admission_window.tracked=1;session_free_at=now;return 0;
+    }
+    return now-session_free_at>=500;
+}
 static int session_actor_live(uintptr_t base, uintptr_t object) {
     uint32_t first = 0, second = 0; uint64_t flags = 0;
     return is_live(base, object) && read_at(object + 0xc, &flags, 8) && !(flags & UINT64_C(0x2000000000000000)) &&
@@ -143,7 +166,16 @@ static int session_gate_selftest(void) {
     int32_t invalid_count=-1;memcpy(conversation+0xd0,&invalid_count,4);
     if(!session_engine_blocked(c))return 0;
     value=0;memcpy(conversation+0xd0,&value,4);value=1;memcpy(conversation+0xe8,&value,4);
-    return session_engine_blocked(c);
+    if(!session_engine_blocked(c))return 0;
+    /* Isolate an unreadable PlayersOnly word from the later, readable null
+     * conversation slot. Otherwise a second failed read masks this guard. */
+    unsigned char *guarded=VirtualAlloc(NULL,0x3000,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+    if(!guarded)return 0;DWORD protection=0;
+    int protected=VirtualProtect(guarded+0x1000,0x1000,PAGE_NOACCESS,&protection)!=0;
+    c.world=(uintptr_t)guarded+0x17c0;
+    int refused=protected&&session_engine_blocked(c);
+    VirtualFree(guarded,0,MEM_RELEASE);
+    return refused;
 }
 static void session_gate(int blocked, int synthetic, unsigned char mode, const char *engine_reason, DWORD now) {
     const char *reason = engine_reason ? engine_reason : "clear";
@@ -196,7 +228,7 @@ static void session_release(uintptr_t base, SessionContext c, const char *reason
     session_active = 0; session_releasing = 0; session_pending_reason = NULL; session_release_failures = 0;
     session_cleanup_pending = 0;
     if (!ai || !story || !detached) session_fault = 1;
-    session_remote = 0; session_connection = 0; session_free_at = 0;
+    session_remote = 0; session_connection = 0; session_admission_wait_reset();
 }
 static void session_connection_cleanup(void *self) {
     uintptr_t base = (uintptr_t)GetModuleHandleW(NULL);
@@ -303,12 +335,12 @@ static void session_acquire(uintptr_t base, SessionContext c, DWORD now) {
 static void session_admission_diagnostic(uintptr_t base,SessionContext c,DWORD now);
 #endif
 static void session_host_frame(uintptr_t base, uintptr_t engine, int after) {
-    if (!session_enabled) return;
+    if (!session_enabled) {session_admission_wait_reset();return;}
     session_engine = engine; session_game_thread = GetCurrentThreadId();
 #ifdef ME3_PROTECTED_SESSION_ADMISSION_DIAGNOSTICS
     if(after&&session_policy_is_host()&&!session_active)session_admission_diagnostic(base,session_context(engine),GetTickCount());
 #endif
-    if (!session_policy_is_host() || !session_policy_host_ready()) return;
+    if (!session_policy_is_host() || !session_policy_host_ready()) {session_admission_wait_reset();return;}
     SessionContext c = session_context(engine); DWORD now = GetTickCount();
     if (session_pending_reason) {
         if (session_cleanup_pending && session_connection_member(base, session_connection) == 0 && !session_disconnect_observed) {
@@ -343,10 +375,9 @@ static void session_host_frame(uintptr_t base, uintptr_t engine, int after) {
             session_pawn,c.world,session_epoch,!blocked,now);
         return;
     }
-    if (session_fault || blocked || !session_policy_enabled() || !c.pc || !c.pawn || !c.squad) { session_free_at = 0; return; }
-    if (!after) return;
-    if (!session_free_at) session_free_at = now;
-    if (now - session_free_at < 500) return;
+    if (session_fault || blocked || !session_policy_enabled() || !c.pc || !c.pawn || !c.squad) { session_admission_wait_reset(); return; }
+    int admission_ready=session_admission_wait_ready(base,c,now);
+    if (!after || !admission_ready) return;
     if (!session_peer_connected(base, session_remote, c.world)) {
         session_remote = 0;
         if (now - session_find_at < 1000) return;

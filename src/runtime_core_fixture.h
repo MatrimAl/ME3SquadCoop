@@ -62,8 +62,45 @@ static int runtime_core_cleanup_selftest(void) {
     if(ok)FlushInstructionCache(GetCurrentProcess(),image+0x2000,sizeof stub);
     SessionContext context={0};context.world=o[5];
     if(ok) {
+        /* Prepare admission regression cases for the next offline harness run.
+         * These are allocated fixture objects, never a live campaign world. */
+        runtime_fixture_lease();
+        SessionContext admission={o[3],o[4],o[5],o[6],o[18],0};
+        session_admission_wait_reset();
+        ok=!session_admission_wait_ready(base,admission,1000)&&
+            !session_admission_wait_ready(base,admission,1499)&&session_admission_wait_ready(base,admission,1500);
+        /* Every tracked address must restart the interval; no cross-context
+         * timer credit even when the replacement object is live. */
+        for(unsigned i=0;ok&&i<6;++i) {
+            session_admission_wait_reset();identity_host_driver=o[7];
+            ok=!session_admission_wait_ready(base,admission,2000);
+            SessionContext changed_context=admission;
+            switch(i){case 0:changed_context.pc=o[0];break;case 1:changed_context.pawn=o[1];break;
+                case 2:changed_context.world=o[18];break;case 3:changed_context.squad=o[18];break;
+                case 4:changed_context.manager=o[0];break;case 5:identity_host_driver=o[18];break;}
+            ok=ok&&!session_admission_wait_ready(base,changed_context,2600)&&
+                !session_admission_wait_ready(base,changed_context,3099)&&session_admission_wait_ready(base,changed_context,3100);
+        }
+        identity_host_driver=o[7];session_admission_wait_reset();
+        ok=ok&&!session_admission_wait_ready(base,admission,4000);
+        uint64_t admission_name=read_ptr(o[4]+0x48),renamed=admission_name+1;
+        memcpy((void*)(o[4]+0x48),&renamed,8);
+        ok=ok&&!session_admission_wait_ready(base,admission,4600)&&!session_admission_wait_ready(base,admission,5099);
+        memcpy((void*)(o[4]+0x48),&admission_name,8);
+        identity_host_driver=0;
+        ok=ok&&!session_admission_wait_ready(base,admission,5200)&&!session_admission_window.tracked;
+        identity_host_driver=o[7];
+        ok=ok&&!session_admission_wait_ready(base,admission,5300)&&!session_admission_wait_ready(base,admission,5799)&&
+            session_admission_wait_ready(base,admission,5800);
+        /* Reset also revokes elapsed credit after scope/enable loss. */
+        session_admission_wait_reset();
+        ok=ok&&!session_admission_wait_ready(base,admission,9000);
+        session_admission_wait_reset();
+        ok=ok&&!session_admission_wait_ready(base,admission,UINT32_MAX-100)&&
+            !session_admission_wait_ready(base,admission,398)&&session_admission_wait_ready(base,admission,399);
+        session_admission_wait_reset();
         runtime_fixture_lease();session_release(base,context,"scene",100);
-        ok=!session_active&&!session_fault&&runtime_fixture_unpossess==1&&runtime_fixture_possess==1&&
+        ok=ok&&!session_active&&!session_fault&&runtime_fixture_unpossess==1&&runtime_fixture_possess==1&&
             runtime_fixture_order==2&&read_ptr(o[1]+0x374)==o[2]&&session_story_valid(base);
         /* Object reuse invalidates writes even when its pointer is unchanged. */
         runtime_fixture_lease();uint64_t name=read_ptr(o[1]+0x48),changed=name+1;
@@ -83,6 +120,7 @@ static int runtime_core_cleanup_selftest(void) {
         ok=ok&&!session_active&&!session_fault&&runtime_fixture_unpossess==1&&runtime_fixture_possess==1;
     }
     session_enabled=session_active=session_fault=session_cleanup_pending=session_disconnect_observed=0;
+    session_admission_wait_reset();
     session_pending_reason=NULL;session_remote=session_connection=session_pawn=session_ai=0;identity_host_driver=0;
     memset(function_lookup_entries,0,sizeof function_lookup_entries);function_lookup_next=0;
     VirtualFree(image,0,MEM_RELEASE);HeapFree(GetProcessHeap(),0,memory);memset(o,0,sizeof runtime_fixture_objects);

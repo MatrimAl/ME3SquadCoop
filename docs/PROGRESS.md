@@ -1430,3 +1430,13 @@ resolver wrapper was removed and the stale draft-only header comment corrected.
 No equipment dispatch, retry eligibility, role, inventory, ammo or ownership
 policy was changed. All native outputs were rebuilt; fixtures and live tests
 remain deferred. This does not establish a fix for lost guest weapons.
+
+## Bind reacquisition waiting to current object identities
+
+The clear-control500ms admission window no longer carries only a timestamp.
+It is bound to the current host, Shepard, world, squad, mode manager and driver;
+identity or scope changes restart the wait. This closes a source-level stale
+warmup path without clearing session faults or relaxing story/scene checks.
+Native outputs were rebuilt. Regression fixture and mutation source is
+prepared but execution is deferred; no new campaign-travel result is claimed.
+See [admission stability](SCENE-GATES.md).
