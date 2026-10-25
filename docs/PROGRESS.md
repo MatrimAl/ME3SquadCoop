@@ -1,5 +1,29 @@
 # Progress
 
+## 2026-10-25: close an enemy-hit observation gap
+
+The latest protected pair contains an accepted enemy health decrease of52.11,
+but it cannot be attributed to the guest. Fourteen earlier hits on that same
+Trooper bracketed unchanged health. The first decrease interval overlaps a
+scene release to AI; the128-row hit observer had already exhausted its budget
+before that interval. Missing later hit records therefore do not establish
+that no guest hit occurred. Later raw lower-health samples fail the independent
+sampler's snapshot validity checks and are excluded from the accepted delta.
+
+The default-off observer now retains at most512 rows and explicitly reports
+exhaustion, preserving original dispatch, arguments and error state. Native
+regressions cover observation beyond the former cap and forwarding after the
+new cap. All three native outputs built and the native harness passed. This
+instrumentation change has not yet been tested in a real pair and does not fix
+or prove combat. A private read-only capture can now trigger on a fresh admitted
+hit instead of relying on an automated aim press that may never occur.
+
+One late routing snapshot found damage enabled, target damage permission set,
+plot protection unset and no active modes7/8 on the single controller still
+present. It was taken after the relevant shots and cannot exclude a remote
+controller's damage gate during the burst. Full combat and real conversations
+remain unverified.
+
 ## 2026-10-25: distinguish selected mode from active damage-blocking modes
 
 Exact-build native analysis resolved SFXGameModeManager.IsActive through its

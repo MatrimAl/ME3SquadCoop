@@ -13,6 +13,7 @@ static GuestHitObserver guest_hit_observer;
 static uintptr_t guest_hit_base,guest_hit_registered;
 static int guest_hit_enabled=-1,guest_hit_attempted,guest_hit_installed;
 static DWORD guest_hit_discovery_at;
+static int guest_hit_exhaustion_reported;
 static int guest_hit_waiting_name;
 static const unsigned char guest_hit_actor_pe_pin[]={0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x6c,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x57,0x48,0x83,0xec,0x20,0x48,0x8b,0xd9,0x49,0x8b};
 static const unsigned char guest_hit_slot_load_pin[]={0x48,0x8b,0x98,0x30,0x02,0x00,0x00};
@@ -210,6 +211,11 @@ static void guest_hit_exec(void *self,void *function,void *params,void *result) 
     DWORD error=GetLastError();uintptr_t caller=(uintptr_t)__builtin_return_address(0);GuestHitArgs args={self,function,params,result};
     int on_thread=guest_hit_installed&&GetCurrentThreadId()==ammo_wire_thread;SetLastError(error);
     guest_hit_observe(&guest_hit_observer,guest_hit_original,&args,caller,on_thread,&guest_hit_live_ops,NULL);
+    if(on_thread&&!guest_hit_observer.current&&guest_hit_observer.rows==GUEST_HIT_ROW_LIMIT&&!guest_hit_exhaustion_reported){
+        DWORD after=GetLastError();guest_hit_exhaustion_reported=1;
+        line("{\"guest_hit_trace\":\"exhausted\",\"limit\":512,\"further_hits_unobserved\":true,\"damage_verified\":false}\r\n");
+        SetLastError(after);
+    }
 }
 static void guest_hit_trace_prepare(void) {
     if(!guest_hit_opted()||guest_hit_attempted||GetCurrentThreadId()!=ammo_wire_thread)return;
@@ -238,7 +244,7 @@ static void guest_hit_trace_prepare(void) {
         }goto rejected;
     }
     guest_hit_installed=1;guest_hit_registered=(uintptr_t)guest_hit_exec;
-    line("{\"guest_hit_trace\":\"installed\",\"limit\":128,\"exact_drain_callsite\":true,\"gameplay_writes\":false,\"damage_verified\":false}\r\n");return;
+    line("{\"guest_hit_trace\":\"installed\",\"limit\":512,\"exact_drain_callsite\":true,\"gameplay_writes\":false,\"damage_verified\":false}\r\n");return;
 rejected:
     {char row[220];snprintf(row,sizeof row,"{\"guest_hit_trace\":\"not-installed\",\"reason\":\"%s\"}\r\n",reason);line(row);}
 }

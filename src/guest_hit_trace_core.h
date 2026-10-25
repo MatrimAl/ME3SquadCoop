@@ -1,5 +1,6 @@
 #ifndef ME3_GUEST_HIT_TRACE_CORE_H
 #define ME3_GUEST_HIT_TRACE_CORE_H
+#define GUEST_HIT_ROW_LIMIT 512u
 /* Observational dispatch brackets. Callbacks observe; the original receives
  * every argument exactly once, including NULL params/results. Only the game
  * thread owns the stack/budget. No damage-success verdict is produced here. */
@@ -47,7 +48,7 @@ static int guest_hit_shield_pair(const GuestHitFrame *f) {
         guest_hit_value(f->before.shields)&&guest_hit_value(f->after.shields);
 }
 static int guest_hit_reserve(GuestHitObserver *observer) {
-    if(observer->rows>126)return 0;observer->rows+=2;return 1;
+    if(observer->rows>GUEST_HIT_ROW_LIMIT-2)return 0;observer->rows+=2;return 1;
 }
 static int guest_hit_call_matches(uintptr_t caller,uintptr_t expected_caller,uintptr_t self,uintptr_t weapon,
                                   uintptr_t function,uintptr_t expected_function,int params,int result_null,int authoritative) {
@@ -61,7 +62,7 @@ static void guest_hit_observe(GuestHitObserver *observer,ProcessEvent original,c
         frame.previous=observer->current;frame.parent=frame.previous?frame.previous->id:0;
         if(frame.previous)++frame.previous->nested_calls;
         observer->current=&frame;
-        frame.captured=observer->rows<=126&&ops->eligible(context,args,caller,&frame)&&guest_hit_reserve(observer);
+        frame.captured=observer->rows<=GUEST_HIT_ROW_LIMIT-2&&ops->eligible(context,args,caller,&frame)&&guest_hit_reserve(observer);
         if(frame.captured){frame.id=++observer->calls;ops->sample(context,frame.target,&frame.before);ops->emit(context,&frame,0);}
     }
     SetLastError(before_error);original(args->self,args->function,args->params,args->result);DWORD after_error=GetLastError();

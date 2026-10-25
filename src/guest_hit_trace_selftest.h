@@ -81,10 +81,14 @@ static int guest_hit_selftest(void) {
     guest_hit_fixture_reset(&fixture);fixture.read_fail=1;SetLastError(42);
     guest_hit_observe(&fixture.observer,guest_hit_fixture_forward,&fixture.args,100,1,&guest_hit_fixture_ops,&fixture);
     ok=ok&&fixture.calls==1&&fixture.emits==2&&!guest_hit_health_pair(&fixture.records[1])&&!guest_hit_shield_pair(&fixture.records[1]);
-    guest_hit_fixture_reset(&fixture);fixture.observer.rows=126;SetLastError(42);
+    /* The earlier 64-call cap must no longer hide the following encounter. */
+    guest_hit_fixture_reset(&fixture);fixture.observer.rows=128;SetLastError(42);
+    guest_hit_observe(&fixture.observer,guest_hit_fixture_forward,&fixture.args,100,1,&guest_hit_fixture_ops,&fixture);
+    ok=ok&&fixture.calls==1&&fixture.emits==2&&fixture.samples==2&&fixture.observer.rows==130&&!fixture.bad;
+    guest_hit_fixture_reset(&fixture);fixture.observer.rows=GUEST_HIT_ROW_LIMIT-2;SetLastError(42);
     guest_hit_observe(&fixture.observer,guest_hit_fixture_forward,&fixture.args,100,1,&guest_hit_fixture_ops,&fixture);
     SetLastError(42);guest_hit_observe(&fixture.observer,guest_hit_fixture_forward,&fixture.args,100,1,&guest_hit_fixture_ops,&fixture);
-    ok=ok&&fixture.calls==2&&fixture.emits==2&&fixture.samples==2&&fixture.observer.rows==128&&!fixture.bad;
+    ok=ok&&fixture.calls==2&&fixture.emits==2&&fixture.samples==2&&fixture.observer.rows==GUEST_HIT_ROW_LIMIT&&!fixture.bad;
     ok=ok&&guest_hit_call_matches(1,1,2,2,3,3,1,1,1)&&
         !guest_hit_call_matches(4,1,2,2,3,3,1,1,1)&&!guest_hit_call_matches(1,1,4,2,3,3,1,1,1)&&
         !guest_hit_call_matches(1,1,2,2,4,3,1,1,1)&&!guest_hit_call_matches(1,1,2,2,3,3,0,1,1)&&
@@ -96,7 +100,7 @@ static int guest_hit_selftest(void) {
     ++pair.after.inventory.index;ok=ok&&!guest_hit_shield_pair(&pair);--pair.after.inventory.index;
     pair.after.shields=NAN;ok=ok&&!guest_hit_shield_pair(&pair);
     pair.after.shields=90;pair.scope_after=0;ok=ok&&!guest_hit_health_pair(&pair)&&!guest_hit_shield_pair(&pair);
-    GuestHitObserver budget={0};budget.rows=126;ok=ok&&guest_hit_reserve(&budget)&&!guest_hit_reserve(&budget)&&budget.rows==128;
+    GuestHitObserver budget={0};budget.rows=GUEST_HIT_ROW_LIMIT-2;ok=ok&&guest_hit_reserve(&budget)&&!guest_hit_reserve(&budget)&&budget.rows==GUEST_HIT_ROW_LIMIT;
     unsigned char *memory=VirtualAlloc(NULL,0x1500000,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
     if(!memory)ok=0;
     else {
