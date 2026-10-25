@@ -460,3 +460,34 @@ reset a live movie solely to make these two pointer chains coincide.
 
 No handler pointer, native input binding or game state was written. The mod's
 existing squad/context policy remains unchanged by this research.
+
+## Campaign mapped-power request candidate
+
+The retained SFXGameModeDefault.TryUsePower script is completely decoded
+(484 serialized bytes / 724 expanded VM bytes). Actions0,1,2,3,4 and6 read
+BioPlayerInput's m_nmMappedPower, m_nmMappedPower2..5 and m_nmMappedPower7.
+The script has no case5. These are named mappings, not LEMP CastPower's native
+manager-array indices or the mod's compact eligible-power catalog indices.
+The retained SDK places the eight-byte name fields at+0x338,+0x340,+0x348,
++0x350,+0x358 and+0x368 respectively.
+
+The ordinary entry now exposes ME3SquadCoopRequestMappedPower(scope,action).
+It only queues mod data; its nonzero return means queued, not cast or hit.
+The same single pending slot, two-second expiry, scope validation and native
+order rate limit apply to direct and mapped requests. Unsupported actions are
+rejected at submission. No external caller reads or writes engine objects.
+
+Tick resolves the selected reflected NameProperty against both words of each
+current eligible power name. Missing, ineligible or duplicate names are refused
+without an ordinal fallback. The catalog includes the owned BioPlayerInput
+identity, so replacing that object invalidates pending scopes. Current input
+ownership, the selected property layout and name resolution are checked again
+around the native combat getter before dispatch through SquadOrderUsePower.
+The existing action-owner, scene, life, rank and native ABI gates still apply.
+
+This is an integration candidate for a future normal-input bridge. No physical
+gamepad event currently submits this API, and the stock TryUsePower path still
+casts SFXPawn_Player. This addition does not fix that stock cast, initialize a
+power wheel, create Ashley mappings or rewrite a saved profile. Normal keyboard
+and gamepad power operation, casting and target effects remain unverified.
+Only offline source review and native compilation were performed.

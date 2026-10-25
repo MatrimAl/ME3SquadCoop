@@ -4,7 +4,7 @@
  * supplied caster/target or replacement RPC. The native order chooses aim. */
 #define RUNTIME_POWER_LIMIT 64
 typedef struct RuntimePowerCatalog {
-    SessionHandle pc,pawn,info,manager,channel,connection,driver;
+    SessionHandle pc,pawn,info,input,manager,channel,connection,driver;
     unsigned long registration_token;
     GameArray array;
     int count;
@@ -29,7 +29,8 @@ static int runtime_power_same_handle(SessionHandle a,SessionHandle b) {
 }
 static int runtime_power_catalog_same(const RuntimePowerCatalog *a,const RuntimePowerCatalog *b) {
     if(!runtime_power_same_handle(a->pc,b->pc)||!runtime_power_same_handle(a->pawn,b->pawn)||
-       !runtime_power_same_handle(a->info,b->info)||!runtime_power_same_handle(a->manager,b->manager)||
+       !runtime_power_same_handle(a->info,b->info)||!runtime_power_same_handle(a->input,b->input)||
+       !runtime_power_same_handle(a->manager,b->manager)||
        !runtime_power_same_handle(a->channel,b->channel)||!runtime_power_same_handle(a->connection,b->connection)||
        !runtime_power_same_handle(a->driver,b->driver)||a->registration_token!=b->registration_token||
        memcmp(&a->array,&b->array,sizeof a->array)||a->count!=b->count)return 0;
@@ -49,25 +50,40 @@ static void runtime_power_invalidate(void) {
 }
 /* Only mod queue state is touched by exported callers. A UI must retain the scope
  * returned with its list; an index alone cannot identify a power after travel. */
-static int runtime_request_power(unsigned scope,unsigned index) {
+#define RUNTIME_POWER_MAPPED_SELECTION UINT32_C(0x80000000)
+static int runtime_power_mapped_action(unsigned action) {
+    return action<=4||action==6;
+}
+static int runtime_power_enqueue(unsigned scope,unsigned selection) {
+    unsigned index=(selection&~RUNTIME_POWER_MAPPED_SELECTION)-1;
+    int mapped=(selection&RUNTIME_POWER_MAPPED_SELECTION)!=0;
     ULONGLONG submitted=GetTickCount64();
-    if(!scope||scope>0x7fffffff||index>=RUNTIME_POWER_LIMIT||
+    if(!scope||scope>0x7fffffff||
+       (mapped?!runtime_power_mapped_action(index):index>=RUNTIME_POWER_LIMIT)||
        !InterlockedCompareExchange(&g_enable_requested,0,0)||
        g_config_status!=ME3_CONFIG_READY||g_runtime_config.role!=ME3_ROLE_GUEST||
        InterlockedCompareExchange(&runtime_power_scope,0,0)!=(LONG)scope||
-       index>=(unsigned)InterlockedCompareExchange(&runtime_power_count,0,0))return 0;
-    LONG64 request=(LONG64)(((uint64_t)scope<<32)|(index+1));
+       (!mapped&&index>=(unsigned)InterlockedCompareExchange(&runtime_power_count,0,0)))return 0;
+    LONG64 request=(LONG64)(((uint64_t)scope<<32)|selection);
     if(!TryAcquireSRWLockExclusive(&runtime_power_queue_lock))return 0;
     int accepted=0;
     if(InterlockedCompareExchange(&g_enable_requested,0,0)&&
        InterlockedCompareExchange(&runtime_power_scope,0,0)==(LONG)scope&&
-       index<(unsigned)InterlockedCompareExchange(&runtime_power_count,0,0)&&
+       (mapped||index<(unsigned)InterlockedCompareExchange(&runtime_power_count,0,0))&&
        !InterlockedCompareExchange64(&runtime_power_request,0,0)) {
         runtime_power_submitted_at=submitted;
         accepted=InterlockedCompareExchange64(&runtime_power_request,request,0)==0;
     }
     ReleaseSRWLockExclusive(&runtime_power_queue_lock);
     return accepted;
+}
+static int runtime_request_power(unsigned scope,unsigned index) {
+    if(index>=RUNTIME_POWER_LIMIT)return 0;
+    return runtime_power_enqueue(scope,index+1);
+}
+static int runtime_request_mapped_power(unsigned scope,unsigned action) {
+    if(!runtime_power_mapped_action(action))return 0;
+    return runtime_power_enqueue(scope,RUNTIME_POWER_MAPPED_SELECTION|(action+1));
 }
 static LONG64 runtime_power_take_request(ULONGLONG *submitted) {
     if(!TryAcquireSRWLockExclusive(&runtime_power_queue_lock))return 0;
@@ -102,16 +118,19 @@ static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordina
     if(!read_at(c.pawn+0xe20,&life,4)||(life&0x300))return 0;
     if(!read_at(c.pawn+0xc20,&action,4)||action||!read_at(c.pawn+0xc28,&power,4)||power||
        !read_at(c.pc+0x782,&ignored,1)||ignored)return 0;
-    uintptr_t manager=0;GameArray array={0},after={0};NetworkActorIdentityEntry channel={0};
-    if(!read_at(c.pawn+0xc18,&manager,8)||!narrative_probe_object(base,manager,"SFXPowerManager")||
+    uintptr_t input=read_ptr(c.pc+0x6dc),manager=0;GameArray array={0},after={0};NetworkActorIdentityEntry channel={0};
+    if(!narrative_probe_object(base,input,"BioPlayerInput")||read_ptr(input+0x40)!=c.pc||
+       !runtime_power_property(base,c.pc,"PlayerController","PlayerInput","ObjectProperty",0x6dc,8)||
+       !read_at(c.pawn+0xc18,&manager,8)||!narrative_probe_object(base,manager,"SFXPowerManager")||
        read_ptr(manager+0xd0)!=c.pawn||!identity_array(manager+0x60,&array,RUNTIME_POWER_LIMIT)||!array.count||
        !guest_player_context_channel(base,c.pawn,&channel))return 0;
     memset(out,0,sizeof *out);out->pc=session_capture_handle(c.pc);out->pawn=session_capture_handle(c.pawn);
-    out->info=session_capture_handle(c.world);out->manager=session_capture_handle(manager);out->array=array;
+    out->info=session_capture_handle(c.world);out->input=session_capture_handle(input);
+    out->manager=session_capture_handle(manager);out->array=array;
     out->channel=session_capture_handle(channel.channel);out->connection=session_capture_handle(channel.connection);
     out->driver=session_capture_handle(channel.driver);out->registration_token=guest_player_context_registration_token();
     if(!session_handle_matches(out->pc)||!session_handle_matches(out->pawn)||
-       !session_handle_matches(out->info)||!session_handle_matches(out->manager)||
+       !session_handle_matches(out->info)||!session_handle_matches(out->input)||!session_handle_matches(out->manager)||
        !session_handle_matches(out->channel)||!session_handle_matches(out->connection)||!session_handle_matches(out->driver))return 0;
     uintptr_t sampled[RUNTIME_POWER_LIMIT]={0};SessionHandle layout={0};
     for(int i=0;i<array.count;++i) {
@@ -152,6 +171,7 @@ static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordina
         if(!read_at(array.data+(size_t)i*8,&item,8)||item!=sampled[i])return 0;
     }
     return out->count&&session_handle_matches(layout)&&read_at(manager+0x60,&after,sizeof after)&&!memcmp(&array,&after,sizeof array)&&
+        session_handle_matches(out->input)&&read_ptr(c.pc+0x6dc)==input&&read_ptr(input+0x40)==c.pc&&
         read_ptr(c.pawn+0xc18)==manager&&read_ptr(manager+0xd0)==c.pawn;
 }
 /* Reflected layout corroborates the retained SDK before invoking an order.
@@ -181,6 +201,24 @@ static int runtime_power_property(uintptr_t base,uintptr_t object,const char *ow
     }
     return 0;
 }
+/* Campaign TryUsePower action numbers select named input properties, not
+ * PowerManager array positions. Resolve only on Tick and never invent a slot. */
+static int runtime_power_resolve_mapped(uintptr_t base,const RuntimePowerCatalog *catalog,unsigned action) {
+    static const char *fields[]={"m_nmMappedPower","m_nmMappedPower2","m_nmMappedPower3",
+        "m_nmMappedPower4","m_nmMappedPower5",NULL,"m_nmMappedPower7"};
+    if(!runtime_power_mapped_action(action)||!session_handle_matches(catalog->input)||
+       read_ptr(catalog->pc.pointer+0x6dc)!=catalog->input.pointer||
+       read_ptr(catalog->input.pointer+0x40)!=catalog->pc.pointer)return -1;
+    uint32_t name[2]={0};int offset=0x338+(int)action*8;
+    if(!runtime_power_property(base,catalog->input.pointer,"BioPlayerInput",fields[action],"NameProperty",offset,8)||
+       !read_at(catalog->input.pointer+offset,name,8)||!name[0])return -1;
+    int found=-1;
+    for(int i=0;i<catalog->count;++i)if(!memcmp(name,catalog->names[i],8)) {
+        if(found>=0)return -1;
+        found=i;
+    }
+    return found;
+}
 static void runtime_power_log(int status,const char *reason,unsigned index,DWORD now) {
     char row[420];snprintf(row,sizeof row,
         "{\"runtime_power\":\"order-result\",\"status\":%d,\"reason\":\"%s\",\"catalog_index\":%u,\"native_cast_verified\":false,\"target_effect_verified\":false,\"monotonic_ms\":%lu}\r\n",
@@ -207,9 +245,16 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
     if(action_index>=0)runtime_request_power((unsigned)runtime_power_scope,(unsigned)action_index);
     ULONGLONG submitted=0;
     LONG64 request=runtime_power_take_request(&submitted);if(!request)return;
-    unsigned scope=(unsigned)((uint64_t)request>>32),index=(unsigned)request-1;
+    unsigned scope=(unsigned)((uint64_t)request>>32),selection=(unsigned)request;
+    unsigned requested=(selection&~RUNTIME_POWER_MAPPED_SELECTION)-1,index=requested;
+    int mapped=(selection&RUNTIME_POWER_MAPPED_SELECTION)!=0;
     int status=RUNTIME_POWER_REJECTED;const char *reason="stale-scope-or-rate-limit";
     if(runtime_power_request_expired(submitted)){reason="power-request-expired";goto rejected;}
+    if(mapped) {
+        int resolved=runtime_power_resolve_mapped(base,&current,requested);
+        if(resolved<0){reason="mapped-power-unavailable-or-ambiguous";index=UINT32_MAX;goto rejected;}
+        index=(unsigned)resolved;
+    }
     if(scope!=(unsigned)runtime_power_scope||index>=(unsigned)current.count||
        (runtime_power_last_order&&now-runtime_power_last_order<250))goto rejected;
     for(int i=0;i<current.count;++i)if((unsigned)i!=index&&
@@ -240,6 +285,7 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
        !guest_player_context_conditions(base,c.pc,c.pawn,c.world,ordinary,1,1,&channel,&chain)||
        !runtime_power_read_catalog(base,checked,!session_engine_blocked(checked),&final)||
        !runtime_power_catalog_same(&current,&final)||
+       (mapped&&runtime_power_resolve_mapped(base,&final,requested)!=(int)index)||
        !combat_context_get(base,read_ptr(c.pc+0x6dc),&combat)||combat!=1) {
         reason="native-order-or-current-control-not-ready";goto rejected;
     }
@@ -248,6 +294,7 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
     checked=session_context(engine);
     if(session_engine_blocked(checked)||!runtime_power_read_catalog(base,checked,1,&final)||
        !runtime_power_catalog_same(&current,&final)||
+       (mapped&&runtime_power_resolve_mapped(base,&final,requested)!=(int)index)||
        !guest_player_context_conditions(base,checked.pc,checked.pawn,checked.world,1,1,1,&channel,&chain)||
        read_ptr(item+0x98)!=c.pawn||read_ptr(item+0xa0)!=c.pc||read_ptr(item+0xa8)||
        !guest_power_order_contract(base,method)||read_ptr(read_ptr(c.pc)+0x230)!=pe) {

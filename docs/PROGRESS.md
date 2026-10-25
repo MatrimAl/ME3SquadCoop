@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-25: resolve campaign mapped-power requests by current name
+
+The ordinary runtime gained a mapped-action queue API for the six action
+numbers actually handled by campaign TryUsePower. Tick reads the corresponding
+verified BioPlayerInput name and resolves it uniquely against the owned
+squadmate's current eligible powers before using the existing native order.
+Direct catalog requests remain available. Both paths share the same bounded
+queue, expiration, scope and dispatch gates. The input object is now part of
+catalog identity; mapping resolution is checked again after the combat getter.
+
+This implements the action-to-power resolution layer, not physical gamepad
+capture or normal-input integration. Missing Ashley mappings fail rather than
+selecting a similarly positioned power or changing profile settings. The three
+native targets compiled successfully. No game, live input, test harness or
+network session was started. Full campaign co-op remains incomplete.
+
 ## 2026-10-25: stock SP test scenario reaches normal gameplay
 
 The separate stock SP test map was exercised through its actual squad-selection

@@ -107,6 +107,7 @@ __declspec(dllexport) int ME3SquadCoopCancelPendingConnection(void) {return runt
 __declspec(dllexport) unsigned ME3SquadCoopPowerScope(void) {return (unsigned)InterlockedCompareExchange(&runtime_power_scope,0,0);}
 __declspec(dllexport) unsigned ME3SquadCoopPowerCount(void) {return (unsigned)InterlockedCompareExchange(&runtime_power_count,0,0);}
 __declspec(dllexport) int ME3SquadCoopRequestPower(unsigned scope,unsigned index) {return runtime_request_power(scope,index);}
+__declspec(dllexport) int ME3SquadCoopRequestMappedPower(unsigned scope,unsigned action) {return runtime_request_mapped_power(scope,action);}
 __declspec(dllexport) int ME3SquadCoopPowerStatus(void) {
     return InterlockedCompareExchange64(&runtime_power_request,0,0)?RUNTIME_POWER_QUEUED:
         InterlockedCompareExchange(&runtime_power_status,0,0);
