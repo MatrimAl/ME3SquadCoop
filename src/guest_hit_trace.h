@@ -192,8 +192,10 @@ static int guest_hit_live_same(void *context,const GuestHitArgs *args,const Gues
         s->weapon.pointer==frame->weapon&&s->pc.pointer==frame->pc&&s->channel.index==frame->channel_index&&s->weapon.index==frame->weapon_index&&
         guest_hit_live_scope()&&guest_hit_method_valid(s->base)&&guest_hit_dispatch_valid(s->base,(uintptr_t)args->self,1);
 }
+#include "guest_hit_damage_inputs.h"
 static void guest_hit_live_emit(void *context,const GuestHitFrame *frame,int leaving) {
     (void)context;const GuestHitSample *sample=leaving?&frame->after:&frame->before;
+    if(!leaving)guest_hit_damage_inputs(frame);
     char health[48],shields[48],row[2000];int hp=leaving&&guest_hit_health_pair(frame),sp=leaving&&guest_hit_shield_pair(frame);
     narrative_probe_float(health,sample->health_valid,sample->health);narrative_probe_float(shields,sample->shield_valid,sample->shields);
     snprintf(row,sizeof row,"{\"guest_hit_trace\":\"%s\",\"call\":%u,\"parent_call\":%u,\"nested_dispatch_calls\":%u,\"generation\":%lu,\"epoch\":%lu,\"channel_index\":%d,\"weapon_index\":%d,\"target_pointer\":\"0x%llx\",\"target_index\":%d,\"target_valid\":%s,\"health\":%s,\"shields\":%s,\"shield_present\":%s,\"health_pair_valid\":%s,\"shield_pair_valid\":%s,\"health_decrease_observed\":%s,\"shield_decrease_observed\":%s,\"firing_mode\":%u,\"num_hits\":%d,\"scope_after_valid\":%s,\"original_forwarded\":%s,\"damage_verified\":false,\"hostility_verified\":false,\"probe_changed_payload\":false,\"monotonic_ms\":%lu}\r\n",

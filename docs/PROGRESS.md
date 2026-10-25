@@ -1,5 +1,20 @@
 # Progress
 
+## 2026-10-25: observe actual weapon damage inputs at the existing hit drain
+
+Added bounded read-only damage-input rows to the existing protected
+selected-weapon hit observer. Current reflected property names, kinds,
+offsets, sizes, flags and suppression bit mask must match before reading
+Damage.Value, DamageHench, bSuppressDamage and the firing-mode damage-type
+array. The actual selected class is logged, with an invalid array/index kept
+unknown. No getter is replayed and no damage event, field or payload is changed.
+
+All three native outputs built; the native forwarding/isolation harness and
+private launcher negative controls passed. Actual runtime damage-input values
+have not yet been captured with this addition. Valid stock Avenger mode2 and
+the existing Trooper damage module are reference evidence, not grounds for
+forcing a fire mode, damage class or positive damage value.
+
 ## 2026-10-25: authoritative Trooper hits without a health decrease
 
 The host walked to the side parking position and remained grounded. Guest
