@@ -127,8 +127,9 @@ It binds the driver through the actual current world and checks native net mode.
 A world change or ownership fault stops the lease conservatively; continuous
 mission travel is not yet verified or promised.
 
-`WorldInfo.bPlayersOnly`, unreadable pause state, native cinematic mode and active
-conversation state prevent host control. The PlayersOnly pause also disables
+`WorldInfo.bPlayersOnly`, its pending transition, an unreadable/non-null native
+pause owner, native cinematic mode and active conversation state prevent host
+control. The PlayersOnly pause also disables
 guest adapters, letting their existing cleanup run. The code waits for normal
 engine restoration and never clears this flag or dismisses message boxes.
 Cleanup now also requires the captured pawn identity before calling UnPossess;

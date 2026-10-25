@@ -1440,3 +1440,12 @@ warmup path without clearing session faults or relaxing story/scene checks.
 Native outputs were rebuilt. Regression fixture and mutation source is
 prepared but execution is deferred; no new campaign-travel result is claimed.
 See [admission stability](SCENE-GATES.md).
+
+## Honor native pause during shared control admission
+
+The shared control gate now checks the existing startup path's native Pauser
+and pending PlayersOnly fields as well as active PlayersOnly. A mode0 sample
+cannot admit acquisition while a pause owner exists or the pause-owner field
+is unreadable. No pause or story state is cleared. Normal native outputs were
+rebuilt; prepared pause/guard regression cases and live checks remain deferred.
+This is a source-level guard correction, not a demonstrated campaign-pause fix.

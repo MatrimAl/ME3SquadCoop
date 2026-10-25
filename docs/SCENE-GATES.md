@@ -5,8 +5,8 @@ The shared host/guest control gate now exposes its first blocking reason as
 `session_engine_blocked(c)` is exactly whether a reason exists. No story,
 conversation, pause, PlayersOnly or cinematic field is cleared by this change.
 
-The original gate order is preserved. A simultaneous unreadable field and
-scene flag therefore reports the first rejected condition, not a complete
+The checks are evaluated in the order below. A simultaneous unreadable field
+and scene flag reports the first rejected condition, not a complete
 inventory of everything that might be blocking the session.
 
 | Value | Meaning |
@@ -18,6 +18,9 @@ inventory of everything that might be blocking the session.
 | `controller-cinematic-mode` | The controller's native cinematic flag is set. |
 | `world-flags-unreadable` | World flags could not be read. |
 | `players-only` | The world's native PlayersOnly flag is set. |
+| `players-only-pending` | The engine has requested PlayersOnly for the upcoming transition. |
+| `pauser-unreadable` | The native pause-owner field could not be read. |
+| `engine-paused` | The native pause-owner field is nonnull. |
 | `conversation-slot-unreadable` | The world conversation-manager slot could not be read. |
 | `conversation-count-unreadable` | The conversation active count could not be read. |
 | `conversation-count-invalid` | The count is negative. |
@@ -67,3 +70,27 @@ predicate, and the unreadable PlayersOnly case now has a readable later
 conversation slot so another read failure cannot hide that guard. These
 fixtures/mutants have not been executed. All three normal native outputs were
 rebuilt; ordinary fixture-flavor compilation and runtime checks remain deferred.
+
+
+## Native pause admission
+
+The ordinary host/join startup policy already checked both
+WorldInfo.bPlayersOnlyPending and WorldInfo.Pauser. The shared possession gate
+previously checked only the active PlayersOnly flag. It now also refuses a
+pending PlayersOnly transition, an unreadable pause-owner field, or a nonnull
+native pause owner, including mode0. Offsets and masks are the same as those
+already used by the exact-build startup path and retained engine layout.
+This closes a source-level difference between startup and later acquisition;
+it is not evidence that it caused a recorded gameplay failure.
+
+These checks do not call UnPause or alter any pause/permission/story field.
+The existing release and owned-adapter cleanup policies receive a blocked
+ordinary-control state. Native restoration must clear the pause before the
+current-context admission wait can start again.
+
+Regression source now includes active/pending PlayersOnly, present pause owner
+and an unreadable pause owner with readable later fields. The guarded-field
+cases also check the first diagnostic reason, so a later refusal cannot hide
+a missing earlier guard. Failure mutations are prepared but unexecuted. All
+three normal native outputs were rebuilt; tests and live verification remain
+deferred. Shared campaign pause, scene return and motion still need real proof.

@@ -131,6 +131,13 @@ static const char *session_engine_block_reason(SessionContext c) {
     uint32_t world_flags = 0;
     if (!read_at(c.world + 0x7c0, &world_flags, 4)) return "world-flags-unreadable";
     if (world_flags & 0x400) return "players-only";
+    /* Same pause fields as the existing ordinary startup readiness check:
+     * WorldInfo.bPlayersOnlyPending(+7c0/800) and Pauser(+670). Never clear
+     * native pause state merely to make a possession attempt possible. */
+    if (world_flags & 0x800) return "players-only-pending";
+    uintptr_t pauser = 1;
+    if (!read_at(c.world + 0x670, &pauser, 8)) return "pauser-unreadable";
+    if (pauser) return "engine-paused";
     uintptr_t conversation = 0;
     if (!read_at(c.world + 0x948, &conversation, 8)) return "conversation-slot-unreadable";
     if (conversation) {
@@ -157,6 +164,11 @@ static int session_gate_selftest(void) {
     unreadable=0;memcpy(world+0x948,&unreadable,8);
     uint32_t value=0x400;memcpy(world+0x7c0,&value,4);if(!session_engine_blocked(c))return 0;
     value=0;memcpy(world+0x7c0,&value,4);if(session_engine_blocked(c))return 0;
+    value=0x800;memcpy(world+0x7c0,&value,4);if(!session_engine_blocked(c))return 0;
+    value=0;memcpy(world+0x7c0,&value,4);
+    uintptr_t pause_owner=(uintptr_t)pc;memcpy(world+0x670,&pause_owner,8);
+    if(!session_engine_blocked(c))return 0;
+    pause_owner=0;memcpy(world+0x670,&pause_owner,8);if(session_engine_blocked(c))return 0;
     uintptr_t original=c.world;c.world=1;if(!session_engine_blocked(c))return 0;c.world=original;
     c.mode=8;if(!session_engine_blocked(c))return 0;c.mode=0;
     value=0x20000;memcpy(pc+0x77c,&value,4);if(!session_engine_blocked(c))return 0;
@@ -173,7 +185,15 @@ static int session_gate_selftest(void) {
     if(!guarded)return 0;DWORD protection=0;
     int protected=VirtualProtect(guarded+0x1000,0x1000,PAGE_NOACCESS,&protection)!=0;
     c.world=(uintptr_t)guarded+0x17c0;
-    int refused=protected&&session_engine_blocked(c);
+    const char *block_reason=protected?session_engine_block_reason(c):NULL;
+    int refused=block_reason&&!strcmp(block_reason,"world-flags-unreadable");
+    /* Move the guard before the pause-owner slot; the flags and conversation
+     * slot remain readable. This isolates an unknown pause-owner value. */
+    int restored=protected&&VirtualProtect(guarded+0x1000,0x1000,protection,&protection);
+    int pause_protected=restored&&VirtualProtect(guarded,0x1000,PAGE_NOACCESS,&protection);
+    c.world=(uintptr_t)guarded+0x980;
+    block_reason=pause_protected?session_engine_block_reason(c):NULL;
+    refused=refused&&block_reason&&!strcmp(block_reason,"pauser-unreadable");
     VirtualFree(guarded,0,MEM_RELEASE);
     return refused;
 }
