@@ -72,33 +72,44 @@ static int guest_team_modes_clear(uintptr_t base,uintptr_t pc) {
            !read_at(prop+0xd0,&mask,8)||mask!=2||!read_at(mode+0xd0,&flags,4)||(flags&2))return 0;
     }return 1;
 }
+/* Output only, on reason changes, at most 48 records in this protected process. */
+static void guest_team_wait(const char *reason,DWORD now) {
+    static const char *last;static unsigned count;
+    if(count>=48||(last&&!strcmp(last,reason)))return;
+    last=reason;++count;char row[400];
+    snprintf(row,sizeof row,"{\"guest_team_qa\":\"eligibility\",\"reason\":\"%s\",\"record\":%u,\"gameplay_writes\":false,\"monotonic_ms\":%lu}\r\n",reason,count,now);line(row);
+}
 static void guest_team_qa_tick(uintptr_t base,DWORD now) {
     GuestTeamQA *q=&guest_team_qa;
     if(!guest_team_qa_opted()){guest_team_qa_release(base,now);return;}
-    if(!session_active||session_releasing)return;
+    if(!session_active||session_releasing){guest_team_wait("session-inactive-or-releasing",now);return;}
     if(now-q->scan_at<250)return;q->scan_at=now;
     if(!session_story_valid(base)||!session_peer_connected(base,session_remote,session_world)||
        read_ptr(session_remote+0x3bc)!=session_pawn||read_ptr(session_pawn+0x374)!=session_remote||
-       session_engine_blocked(session_context(session_engine))||!guest_team_modes_clear(base,session_host)||!guest_team_modes_clear(base,session_remote))return;
+       session_engine_blocked(session_context(session_engine))){guest_team_wait("session-context-or-scene",now);return;}
+    if(!guest_team_modes_clear(base,session_host)){guest_team_wait("host-mode-or-reflected-layout",now);return;}
+    if(!guest_team_modes_clear(base,session_remote)){guest_team_wait("remote-mode-or-reflected-layout",now);return;}
     uintptr_t pc=session_remote,world=session_world,pri=read_ptr(pc+0x3c4),host_pri=read_ptr(session_host+0x3c4),game=read_ptr(world+0x6b0),team=read_ptr(host_pri+0x2d8),fn=0;
     if(!narrative_probe_object(base,pri,"PlayerReplicationInfo")||!narrative_probe_object(base,host_pri,"PlayerReplicationInfo")||
        !narrative_probe_object(base,game,"SFXGame")||!narrative_probe_object(base,team,"SFXTeamInfo")||
-       read_ptr(game+0x198)!=world||read_ptr(team+0x198)!=world||read_ptr(pri+0x198)!=world)return;
-    if(q->pri.pointer==pri&&guest_camera_stamp_matches(base,&q->pri,1)&&q->attempted)return;
+       read_ptr(game+0x198)!=world||read_ptr(team+0x198)!=world||read_ptr(pri+0x198)!=world){guest_team_wait("pri-game-host-team-or-world",now);return;}
+    if(q->pri.pointer==pri&&guest_camera_stamp_matches(base,&q->pri,1)&&q->attempted){guest_team_wait("current-pri-attempted",now);return;}
     if(q->owned)guest_team_qa_release(base,now);
-    if(q->attempts>=8||read_ptr(pri+0x2d8))return;
+    if(q->attempts>=8){guest_team_wait("attempt-budget",now);return;}
+    if(read_ptr(pri+0x2d8)){guest_team_wait("preserve-existing-team",now);return;}
     unsigned char net=255;GameArray teams={0};int32_t index=-1;
-    if(!read_at(world+0x7c8,&net,1)||net!=2||
-       !guest_team_property(base,world,"WorldInfo","Game","ObjectProperty",0x6b0,8,0)||
+    if(!read_at(world+0x7c8,&net,1)||net!=2){guest_team_wait("not-authoritative-listen-world",now);return;}
+    if(!guest_team_property(base,world,"WorldInfo","Game","ObjectProperty",0x6b0,8,0)||
        !guest_team_property(base,game,"SFXGame","Teams","ArrayProperty",0x4e4,16,0x400000)||
        !guest_team_property(base,pc,"Controller","PlayerReplicationInfo","ObjectProperty",0x3c4,8,UINT64_C(0x100000020))||
        !guest_team_property(base,pri,"PlayerReplicationInfo","Team","ObjectProperty",0x2d8,8,UINT64_C(0x100000020))||
-       !guest_team_property(base,team,"TeamInfo","TeamIndex","IntProperty",0x288,4,UINT64_C(0x140000020))||
-       !read_at(team+0x288,&index,4)||index<0||index>=4||!guest_hit_array(game+0x4e4,&teams,64)||teams.count<4||
-       read_ptr(teams.data+index*8)!=team||!guest_team_abi(base,game,&fn))return;
+       !guest_team_property(base,team,"TeamInfo","TeamIndex","IntProperty",0x288,4,UINT64_C(0x140000020))){guest_team_wait("team-reflected-layout",now);return;}
+    if(!read_at(team+0x288,&index,4)||index<0||index>=4||!guest_hit_array(game+0x4e4,&teams,64)||teams.count<4||
+       read_ptr(teams.data+index*8)!=team){guest_team_wait("existing-team-table-or-index",now);return;}
+    if(!guest_team_abi(base,game,&fn)){guest_team_wait("change-team-function-abi",now);return;}
     if(!guest_camera_stamp_read(base,pc,&q->pc,1)||!guest_camera_stamp_read(base,pri,&q->pri,1)||
        !guest_camera_stamp_read(base,game,&q->game,1)||!guest_camera_stamp_read(base,team,&q->team,1)||
-       !guest_camera_stamp_read(base,world,&q->world,1)||!guest_camera_stamp_read(base,fn,&q->function,1))return;
+       !guest_camera_stamp_read(base,world,&q->world,1)||!guest_camera_stamp_read(base,fn,&q->function,1)){guest_team_wait("identity-stamp",now);return;}
     q->attempted=1;++q->attempts;
     int returned=guest_team_dispatch((ProcessEvent)(base+0x40d450),game,fn,pc,index);
     q->owned=guest_camera_stamp_matches(base,&q->pri,1)&&read_ptr(pc+0x3c4)==pri&&read_ptr(pri+0x2d8)==team;
