@@ -91,3 +91,35 @@ boundaries. Engine package and compression-library hashes were unchanged.
 Private extraction/decoding records retain the exact identities and outputs.
 No game or behavioral test ran; native Restart, reset bodies and actual
 action-instance transitions remain outside this evidence.
+
+## Native reset candidates are not narrow controller refreshes
+
+Exact-image native registration resolves SoftResetMovementAndAnimationState
+through its UTF-16 name at0x13840d0, name/function table pair0x179fd00 and
+exec thunk0xb39fb0. The thunk jumps directly to0xa941e0. This leaf body ends
+at the return at0xa9421c: it zeros several pawn movement/root-motion fields
+and sets mesh root-motion mode bytes. There is no action-instance traversal
+in that leaf. Its mesh pointer is dereferenced without a local null guard.
+The generic private reader's fallback512-byte window includes adjacent code
+after this leaf; that adjacent code is not evidence about this method.
+
+HardResetActionAndAnimationState is registered by name0x1384070 and pair
+0x179fcf0, with exec thunk0xb3a040. That thunk dispatches receiver virtual
+slot+0xad0. BioPawn class construction at0xa8e960 supplies trampoline
+0xa8fb20, whose non-null branch reaches constructor0xa863e0. Its final primary
+vtable write at0xa8641d selects0x133c3f0; slot+0xad0 contains0xa8f020.
+This proves the native base target, not every subclass's actual runtime slot.
+
+The bounded0xa8f020..0xa8f1a6 body resets multiple pawn/animation fields,
+clears a root-motion flag and writes zero to the current player's adjacent
+input-ignore bytes at controller+0x781/+0x782 after a native player-controller
+cast. Nested calls remain incompletely characterized. This is a broad reset
+with scene/input side effects, not an established custom-action cache refresh.
+It cannot be used merely to make guest input pass while preserving native
+campaign cinematic restrictions.
+
+Neither reset is invoked by the mod from these findings. No native cache
+refresh, action instance recreation or arbitrary field-write repair is claimed.
+The investigation narrowed which APIs are unsuitable; actual inherited native
+action initialization and live cache behavior still need to be established.
+Only the owned supported executable was read, without launching it.
