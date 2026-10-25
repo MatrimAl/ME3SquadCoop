@@ -14,6 +14,9 @@
  * the CLIENT's own actual WI, only from null, after normal actor creation.
  * No AddMember, Pawn.Squad, host, plot, permission, role or coordinate writes.
  * A successful getter is input-context evidence, never firing/damage proof.
+ * An existing native squad with empty local caches can instead be borrowed
+ * through the same verified SetPlayerPawn script. That path owns neither
+ * actor lifetime nor registration; see guest_existing_context.h.
  */
 
 #pragma pack(push,4)
@@ -56,6 +59,7 @@ static int guest_player_context_owned_last;
 static uintptr_t guest_player_context_last_pc,guest_player_context_last_pawn,guest_player_context_last_info;
 static DWORD guest_player_context_last_rejection;
 static const char *guest_player_context_reason="not-evaluated";
+static int guest_existing_context_cleanup(uintptr_t base,const char *reason,DWORD now);
 
 /* Observe the caller's ordinary control scope separately from native pawn
  * ownership. A scene can suspend the local context without an UnPossess RPC. */
@@ -423,6 +427,7 @@ static int guest_player_context_destroy_owned_native(uintptr_t base,uint32_t *re
     return 1;
 }
 static int guest_player_context_cleanup(uintptr_t base,const char *reason,DWORD now) {
+    if(!guest_existing_context_cleanup(base,reason,now))return 0;
     GuestPlayerContextLease *l=&guest_player_context_lease;
     if(!l->squad.pointer){l->registered=0;l->pending_cleanup=0;return 1;}
     l->pending_cleanup=1;l->suppressed=1;
@@ -512,13 +517,15 @@ static int guest_player_context_same(uintptr_t base,uintptr_t pc,uintptr_t pawn,
         guest_camera_stamp_matches(base,&l->connection,0)&&guest_camera_stamp_matches(base,&l->driver,0)&&
         guest_player_context_current_world(base,0);
 }
+#include "guest_existing_context.h"
 static void guest_player_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t info,
         int ordinary_mode,int enabled,DWORD now) {
     GuestPlayerContextLease *l=&guest_player_context_lease;
     int owned=guest_player_context_basic_owned(base,pc,pawn,info);
     guest_player_context_observe_scope(pc,pawn,info,owned,ordinary_mode,enabled);
-    NetworkActorIdentityEntry channel={0};CombatContextChain chain;
-    int eligible=guest_player_context_conditions(base,pc,pawn,info,ordinary_mode,enabled,!l->registered,&channel,&chain);
+    NetworkActorIdentityEntry channel={0};CombatContextChain chain={0};
+    int eligible=guest_player_context_conditions(base,pc,pawn,info,ordinary_mode,enabled,!l->registered&&!guest_existing_context.registered,&channel,&chain);
+    guest_existing_context_adapt(base,pc,pawn,info,eligible,&channel,&chain,now);
     if(!eligible&&owned&&(!guest_player_context_last_rejection||now-guest_player_context_last_rejection>=5000)) {
         guest_player_context_last_rejection=now;guest_player_context_log("eligibility",guest_player_context_reason,now,0);
     }

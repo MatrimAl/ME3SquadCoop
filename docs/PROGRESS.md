@@ -1507,3 +1507,21 @@ was recorded, and the private package was restored. The memory observer
 exited1; the old aggregate evaluator also failed its different lifecycle
 expectations. Concrete connection/ownership evidence does not establish full
 arena combat, usable sustained walking, cross-PC Radmin or campaign support.
+
+## Borrow the guest's existing native player context
+
+The common guest context adapter now includes a lease for an existing native
+BioPlayerSquad with an empty cached player. It invokes the same pinned normal
+SetPlayerPawn script used by the created-squad path and requires a positive
+native combat getter before admitting the registration. Collision handling
+uses the registration/token from either path. The native actor, membership
+and world slot remain engine-owned. This is current-world code shared by the
+ordinary and protected entries, rather than another arena-specific workaround.
+
+Cleanup uses the normal script for the real unaligned current-player field;
+aligned cache restoration preserves native replacements. Local fixture work
+exposed the alignment issue before any game launch. Native outputs rebuilt;
+the new authored-memory lease fixture, ordinary runtime harness and collision
+lifecycle fixture passed. No new live run was performed. Existing native-squad
+compatibility, usable movement and guest firing are still unverified. See
+[existing squad context](EXISTING-SQUAD-CONTEXT.md).

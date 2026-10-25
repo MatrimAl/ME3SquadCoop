@@ -20,6 +20,10 @@ typedef struct FixtureContext {
     int registered;unsigned long token;GuestCameraStamp pc,pawn;
 } FixtureContext;
 static FixtureContext guest_player_context_lease;
+static int guest_player_context_registered_for(uintptr_t pc_value,uintptr_t pawn_value) {
+    return guest_player_context_lease.registered&&guest_player_context_lease.pc.pointer==pc_value&&guest_player_context_lease.pawn.pointer==pawn_value;
+}
+static unsigned long guest_player_context_registration_token(void) {return guest_player_context_lease.token;}
 typedef struct FixtureObject {_Alignas(8) unsigned char bytes[0x1000];} FixtureObject;
 static FixtureObject pc,pawn,world,component,cdo,templ,pawn_arch,component_arch,klass,channel,connection,driver,other,fn,field;
 static _Alignas(8) unsigned char image[0x4ba140];

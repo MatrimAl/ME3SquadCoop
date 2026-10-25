@@ -153,8 +153,7 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
     if(l->suppressed)return;
     uintptr_t camera=0,mode=0;NetworkActorIdentityEntry channel={0};
     int owned=guest_player_context_basic_owned(base,pc,pawn,world);
-    int eligible=owned&&ordinary&&guest_collision_ordinary(base,pc,pawn,world)&&guest_player_context_lease.registered&&
-        guest_player_context_lease.pc.pointer==pc&&guest_player_context_lease.pawn.pointer==pawn&&
+    int eligible=owned&&ordinary&&guest_collision_ordinary(base,pc,pawn,world)&&guest_player_context_registered_for(pc,pawn)&&
         guest_camera_conditions(base,pc,pawn,world,ordinary,enabled,&camera,&mode)&&
         guest_player_context_channel(base,pawn,&channel);
     if(!l->tracked) {
@@ -173,7 +172,7 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
         uintptr_t targets[]={pc,pawn,world,component,cdo,templ,archetype,pawn_archetype,channel.channel,channel.connection,channel.driver};
         GuestCameraStamp *stamps[]={&l->pc,&l->pawn,&l->world,&l->component,&l->cdo,&l->template,&l->archetype,&l->pawn_archetype,&l->channel,&l->connection,&l->driver};
         for(unsigned i=0;i<11;++i)if(!guest_camera_stamp_read(base,targets[i],stamps[i],1))return;
-        l->healthy=shape;l->network=channel;l->token=guest_player_context_lease.token;l->tracked=1;l->was_owned=1;
+        l->healthy=shape;l->network=channel;l->token=guest_player_context_registration_token();l->tracked=1;l->was_owned=1;
         guest_collision_log("baseline","observed-healthy-owned-collision",now,1);return;
     }
     if(!owned) {
@@ -193,8 +192,8 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
         else {l->release=shape;l->pending=1;l->released=0;}
         return;
     }
-    if(!eligible||!l->released||l->was_owned||guest_player_context_lease.token==l->token)return;
-    l->was_owned=1;l->token=guest_player_context_lease.token;
+    if(!eligible||!l->released||l->was_owned||guest_player_context_registration_token()==l->token)return;
+    l->was_owned=1;l->token=guest_player_context_registration_token();
     if(channel.channel!=l->network.channel||channel.index!=l->network.index||channel.connection!=l->network.connection||
        channel.driver!=l->network.driver||l->attempted==l->token)return;
     l->attempted=l->token;GuestCollisionShape before={0};GameArray components={0};GuestCameraStamp saved[64];
