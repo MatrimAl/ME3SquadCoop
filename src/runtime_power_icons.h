@@ -110,7 +110,7 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
     SessionContext c=session_context(engine);RuntimePowerCatalog catalog;
     int ready=runtime_power_icons_enabled()&&runtime_native_power_input_active()&&runtime_control_enabled&&
         runtime_scope_ready&&ordinary&&!session_engine_blocked(c)&&
-        runtime_power_read_catalog(base,c,1,&catalog)&&runtime_power_catalog_same(&catalog,&runtime_power_catalog);
+        runtime_power_read_membership(base,c,&catalog);
     if(lease->active&&(lease->failed||!runtime_power_assignment_active(base)||!runtime_power_icons_enabled()||!runtime_native_power_input_active()||
        !runtime_control_enabled||!runtime_scope_ready||!ordinary||session_engine_blocked(c)||
        c.pc!=lease->owner.pc.pointer||c.pawn!=lease->owner.pawn.pointer||
@@ -125,7 +125,8 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
         RuntimeHotkeyWheel owner=runtime_hotkey_wheel;ULONGLONG now=GetTickCount64();
         if(!owner.observed||now<owner.observed||now-owner.observed>1000||
            c.pc!=owner.pc.pointer||c.pawn!=owner.pawn.pointer||!session_handle_matches(owner.pawn)||
-           owner.token!=guest_player_context_registration_token()||!runtime_power_icon_owner(base,&owner,c))return;
+           owner.token!=guest_player_context_registration_token()||!runtime_power_icon_owner(base,&owner,c)||
+           !runtime_power_catalog_same(&catalog,&runtime_power_catalog))return;
         RuntimePowerIconLease captured={0};captured.owner=owner;captured.catalog=catalog;
         if(runtime_power_wheel_drag_state(base,owner.handler.pointer)!=0)return;
         for(unsigned n=0;n<8;++n) {

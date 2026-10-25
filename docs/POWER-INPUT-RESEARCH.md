@@ -717,3 +717,43 @@ remapping. Drag-to-remove and MoveByName integration are not implemented.
 Three native targets compiled and current build fingerprints matched. No game,
 mouse gesture, panel, network session or tests ran; rendered drop behavior,
 ABI delivery, swap repaint and restoration remain unverified.
+
+## Separate UI membership from cast readiness
+
+The catalog implementation now has two explicit readers. The read-only
+membership path validates the existing registered owned pawn/input, live
+life state, native manager/channel/registration identities, full power names
+and eligible rank/HUD membership. It does not require idle custom actions or
+zero IgnoreLookInput. UI leases and drop-source validation use this path.
+The command catalog wraps that membership read with idle action/power and
+IgnoreLookInput checks before and after the read. Scene, combat getter,
+native ownership and final dispatch checks remain unchanged.
+
+An already-acquired UI lease can therefore follow real membership changes
+during ordinary transient action/input-ignore intervals. Acquisition still
+requires agreement with the published command catalog. The UI reader does
+not publish command scope or grant casting permission. Membership consumers
+keep their separate scene/ownership/life checks.
+
+There is a broader unresolved native menu lifecycle gap. The retained SDK
+names power-wheel mode3, and the owned ExitPowerWheel script independently
+confirms DisableMode(3). The current session gate admits only mode0;
+guest context adaptation retires a tracked registration when that predicate
+fails. A full mode3 wheel therefore cannot be treated as supported by the
+existing ordinary-mode drop candidate. This is a source-level incompatibility,
+not a newly observed live failure.
+
+Five owned wheel-mode scripts decoded completely: Activated280/412,
+Deactivated387/563, EnableMovement29/37, ExitPowerWheel44/60 and ShowMenu21/25
+(serialized/VM bytes). Their control flow includes PauseGame(true/false),
+base activation/deactivation, ApplyTacticalOrders on deactivation and a
+temporary IgnoreMoveInput timer path. These calls have their own conditions;
+their presence does not prove a client pause was reached. Complete scripts
+do not establish all nested native side effects. Source hashes stayed unchanged.
+
+A proper menu integration must coordinate the actual mode3 instance,
+pause behavior, retained ownership/context, UI lifecycle and close-time
+tactical orders. Simply exempting every nonordinary mode or keeping a stale
+lease would also affect conversations/cinematics. No mode, pause or native
+game state was changed for this finding. Three native targets compiled for
+the membership/readiness separation; no game or tests ran.

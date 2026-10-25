@@ -1,5 +1,13 @@
 # Validation status
 
+Source review identified a concrete full-wheel limitation: native power wheel
+mode3 fails the existing mode0-only session/context policy. Earlier ordinary
+quickslot/drop candidates do not establish support inside that menu. Owned
+wheel scripts also include pause/unpause and close-time tactical orders, so
+menu support requires coordinated lifecycle work. UI membership reading is now
+separate from cast readiness; cast gates remain restrictive. Three native
+targets compiled and current build fingerprints matched. No game or tests ran.
+
 An optional guest drag/drop assignment candidate now updates retained named
 slots through a checked native PC wheel virtual hook. It accounts for the
 wrapper's destination clear and defers repaint until idle cleanup. Three native

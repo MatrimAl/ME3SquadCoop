@@ -109,15 +109,15 @@ static uintptr_t runtime_power_declaring_base(uintptr_t base,uintptr_t object) {
     }
     return 0;
 }
-static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordinary,RuntimePowerCatalog *out) {
-    if(!ordinary||!guest_player_context_registered_for(c.pc,c.pawn)||
+/* Membership is read-only UI data. Native dispatch readiness is a separate
+ * predicate, so an equip/power animation does not erase a valid UI list. */
+static int runtime_power_read_membership(uintptr_t base,SessionContext c,RuntimePowerCatalog *out) {
+    if(!guest_player_context_registered_for(c.pc,c.pawn)||
        !guest_player_context_basic_owned(base,c.pc,c.pawn,c.world))return 0;
-    int32_t action=-1,power=-1;unsigned char ignored=255;uint32_t life=0;
+    uint32_t life=0;
     /* Native downed/dead state invalidates the scope and queued input even
      * before action, input-ignore or ownership fields finish transitioning. */
     if(!read_at(c.pawn+0xe20,&life,4)||(life&0x300))return 0;
-    if(!read_at(c.pawn+0xc20,&action,4)||action||!read_at(c.pawn+0xc28,&power,4)||power||
-       !read_at(c.pc+0x782,&ignored,1)||ignored)return 0;
     uintptr_t input=read_ptr(c.pc+0x6dc),manager=0;GameArray array={0},after={0};NetworkActorIdentityEntry channel={0};
     if(!narrative_probe_object(base,input,"BioPlayerInput")||read_ptr(input+0x40)!=c.pc||
        !runtime_power_property(base,c.pc,"PlayerController","PlayerInput","ObjectProperty",0x6dc,8)||
@@ -173,6 +173,17 @@ static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordina
     return out->count&&session_handle_matches(layout)&&read_at(manager+0x60,&after,sizeof after)&&!memcmp(&array,&after,sizeof array)&&
         session_handle_matches(out->input)&&read_ptr(c.pc+0x6dc)==input&&read_ptr(input+0x40)==c.pc&&
         read_ptr(c.pawn+0xc18)==manager&&read_ptr(manager+0xd0)==c.pawn;
+}
+static int runtime_power_dispatch_idle(SessionContext c) {
+    int32_t action=-1,power=-1;unsigned char ignored=255;
+    return read_at(c.pawn+0xc20,&action,4)&&!action&&read_at(c.pawn+0xc28,&power,4)&&!power&&
+        read_at(c.pc+0x782,&ignored,1)&&!ignored;
+}
+static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordinary,RuntimePowerCatalog *out) {
+    /* The command queue keeps the original restrictive admission policy.
+     * No UI membership consumer can use this split to bypass native gates. */
+    return ordinary&&runtime_power_dispatch_idle(c)&&runtime_power_read_membership(base,c,out)&&
+        runtime_power_dispatch_idle(c);
 }
 /* Reflected layout corroborates the retained SDK before invoking an order.
  * No property writes or method substitution are performed. */

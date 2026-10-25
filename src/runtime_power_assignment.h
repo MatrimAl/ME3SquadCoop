@@ -48,7 +48,7 @@ static void runtime_power_assignment(void *self,int destination,int source,uint3
     RuntimePowerCatalog catalog;
     if(caller!=base+0xb68c55||from_power>1||silent>1||lease->failed||session_engine_blocked(c)||
        runtime_power_wheel_drag_state(base,handler)<0||
-       !runtime_power_read_catalog(base,c,1,&catalog)||!runtime_power_catalog_same(&catalog,&lease->catalog)) {
+       !runtime_power_read_membership(base,c,&catalog)||!runtime_power_catalog_same(&catalog,&lease->catalog)) {
         lease->failed=1;return;
     }
     int index=-1;

@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-26: split UI power membership and identify full wheel-mode gap
+
+UI icon/drop consumers now read owned eligible power membership separately
+from command dispatch readiness. The command path retains idle action/power
+and IgnoreLookInput checks before and after membership sampling. An existing
+ordinary UI lease can observe membership changes during transient combat
+actions; this reader cannot publish command scope or grant a cast.
+
+Offline inspection also established a limitation of the earlier drop candidate:
+the actual power wheel is mode3 (owned ExitPowerWheel confirms DisableMode3),
+whereas current context registration yields outside mode0. Five fully decoded
+wheel lifecycle scripts include pause/unpause and close-time tactical orders.
+Full-wheel support therefore needs coordinated mode/pause/context/close handling;
+the existing ordinary-mode drop hook does not establish it. No scene policy
+was loosened. Three native targets compiled and the build fingerprint matched.
+No game, panel, network or tests ran.
+
 ## 2026-10-26: native guest quickslot drop candidate
 
 The optional icon lease now includes a checked forwarding hook at the native
