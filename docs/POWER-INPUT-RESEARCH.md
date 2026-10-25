@@ -205,8 +205,8 @@ ambiguous powers leave their slots unavailable. No old object pointer is kept.
 Bindings reset when the runtime process restarts; no disk persistence or manual
 assignment UI is provided. The panel annotates current entries with their actual
 Ctrl+Alt slot, independently of the list row number.
-The native list may contain passive/unlearned entries; ordinary power
-validation can refuse them. The panel is optional, and closing it does not
+The exposed list now excludes unlearned, base-disabled and HUD-hidden entries;
+ordinary power validation can still refuse listed powers. The panel is optional, and closing it does not
 disable these runtime hotkeys. Remove the startup flag to disable them.
 
 The adapter samples the high/held bit of GetAsyncKeyState on pre-Tick only,
@@ -239,3 +239,30 @@ normal keyboard quickslot readiness. Native wheel setup and its assignment
 semantics must be validated before adding a normal-input integration. No wheel
 cache or quickslot definition is written from this static finding. The gamepad
 player-pawn cast remains a separate integration gap.
+
+## Native wheel membership
+
+Owned script inspection completely decoded SFXPowerManager.GetPowerWheelPowers
+(170 serialized / 246 VM bytes). It processes display order and selects powers
+by IsEnabled(), DisplayInHUD and Rank>0. The base SFXPowerCustomActionBase.IsEnabled
+body (14 /22 bytes) simply returns bEnabled. The mod catalog now requires the
+corroborated base fields bEnabled mask1 and DisplayInHUD mask0x100 at+0x4dc,
+plus finite positive Rank at+0x488. Reflected field names/types/offsets are
+checked before reading these membership fields. Non-null unreadable/malformed
+entries still invalidate the sample; readable ineligible entries are omitted.
+
+This is base membership filtering, not execution of virtual IsEnabled overrides
+or reproduction of native wheel display sorting. The exposed order remains
+manager order. Native cooldown, targeting, cached-controller and action checks
+remain authoritative. A final fresh catalog rechecks membership before order
+dispatch. An entry becoming unavailable changes the compact catalog scope and
+invalidates pending input; retained named shortcut assignments remain intact.
+Cooldown is not a catalog filter, avoiding shortcut churn while a power recharges.
+
+InitializePowerList (286 /434 bytes) and AddPower (447 /667 bytes) also decoded
+completely. InitializePowerList clears/rebuilds manager membership and calls
+SetPowerStartingRanks for player-party pawns; it is not a harmless controller
+cache refresh. AddPower changes the pawn action-class table and uses
+VerifyCAHasBeenInstanced before updating manager membership. Neither is called
+by this change. Extracted data remains private and source hashes were unchanged.
+Only native compilation was performed; no wheel, shortcut, power or game ran.

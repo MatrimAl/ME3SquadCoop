@@ -80,6 +80,8 @@ static int runtime_power_request_expired(ULONGLONG submitted) {
     ULONGLONG now=GetTickCount64();
     return now<submitted||now-submitted>RUNTIME_POWER_REQUEST_MAX_AGE_MS;
 }
+static int runtime_power_property(uintptr_t base,uintptr_t object,const char *owner,const char *name,
+    const char *kind,int offset,int size);
 static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordinary,RuntimePowerCatalog *out) {
     if(!ordinary||!guest_player_context_registered_for(c.pc,c.pawn)||
        !guest_player_context_basic_owned(base,c.pc,c.pawn,c.world))return 0;
@@ -110,8 +112,16 @@ static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordina
          * Non-null unreadable/wrong-class entries still invalidate the list. */
         if(!item)continue;
         int entry=out->count;
+        uint32_t flags=0;float rank=0;
         if(!narrative_probe_object(base,item,"SFXPowerCustomActionBase")||
-           !read_at(item+0x46c,out->names[entry],8))return 0;
+           !runtime_power_property(base,item,"SFXPowerCustomActionBase","Rank","FloatProperty",0x488,4)||
+           !runtime_power_property(base,item,"SFXPowerCustomActionBase","bEnabled","BoolProperty",0x4dc,4)||
+           !runtime_power_property(base,item,"SFXPowerCustomActionBase","DisplayInHUD","BoolProperty",0x4dc,4)||
+           !read_at(item+0x4dc,&flags,4)||!read_at(item+0x488,&rank,4)||!isfinite(rank))return 0;
+        /* Match base power-wheel membership; cooldown/target/action checks
+         * remain native dispatch policy, not reasons to reorder hotkeys. */
+        if((flags&0x101)!=0x101||rank<=0)continue;
+        if(!read_at(item+0x46c,out->names[entry],8))return 0;
         out->powers[entry]=session_capture_handle(item);
         if(!session_handle_matches(out->powers[entry]))return 0;
         out->source_indices[entry]=i;++out->count;
