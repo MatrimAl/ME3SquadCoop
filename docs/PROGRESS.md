@@ -20,6 +20,17 @@ All three native outputs built; the exported route/aim checks and private
 launcher ownership/negative controls passed. The route change still needs
 live validation. Full mode-7 conversations and hostile damage remain unproven.
 
+The subsequent protected pair could not exercise the new guest route: the
+guest's remote Shepard channel failed its initial native actor decode. The
+channel's flags changed from1 to9 while both Actor and Class stayed null;
+later receives retained that state. No guest-road or aim event occurred.
+The host still completed its lower route, but this is not shared progression.
+All89 acquired-Ashley samples stayed above kill-Z. Original profiles were
+unchanged, no native exceptions were recorded and no game process remained;
+the read-only monitor reported access denied, so the observer audit is not
+fully passing. Diagnose the initial object decode before another encounter
+attempt rather than forcing channel flags or synthesizing a Shepard actor.
+
 ## 2026-10-24: stop skipping the witnessed post-scene QA firing case
 
 - Retained real-game logs show the fire bot refusing an acknowledged guest
