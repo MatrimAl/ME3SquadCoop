@@ -220,3 +220,43 @@ cleanup clears references and icons. Calling a visibility callback alone
 therefore does not repair the context mismatch. No UI cache reference or
 native update method was changed or invoked for these findings; no game or
 tests ran. Full guest-wheel initialization remains incomplete.
+
+## Registered squad reference candidate
+
+The optional native-icons configuration now owns a separate wheel-context
+lease. Acquisition requires ordinary mode0, the existing native-hotkey bridge,
+a fresh unique discovered PC wheel, reflected UI reference layouts, a current
+eligible power catalog and the already registered guest squad. Both native
+existing-squad and synthetic registrations must pass their own world/channel/
+epoch/cache checks. No context is created or acquired inside a menu.
+
+In the native client/non-henchman branch, the candidate conditionally swaps
+only the handler's transient m_pPlayerSquad reference to that registered squad
+and clears stale cached henchman UI references. It captures live same-world
+baselines and uses aligned writable-pointer CAS. It does not change Pawn.Squad,
+WorldInfo registration, membership, story, input/profile mappings or native
+permission flags. It calls no population/visibility/update function. The normal
+native Tick can then select CachedPlayerPawn and populate groups at its usual
+squad-change/menu-entry points.
+
+Native m_pShepardPawn remains engine-owned. Retirement restores only references
+actually written by this lease, and only while the handler still holds the
+leased squad and those exact installed values. Expired baseline actors become
+null; engine replacements are preserved. The native player-cache transition
+is left to normal Tick so its change detector can refresh the native groups.
+No cleanup native setter is invoked on an old-world widget. A conditional
+restore attempt is not proof that runtime restoration succeeded.
+
+The full-wheel caster now uses this context lease instead of depending on
+the separate quickslot-paint lease. It still validates every selected-group
+icon/name/power, current registered Ashley/controller/action caches, empty
+capacity state, reflected group indices and the exact native selection caller.
+The final context and current mode are checked again. Native targeting,
+cancellation, permissions and close-time tactical-order delivery remain in
+the original game path. A quickslot paint being retired no longer alone ends
+the full-wheel context lease. Quickslot rewriting by native PC Tick remains a
+separate unresolved display-coordination issue.
+
+Three native targets compiled and current fingerprints matched. No game or
+tests ran. Initial lease timing, natural population/rendering, all native
+callbacks, selected casting and retirement still require gameplay evidence.

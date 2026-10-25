@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-10-26: align native wheel squad with registered guest context
+
+The optional wheel context now has an independent transient-reference lease.
+After validating the admitted guest/controller/world/channel/squad epoch and
+reflected native wheel layout, it conditionally replaces the UI squad
+reference with the registered player squad and clears stale henchman UI
+caches. The engine still owns player-cache selection and native group
+population; no direct population/update/visibility call was added. Pawn.Squad,
+story membership, WorldInfo registration and profile mappings stay untouched.
+
+The full-wheel caster now validates against this lease independently of the
+quickslot-paint lease. Conditional retirement preserves native replacements
+and leaves native player-cache transitions to the game. Acquisition stays
+mode0-only; existing menu-context retention still gates mode3. Native quickslot
+refresh/display coordination remains unresolved. Three native targets compiled
+and fingerprints matched; no game or tests ran. Natural full-list population,
+casting and restoration are unverified. See
+[registered squad candidate](POWER-WHEEL-POPULATION.md).
+
 ## 2026-10-26: locate native UI context and refresh conflicts
 
 A26-entry wheel virtual batch yielded25 decompiled entries in about12 seconds

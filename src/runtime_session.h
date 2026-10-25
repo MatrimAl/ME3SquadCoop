@@ -71,6 +71,7 @@ static int runtime_session_scope(uintptr_t base,uintptr_t engine) {
 #include "runtime_guest_power.h"
 #include "runtime_power_icons.h"
 #include "runtime_power_menu.h"
+#include "runtime_power_wheel_context.h"
 #include "runtime_power_assignment.h"
 #include "runtime_power_caster.h"
 #include "runtime_input_bootstrap.h"
@@ -100,6 +101,7 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
     guest_collision_adapt(base,c.pc,c.pawn,c.world,ordinary,
         runtime_control_enabled&&runtime_scope_ready,now);
     if(!after)runtime_input_bootstrap_tick(base,engine,now);
+    if(!after)runtime_power_wheel_context_tick(base,engine);
     if(!after)runtime_power_icons_tick(base,engine,ordinary);
     /* Collision repair, input initialization and icon updates can invoke native code. Resolve the current control
      * context again before considering a power order. Keep the order last:

@@ -30,7 +30,7 @@ static int runtime_power_caster_empty(uintptr_t base,uintptr_t icon) {
 }
 static int runtime_power_caster(void *self,uintptr_t *pawn_out,uintptr_t *group_out) {
     uintptr_t caller=(uintptr_t)__builtin_return_address(0),base=runtime_caster_base,handler=(uintptr_t)self;
-    RuntimePowerIconLease *lease=&runtime_power_icons;
+    RuntimePowerWheelContext *lease=&runtime_power_wheel_context;
     if(GetCurrentThreadId()!=session_game_thread||caller!=base+0xc5295e||
        !runtime_power_icons_enabled()||!runtime_control_enabled||!runtime_scope_ready||
        !InterlockedCompareExchange(&g_enable_requested,0,0)||g_runtime_config.role!=ME3_ROLE_GUEST||
@@ -42,9 +42,10 @@ static int runtime_power_caster(void *self,uintptr_t *pawn_out,uintptr_t *group_
        !background_focus_writable((uintptr_t)pawn_out,8)||!background_focus_writable((uintptr_t)group_out,8))return 0;
     *pawn_out=0;*group_out=0;
     SessionContext c=session_context(session_engine);RuntimePowerCatalog catalog;
-    if(lease->failed||lease->retiring||c.pc!=lease->owner.pc.pointer||c.pawn!=lease->owner.pawn.pointer||
+    if(lease->retiring||!runtime_power_wheel_context_valid(base,c)||c.pc!=lease->owner.pc.pointer||c.pawn!=lease->owner.pawn.pointer||
        !session_handle_matches(lease->owner.pawn)||lease->owner.token!=guest_player_context_registration_token()||
-       !runtime_power_icon_owner(base,&lease->owner,c)||!runtime_power_ui_allowed(base,c)||
+       !runtime_power_icon_owner(base,&lease->owner,c)||
+       (session_engine_blocked(c)&&!runtime_power_menu_context_held(base,c))||
        runtime_power_wheel_drag_state(base,handler)!=0||
        !runtime_power_read_membership(base,c,&catalog)||!runtime_power_catalog_same(&catalog,&lease->catalog))return 0;
     if(!runtime_power_property(base,handler,"SFXSFHandler_PowerWheel","m_nCurrentPowerIconIndex","IntProperty",0x780,4)||
@@ -117,7 +118,8 @@ static int runtime_power_caster(void *self,uintptr_t *pawn_out,uintptr_t *group_
     }
     int32_t last=-1;uint32_t last_flags=0;SessionContext current=session_context(session_engine);
     if(current.pc!=c.pc||current.pawn!=c.pawn||current.world!=c.world||
-       !runtime_power_ui_allowed(base,current)||!runtime_power_icon_owner(base,&lease->owner,current)||
+       (session_engine_blocked(current)&&!runtime_power_menu_context_held(base,current))||
+       !runtime_power_wheel_context_valid(base,current)||!runtime_power_icon_owner(base,&lease->owner,current)||
        !read_at(handler+0x780,&last,4)||last!=selected||!read_at(handler+0x7f8,&last_flags,4)||last_flags!=flags||
        !read_at(handler+0x45c,&after,sizeof after)||memcmp(&after,&icons,sizeof after))return 0;
     *pawn_out=c.pawn;*group_out=handler+0x3c4+(unsigned)chosen*16;

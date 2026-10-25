@@ -1,5 +1,15 @@
 # Validation status
 
+The optional full-wheel candidate now leases the wheel's transient squad
+reference to the already registered guest player context and clears stale
+henchman UI caches, letting native Tick populate its normal power groups.
+The full-wheel caster uses this independently of quickslot painting. Baseline
+restoration is conditional; no Pawn.Squad/story/profile/registration rewrite
+or direct population call was added. Three native targets compiled and build
+fingerprints matched; no game or tests ran. Actual population, selection,
+casting and restoration are unverified; native quickslot refresh remains an
+unresolved display-coordination issue.
+
 Existing guest registration can now remain in an exact unpaused PowerWheel
 mode3 independently of optional icon readiness. Admission, reciprocal identity,
 world/channel/squad caches and pawn-life restrictions still apply. Icon
