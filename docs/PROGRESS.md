@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-25: preserve the measured guest route through the drop
+
+A protected repeat exercised the scene epoch correction: the guest restarted
+at road point2 after the real scene and advanced through the upper road to
+point11. It then reverted to direct leader chasing, cut across the drop
+approach and stopped when the host exceeded the follow-distance bound. The
+guest remained above kill-Z, but never entered the aim test; enemy health did
+not decrease. This does not establish shared progression or working combat.
+
+The protected guest bot now retains the existing measured last upper anchor
+and five lower anchors instead of reverting at that corner. It reuses node
+identity/location validation and normal movement, with the same input gain,
+follow deadline and corridor checks. The native geometry regression admits
+retained real host walk-off/landing positions while rejecting the guest's
+witnessed cut-corner position. Both exported route/initial-reader checks pass
+after all three native outputs were rebuilt. This route extension still
+requires live validation; it does not resolve or validate guest door states.
+
 ## 2026-10-25: observe the initial actor reference without replaying its decoder
 
 Added a default-off protected guest diagnostic for the exact executable's
