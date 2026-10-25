@@ -48,6 +48,11 @@ does not qualify. No fault is cleared. New ownership requires the full ordinary
 admission path, actual peer membership, native squad AI and a fresh clear-control
 window. Retirement does not start a new listener, reconnect a guest or carry
 story/save state between missions.
+After a separately verified old listener world and driver are both retired,
+the new explicit runtime/panel re-listen action can request the ordinary Listen
+path in a different standalone mission. This is a separate manual startup
+candidate, not automatic travel or guest reconnection; see
+[runtime integration](RUNTIME-INTEGRATION.md).
 Retiring disposed bookkeeping is allowed while the mod is disabled; it does not
 reenable the mod or permit a new acquisition. Native connection cleanup remains
 forwarded even while ownership retirement is waiting.

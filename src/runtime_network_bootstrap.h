@@ -8,13 +8,18 @@ typedef enum RuntimeNetworkStartStatus {
     RUNTIME_START_BAD_REQUEST=5,RUNTIME_START_HOST_UNAVAILABLE=6,RUNTIME_START_BIND_REFUSED=7,
     RUNTIME_START_LISTENING=8,RUNTIME_START_CAPACITY_REFUSED=9,
     RUNTIME_START_HOST_NATIVE_FAILED=10,RUNTIME_START_HOST_VERIFY_FAILED=11,
-    RUNTIME_START_RETRY_WAITING=12,RUNTIME_START_RETRY_REFUSED=13,RUNTIME_START_RETRY_EXPIRED=14
+    RUNTIME_START_RETRY_WAITING=12,RUNTIME_START_RETRY_REFUSED=13,RUNTIME_START_RETRY_EXPIRED=14,
+    RUNTIME_START_RELISTEN_WAITING=15,RUNTIME_START_RELISTEN_REFUSED=16,RUNTIME_START_RELISTEN_EXPIRED=17
 } RuntimeNetworkStartStatus;
 static volatile LONG runtime_join_requested,runtime_join_attempted,runtime_network_start_status;
 static volatile LONG runtime_listen_requested,runtime_listen_attempted;
 static volatile LONG runtime_rejoin_requested;
 static DWORD runtime_rejoin_started;
 static int runtime_join_retry_armed;
+static volatile LONG runtime_relisten_requested,runtime_listen_successful;
+static SessionHandle runtime_listen_origin_world,runtime_listen_origin_driver,runtime_relisten_target;
+static DWORD runtime_relisten_started;
+static int runtime_relisten_armed;
 static DWORD runtime_join_last_check;
 static int runtime_network_start_parse(Me3RuntimeRole role,const wchar_t *value) {
     if(!value)return 0;
@@ -42,10 +47,19 @@ static int runtime_request_rejoin(void) {
 static int runtime_request_listen(void) {
     if(g_config_status!=ME3_CONFIG_READY||g_runtime_config.role!=ME3_ROLE_HOST||
        !InterlockedCompareExchange(&g_enable_requested,0,0)||
-       InterlockedCompareExchange(&runtime_listen_attempted,0,0))return 0;
+       InterlockedCompareExchange(&runtime_listen_attempted,0,0)||
+       InterlockedCompareExchange(&runtime_relisten_requested,0,0))return 0;
     if(InterlockedCompareExchange(&runtime_listen_requested,1,0))return 0;
     InterlockedExchange(&runtime_host_start_gate,0);
     InterlockedExchange(&runtime_network_start_status,RUNTIME_START_WAITING);return 1;
+}
+static int runtime_request_relisten(void) {
+    if(g_config_status!=ME3_CONFIG_READY||g_runtime_config.role!=ME3_ROLE_HOST||
+       !InterlockedCompareExchange(&g_enable_requested,0,0)||
+       !InterlockedCompareExchange(&runtime_listen_attempted,0,0)||
+       !InterlockedCompareExchange(&runtime_listen_successful,0,0)||
+       InterlockedCompareExchange(&runtime_listen_requested,0,0))return 0;
+    return InterlockedCompareExchange(&runtime_relisten_requested,1,0)==0;
 }
 static int runtime_join_command(const Me3RuntimeConfig *config,wchar_t *out,size_t capacity) {
     if(!config||config->role!=ME3_ROLE_GUEST||!out||!capacity||
@@ -72,11 +86,13 @@ static int runtime_join_travel_idle(uintptr_t world,uintptr_t engine) {
 #include "runtime_join_diagnostics.h"
 #include "runtime_join_progress.h"
 #include "runtime_rejoin.h"
+#include "runtime_relisten.h"
 static void runtime_join_window_reset(void) {
     memset(&runtime_join_readiness,0,sizeof runtime_join_readiness);
 }
 static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     runtime_rejoin_tick(base,engine,now);
+    runtime_relisten_tick(base,engine,now);
     int host=g_runtime_config.role==ME3_ROLE_HOST;
     volatile LONG *requested=host?&runtime_listen_requested:&runtime_join_requested,
         *attempted=host?&runtime_listen_attempted:&runtime_join_attempted;
@@ -94,6 +110,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
        read_ptr(c.pc+0x198)!=c.world||!read_at(c.world+0x7c8,&net,1)){runtime_join_window_reset();return;}
     if(net!=0) {
         runtime_join_retry_armed=0;runtime_join_window_reset();
+        runtime_relisten_armed=0;
         InterlockedExchange(attempted,1);InterlockedExchange(requested,0);
         /* Existing-session attachment is the default policy. A redundant
          * listen request must not revoke an already established host lease. */
@@ -115,8 +132,21 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
     }
     if(host) {
         if(!runtime_host_story_idle(base,c))return;
+        if(runtime_relisten_armed&&(!runtime_relisten_target_valid(base,&before)||
+           !runtime_relisten_previous_gone(base)||!runtime_rejoin_cleanup_idle()||runtime_host_capacity.active)) {
+            InterlockedExchange(&runtime_listen_requested,0);InterlockedExchange(&runtime_listen_attempted,1);
+            runtime_relisten_armed=0;
+            runtime_relisten_finish(RUNTIME_START_RELISTEN_REFUSED,"new-world-context-changed",now);return;
+        }
         InterlockedExchange(attempted,1);InterlockedExchange(requested,0);
+        runtime_relisten_armed=0;InterlockedExchange(&runtime_listen_successful,0);
         int status=runtime_host_start(base,engine,c,&before);
+        if(status==RUNTIME_START_LISTENING) {
+            runtime_listen_origin_world=session_capture_handle(before.world);
+            runtime_listen_origin_driver=session_capture_handle(read_ptr(before.world+0x120));
+            if(session_handle_matches(runtime_listen_origin_world)&&session_handle_matches(runtime_listen_origin_driver))
+                InterlockedExchange(&runtime_listen_successful,1);
+        }
         InterlockedExchange(&runtime_host_start_gate,status==RUNTIME_START_LISTENING);
         InterlockedExchange(&runtime_network_start_status,status);
         char row[280];snprintf(row,sizeof row,"{\"runtime_network\":\"listen-request\",\"status\":%d,\"native_start_verified\":%s,\"implicit_travel\":false,\"guest_connection_verified\":false,\"restart_required\":%s,\"monotonic_ms\":%lu}\r\n",status,runtime_host_start_gate?"true":"false",runtime_host_start_gate?"false":"true",now);line(row);return;

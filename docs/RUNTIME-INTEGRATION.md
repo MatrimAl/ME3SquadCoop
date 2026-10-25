@@ -93,7 +93,19 @@ A changed/disposed world never authorizes writes into a reused GameInfo.
 A native failure or post-start verification failure is terminal for this mod
 instance: companion admission stays closed and restart is required. A listener
 already created by the engine remains engine-owned until the game exits; the mod
-does not invent a teardown method. In-session listen retry is unsupported.
+does not invent a teardown method. Same-world failed-listener retry is unsupported.
+
+A separate explicit `ME3SquadCoopRequestRelisten` candidate covers a different
+new mission after a previously verified runtime-owned listener. Tick requires
+positive registry retirement of both that old root world and old driver,
+standalone current-world story readiness, no pending native travel, no active
+companion/fault/cleanup and no remaining capacity lease. It waits at most30
+seconds for those conditions. The pending request then binds to the exact new
+root identity and repeats the ordinary checked Listen pipeline. Changed context
+or disposal evidence is refused before the native call. No driver is destroyed,
+fault cleared or mission chosen by the mod. Status15/16/17 reports new-mission
+listener waiting/refusal/expiry. The separate panel exposes the explicit action.
+This path is compiled only; native mission travel/re-listening remains unverified.
 **Protected actual-entry host startup has been observed; ordinary guest connection
 still requires verification.** Offline fixtures do not establish playable co-op
 or Radmin reachability.

@@ -318,14 +318,15 @@ static int runtime_host_start(uintptr_t base,uintptr_t engine,SessionContext c,c
     return runtime_host_start_checked(base,engine,c,chain,&calls);
 }
 static void runtime_host_capacity_poll(uintptr_t base,uintptr_t engine) {
-    if(!runtime_host_capacity.active||session_active||
-       (runtime_control_enabled&&InterlockedCompareExchange(&runtime_host_start_gate,0,0)))return;
+    if(!runtime_host_capacity.active||session_active)return;
     CombatContextChain chain;combat_context_read_chain(base,&chain);
-    if(!chain.info_valid||chain.info!=runtime_host_capacity.info.pointer) {
+    if(!chain.info_valid)return; /* Unknown loading context is not retirement. */
+    if(chain.info!=runtime_host_capacity.info.pointer) {
         /* A disposed/replaced world retires this transient lease; it does not
          * authorize writing into an older or reused GameInfo. */
         runtime_host_capacity.active=0;return;
     }
+    if(runtime_control_enabled&&InterlockedCompareExchange(&runtime_host_start_gate,0,0))return;
     uintptr_t driver=read_ptr(chain.world+0x120);GameArray peers={0};
     if(driver&&(!is_live(base,driver)||!read_at(driver+0x70,&peers,sizeof peers)||peers.count||
        peers.max<0||peers.max>128))return;

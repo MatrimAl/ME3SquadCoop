@@ -1700,3 +1700,20 @@ control; it no longer treats a tracked host lease alone as reciprocal ownership.
 Its v3 frame/layout is updated on both sides. Native outputs rebuilt and panel
 Python syntax parsed; no game, panel, transition or fixture was executed.
 Actual loading-time suitability and native travel remain unverified.
+
+## Request a listener explicitly in a new mission
+
+The ordinary runtime/panel now has a separate new-mission Listen request. It
+requires a previous verified runtime-owned listener and positive registry
+retirement of both that old world and driver, then waits for clear standalone
+control with completed lease/capacity cleanup. It binds the new request to the
+current root identity and rechecks old disposal/cleanup before the ordinary
+native Listen call. An existing network world or changed target is preserved.
+It does not retry failed native initialization in the same world or reset faults.
+
+Capacity retirement now checks a verified changed world before the normal
+enabled-listener early return. Unknown loading context retains the lease rather
+than being treated as disposal. The panel exposes the manual new-mission action
+and its waiting/refusal/expiry statuses. Normal native outputs rebuilt and Python
+syntax parsed; no game, panel, native startup or fixture was executed. Actual
+mission/network continuity and guest reconnection remain unverified.

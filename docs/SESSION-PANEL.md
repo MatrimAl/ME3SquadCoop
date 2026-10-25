@@ -5,7 +5,7 @@ game or power order has been run for this change. The panel does not establish
 a verified player installation or playable campaign.
 
 The separate Windows/Tk panel gives an already running ordinary runtime a
-manual control surface: Host/Listen, Join, Retry join, enable/disable and a
+manual control surface: Host/Listen, Join, Retry join, Listen in new mission, enable/disable and a
 scoped power list. It displays sampled native net mode, companion ownership,
 startup status and power-order status. It cannot launch, install, inject,
 terminate or change the endpoints of a game. Native requests remain subject
