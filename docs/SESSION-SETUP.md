@@ -16,6 +16,7 @@ python tools/prepare_session.py --role guest --bind 26.2.3.4 --peer 26.1.2.3 --p
 ```
 
 The default startup action is `listen` for a host and `join` for a guest.
+`--panel` adds the opt-in flag for the separate [local control panel](SESSION-PANEL.md).
 `--start attach` prepares configuration for attaching the mod to an existing
 native network session; it does not request Listen or a join. Host/join and
 guest/listen combinations are rejected. A guest requires an explicit peer;
@@ -47,4 +48,5 @@ separate requirements. No executable path or launch operation is provided here.
 
 The two Python sources have been syntax-parsed only. No new behavior tests or
 game runs have been performed for this planner. An integrated player launcher
-and in-game session controls remain unfinished.
+and in-game session controls remain unfinished. A separate local control panel
+candidate is now compiled/syntax-parsed, with integrated validation deferred.

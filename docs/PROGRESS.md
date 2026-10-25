@@ -1642,3 +1642,18 @@ no action cache, cooldown, rank or RPC is patched. A boolean native acceptance i
 reported separately from a cast/effect verdict. Keyboard/menu bindings and actual
 gameplay remain unfinished. Normal native outputs rebuilt; no game, fixture or
 power order was executed. See [power input research](POWER-INPUT-RESEARCH.md).
+
+## Separate manual session control surface
+
+The ordinary runtime now has an opt-in pointer-free local IPC panel endpoint,
+and a separate Windows/Tk client presents Listen, Join, Retry, enable/disable
+and the current scoped power list. The client never launches or injects into a
+game. It retains a query-only process identity, rejects stale snapshots and
+submits only bounded whitelisted requests. Native admission and game calls
+remain on Tick. Power and connection request acceptance stay distinct from
+actual gameplay success.
+
+The session planner can include the panel opt-in flag. Normal native outputs
+compiled and the Python sources syntax-parsed; no GUI, IPC fixture, game or
+power request was executed. Actual panel rendering, handshake, native command
+acceptance and gameplay remain unverified. See [session panel](SESSION-PANEL.md).

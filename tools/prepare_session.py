@@ -15,11 +15,12 @@ def main():
     parser.add_argument("--peer", help="host IPv4; required for a guest")
     parser.add_argument("--port", default="17779")
     parser.add_argument("--start", choices=("listen", "join", "attach"))
+    parser.add_argument("--panel", action="store_true", help="opt into the separate local session control panel")
     parser.add_argument("--output", type=Path,
                         help="create a private JSON plan; existing files are never overwritten")
     args = parser.parse_args()
     try:
-        plan = RuntimeSessionPlan(args.role, args.bind, args.port, args.peer, args.start)
+        plan = RuntimeSessionPlan(args.role, args.bind, args.port, args.peer, args.start, args.panel)
         text = json.dumps(plan.to_dict(), indent=2) + "\n"
         if args.output is None:
             sys.stdout.write(text)

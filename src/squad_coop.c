@@ -24,6 +24,7 @@ static volatile LONG runtime_host_start_gate=1;
 static wchar_t g_executable[MAX_PATH];
 #include "runtime_session.h"
 #include "runtime_network_bootstrap.h"
+#include "runtime_panel.h"
 static EngineTick runtime_original_tick;
 static DWORD runtime_last_gate;
 
@@ -49,6 +50,7 @@ static void runtime_tick(void *self,float delta) {
     if(!runtime_last_gate||now-runtime_last_gate>=1000) {
         runtime_last_gate=now;g_dlc_active=check_active_dlc_gate(g_game_root);
     }
+    runtime_panel_commands();
     runtime_control_enabled=g_dlc_active&&InterlockedCompareExchange(&g_enable_requested,0,0)&&
         g_config_status==ME3_CONFIG_READY;
     runtime_network_start_tick(base,(uintptr_t)self,now);
@@ -57,6 +59,7 @@ static void runtime_tick(void *self,float delta) {
     runtime_join_progress_poll(base,(uintptr_t)self,GetTickCount());
     runtime_session_frame(base,(uintptr_t)self,1,GetTickCount());
     runtime_host_capacity_poll(base,(uintptr_t)self);
+    runtime_panel_publish(base,(uintptr_t)self,GetTickCount());
 }
 static int runtime_install_bridge(uintptr_t base) {
     uintptr_t engine=read_ptr(base+0x18b31d0),vt=read_ptr(engine);
@@ -84,6 +87,7 @@ static DWORD WINAPI runtime_start(void *unused) {
         if(n>0&&n<MAX_PATH)log_file=CreateFileW(path,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);
     }
     line("{\"runtime\":\"validated\",\"full-executable-sha256\":true,\"playable-campaign-verified\":false}\r\n");
+    runtime_panel_prepare();
     for(int attempt=0;attempt<120;++attempt) {
         if(!check_active_dlc_gate(g_game_root)||!InterlockedCompareExchange(&g_enable_requested,0,0))return 0;
         if(runtime_install_bridge(base))return 0;

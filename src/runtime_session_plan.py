@@ -11,10 +11,13 @@ class RuntimeSessionPlan:
     port: int = DEFAULT_PORT
     peer_ipv4: str = None
     start: str = None
+    panel: bool = False
 
     def __post_init__(self):
         if self.role not in ("host", "guest"):
             raise ValueError("ordinary runtime role must be host or guest")
+        if type(self.panel) is not bool:
+            raise ValueError("panel must be a boolean")
         endpoint = DirectIPConfig(
             "host" if self.role == "host" else "client",
             self.bind_ipv4, self.port, self.peer_ipv4, loopback_qa=False)
@@ -42,6 +45,8 @@ class RuntimeSessionPlan:
             values["ME3_SQUAD_COOP_PEER_IPV4"] = self.peer_ipv4
         if self.start != "attach":
             values["ME3_SQUAD_COOP_START"] = self.start
+        if self.panel:
+            values["ME3_SQUAD_COOP_PANEL"] = "1"
         return values
 
     def child_environment(self, inherited):

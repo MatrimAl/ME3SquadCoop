@@ -1,0 +1,71 @@
+# Local session control panel candidate
+
+Status: native code compiled and Python syntax parsed. No panel, IPC integration,
+game or power order has been run for this change. The panel does not establish
+a verified player installation or playable campaign.
+
+The separate Windows/Tk panel gives an already running ordinary runtime a
+manual control surface: Host/Listen, Join, Retry join, enable/disable and a
+scoped power list. It displays sampled native net mode, companion ownership,
+startup status and power-order status. It cannot launch, install, inject,
+terminate or change the endpoints of a game. Native requests remain subject
+to the existing role, story, ownership, package and transport checks.
+
+The ordinary runtime must have explicit `ME3_SQUAD_COOP_PANEL=1` at startup.
+The session planner's `--panel` option includes that flag in its generated
+environment; it does not launch anything. The panel is off by default. When
+protected validation resumes, the selected already owned game PID can be
+supplied with `python tools/session_panel.py --pid <PID>`. A missing mapping
+is an error, not a reason to launch or attach to some other game automatically.
+
+The panel requires a local Python installation with Tkinter and Windows ctypes.
+No new dependencies are installed by the tool. Closing the panel closes its
+mapping/query handles and leaves the game running. Disable requests normal
+adapter cleanup; it does not unload the native DLL. Enable does not reinstall
+a missing DLC, bypass config or restart failed native initialization.
+
+## Protocol and identity
+
+Each opted-in game creates `Local\ME3SquadCoopPanel_<PID>` once. An existing
+name is refused rather than reused. The bounded5208-byte, pointer-free v1
+mapping contains a5192-byte status frame and a16-byte command mailbox. The
+status identifies PID and exact process creation FILETIME. The client retains
+a query/synchronize-only handle, checks MassEffect3.exe's filename and creation
+identity, and refuses a terminated process or snapshots older than3 seconds.
+It does not use ReadProcessMemory, WriteProcessMemory or remote threads.
+
+The mapping uses Windows' default process-token object security. It is local
+IPC for the current Windows session, not a cross-account security boundary or
+remote administration interface. The client validates magic, version, size,
+role and count, and reads the status through an odd/even sequence protocol.
+The native consumer treats all mailbox data as untrusted, with a fixed command
+whitelist. It accepts no arbitrary engine commands, paths, pointers, caster,
+target or endpoint changes. Game calls execute on Tick, never the panel thread.
+
+The client reserves the mailbox atomically, writes its bounded payload and
+publishes the command last. The monotonically advanced request ID comes from
+the mailbox, rather than a possibly older status-frame acknowledgment. The
+native side copies the payload before releasing the mailbox and reports request
+acceptance separately from later startup/power results. Duplicate latest IDs
+are ignored. A failed client while reserving the mailbox can leave that mailbox
+unavailable; no automatic mailbox stealing or process restart is implemented.
+
+Power commands carry the currently displayed catalog scope/index. Catalog
+changes clear the panel selection, and native validation rejects stale input.
+Names come from the native power-name table, rather than localized display
+strings. The power list is not a promise that every listed power is ready:
+rank, action ownership, cooldown, target and native gameplay checks still apply.
+
+## Evidence boundaries
+
+Connection request acceptance, native client net mode, companion ownership,
+native power-order acceptance and an actual target effect are different states.
+The panel displays those available observations without turning them into a
+campaign-success verdict. It does not yet show a cooldown wheel, localized
+power descriptions, a proven connection-error transcript or an in-game overlay.
+
+No new behavior tests were executed. Deferred validation must cover protocol
+layout parity, stale/changed process identity, command acknowledgment races,
+partial mailbox writers, role/scene refusal, catalog replacement, enable/disable
+cleanup, and actual native startup/power results. Shared-memory publication and
+Tk rendering remain unverified despite successful compilation/syntax parsing.

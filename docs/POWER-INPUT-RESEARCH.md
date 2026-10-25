@@ -137,6 +137,8 @@ token and its current power-array entries/names;
 scope changes cancel pending input. Scope0 means unavailable. The generation
 never wraps into a previously usable value. The list is bounded to64 entries.
 No keyboard/gamepad/menu binding is provided yet.
+The separate local session-panel candidate now exposes explicit power requests;
+it remains unverified and adds no native keyboard/gamepad remapping.
 
 Tick consumes one request only after ordinary guest ownership and an initialized
 player context are verified. It rejects invalid indices, native duplicate power
