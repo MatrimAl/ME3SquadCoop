@@ -1612,3 +1612,17 @@ This is configuration preparation, not a new game launcher or working player
 installation. No socket, game, process attachment, registry or game-file write
 is performed by the planner. Sources were syntax-parsed only; behavior tests
 and integrated launch verification remain deferred. See [session setup](SESSION-SETUP.md).
+
+## Establish the native guest power-order ABI
+
+Read-only extraction of the owned SFXGame declaration confirmed the native
+SquadOrderUsePower flags, native index and nine parameter fields. The authored
+call contract now pins its four-byte-packed60-byte layout and validates the
+reflected method/entry and each field. This resolves an important layout
+ambiguity before any dispatch: its desired-target pointer is at unaligned0x24.
+Normal native outputs rebuilt; input package/library hashes stayed unchanged.
+
+No game, fixture or power order was run. The new header is a compiled contract,
+not an implemented power binding or successful cast. Dynamic power selection,
+action-instance controller ownership and native target/cooldown acceptance
+remain the next prerequisites. See [power input research](POWER-INPUT-RESEARCH.md).

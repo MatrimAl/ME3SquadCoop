@@ -16,6 +16,7 @@ static int native_session_role(void) {
 #include "squad_pawn_readiness.h"
 #include "guest_camera_adapter.h"
 #include "guest_player_context_adapter.h"
+#include "guest_power_order_contract.h"
 #include "guest_collision_restore.h"
 #include "guest_cinematic_registration_adapter.h"
 #include "guest_equipment_bootstrap.h"

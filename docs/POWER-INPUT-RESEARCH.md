@@ -97,3 +97,30 @@ have not been ruled out, so no rebind, array recreation or forced cast is
 implemented from this finding. Six selected functions decoded completely with
 matching serialized/VM lengths and valid branch targets; this remains offline
 evidence and does not establish successful guest powers.
+
+## Tactical-order call contract
+
+A new read-only owned-package extraction verified the exact
+BioPlayerController.SquadOrderUsePower declaration: native index0,
+function flags0x24401 and nine linked parameter fields including its boolean
+return. Input package and compression-library hashes were unchanged. The
+declaration uses a NameProperty power name and the supplied pawn, followed by
+optional queue, indicator, selection target, input method, desired target and
+target location fields. Its return is an actual boolean field, rather than
+proof of a completed cast or authoritative effect.
+
+The retained SDK's parameter offsets require four-byte packing: the desired
+target pointer is unaligned at0x24, the vector starts at0x2c and the return is
+at0x38, for0x3c total bytes. `guest_power_order_contract.h` records this authored
+ABI and has compile-time size/offset assertions. Its runtime predicate requires
+the exact reflected method/native entry and all nine field names, types,
+owners, dimensions, sizes, flags, offsets and boolean masks. The complete
+declaring method identity is rechecked before returning success.
+
+The header is included by the ordinary entry for compilation. No power order
+is dispatched and there is no new power input binding. Runtime verification of
+this contract, controlled-pawn power selection, current action-instance
+ownership, native cooldown/target acceptance and actual effects remain pending.
+The next implementation must resolve power choices from the possessed pawn's
+current manager; it must not accept an arbitrary caller-supplied caster or
+bypass the normal tactical-order/ActivatePower/server path.
