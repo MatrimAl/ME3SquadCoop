@@ -1397,3 +1397,13 @@ with bounded common observation time. Native scene, squad, ownership and
 package validation remain authoritative. Native outputs were rebuilt and
 launcher source assembly was syntax-compiled; fixtures and live validation
 are explicitly deferred. See [campaign next steps](CAMPAIGN-NEXT.md).
+
+## Explain shared scene admission without weakening it
+
+The shared scene predicate now returns its first blocking reason; its existing
+boolean wrapper still rejects exactly when that reason is present. Host gate
+records and protected arena prewarm telemetry include `engine_block_reason`.
+Mode0 can now be distinguished from cinematic, PlayersOnly and conversation
+conditions without inferring that all control is available. No scene state is
+written. Native outputs were rebuilt; gate fixtures and live verification are
+deferred. See [scene admission diagnostics](SCENE-GATES.md).

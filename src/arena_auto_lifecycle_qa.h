@@ -55,7 +55,8 @@ static int arena_auto_roster_ready(uintptr_t base,SessionContext c) {
 }
 static void arena_auto_lifecycle_tick(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     if(!arena_pair_qa||!has_marker(root))return;
-    SessionContext c=session_context(engine);int current=arena_pair_world(base),clear=current&&!session_engine_blocked(c)&&
+    SessionContext c=session_context(engine);const char *engine_reason=session_engine_block_reason(c);
+    int current=arena_pair_world(base),clear=current&&!engine_reason&&
         session_actor_live(base,c.pawn)&&read_ptr(c.pawn+0x374)==c.pc;
     if(!after) {
         if(clear){if(!arena_auto_ready_at)arena_auto_ready_at=now;}else arena_auto_ready_at=0;
@@ -63,8 +64,8 @@ static void arena_auto_lifecycle_tick(uintptr_t base,uintptr_t engine,int after,
     if(!arena_pair_auto_qa)return;
     if(!after&&(!arena_auto_state_at||now-arena_auto_state_at>=1000)) {
         arena_auto_state_at=now;char row[600];int roster=current&&arena_auto_roster_ready(base,c);
-        snprintf(row,sizeof row,"{\"arena_auto_qa\":\"prewarm-state\",\"role\":\"%s\",\"current_spcer\":%s,\"scene_clear\":%s,\"ready_stable_ms\":%lu,\"roster_ready\":%s,\"host_map_refreshed\":%s,\"parallel_qa\":%s,\"monotonic_ms\":%lu}\r\n",
-            test_role,current?"true":"false",clear?"true":"false",arena_auto_ready_at?now-arena_auto_ready_at:0,
+        snprintf(row,sizeof row,"{\"arena_auto_qa\":\"prewarm-state\",\"role\":\"%s\",\"current_spcer\":%s,\"scene_clear\":%s,\"engine_block_reason\":\"%s\",\"ready_stable_ms\":%lu,\"roster_ready\":%s,\"host_map_refreshed\":%s,\"parallel_qa\":%s,\"monotonic_ms\":%lu}\r\n",
+            test_role,current?"true":"false",clear?"true":"false",engine_reason?engine_reason:"clear",arena_auto_ready_at?now-arena_auto_ready_at:0,
             roster?"true":"false",host_map_refreshed?"true":"false",arena_parallel_qa?"true":"false",now);line(row);
     }
     if(after){

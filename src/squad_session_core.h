@@ -21,6 +21,7 @@ static uintptr_t session_host = 0, session_shepard = 0, session_world = 0, sessi
 static uintptr_t session_story_player = 0, session_story_initial = 0;
 static DWORD session_acquired_at = 0, session_first_acquired = 0, session_find_at = 0, session_free_at = 0;
 static int session_gate_last = -1, session_gate_source = -1, session_gate_mode = -1;
+static const char *session_gate_reason;
 static int session_releasing = 0, session_release_failures = 0;
 static const char *session_pending_reason = NULL;
 typedef void (*SessionConnectionCleanup)(void *);
@@ -93,26 +94,34 @@ static int session_story_valid(uintptr_t base) {
            read_ptr(session_host + 0x3bc) == session_shepard && read_ptr(session_shepard + 0x374) == session_host &&
            read_ptr(session_squad + 0x2cc) == session_story_player && read_ptr(session_squad + 0x2d4) == session_story_initial;
 }
-static int session_engine_blocked(SessionContext c) {
-    /* Only ordinary on-foot mode has been verified. Other modes are a
-       conservative handoff to the game, not a claim of vehicle support. */
-    if (!c.pc || !c.world || !c.manager || c.mode != 0) return 1;
-    uint32_t flags = 0; if (!read_at(c.pc + 0x77c, &flags, 4)) return 1;
-    if (flags & 0x20000) return 1; /* PlayerController.bCinematicMode */
-    /* Exact-build native message-box paths can set WorldInfo.bPlayersOnly;
-       the mesh animation tick then deliberately stops. Yield through normal
-       lease cleanup until the engine restores control. Never clear this bit. */
-    uint32_t world_flags=0;
-    if(!read_at(c.world+0x7c0,&world_flags,4)||(world_flags&0x400))return 1;
+/* One read-only predicate supplies both admission and its first blocking
+ * reason. Logging must never run a looser copy of the gameplay gate. */
+static const char *session_engine_block_reason(SessionContext c) {
+    if (!c.pc || !c.world || !c.manager) return "missing-context";
+    /* Ordinary on-foot control remains the only admitted mode. */
+    if (c.mode != 0) return "nonordinary-mode";
+    uint32_t flags = 0;
+    if (!read_at(c.pc + 0x77c, &flags, 4)) return "controller-flags-unreadable";
+    if (flags & 0x20000) return "controller-cinematic-mode";
+    /* Keep yielding to normal message-box/scene cleanup; never clear
+     * WorldInfo.bPlayersOnly or the conversation's active flags. */
+    uint32_t world_flags = 0;
+    if (!read_at(c.world + 0x7c0, &world_flags, 4)) return "world-flags-unreadable";
+    if (world_flags & 0x400) return "players-only";
     uintptr_t conversation = 0;
-    if (!read_at(c.world + 0x948, &conversation, 8)) return 1;
+    if (!read_at(c.world + 0x948, &conversation, 8)) return "conversation-slot-unreadable";
     if (conversation) {
         int32_t active = 0; uint32_t activating = 0;
-        if (!read_at(conversation + 0xd0, &active, 4) || active < 0 ||
-            !read_at(conversation + 0xe8, &activating, 4)) return 1;
-        if (active > 0 || (activating & 1)) return 1;
+        if (!read_at(conversation + 0xd0, &active, 4)) return "conversation-count-unreadable";
+        if (active < 0) return "conversation-count-invalid";
+        if (!read_at(conversation + 0xe8, &activating, 4)) return "conversation-flags-unreadable";
+        if (active > 0) return "conversation-active";
+        if (activating & 1) return "conversation-activating";
     }
-    return 0;
+    return NULL;
+}
+static int session_engine_blocked(SessionContext c) {
+    return session_engine_block_reason(c) != NULL;
 }
 static int session_gate_selftest(void) {
     unsigned char pc[0x800]={0},world[0x960]={0},manager[16]={0},conversation[0xf0]={0};
@@ -136,12 +145,14 @@ static int session_gate_selftest(void) {
     value=0;memcpy(conversation+0xd0,&value,4);value=1;memcpy(conversation+0xe8,&value,4);
     return session_engine_blocked(c);
 }
-static void session_gate(int blocked, int synthetic, unsigned char mode, DWORD now) {
-    if (blocked == session_gate_last && synthetic == session_gate_source && mode == session_gate_mode) return;
-    session_gate_last = blocked; session_gate_source = synthetic; session_gate_mode = mode;
-    char text[400]; snprintf(text, sizeof text,
-        "{\"session\":\"gate-observation\",\"blocked\":%s,\"source\":\"%s\",\"reason\":\"scene\",\"mode\":%u,\"monotonic_ms\":%lu}\r\n",
-        blocked ? "true" : "false", synthetic ? "synthetic" : "engine", mode, now); line(text);
+static void session_gate(int blocked, int synthetic, unsigned char mode, const char *engine_reason, DWORD now) {
+    const char *reason = engine_reason ? engine_reason : "clear";
+    if (blocked == session_gate_last && synthetic == session_gate_source && mode == session_gate_mode &&
+        session_gate_reason && !strcmp(session_gate_reason, reason)) return;
+    session_gate_last = blocked; session_gate_source = synthetic; session_gate_mode = mode; session_gate_reason = reason;
+    char text[500]; snprintf(text, sizeof text,
+        "{\"session\":\"gate-observation\",\"blocked\":%s,\"source\":\"%s\",\"reason\":\"scene\",\"engine_block_reason\":\"%s\",\"mode\":%u,\"monotonic_ms\":%lu}\r\n",
+        blocked ? "true" : "false", synthetic ? "synthetic" : "engine", reason, mode, now); line(text);
 }
 static void session_release(uintptr_t base, SessionContext c, const char *reason, DWORD now) {
     if (!session_active || session_releasing) return;
@@ -308,8 +319,9 @@ static void session_host_frame(uintptr_t base, uintptr_t engine, int after) {
         session_release(base, c, session_pending_reason, now); return;
     }
     int synthetic = session_policy_synthetic(session_first_acquired,now);
-    int engine_gate = session_engine_blocked(c), blocked = engine_gate || synthetic;
-    session_gate(blocked, synthetic && !engine_gate, c.mode, now);
+    const char *engine_reason = session_engine_block_reason(c);
+    int engine_gate = engine_reason != NULL, blocked = engine_gate || synthetic;
+    session_gate(blocked, synthetic && !engine_gate, c.mode, engine_reason, now);
     if (session_active) {
         if (c.pc != session_host || c.world != session_world || c.squad != session_squad ||
             !session_handle_matches(session_world_handle) || !session_handle_matches(session_pawn_handle) || !session_handle_matches(session_ai_handle)) {
