@@ -97,6 +97,18 @@ static void runtime_panel_publish(uintptr_t base,uintptr_t engine,DWORD now) {
         guest_player_context_basic_owned(base,c.pc,c.pawn,c.world);
     frame.control_state=session_fault?4:session_travel_waiting?3:
         frame.companion_owned?(runtime_control_enabled&&!session_engine_blocked(c)?1:2):0;
+    if(frame.control_state==1) {
+        /* Reciprocal possession is not proof that the pawn can act. Read
+         * only the current owned companion; never infer health from a stale
+         * released lease or report host Shepard's life state as Ashley's. */
+        uintptr_t pawn=g_runtime_config.role==ME3_ROLE_HOST?session_pawn:c.pawn;
+        uintptr_t owner=g_runtime_config.role==ME3_ROLE_HOST?session_remote:c.pc;
+        SessionHandle observed=session_capture_handle(pawn);uint32_t life=0;
+        int valid=session_handle_matches(observed)&&read_at(pawn+0xe20,&life,4)&&
+            session_handle_matches(observed)&&session_actor_live(base,pawn)&&
+            read_ptr(pawn+0x198)==c.world&&read_ptr(pawn+0x374)==owner&&read_ptr(owner+0x3bc)==pawn;
+        frame.control_state=!valid?7:(life&0x200)?6:(life&0x100)?5:1;
+    }
     frame.power_status=InterlockedCompareExchange64(&runtime_power_request,0,0)?RUNTIME_POWER_QUEUED:
         InterlockedCompareExchange(&runtime_power_status,0,0);
     frame.power_scope=InterlockedCompareExchange(&runtime_power_scope,0,0);

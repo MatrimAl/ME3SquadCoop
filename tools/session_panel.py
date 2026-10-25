@@ -149,7 +149,8 @@ STARTUP = {0: "Idle", 1: "Waiting for player control", 2: "Join dispatched", 3: 
            18: "Pending connection request cancelled"}
 POWER = {0: "Idle", 1: "Queued", 2: "Rejected", 3: "Native order accepted", 4: "Native order refused"}
 CONTROL = {0: "Waiting for companion", 1: "Companion controlled", 2: "Scene / control suspended",
-           3: "Waiting for mission transition", 4: "Control fault — restart required"}
+           3: "Waiting for mission transition", 4: "Control fault — restart required",
+           5: "Companion downed", 6: "Companion dead", 7: "Companion life state unavailable"}
 READINESS = {0: "Off", 1: "Host not ready", 2: "Host ready", 3: "Idle",
              4: "Waiting for host reply", 5: "Host replied ready",
              6: "Unavailable — manual connection available", 7: "Disabled"}
@@ -234,7 +235,8 @@ def main():
                 allowed = code in (5, 6, 8) or (frame.enabled and (
                     (code in (1, 7) and frame.role == 1 and frame.netmode == 0) or
                     (code in (2, 3) and frame.role == 2 and frame.netmode == 0) or
-                    (code == 4 and frame.role == 2 and frame.power_scope and frame.power_count)))
+                    (code == 4 and frame.role == 2 and frame.control_state == 1 and
+                     frame.power_scope and frame.power_count)))
                 button.configure(state="normal" if allowed else "disabled")
         except (OSError, RuntimeError) as error:
             status.set(str(error))

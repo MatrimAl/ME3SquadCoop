@@ -19,6 +19,18 @@ dispatched handoff is never replayed solely because the pawn recovered. This
 does not cancel an RPC which was already dispatched or replace native inventory
 replication. Both ordinary and protected entries share this predicate.
 
+The local panel distinguishes a currently owned downed companion (control
+state5), dead companion (6), and unavailable life-state read (7) from ordinary
+control (1). Death takes precedence if both native bits are set. Scene, disabled,
+travel and fault states retain their existing priority. The sampled pawn is
+the host's current remote-owned companion or the guest's local-owned companion,
+with identity/world/reciprocal ownership checked around the read. Released or
+stale leases are not used to infer a dead companion. Ownership remains a
+separate field: native possession can survive while the pawn is downed.
+The panel power button requires ordinary control, while native power validation
+remains authoritative. This adds enum values within the unchanged v5 layout;
+older panels display Unknown for those values. No panel/death test was run.
+
 No health, downed/dead flag, native revival function or ownership is written by
 these checks. Native recovery can make admission eligible again, but every
 ordinary AI, action, physics, proximity, story and ownership gate still applies.
