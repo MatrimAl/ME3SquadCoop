@@ -22,6 +22,8 @@ static volatile LONG runtime_relisten_requested,runtime_listen_successful;
 static SessionHandle runtime_listen_origin_world,runtime_listen_origin_driver,runtime_relisten_target;
 static SessionHandle runtime_auto_relisten_target;
 static int runtime_auto_relisten_suspended;
+static SessionHandle runtime_auto_rejoin_target;
+static int runtime_auto_rejoin_suspended;
 static DWORD runtime_relisten_started;
 static int runtime_relisten_armed;
 static DWORD runtime_join_last_check;
@@ -91,11 +93,16 @@ static int runtime_join_travel_idle(uintptr_t world,uintptr_t engine) {
     return read_at(world+0x120,&driver,8)&&!driver&&
         read_at(engine+0x9fc,&pending,8)&&!pending;
 }
+static int runtime_auto_rejoin_target_valid(const CombatContextChain *chain) {
+    return !runtime_auto_rejoin_target.pointer||(chain->world_valid&&
+        chain->world==runtime_auto_rejoin_target.pointer&&session_handle_matches(runtime_auto_rejoin_target));
+}
 #include "runtime_host_bootstrap.h"
 #include "runtime_join_readiness.h"
 #include "runtime_join_diagnostics.h"
 #include "runtime_join_progress.h"
 #include "runtime_rejoin.h"
+#include "runtime_auto_rejoin.h"
 #include "runtime_relisten.h"
 #include "runtime_auto_relisten.h"
 static void runtime_join_window_reset(void) {
@@ -106,7 +113,9 @@ static int runtime_cancel_start_tick(void) {
     /* A cancelled automatic intent must not silently reappear next Tick.
      * Manual Listen/relisten remains available for this process. */
     runtime_auto_relisten_suspended=1;
+    runtime_auto_rejoin_suspended=1;
     memset(&runtime_auto_relisten_target,0,sizeof runtime_auto_relisten_target);
+    memset(&runtime_auto_rejoin_target,0,sizeof runtime_auto_rejoin_target);
     LONG join=InterlockedExchange(&runtime_join_requested,0),listen=InterlockedExchange(&runtime_listen_requested,0),
         rejoin=InterlockedExchange(&runtime_rejoin_requested,0),relisten=InterlockedExchange(&runtime_relisten_requested,0);
     int pending=join||listen||rejoin||relisten;
@@ -123,12 +132,13 @@ static int runtime_cancel_start_tick(void) {
             InterlockedExchange(&runtime_host_start_gate,1); /* Original existing-session attach policy. */
         InterlockedExchange(&runtime_network_start_status,RUNTIME_START_CANCELLED);
     }
-    line(pending?"{\"runtime_network\":\"pending-start-cancelled\",\"automatic_relisten_suspended\":true,\"native_connection_touched\":false}\r\n":
-        "{\"runtime_network\":\"cancel-no-pending-start\",\"automatic_relisten_suspended\":true,\"native_connection_touched\":false}\r\n");
+    line(pending?"{\"runtime_network\":\"pending-start-cancelled\",\"automatic_relisten_suspended\":true,\"automatic_rejoin_suspended\":true,\"native_connection_touched\":false}\r\n":
+        "{\"runtime_network\":\"cancel-no-pending-start\",\"automatic_relisten_suspended\":true,\"automatic_rejoin_suspended\":true,\"native_connection_touched\":false}\r\n");
     return 1; /* Concurrent fresh requests may be considered on the next Tick. */
 }
 static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     if(runtime_cancel_start_tick())return;
+    runtime_auto_rejoin_tick(base,engine,now);
     runtime_rejoin_tick(base,engine,now);
     runtime_auto_relisten_tick(base,engine,now);
     runtime_relisten_tick(base,engine,now);
@@ -148,6 +158,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
        !is_live(base,player)||!is_kind_of(base,player,"LocalPlayer")||read_ptr(player+0x68)!=c.pc||
        read_ptr(c.pc+0x198)!=c.world||!read_at(c.world+0x7c8,&net,1)){runtime_join_window_reset();return;}
     if(net!=0) {
+        memset(&runtime_auto_rejoin_target,0,sizeof runtime_auto_rejoin_target);
         runtime_join_retry_armed=0;runtime_join_window_reset();
         runtime_relisten_armed=0;
         InterlockedExchange(attempted,1);InterlockedExchange(requested,0);
@@ -155,6 +166,12 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
          * listen request must not revoke an already established host lease. */
         if(host)InterlockedExchange(&runtime_host_start_gate,1);
         InterlockedExchange(&runtime_network_start_status,RUNTIME_START_ALREADY_NETWORKED);return;
+    }
+    if(!host&&runtime_auto_rejoin_target.pointer&&
+       (!runtime_auto_rejoin_target_valid(&before)||!runtime_auto_rejoin_old_gone(base))) {
+        InterlockedExchange(&runtime_join_requested,0);InterlockedExchange(&runtime_join_attempted,1);
+        runtime_join_retry_armed=0;
+        runtime_rejoin_finish(RUNTIME_START_RETRY_REFUSED,"automatic-rejoin-context-changed",now);return;
     }
     /* Wait for ordinary native control; never clear pause, scene or mode flags.
      * Current-world driver/pending travel must both be absent before the call. */
@@ -165,6 +182,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
     /* Native transport consumes its own command line, not endpoint.bind_ipv4.
      * Refuse an unintended local interface before triggering ordinary travel. */
     if(!runtime_transport_bind_argument(base,g_runtime_config.endpoint.bind_ipv4)) {
+        memset(&runtime_auto_rejoin_target,0,sizeof runtime_auto_rejoin_target);
         InterlockedExchange(attempted,1);InterlockedExchange(requested,0);
         InterlockedExchange(&runtime_network_start_status,RUNTIME_START_BIND_REFUSED);
         line("{\"runtime_network\":\"start-refused\",\"reason\":\"native-multihome-mismatch\",\"travel_dispatched\":false}\r\n");return;
@@ -203,6 +221,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
     }
     wchar_t command[64];
     if(!runtime_join_command(&g_runtime_config,command,64)||!runtime_join_console_abi(base,c.pc)) {
+        memset(&runtime_auto_rejoin_target,0,sizeof runtime_auto_rejoin_target);
         InterlockedExchange(&runtime_join_attempted,1);InterlockedExchange(&runtime_join_requested,0);
         InterlockedExchange(&runtime_network_start_status,RUNTIME_START_ABI_REFUSED);return;
     }
@@ -214,6 +233,8 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
        current_context.manager!=c.manager||current_context.squad!=c.squad||
        !runtime_join_travel_idle(before.world,engine)||!runtime_join_context_sample(base,current_context,&after,&final_ready)||
        (runtime_join_retry_armed&&!runtime_rejoin_cleanup_idle())||
+       (runtime_auto_rejoin_target.pointer&&(!runtime_auto_rejoin_target_valid(&after)||
+        !runtime_auto_rejoin_old_gone(base)))||
        !runtime_join_sample_same(&ready,&final_ready)) {
         memset(&runtime_join_readiness,0,sizeof runtime_join_readiness);return;
     }
@@ -221,6 +242,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
      * Nothing from that old context is dereferenced after the engine call. */
     InterlockedExchange(&runtime_join_attempted,1);InterlockedExchange(&runtime_join_requested,0);
     runtime_join_retry_armed=0;
+    memset(&runtime_auto_rejoin_target,0,sizeof runtime_auto_rejoin_target);
     ConsoleParms params={0};params.command.data=command;params.command.count=params.command.max=(int32_t)wcslen(command)+1;
     params.write_log=1;runtime_join_progress_begin(engine,now);
     int dispatched=invoke(base,c.pc,"PlayerController","ConsoleCommand",&params);

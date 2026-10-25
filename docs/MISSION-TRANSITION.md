@@ -75,6 +75,39 @@ including when there was nothing pending, without disabling manual requests.
 No story travel, guest reconnect, driver teardown or fault clearing is added.
 This policy is compiled only; actual native travel/listener continuity remains
 unverified.
+
+## Optional guest recovery request
+
+`ME3_SQUAD_COOP_AUTO_REJOIN=1` (guest planner `--auto-rejoin`) enables a separate
+default-off one-shot policy. It first observes an actual current client scope
+with reciprocal Ashley ownership and a registered player context. It records
+the validated native root/driver identities; a dispatched ConsoleCommand,
+progress text or net-mode observation alone cannot establish this origin.
+New origin epochs never wrap into reused values.
+
+After that root and driver both have positive twice-read registry disposal
+evidence, the scheduler can request the existing retry path in a different
+standalone world. Driver/pending travel must be absent, adapters fully cleaned
+up and an ordinary native player/story context available. An existing network
+world is preserved. The request pins the observed standalone target root through
+retry readiness and final ordinary join dispatch; target changes or lost old
+disposal evidence refuse the request. All ordinary stable-player, cleanup,
+interface and console-ABI checks continue to apply.
+
+There is one automatic intent per previously observed owned client origin.
+Only a newly observed owned/registered network context permits another one;
+failed initial joins or failed reconnects do not loop. The host may not yet be
+listening, so a refused attempt can require manual Retry join. Native travel
+may not produce the required standalone player context at all. No map load,
+forced disconnect, old-driver teardown, session fault reset or host-readiness
+probe is added. Cancel pending connection suspends this automation until process
+exit, including when nothing was pending, and leaves manual retries available.
+
+This recovery policy is compiled only. No guest disconnect, standalone return,
+two-PC reconnect or full campaign boundary has been executed for it.
+
+## Remaining ownership and progression boundaries
+
 Retiring disposed bookkeeping is allowed while the mod is disabled; it does not
 reenable the mod or permit a new acquisition. Native connection cleanup remains
 forwarded even while ownership retirement is waiting.

@@ -1822,3 +1822,30 @@ Flash's read-only safeguard review was checked against the implementation.
 All three native outputs rebuilt and planner/panel sources syntax parsed.
 No game, panel, listener, cancellation, fixture or mission transition was run.
 Actual multi-mission connection continuity and guest rejoining remain unverified.
+
+## Add optional one-shot guest recovery after native disposal
+
+Guest plans can opt into `--auto-rejoin`, emitting the default-off
+`ME3_SQUAD_COOP_AUTO_REJOIN=1` policy. Before scheduling anything it must observe
+a current client driver/server connection/channel with reciprocal registered
+Ashley ownership and record the validated root/driver origin. A previous join
+dispatch or net mode alone is insufficient. After both origin objects have
+twice-read positive registry disposal evidence, a different clean standalone
+player/story context can receive one request through the existing retry path.
+
+Automatic intents pin that standalone target through retry readiness and final
+join dispatch. Context changes or lost disposal evidence refuse them. Terminal
+refusals, cancellation, existing-network preservation and native dispatch clear
+the pin. A newly observed owned client context is required for another automatic
+intent; initial failures and failed recovery requests do not loop. Host readiness
+is not probed, and no disconnect, map load, driver teardown or fault reset is
+added. Cancel suspends both connection schedulers until process exit while
+manual requests remain available.
+
+Flash's terminal-path inventory was checked against the diff. An initial build
+exposed an ordinary-only helper dependency in the common bootstrap; the client
+scope observation now uses shared pinned helpers and explicit reciprocal native
+driver/connection/channel checks. All three native outputs rebuilt; planner and
+panel Python syntax parsed. No game, panel, request fixture, disconnect or
+reconnect was executed. Actual mission/host timing and full campaign continuity
+remain unverified.

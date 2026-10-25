@@ -14,7 +14,7 @@ to the existing role, story, ownership, package and transport checks.
 Cancel pending connection clears only mod requests still waiting for readiness,
 including rejoin/new-mission-listen intents. Native dispatch which already
 happened and active peers remain untouched. Cancellation is processed on Tick,
-and suspends an opted-in automatic new-mission listener scheduler for the
+and suspends opted-in automatic new-mission listener/rejoin schedulers for the
 remainder of the process lifetime, even when no request was pending. Manual
 connection requests remain available; enable does not clear this suspension.
 Its panel acknowledgment means intent was accepted, not a disconnected

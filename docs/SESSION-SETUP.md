@@ -29,6 +29,13 @@ It is off by default, does not initiate mission travel or reconnect the guest,
 and permits only one automatic intent after each successful listener. Cancel pending
 connection suspends automatic scheduling for the rest of that game process;
 manual requests remain available. See [mission transitions](MISSION-TRANSITION.md).
+Guest-only `--auto-rejoin` adds `ME3_SQUAD_COOP_AUTO_REJOIN=1`. It can request
+one ordinary retry after an observed owned/registered Ashley client world's
+root and driver are positively disposed and a clean standalone player context
+is ready. It does not retry failed first connections, force a disconnect or
+select a mission. Cancel suspends it until process exit, while manual Retry
+join remains available. Host readiness and successful reconnection are not
+guaranteed; see [mission transitions](MISSION-TRANSITION.md).
 `--start attach` prepares configuration for attaching the mod to an existing
 native network session; it does not request Listen or a join. Host/join and
 guest/listen combinations are rejected. A guest requires an explicit peer;

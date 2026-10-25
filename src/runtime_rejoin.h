@@ -7,6 +7,7 @@ static void runtime_rejoin_finish(int status,const char *reason,DWORD now) {
         "{\"runtime_network\":\"rejoin-request\",\"reason\":\"%s\",\"status\":%d,\"connection_verified\":false,\"monotonic_ms\":%lu}\r\n",
         reason,status,now);line(row);
     runtime_rejoin_started=0;
+    if(status!=RUNTIME_START_WAITING)memset(&runtime_auto_rejoin_target,0,sizeof runtime_auto_rejoin_target);
     InterlockedExchange(&runtime_network_start_status,status);
     InterlockedExchange(&runtime_rejoin_requested,0);
 }
@@ -30,6 +31,9 @@ static void runtime_rejoin_tick(uintptr_t base,uintptr_t engine,DWORD now) {
         runtime_rejoin_finish(RUNTIME_START_RETRY_REFUSED,"disabled-or-conflicting-request",now);return;
     }
     CombatContextChain chain;combat_context_read_chain(base,&chain);
+    if(!runtime_auto_rejoin_target_valid(&chain)) {
+        runtime_rejoin_finish(RUNTIME_START_RETRY_REFUSED,"automatic-rejoin-target-changed",now);return;
+    }
     unsigned char net=255;
     if(chain.info_valid&&read_at(chain.info+0x7c8,&net,1)&&net!=0) {
         runtime_rejoin_finish(RUNTIME_START_RETRY_REFUSED,"existing-network-world-preserved",now);return;
