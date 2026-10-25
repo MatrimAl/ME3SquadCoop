@@ -109,3 +109,17 @@ failure-path checks pass should the parallel arena pair be exercised. The
 retained exception from the prior trial also needs attribution before any
 stability claim. A complete campaign result still requires sustained movement,
 combat, true dialogue return and mission travel in the ordinary entry.
+
+## Current exception attribution limit
+
+Read-only follow-up found no matching retained dump or Windows Application
+1000/1001/1002 record in the last trial's inspected time window. The successful
+event query returning no records is distinct from the initial sandbox access
+failure. Neither absence establishes a root cause or proves a harmless event.
+Older crashes from other process identities must not be used as attribution.
+
+A private bounded loader-module observer source is prepared for a future
+owned pair, with exact isolated-executable and creation-identity checks. It
+has only been syntax-parsed and was not run or attached to a process. It is
+not yet integrated into startup. A sampled module list must remain private
+and cannot by itself prove module ownership at an earlier fault instant.
