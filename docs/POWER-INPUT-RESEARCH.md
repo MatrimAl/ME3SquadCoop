@@ -375,3 +375,42 @@ definitions together, current owned pawn, handler selection mode, movie/icon
 lifetime and restoration when control changes. Replacing pawn tags or silently
 rewriting saved Shepard slots is not a substitute for that lifecycle design.
 Only offline image reads were performed for these findings.
+
+## Native quickslot assignment semantics
+
+Exact native registration resolves MoveQuickSlotPowerByName name0x1379720,
+table pair0x179d280, exec0xb68cf0 and direct body0xc50570..0xc505d9.
+The body searches the controller's eight existing power-name halves at+0x934
+with stride16. If the requested name already occurs in another slot, it calls
+the assignment virtual to move that slot. It does not instantiate/find a new
+power on the currently controlled pawn or establish a new Ashley character
+binding merely from a power name.
+
+NewSetQuickSlotPower name0x13797a0, pair0x179d290 and exec0xb68b50 lead to
+0xc505e0..0xc5063a, which clears the destination icon's current power and then
+dispatches virtual+0x548. The constructor-verified PC handler vtable resolves
+that slot to0xc52eb0..0xc53298. This body requires existing controller, squad
+and player-pawn references. Its power-drag branch selects an existing power
+icon; its alternate branch uses an existing quickslot icon. It derives the
+new character tag from the selected icon's pawn and the power name from the
+selected instantiated power. It writes the paired hotkey definitions, handles
+an existing source slot and refreshes the affected UI icons.
+
+The destination/source/icon indices require independent bounds before any
+future use: the native body performs an early slot read with a bound that can
+admit8, while the actual slot array has eight entries0..7. Its wrapper also
+touches the destination icon before the deeper body's guards. Treating these
+methods as arbitrary-name setters would skip required UI and bounds context.
+
+The silent argument suppresses one GUI feedback path, but does not suppress
+all work. The controller callback at0xc5d250 emits GenerateTutorialEvent with
+event byte0x0b, even after the silent path. Its event name is resolved through
+native name-entry global0x17a8a68, entry0x142ddb3 and the exact registration
+string, rather than inferred from the call signature. No explicit profile-save
+call was identified in the assignment body; indirect UI/helper effects and
+later native save behavior have not been exhaustively established.
+
+The integration candidate is therefore scoped assignment from correctly
+initialized Ashley power icons, with captured original definitions and native
+lifecycle/restoration design, rather than a generic power-name call. This is
+still research: no assignment, tutorial event, profile write or game ran.
