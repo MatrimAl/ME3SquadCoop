@@ -434,7 +434,7 @@ static void guest_equipment_bootstrap_tick(uintptr_t base,uintptr_t host,uintptr
        !is_live(base,connection)||!is_kind_of(base,connection,"NetConnection")||read_ptr(connection+0x68)!=remote||
        !guest_equipment_member(base,connection)||!read_at(remote+0x77c,&pc_flags,4)||(pc_flags&(0x800|0x20000))||
        !read_at(pawn+0xc20,&action,4)||action||!read_at(pawn+0xc28,&power,4)||power||
-       !read_at(pawn+0xe20,&pawn_flags,4)||(pawn_flags&0x40000))return;
+       !read_at(pawn+0xe20,&pawn_flags,4)||(pawn_flags&(0x40000|0x300)))return;
     uintptr_t conversation=read_ptr(world+0x948);if(conversation) {
         int32_t active=-1;uint32_t activating=1;
         if(!read_at(conversation+0xd0,&active,4)||!read_at(conversation+0xe8,&activating,4)||active||(activating&1))return;
@@ -469,6 +469,11 @@ static void guest_equipment_bootstrap_tick(uintptr_t base,uintptr_t host,uintptr
        read_ptr(read_ptr(weapon)+0x710)!=base+0x15caa0||!guest_equipment_dispatch_pins(base))return guest_equipment_reject("ordinary-native-routing-pins",epoch,pawn,weapon,inventory,now);
     struct __attribute__((packed)) { uintptr_t pawn; uint32_t do_not_activate; } parms={pawn,0};
     _Static_assert(sizeof parms==12,"ClientGivenTo ABI12");
+    /* BioPawn downed/dead flags can precede action/ownership changes. Recheck
+     * after method discovery and before consuming the one-shot epoch. A
+     * refused handoff may be considered again after native recovery. */
+    if(!read_at(pawn+0xe20,&pawn_flags,4)||(pawn_flags&(0x40000|0x300)))
+        return guest_equipment_reject("pawn-life-or-busy-state",epoch,pawn,weapon,inventory,now);
     guest_equipment_attempted_epoch=epoch;guest_equipment_attempted_remote=remote;
     ((ProcessEvent)pe)((void*)weapon,(void*)guest_equipment_methods.given.function.pointer,&parms,NULL);
     int stable=guest_camera_stamp_matches(base,&ps,1)&&guest_camera_stamp_matches(base,&ws,1)&&guest_camera_stamp_matches(base,&is,1)&&
