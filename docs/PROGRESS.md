@@ -1,5 +1,27 @@
 # Progress
 
+## 2026-10-25: retain context through measured normal-look calibration
+
+The protected cache-recovery repeat completed the encounter approach, then
+calibrated yaw and pitch through normal input at312ms and625ms. The prior
+`positive-channel-not-ready` context cleanup did not occur during the25-second
+aim interval. This supports the cache-eviction correction in one real pair;
+it does not establish general combat or cross-PC reliability.
+
+Aim reduced the initial yaw error19611 to402 and pitch error-1292 to-91,
+then hit its25-second bound without firing. The shrinking proportional inputs
+stalled outside the32-unit lock tolerance. Outside that tolerance, the bot now
+uses at least the0.1 magnitude that produced measured calibration response;
+inside it, the input is neutral. The0.15 maximum, angle tolerance, stable-lock
+duration, total deadline and normal FireWeapon/StopFiringWeapon path remain.
+Native boundary/sign checks and the rebuilt harness passed. This input-floor
+change still needs live validation; no hostile damage is claimed.
+
+The completed pair left original profiles unchanged, recorded zero native
+exceptions and no remaining game processes. The walking evaluator still
+rejected the normal-drop scenario and the memory helper exited1. Full dialogue
+and campaign progression remain unverified.
+
 ## 2026-10-25: keep native player context across discovery-cache eviction
 
 The protected guest completed the measured encounter approach and began

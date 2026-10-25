@@ -17,12 +17,19 @@ static int32_t combat_aim_delta(int32_t a,int32_t b) {
 }
 static float combat_aim_axis(int32_t error,int sign) {
     if(sign!=1&&sign!=-1)return 0;
-    return fmaxf(-0.15f,fminf(0.15f,(float)error*0.15f/2048))*sign;
+    if(error>=-32&&error<=32)return 0;
+    /* Use the same magnitude that just produced measured camera response.
+     * Tiny proportional values stalled at a nonzero error in a real run.
+     * Neutral input inside the lock tolerance prevents perpetual correction. */
+    float magnitude=fminf(0.15f,fmaxf(0.1f,fabsf((float)error)*0.15f/2048));
+    return (error<0?-magnitude:magnitude)*sign;
 }
 static int combat_aim_selftest(void) {
     return combat_aim_delta(0,65535)==1&&combat_aim_delta(65535,0)==-1&&
         combat_aim_delta(32768,0)==-32768&&combat_aim_delta(INT32_MAX,INT32_MIN)==-1&&
-        combat_aim_axis(32767,1)==0.15f&&combat_aim_axis(-32768,-1)==0.15f&&combat_aim_axis(100,0)==0;
+        combat_aim_axis(32767,1)==0.15f&&combat_aim_axis(-32768,-1)==0.15f&&combat_aim_axis(100,0)==0&&
+        combat_aim_axis(32,1)==0&&combat_aim_axis(-32,-1)==0&&combat_aim_axis(0,1)==0&&
+        combat_aim_axis(33,1)==0.1f&&combat_aim_axis(-33,1)==-0.1f&&combat_aim_axis(91,-1)==-0.1f;
 }
 static void combat_aim_log(uintptr_t base,const char *event,const char *reason,DWORD now) {
     CombatAimQA *q=&combat_aim_qa;char row[2400],target[1200];identity_quote(q->target.full_name,target,sizeof target);
