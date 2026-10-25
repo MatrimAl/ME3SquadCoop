@@ -1,5 +1,35 @@
 # Progress
 
+## 2026-10-25: native guest hits reduce a real Trooper's health
+
+A protected pair exercised the opt-in stock guest team initialization candidate.
+The guest's previously null team was registered as host team0 through
+SFXGame.ChangeTeam, restored through the same stock path on scene release and
+registered again after reacquisition. A near-hit snapshot found both controllers
+on team0, damage enabled and modes7/8/10 inactive.
+
+The existing exact native guest-weapon dispatch observer recorded29 valid
+enter/leave pairs with health decrease. Twenty pairs match a real
+SFXPawn_Trooper_0 by pointer and internal object index in overlapping host
+identity records: health512.5 to194.05014. Each original dispatch was forwarded
+with unchanged payload and valid ownership scope. Nine further positive pairs
+belong to another target whose class was not established. This is bounded live
+evidence of guest weapon damage to an actual Trooper, not just ammunition or
+animation. It does not establish enemy death, powers or complete combat.
+
+Ashley died later in the run; the host also died. The scripted route stopped
+at its normal traversal guard, and subsequent guest input provenance is not
+established, so this is not an automated bot combat validation or sustained
+mission-progression pass. The aggregate pair verdict remains a failure.
+Original profiles and source/build were unchanged, no native exception or
+remaining game process was recorded. One auxiliary memory helper exited1;
+the run must not be described as every check passing.
+
+The separate fast-test candidate cold-loaded a stock SP map with Shepard in
+about36.45 seconds, but stayed in GUI mode with no Ashley and no ready samples.
+Normal squad selection and a repeatable native save/start still need validation;
+no working resettable combat arena or real conversation has been demonstrated.
+
 ## 2026-10-25: missing guest leader and unregistered guest team
 
 The latest protected pair acquired Ashley with grounded movement state, but
