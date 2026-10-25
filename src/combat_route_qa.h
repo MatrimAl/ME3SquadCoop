@@ -38,6 +38,15 @@ static const float combat_route_start[3]={-21960.033f,49931.332f,279.492f};
 /* 150 units behind the top node; arrival radius 25 keeps the capsule away
  * from its radius-50 traversal cylinder. No drop or action-button input. */
 static const float combat_route_stop[3]={-22288.13f,43674.24f,0.0f};
+/* Separate lower phase: the last upper node retains its drop semantics. */
+static const CombatRoutePoint combat_lower_points[]={
+    {"PathNode_102",{-21876.9f,43172.7f,-380.0f}},
+    {"PathNode_101",{-22437.7f,42669.7f,-380.0f}},
+    {"PathNode_100",{-22970.6f,42022.4f,-380.0f}},
+    {"PathNode_21",{-23363.9f,41188.6f,-380.0f}},
+    {"PathNode_99",{-23991.1f,40632.9f,-381.6f}}
+};
+#define COMBAT_LOWER_COUNT (sizeof combat_lower_points/sizeof *combat_lower_points)
 #include "combat_action_qa.h"
 typedef struct CombatRoutePolicy {int opted,authority,identity,ordinary,camera,ground,input;DWORD elapsed;} CombatRoutePolicy;
 static int combat_route_policy(const CombatRoutePolicy *p) {
@@ -129,6 +138,8 @@ typedef struct CombatRouteQA {
     DWORD action_approach_at,pause_budget;
     int forward_trial,forward_observing;DWORD forward_at,forward_observe_at;
     float forward_origin[3],forward_bottom[3];
+    int lower_trial;unsigned lower_waypoint;DWORD lower_at;
+    GuestCameraStamp lower_nodes[COMBAT_LOWER_COUNT];float lower_origin[3];
 } CombatRouteQA;
 static CombatRouteQA combat_route_qa;
 static int combat_route_qa_host_mode(void) {
@@ -227,6 +238,62 @@ static int combat_route_same(uintptr_t base,SessionContext c) {
         guest_camera_stamp_matches(base,&q->world,1)&&guest_camera_stamp_matches(base,&q->squad,1)&&
         guest_camera_stamp_matches(base,&q->input,1)&&guest_camera_stamp_matches(base,&q->camera,1);
 }
+static int combat_lower_opted(void) {
+    wchar_t text[8]={0};return GetEnvironmentVariableW(L"ME3_SQUAD_COOP_LOWER_ROUTE_QA",text,8)==1&&text[0]==L'1';
+}
+static int combat_lower_landing(const float xyz[3],const float bottom[3]) {
+    return scene_readiness_finite3(xyz)&&scene_readiness_finite3(bottom)&&
+        combat_route_horizontal(xyz,bottom)<=250&&fabsf(xyz[2]-bottom[2])<=15;
+}
+static int combat_lower_discover(uintptr_t base,uintptr_t world) {
+    CombatRouteQA *q=&combat_route_qa;GameArray list={0};unsigned found[COMBAT_LOWER_COUNT]={0};
+    uintptr_t *objects=identity_object_list(base,&list);if(!objects)return 0;
+    GuestCameraStamp nodes[COMBAT_LOWER_COUNT];memset(nodes,0,sizeof nodes);
+    for(int i=0;i<list.count;++i){uintptr_t at=objects[i];char name[96];
+        if(!at||!guest_camera_actor_live(base,at)||read_ptr(at+0x198)!=world||!is_kind_of(base,at,"PathNode"))continue;
+        object_name(base,at,name,sizeof name);if(strcmp(name,"PathNode"))continue;
+        uint32_t number=0;if(!read_at(at+0x4c,&number,4)||!number)continue;
+        char numbered[96];snprintf(numbered,sizeof numbered,"PathNode_%lu",(unsigned long)(number-1));
+        for(unsigned j=0;j<COMBAT_LOWER_COUNT;++j)if(!strcmp(numbered,combat_lower_points[j].name)){
+            GuestCameraStamp stamp;float xyz[3];char expected[240];
+            snprintf(expected,sizeof expected,"BioD_ProMar_120Gatehouse.TheWorld.PersistentLevel.%s",numbered);
+            if(guest_camera_stamp_read(base,at,&stamp,1)&&!strcmp(stamp.full_name,expected)&&
+               read_at(at+0x108,xyz,12)&&scene_readiness_finite3(xyz)&&distance(xyz,combat_lower_points[j].xyz)<=2){nodes[j]=stamp;++found[j];}
+        }
+    }
+    HeapFree(GetProcessHeap(),0,objects);
+    for(unsigned j=0;j<COMBAT_LOWER_COUNT;++j)if(found[j]!=1)return 0;
+    memcpy(q->lower_nodes,nodes,sizeof nodes);return 1;
+}
+static void combat_lower_tick(uintptr_t base,uintptr_t engine,SessionContext c,DWORD now) {
+    CombatRouteQA *q=&combat_route_qa;float xyz[3],velocity[3],target[3];int32_t rotation[3];uintptr_t input=0,camera=0;
+    if(!combat_lower_opted()||now-q->lower_at>=35000||!combat_route_same(base,c)){
+        combat_route_end(base,"aborted","lower-identity-opt-in-or-35-second-bound",NULL,now);return;}
+    if(!combat_route_context(base,engine,c,xyz,velocity,rotation,&input,&camera)){
+        if(!combat_route_cleanup(base))combat_route_end(base,"aborted","lower-context-input-cleanup",NULL,now);
+        return;
+    }
+    if(!q->lower_nodes[0].pointer&&!combat_lower_discover(base,c.world)){
+        combat_route_end(base,"rejected","lower-nav-chain-not-unique-or-measured",xyz,now);return;}
+    unsigned j=q->lower_waypoint;
+    if(j>=COMBAT_LOWER_COUNT||!guest_camera_stamp_matches(base,&q->lower_nodes[j],1)||
+       read_ptr(q->lower_nodes[j].pointer+0x198)!=c.world||!read_at(q->lower_nodes[j].pointer+0x108,target,12)||
+       !scene_readiness_finite3(target)||distance(target,combat_lower_points[j].xyz)>2||
+       !combat_route_corridor(xyz,q->lower_origin,target)){
+        combat_route_end(base,"aborted","lower-node-or-corridor-changed",xyz,now);return;}
+    if(combat_route_horizontal(xyz,target)<=70&&fabsf(xyz[2]-target[2])<=30){
+        combat_route_log("lower-waypoint",combat_lower_points[j].name,xyz,now);
+        if(++q->lower_waypoint>=COMBAT_LOWER_COUNT){combat_route_end(base,"lower-route-complete","measured-lower-nav-chain",xyz,now);return;}
+        memcpy(q->lower_origin,xyz,12);memcpy(q->progress,xyz,12);q->advanced_at=now;return;
+    }
+    if(combat_route_horizontal(xyz,q->progress)>20){memcpy(q->progress,xyz,12);q->advanced_at=now;}
+    if(now-q->advanced_at>=4000){combat_route_end(base,"aborted","lower-four-second-stuck-bound",xyz,now);return;}
+    if(!combat_route_axes(xyz,target,rotation[1],0.45f,q->axes)){
+        combat_route_end(base,"aborted","lower-normal-input-vector",xyz,now);return;}
+    q->injected=1;q->cleanup_tries=0;
+    if(!combat_route_write_axes(input,q->axes[0],q->axes[1])){combat_route_end(base,"aborted","lower-input-write",xyz,now);return;}
+    if(!q->report_at||now-q->report_at>=1000){q->report_at=now;combat_route_log("lower-input",combat_lower_points[j].name,xyz,now);}
+}
 /* Explicit protected alternative to the stationary normal-key trial. */
 static int combat_route_forward_opted(void) {
     wchar_t value[8]={0};DWORD length=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_FORWARD_EDGE_QA",value,8);
@@ -262,7 +329,15 @@ static void combat_route_forward_tick(uintptr_t base,uintptr_t engine,SessionCon
         now-q->forward_at,q->forward_observing?now-q->forward_observe_at:0,
         combat_route_horizontal(xyz,q->forward_origin),xyz[2]-q->forward_origin[2]);
     if(step==COMBAT_FORWARD_ABORT){combat_route_end(base,"aborted","forward-edge-transform-bound",xyz,now);return;}
-    if(step==COMBAT_FORWARD_DONE){combat_route_end(base,"forward-edge-observation-complete","actual-action-and-landing-verdict-required",xyz,now);return;}
+    if(step==COMBAT_FORWARD_DONE){
+        if(combat_lower_opted()&&ordinary&&grounded&&combat_lower_landing(xyz,q->forward_bottom)){
+            if(!combat_route_cleanup(base)){combat_route_end(base,"aborted","lower-start-input-cleanup",xyz,now);return;}
+            q->forward_trial=0;q->lower_trial=1;q->lower_at=q->advanced_at=now;q->lower_waypoint=0;
+            memcpy(q->lower_origin,xyz,12);memcpy(q->progress,xyz,12);
+            combat_route_log("lower-started","actual-grounded-drop-completed",xyz,now);return;
+        }
+        combat_route_end(base,"forward-edge-observation-complete","actual-action-and-landing-verdict-required",xyz,now);return;
+    }
     if(step==COMBAT_FORWARD_OBSERVE){
         if(!combat_route_cleanup(base)){combat_route_end(base,"aborted","forward-edge-input-cleanup",xyz,now);return;}
         if(!q->forward_observing){q->forward_observing=1;q->forward_observe_at=now;
@@ -354,8 +429,9 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
         combat_route_end(base,"baseline-observation-stop","second-acquisition-no-further-route",NULL,now);return;
     }
     if(!combat_route_qa_host_mode()||!has_marker(root)){if(q->active)combat_route_end(base,"aborted","opt-in-or-protection-ended",NULL,now);return;}
-    if(q->active&&!q->forward_trial&&now-q->started>=COMBAT_ROUTE_LIMIT_MS){combat_route_end(base,"aborted","120-second-bound",NULL,now);return;}
+    if(q->active&&!q->forward_trial&&!q->lower_trial&&now-q->started>=COMBAT_ROUTE_LIMIT_MS){combat_route_end(base,"aborted","120-second-bound",NULL,now);return;}
     SessionContext c=session_context(engine);float xyz[3],velocity[3];int32_t rotation[3];uintptr_t input=0,camera=0;
+    if(q->lower_trial){combat_lower_tick(base,engine,c,now);return;}
     if(q->forward_trial){combat_route_forward_tick(base,engine,c,now);return;}
     if(combat_action_qa.active){
         if(!combat_route_same(base,c)){combat_route_end(base,"aborted","host-story-or-input-changed",NULL,now);return;}
@@ -438,6 +514,11 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
     if(!q->report_at||now-q->report_at>=1000){q->report_at=now;combat_route_log("input","ordinary-host-axes",xyz,now);}
 }
 static int combat_route_qa_selftest(void) {
+    float bottom[3]={-22054.248f,43431.023f,-380},landing[3]={-21949.033f,43319.332f,-378.508f};
+    if(!combat_lower_landing(landing,bottom))return 0;
+    float invalid[3]={bottom[0]+251,bottom[1],bottom[2]};if(combat_lower_landing(invalid,bottom))return 0;
+    invalid[0]=bottom[0];invalid[2]=bottom[2]+16;if(combat_lower_landing(invalid,bottom))return 0;
+    invalid[2]=NAN;if(combat_lower_landing(invalid,bottom))return 0;
     int appearance_case[]={1,1,1,1,1,1,1,1,0,0,0};
     if(!remote_appearance_case(1,1,1,1,1,1,1,1,0,0,0))return 0;
     for(unsigned i=0;i<11;++i){int changed[11];memcpy(changed,appearance_case,sizeof changed);changed[i]=i<8?0:1;
