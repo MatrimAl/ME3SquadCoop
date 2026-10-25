@@ -1481,3 +1481,29 @@ Only protected parallel arena startup selects this path; ordinary player entry
 is unchanged. Native outputs rebuilt and the existing native runtime harness
 passed. This wiring and the new host standalone focus case still require a
 live result; successful prior Mars Listen evidence does not prove arena joining.
+
+The first standalone-host attempt selected the same DLC Global carrier on
+both peers, but the unchanged ordinary transport contract refused the probe's
+loopback bind. No guest join was released. A subsequent protected run used the
+existing local Radmin interface for both processes on this same PC. Native
+Listen returned verified status8 without map travel. The coordinator released
+join after about124 seconds; native package negotiation completed with
+validation unchanged and the guest entered net mode3.
+
+Guest Ashley ownership and its camera target were observed for207 seconds;
+the host retained Shepard/story authority for209 seconds. The normal arena
+event spawned three native enemies. Across49 authoritative health samples,
+one Trooper fell from504.1667 to75.7068 health. Attribution to guest firing was
+not established: no guest firing success is claimed. The host's bounded walk
+completed; the guest's pulse aborted. The guest's existing BioPlayerSquad
+remained present with a null cached player pawn and a false native combat
+getter; the context adapter currently preserves that existing squad. Supporting
+this native context is the next feature blocker, separate from package loading.
+
+Both exact owned children were stopped after observation. Host disconnect
+cleanup restored Ashley's AI and preserved story state. Original profiles and
+source/build were unchanged, no native exception or remaining game process
+was recorded, and the private package was restored. The memory observer
+exited1; the old aggregate evaluator also failed its different lifecycle
+expectations. Concrete connection/ownership evidence does not establish full
+arena combat, usable sustained walking, cross-PC Radmin or campaign support.
