@@ -1407,3 +1407,26 @@ Mode0 can now be distinguished from cinematic, PlayersOnly and conversation
 conditions without inferring that all control is available. No scene state is
 written. Native outputs were rebuilt; gate fixtures and live verification are
 deferred. See [scene admission diagnostics](SCENE-GATES.md).
+
+## Equipment handoff review without a game run
+
+The shared handoff remains limited to one normal ClientGivenTo attempt per
+ownership epoch and remote controller. Scene release prevents the held-policy
+callback; reacquisition uses the next epoch. This local code does not maintain
+an independent queue of deferred handoff requests. Delivery and ordering of
+native RPCs remain engine behavior and are not proved by this source review.
+
+A bounded offline replay of19 retained native logs found9 handoff attempts and
+no repeated epoch/remote key within a process log. It found no empty rejection
+reason. This is a limited historical observation, not validation of all
+reacquisition, weapon switching, inventory continuity or native message ordering.
+
+Source review did expose overlapping formatting: the throttled resolver can
+return its own cached error buffer, which the caller formatted back into the
+same buffer. That self-copy is now avoided. Rejection throttling also keeps an
+owned copy of the previous reason instead of a pointer into a mutable resolver
+buffer, so a changed reason is not mistaken for the previous value. An unused
+resolver wrapper was removed and the stale draft-only header comment corrected.
+No equipment dispatch, retry eligibility, role, inventory, ammo or ownership
+policy was changed. All native outputs were rebuilt; fixtures and live tests
+remain deferred. This does not establish a fix for lost guest weapons.

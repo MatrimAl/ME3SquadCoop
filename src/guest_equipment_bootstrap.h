@@ -1,7 +1,7 @@
 #ifndef ME3_GUEST_EQUIPMENT_BOOTSTRAP_H
 #define ME3_GUEST_EQUIPMENT_BOOTSTRAP_H
-/* Test-only NORMAL host -> owning-client equipment handoff. Include after
- * combat_fire_bot.h, before session_control.h. No integration in this draft.
+/* Shared NORMAL host -> owning-client equipment handoff, once per ownership
+ * epoch. Both the protected probe and ordinary runtime include this path.
  * Root capture18912, exactLE3 build only. No direct Owner/role/flag/ammo writes.
  * Important: false means normal active handoff; true would force Inactive.
  */
@@ -387,11 +387,7 @@ static const char *guest_equipment_resolve_check(uintptr_t base,uintptr_t pc,uin
     if(err) { m->ready=0; return err; }
     return NULL;
 }
-static int guest_equipment_resolve(uintptr_t base,uintptr_t pc,uintptr_t weapon,uintptr_t inventory,DWORD now) {
-    const char *err = guest_equipment_resolve_check(base,pc,weapon,inventory,now);
-    if(err) { snprintf(guest_equipment_resolve_detail,sizeof guest_equipment_resolve_detail,"%s",err); return 0; }
-    return 1;
-}
+
 typedef struct GuestEquipmentSnapshot { uintptr_t owner,instigator,weapon_inventory,pawn_weapon,pawn_inventory,inventory_owner,inventory_instigator; int32_t spare,used; uint32_t weapon_flags; } GuestEquipmentSnapshot;
 static int guest_equipment_snapshot(uintptr_t pawn,uintptr_t weapon,uintptr_t inventory,GuestEquipmentSnapshot *s) {
     memset(s,0,sizeof *s);
@@ -414,11 +410,13 @@ static int guest_equipment_state(uintptr_t base,uintptr_t object,char *state,siz
 }
 static DWORD guest_equipment_reject_at;
 static uint32_t guest_equipment_reject_epoch;
-static const char *guest_equipment_reject_reason;
+static char guest_equipment_reject_reason[128];
 static void guest_equipment_reject(const char *reason,uint32_t epoch,uintptr_t pawn,uintptr_t weapon,uintptr_t inventory,DWORD now) {
-    if(guest_equipment_reject_reason&&guest_equipment_reject_epoch==epoch&&
+    if(guest_equipment_reject_reason[0]&&guest_equipment_reject_epoch==epoch&&
        !strcmp(guest_equipment_reject_reason,reason)&&now-guest_equipment_reject_at<1000)return;
-    guest_equipment_reject_at=now;guest_equipment_reject_epoch=epoch;guest_equipment_reject_reason=reason;
+    guest_equipment_reject_at=now;guest_equipment_reject_epoch=epoch;
+    /* Keep our own value: resolver errors may live in mutable cache buffers. */
+    snprintf(guest_equipment_reject_reason,sizeof guest_equipment_reject_reason,"%s",reason);
     char row[700];snprintf(row,sizeof row,"{\"guest_equipment_bootstrap\":\"rejected\",\"reason\":\"%s\",\"epoch\":%u,\"pawn\":\"0x%llx\",\"weapon\":\"0x%llx\",\"inventory\":\"0x%llx\",\"monotonic_ms\":%lu}\r\n",
       reason,epoch,(unsigned long long)pawn,(unsigned long long)weapon,(unsigned long long)inventory,now);line(row);
 }
@@ -452,7 +450,10 @@ static void guest_equipment_bootstrap_tick(uintptr_t base,uintptr_t host,uintptr
        0)return guest_equipment_reject("equipment-owner-inventory-role-or-ready",epoch,pawn,weapon,inventory,now);
     const char *resolve_err = guest_equipment_resolve_check(base,remote,weapon,inventory,now);
     if(resolve_err) {
-        snprintf(guest_equipment_resolve_detail,sizeof guest_equipment_resolve_detail,"%s",resolve_err);
+        /* A throttled resolver returns this exact cache. Formatting a buffer
+         * into itself is undefined and can erase the retained failure reason. */
+        if(resolve_err!=guest_equipment_resolve_detail)
+            snprintf(guest_equipment_resolve_detail,sizeof guest_equipment_resolve_detail,"%s",resolve_err);
         return guest_equipment_reject(resolve_err,epoch,pawn,weapon,inventory,now);
     }
     GuestCameraStamp ps,ws,is,rs,cs;
