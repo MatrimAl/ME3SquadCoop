@@ -17,6 +17,11 @@ Play toward a shared campaign where the host controls Shepard and guests control
 - Deliver a shareable, reversible mod with ME3Tweaks Mod Manager support.
 - Later, extend session ownership and squad assignment to more than one guest.
 
+Guest control should feel like official ME3 multiplayer through normal movement,
+camera, weapon and power inputs. The campaign remains host-authoritative. The
+external panel and optional power shortcuts are supporting tools; completion
+requires normal gameplay controls. See the [player experience criteria](docs/CAMPAIGN-PLAYER-EXPERIENCE.md).
+
 ## What has been demonstrated
 
 These observations come from bounded tests with real game processes on one Windows PC. They do not establish full campaign support.
