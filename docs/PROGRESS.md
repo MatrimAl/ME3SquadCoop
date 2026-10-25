@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-10-26: locate native UI context and refresh conflicts
+
+A26-entry wheel virtual batch yielded25 decompiled entries in about12 seconds
+from the saved project; its direct base-update dependency also decompiled.
+Six selected visibility/lifecycle scripts decoded completely. The native base
+update lazily fills the wheel's squad reference from the possessed BioPawn's
+Pawn.Squad, then reuses it. This can diverge from the synthetic input adapter's
+separately registered local player squad. The mismatch is now grounded in both
+paths; it has not been reproduced in a new live run.
+
+The native PC update also refreshes quickslots from saved controller mappings,
+including a direct setup call when displayed names differ. This can overwrite
+the optional icon lease, whose next value check retires it. Full integration
+must coordinate native refresh and transient UI references; one-time painting
+or forcing visibility is insufficient. See
+[native update findings](POWER-WHEEL-POPULATION.md).
+
+Flash's read-only review of the public lemp.cpp/lemp.h/repl_probe.cpp completed.
+Its reported diagnostic offsets and pointer reads were checked in source.
+Those selected files offer observations, not an implemented movement/inventory
+repair to copy. This does not claim absence across all LEMP artifacts. The
+first bridge report failed during local character encoding; rerunning with
+UTF-8 output produced the result successfully. No private mod/game data was
+sent to Flash. No runtime source changed; no game or tests ran.
+
 ## 2026-10-26: retained Ghidra reuse verified
 
 The ten-entry wheel batch completed with exit0 and saved the project. Nine

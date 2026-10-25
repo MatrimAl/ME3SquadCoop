@@ -166,3 +166,57 @@ harmless refresh call to substitute for population. Some decompiler calls lack
 fully recovered argument information, and indirect-tail-call warnings remain
 in SetupPlayerPowers. These outputs are retained research, not ABI permission.
 No new runtime call or game/test execution followed from this batch.
+
+## Native update path and the remaining context mismatch
+
+A bounded selection of26 PC-wheel vtable entries in the previously observed
+wheel code region produced25 decompiled methods from the saved project in
+about12 seconds. The same short cache leaf remained a missing analyzed entry.
+This code-region selection is navigation coverage, not the entire inherited
+vtable or26 resolved semantic roles. An additional direct base-update method
+then decompiled through the same project.
+
+PC-wheel virtual `+0x3f8` resolves to `0xc58040..0xc58409` and calls base
+update `0xc58410..0xc58b36` (inclusive analyzed body extent).
+The base method lazily resolves the handler controller at `+0x6f8`. If the
+handler squad at `+0x700` is null, it obtains the controller's BioPawn and
+copies that pawn's `Squad+0xba8`. It does not obtain this reference from the
+mod's registered WorldInfo player-squad slot. Once nonnull, that handler squad
+is reused. On a client world it selects the non-henchman refresh, which reads
+the handler squad's CachedPlayerPawn. A successful input-context registration
+alone therefore does not prove the UI holds the same squad/pawn context.
+
+This matters particularly for the synthetic context adapter, which deliberately
+keeps Pawn.Squad unchanged while registering a separate local player context.
+The native UI can continue reading the story/previous squad even when the
+local combat getter is positive. This is a static mismatch mechanism, not a
+newly reproduced live failure or a claim that every native squad is wrong.
+
+The base update uses the native squad-changed flag to refresh group contents.
+On entry to power mode, virtual `+0x4a0` at `0xc55760` also populates the
+existing player and two henchman groups. A later adapter should align the
+wheel's transient squad/pawn references with the admitted registration and
+let these native population paths run. Changing Pawn.Squad or host story
+membership, forcing visibility or repeatedly invoking population is not
+necessary evidence-based integration. Any UI-reference lease must capture and
+conditionally restore its baseline, preserve engine replacements and retire
+on controller/world/registration changes.
+
+The PC update adds a separate coordination problem: its periodic refresh calls
+the native quickslot setup, and its visible-slot comparison can call setup
+directly when icon names differ from saved controller definitions. An optional
+icon lease can consequently be overwritten by known native refresh work and
+retire on its next value check. This makes stable quickslot rendering
+unproven. A one-time paint, more frequent painting, or vtable-only interception
+of setup does not cover the observed direct call. Preserve native display,
+cooldown and permission work when integrating this path.
+
+Six visibility/lifecycle exports also decoded completely, including base
+WheelVisibilityChanged1221/1809 serialized/VM bytes and PC override480/652.
+They update selection, visibility, text, portraits and quickslot hover/display
+state. Neither selected visibility script calls SetupPlayerPowers or writes
+the controller/squad/pawn cache references. OnPanelRemoved calls cleanup;
+cleanup clears references and icons. Calling a visibility callback alone
+therefore does not repair the context mismatch. No UI cache reference or
+native update method was changed or invoked for these findings; no game or
+tests ran. Full guest-wheel initialization remains incomplete.
