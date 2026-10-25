@@ -9,6 +9,18 @@ ownership and latched a permanent session fault. That conservative path is
 still required when the old ownership graph might remain alive. A separate
 retirement path now covers positive disposal of that graph.
 
+Acquisition now also captures the actual native GWorld identity after verifying
+its WorldInfo agrees with the current host context. A changed, temporarily null
+or unreadable GWorld suspends old-world possession calls while the new native
+graph is incomplete. The lease remains tracked; a missing pointer is not treated
+as disposal. A returned original root can resume normal cleanup/admission checks.
+
+The transition wait has a120-second monotonic deadline, checked on Tick before
+accepting disposal evidence. Expiry latches a persistent control fault and stops
+automatic continuation. If the exact original root returns after expiry, the
+existing release path can clean up there, but the fault is never cleared.
+This deadline and behavior have not been exercised against real loading times.
+
 Retirement requires a different validated current WorldInfo reached through
 actual GWorld, its level and actor table. The current local controller must
 reciprocally own Shepard and the new native squad must identify Shepard as its
@@ -36,6 +48,9 @@ does not qualify. No fault is cleared. New ownership requires the full ordinary
 admission path, actual peer membership, native squad AI and a fresh clear-control
 window. Retirement does not start a new listener, reconnect a guest or carry
 story/save state between missions.
+Retiring disposed bookkeeping is allowed while the mod is disabled; it does not
+reenable the mod or permit a new acquisition. Native connection cleanup remains
+forwarded even while ownership retirement is waiting.
 
 This covers only a positively disposed old graph. Transitions which retain the
 old registered world/pawn, incomplete new-world startup or unresolved controller

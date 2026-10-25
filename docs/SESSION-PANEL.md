@@ -27,8 +27,8 @@ a missing DLC, bypass config or restart failed native initialization.
 ## Protocol and identity
 
 Each opted-in game creates `Local\ME3SquadCoopPanel_<PID>` once. An existing
-name is refused rather than reused. The bounded5212-byte, pointer-free v2
-mapping contains a5192-byte status frame and a20-byte command mailbox. The
+name is refused rather than reused. The bounded5216-byte, pointer-free v3
+mapping contains a5196-byte status frame and a20-byte command mailbox. The
 status identifies PID and exact process creation FILETIME. The client retains
 a query/synchronize-only handle, checks MassEffect3.exe's filename and creation
 identity, and refuses a terminated process or snapshots older than3 seconds.
@@ -57,7 +57,7 @@ before delivery. The panel tells the user to submit a fresh request; it does not
 resend automatically. A command accepted on time can still have its documented
 native startup waiting period, such as waiting for a scene to finish. This
 delivery deadline does not change the native startup or gameplay policies.
-Version1 clients/runtimes are incompatible and must not be mixed.
+Version1/2 clients/runtimes are incompatible and must not be mixed.
 
 Power commands carry the currently displayed catalog scope/index. Catalog
 changes clear the panel selection, and native validation rejects stale input.
@@ -72,6 +72,12 @@ native power-order acceptance and an actual target effect are different states.
 The panel displays those available observations without turning them into a
 campaign-success verdict. It does not yet show a cooldown wheel, localized
 power descriptions, a proven connection-error transcript or an in-game overlay.
+
+The separate control state distinguishes waiting for a companion, current
+control, scene suspension, mission-transition waiting and a persistent control
+fault requiring restart. Host ownership is checked against reciprocal current
+controller/pawn identities; an active bookkeeping lease alone is not reported
+as companion ownership. These are sampled states, not progression verdicts.
 
 No new behavior tests were executed. Deferred validation must cover protocol
 layout parity, stale/changed process identity, command acknowledgment races,

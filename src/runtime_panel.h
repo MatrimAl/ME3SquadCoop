@@ -8,7 +8,7 @@ typedef struct RuntimePanelFrame {
     uint64_t created;
     LONG sequence;
     uint32_t role,enabled,startup,netmode,companion_owned,power_status,power_scope,power_count;
-    uint32_t ack_id,ack_result,tick_ms;
+    uint32_t ack_id,ack_result,control_state,tick_ms;
     char power_names[64][80];
 } RuntimePanelFrame;
 typedef struct RuntimePanelMemory {
@@ -17,9 +17,9 @@ typedef struct RuntimePanelMemory {
     uint32_t command_id,scope,index,sent_at;
 } RuntimePanelMemory;
 #pragma pack(pop)
-_Static_assert(sizeof(RuntimePanelFrame)==5192,"panel frame v2");
-_Static_assert(offsetof(RuntimePanelMemory,command)==5192,"panel mailbox alignment");
-_Static_assert(sizeof(RuntimePanelMemory)==5212,"panel protocol v2");
+_Static_assert(sizeof(RuntimePanelFrame)==5196,"panel frame v3");
+_Static_assert(offsetof(RuntimePanelMemory,command)==5196,"panel mailbox alignment");
+_Static_assert(sizeof(RuntimePanelMemory)==5216,"panel protocol v3");
 static RuntimePanelMemory *runtime_panel_memory;
 static HANDLE runtime_panel_mapping;
 static uint64_t runtime_panel_created;
@@ -75,14 +75,20 @@ static void runtime_panel_publish(uintptr_t base,uintptr_t engine,DWORD now) {
     RuntimePanelMemory *memory=runtime_panel_memory;
     if(!memory||(runtime_panel_published&&now-runtime_panel_published<250))return;
     runtime_panel_published=now;
-    RuntimePanelFrame frame={0};frame.magic=UINT32_C(0x4d334350);frame.version=2;
+    RuntimePanelFrame frame={0};frame.magic=UINT32_C(0x4d334350);frame.version=3;
     frame.bytes=sizeof(RuntimePanelMemory);frame.pid=GetCurrentProcessId();frame.created=runtime_panel_created;
     frame.role=g_runtime_config.role;frame.enabled=runtime_control_enabled;
     frame.startup=InterlockedCompareExchange(&runtime_network_start_status,0,0);frame.netmode=255;
     SessionContext c=session_context(engine);unsigned char net=255;
     if(session_actor_live(base,c.world)&&read_at(c.world+0x7c8,&net,1))frame.netmode=net;
-    frame.companion_owned=g_runtime_config.role==ME3_ROLE_HOST?session_active:
+    frame.companion_owned=g_runtime_config.role==ME3_ROLE_HOST?
+        (session_active&&!session_fault&&!session_travel_waiting&&c.world==session_world&&
+         session_handle_matches(session_pc_handle)&&session_handle_matches(session_pawn_handle)&&
+         session_actor_live(base,session_remote)&&session_actor_live(base,session_pawn)&&
+         read_ptr(session_remote+0x3bc)==session_pawn&&read_ptr(session_pawn+0x374)==session_remote):
         guest_player_context_basic_owned(base,c.pc,c.pawn,c.world);
+    frame.control_state=session_fault?4:session_travel_waiting?3:
+        frame.companion_owned?(runtime_control_enabled&&!session_engine_blocked(c)?1:2):0;
     frame.power_status=InterlockedCompareExchange64(&runtime_power_request,0,0)?RUNTIME_POWER_QUEUED:
         InterlockedCompareExchange(&runtime_power_status,0,0);
     frame.power_scope=InterlockedCompareExchange(&runtime_power_scope,0,0);

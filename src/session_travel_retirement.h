@@ -25,7 +25,7 @@ static int session_travel_old_graph_gone(uintptr_t base,SessionContext c,const G
 }
 static int session_retire_disposed_travel(uintptr_t base,SessionContext c,DWORD now) {
     if(!session_active||session_releasing||session_fault||session_cleanup_pending||session_pending_reason||
-       !session_policy_is_host()||!session_policy_enabled()||!session_engine||!c.world||c.world==session_world||
+       !session_policy_is_host()||!session_engine||!c.world||c.world==session_world||
        !session_actor_live(base,c.pc)||!session_actor_live(base,c.pawn)||!session_actor_live(base,c.world)||
        !is_kind_of(base,c.pawn,"SFXPawn_Player")||read_ptr(c.pc+0x3bc)!=c.pawn||read_ptr(c.pawn+0x374)!=c.pc||
        !session_actor_live(base,c.squad)||read_ptr(c.squad+0x2cc)!=c.pawn)return 0;
@@ -58,6 +58,35 @@ static int session_retire_disposed_travel(uintptr_t base,SessionContext c,DWORD 
     session_active=0;session_release_failures=0;session_remote=session_connection=0;
     session_pawn=session_ai=session_host=session_shepard=session_world=session_squad=0;
     session_story_player=session_story_initial=0;session_admission_wait_reset();
+    memset(&session_root_world_handle,0,sizeof session_root_world_handle);
+    session_travel_waiting=0;session_travel_wait_at=0;
+    return 1;
+}
+/* A changed/temporarily missing GWorld is a suspension, not proof of either
+ * disposal or failed possession. Stop old-world calls while the native travel
+ * graph is incomplete, with a bounded window and a persistent fault on expiry. */
+static int session_travel_hold_or_retire(uintptr_t base,SessionContext c,DWORD now) {
+    if(!session_active||!session_root_world_handle.pointer)return 0;
+    uintptr_t current=0;int readable=read_at(base+0x18b6638,&current,8);
+    if(session_travel_waiting==1&&now-session_travel_wait_at>=120000) {
+        session_travel_waiting=2;session_fault=1;
+        line("{\"session\":\"travel-wait-expired\",\"old_world_written\":false,\"restart_required\":true,\"fault_cleared\":false}\r\n");
+    }
+    int original=readable&&current==session_root_world_handle.pointer&&session_handle_matches(session_root_world_handle);
+    if(original) {
+        if(session_travel_waiting==1) {
+            session_travel_waiting=0;session_travel_wait_at=0;session_admission_wait_reset();
+            line("{\"session\":\"travel-original-world-returned\",\"fault_cleared\":false}\r\n");
+        }
+        return 0; /* Even an expired scope may clean up in its exact old world. */
+    }
+    if(session_travel_waiting==2)return 1;
+    if(readable&&current&&narrative_probe_object(base,current,"World")&&
+       session_retire_disposed_travel(base,c,now))return 1;
+    if(!session_travel_waiting) {
+        session_travel_waiting=1;session_travel_wait_at=now;session_admission_wait_reset();
+        line("{\"session\":\"travel-wait\",\"old_world_written\":false,\"disposal_verified\":false}\r\n");
+    }
     return 1;
 }
 #endif

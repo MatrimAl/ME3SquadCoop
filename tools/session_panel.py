@@ -13,7 +13,7 @@ class Frame(C.LittleEndianStructure):
         ("created", C.c_uint64), ("sequence", C.c_int32)] + [
         (name, C.c_uint32) for name in (
             "role", "enabled", "startup", "netmode", "companion_owned", "power_status",
-            "power_scope", "power_count", "ack_id", "ack_result", "tick_ms")] + [
+            "power_scope", "power_count", "ack_id", "ack_result", "control_state", "tick_ms")] + [
         ("power_names", (C.c_char * 80) * 64)]
 
 
@@ -45,7 +45,7 @@ class Session:
         for name, (args, result) in specifications.items():
             function = getattr(self.kernel, name)
             function.argtypes, function.restype = args, result
-        if C.sizeof(Frame) != 5192 or C.sizeof(Memory) != 5212:
+        if C.sizeof(Frame) != 5196 or C.sizeof(Memory) != 5216:
             raise RuntimeError("Unsupported panel layout")
         try:
             # Query + wait only: no process memory access, injection or termination.
@@ -87,7 +87,7 @@ class Session:
             if before != after or after & 1:
                 continue
             if (frame.magic, frame.version, frame.bytes, frame.pid, frame.created) != (
-                    0x4d334350, 2, 5212, self.pid, self.created):
+                    0x4d334350, 3, 5216, self.pid, self.created):
                 raise RuntimeError("Panel identity/version unavailable or different")
             if frame.role not in (1, 2) or frame.power_count > 64:
                 raise RuntimeError("Invalid panel frame")
@@ -139,6 +139,8 @@ STARTUP = {0: "Idle", 1: "Waiting for player control", 2: "Join dispatched", 3: 
            8: "Listening", 9: "Capacity refused", 10: "Listen failed", 11: "Listen verification failed",
            12: "Waiting to retry", 13: "Retry refused", 14: "Retry expired"}
 POWER = {0: "Idle", 1: "Queued", 2: "Rejected", 3: "Native order accepted", 4: "Native order refused"}
+CONTROL = {0: "Waiting for companion", 1: "Companion controlled", 2: "Scene / control suspended",
+           3: "Waiting for mission transition", 4: "Control fault — restart required"}
 
 
 def main():
@@ -187,6 +189,7 @@ def main():
             net = {0: "Standalone", 2: "Listen server", 3: "Client"}.get(frame.netmode, "Unavailable")
             status.set(f"{role} | {net} | {'Enabled' if frame.enabled else 'Disabled'}\n"
                        f"Connection: {STARTUP.get(frame.startup, 'Unknown')} | Companion ownership: {bool(frame.companion_owned)}\n"
+                       f"Control: {CONTROL.get(frame.control_state, 'Unknown')}\n"
                        f"Power: {POWER.get(frame.power_status, 'Unknown')}")
             names = [bytes(frame.power_names[i]).split(b'\0', 1)[0].decode('utf-8', errors='replace')
                      for i in range(frame.power_count)]

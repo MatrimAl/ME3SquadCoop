@@ -31,6 +31,7 @@ static void runtime_fixture_lease(void) {
     session_shepard_handle=session_capture_handle(o[4]);session_world_handle=session_capture_handle(o[5]);
     session_squad_handle=session_capture_handle(o[6]);session_driver_handle=session_capture_handle(o[7]);
     session_enabled=1;session_active=1;session_fault=0;session_releasing=0;session_release_failures=0;
+    memset(&session_root_world_handle,0,sizeof session_root_world_handle);session_travel_waiting=0;session_travel_wait_at=0;
     session_cleanup_pending=0;session_disconnect_observed=0;session_pending_reason=NULL;
     runtime_fixture_unpossess=runtime_fixture_possess=runtime_fixture_order=0;
 }

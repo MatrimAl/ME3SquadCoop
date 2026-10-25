@@ -1685,3 +1685,18 @@ Ordinary peer/AI/story admission still governs reacquisition. Other incomplete
 or retained-world transitions keep conservative behavior. Native outputs rebuilt;
 classifier fixture cases were prepared but not executed. No game or mission
 transition was run. See [mission transition](MISSION-TRANSITION.md).
+
+## Suspend old-world calls during incomplete native travel
+
+Host acquisition now captures the native GWorld root. If that identity changes
+or becomes temporarily unavailable, the core holds the old lease without making
+old-world possession calls while waiting for positive disposal/new-world
+verification. A120-second Tick-observed monotonic deadline latches a persistent
+fault instead of guessing recovery. Returning to the exact original root can
+permit normal cleanup, but never clears a fault which already occurred.
+
+The panel now separates transition waiting and fault from actual companion
+control; it no longer treats a tracked host lease alone as reciprocal ownership.
+Its v3 frame/layout is updated on both sides. Native outputs rebuilt and panel
+Python syntax parsed; no game, panel, transition or fixture was executed.
+Actual loading-time suitability and native travel remain unverified.

@@ -33,6 +33,9 @@ typedef struct { uintptr_t pointer; int32_t index; uint64_t name; } SessionHandl
 static SessionHandle session_pc_handle = {0}, session_connection_handle = {0};
 static SessionHandle session_pawn_handle = {0}, session_ai_handle = {0}, session_host_handle = {0};
 static SessionHandle session_shepard_handle = {0}, session_world_handle = {0}, session_squad_handle = {0}, session_driver_handle = {0};
+static SessionHandle session_root_world_handle = {0};
+static int session_travel_waiting;
+static DWORD session_travel_wait_at;
 static SessionHandle session_capture_handle(uintptr_t pointer) {
     SessionHandle h = {0}; h.pointer = pointer; h.index = -1;
     if (!read_at(pointer + 8, &h.index, 4) || !read_at(pointer + 0x48, &h.name, 8)) h.pointer = 0;
@@ -209,7 +212,7 @@ static void session_gate(int blocked, int synthetic, unsigned char mode, const c
 #include "session_travel_retirement.h"
 static void session_release(uintptr_t base, SessionContext c, const char *reason, DWORD now) {
     if (!session_active || session_releasing) return;
-    if(session_retire_disposed_travel(base,c,now))return;
+    if(session_travel_hold_or_retire(base,c,now))return;
     session_releasing = 1;
 #ifdef ME3_PROTECTED_GUEST_TEAM_QA
     guest_team_qa_release(base,now);
@@ -330,6 +333,12 @@ static void session_acquire(uintptr_t base, SessionContext c, DWORD now) {
     if (!session_policy_acquire_ready(now)) {
         session_acquire_wait(base,c,"host-input-warmup",ashley,ai,now);return;
     }
+    CombatContextChain native_world;combat_context_read_chain(base,&native_world);
+    SessionHandle native_root=session_capture_handle(native_world.world);
+    if(!native_world.world_valid||!native_world.info_valid||native_world.info!=c.world||!session_handle_matches(native_root)) {
+        session_acquire_wait(base,c,"native-world-root-not-ready",ashley,ai,now);return;
+    }
+    session_root_world_handle=native_root;session_travel_waiting=0;session_travel_wait_at=0;
     session_host = c.pc; session_shepard = c.pawn; session_world = c.world; session_squad = c.squad;
     session_story_player = read_ptr(c.squad + 0x2cc); session_story_initial = read_ptr(c.squad + 0x2d4);
     session_pawn = ashley; session_ai = ai; session_connection = read_ptr(session_remote + 0x67c);
@@ -377,7 +386,8 @@ static void session_host_frame(uintptr_t base, uintptr_t engine, int after) {
     int engine_gate = engine_reason != NULL, blocked = engine_gate || synthetic;
     session_gate(blocked, synthetic && !engine_gate, c.mode, engine_reason, now);
     if (session_active) {
-        if(session_retire_disposed_travel(base,c,now))return;
+        if(session_travel_hold_or_retire(base,c,now))return;
+        if(session_fault){session_release(base,c,"faulted-control-scope",now);return;}
         if (c.pc != session_host || c.world != session_world || c.squad != session_squad ||
             !session_handle_matches(session_world_handle) || !session_handle_matches(session_pawn_handle) || !session_handle_matches(session_ai_handle)) {
             session_fault = 1; session_release(base, c, "ownership-lost", now); return;
