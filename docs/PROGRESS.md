@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-25: native quickslot icon setter and cleanup constraints
+
+Offline package and image reads identified the native SetPower implementation
+and the constructor-grounded quickslot vtable. SetPower can write power/pawn
+before refusing an invalid movie; pointer readback alone cannot establish a
+complete icon update. The icon's ProcessEvent dispatcher differs from the
+controller's, and its clear virtual is a return-only leaf. Script Cleanup only
+clears two references. Restoration therefore needs the prior power identity
+and current movie/icon ownership, rather than a guessed ClearIcon call.
+
+Ten selected script exports decoded completely; native bridge bodies were
+analyzed separately. Nine explicit SetQuickSlotState branch targets aligned,
+and source package/library hashes were unchanged. No runtime source or binary
+changed, no icon was assigned, and no game or tests ran. Native UI integration
+remains the next keyboard-power task; gamepad work stays deferred.
+
 ## 2026-10-25: native keyboard power command bridge candidate
 
 An optional guest bridge now receives the engine's existing UseAbility0..7

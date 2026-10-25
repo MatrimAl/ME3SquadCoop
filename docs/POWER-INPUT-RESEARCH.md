@@ -535,3 +535,52 @@ Keyboard delivery, native acceptance, cooldown, target effects and icon
 agreement remain unverified. Gamepad integration is deferred. All three native
 targets compiled and the changed Python files syntax parsed; no game, panel,
 network session or tests ran.
+
+## Quickslot icon update and restoration findings
+
+Ten selected icon/lifecycle exports decoded with matching serialized and VM
+lengths. The substantial SetQuickSlotState script is682/862 bytes, with all
+nine explicit branch targets on decoded expression boundaries. Most other
+selected exports are native bridges; complete bridge decoding is not complete
+native-body coverage. Input package and decompression-library hashes stayed
+unchanged. All extracted bodies/readers remain private.
+
+Native registration grounds SFXGUIValue_PowerIcon.SetPower at name0x137aab0,
+pair0x179d880, exec0xb58aa0 and direct body0xbcabd0..0xbcaf8e.
+The implementation returns immediately when the existing power pointer equals
+the supplied pointer. On a change it invokes the old icon's clear virtual,
+writes pPower at+0x194 and derives pPawn at+0x19c from the power's m_oPawn.
+For a non-null power, it then requires an Outer cast to SFXGUIMovie before
+updating localized name/description, resource/icon, full power name and state.
+The cast helper0xba0d50 resolves that exact class through0xbc2220; its package
+string alone was not treated as a class-name identification.
+
+The missing/wrong movie branch can therefore leave the new power/pawn pointers
+written while text/name/icon work was skipped. Reading back pPower alone is
+not sufficient acceptance evidence. The null-power branch resets strings,
+name, cooldown and state; native string allocation/copying remains engine-owned.
+A future adapter must not snapshot and reinstall raw FString buffers.
+
+Class-name construction grounds the quickslot class through0xbc2640,
+instance constructor0xbc51b0 and final vtable0x13b29b8. This vtable's
+ProcessEvent slot+0x230 is0x0f4f80, not the player controller's0x40d450.
+Any eventual reflected UI call requires its own receiver/dispatcher contract.
+The clear virtual+0x2b8 is the actual return-only leaf at0x73820; following
+padding into adjacent code would invent behavior. ClearIcon is consequently
+not a demonstrated cache-restoration operation on this exact quickslot class.
+The separate script Cleanup17/25 bytes clears pPower and pPawn only; it does
+not reconstruct a previous native icon assignment or localized display state.
+
+The same class resolves state display+0x2c8 to0xbcb240 and cooldown update
++0x2d0 to0xbccfe0. UpdateDisplay's body0xbcd250..0xbcd278 invokes state display
+only while dirty, then clears the dirty bit. TickCooldown0xbcc1b0..0xbcc1fa
+compares current native cooldown with its cached value and invokes the icon's
+cooldown virtual as needed. These are native UI dependencies, not permission
+to force gameplay cooldowns or infer a successful cast from an icon change.
+
+The resulting integration requirements are current wheel/movie and icon
+identities, ownership of the icon slot, native setter/receiver validation,
+retained prior power identity and conditional restoration while the same UI
+still exists. Replacement/cleanup must retire that ownership rather than write
+to a stale widget. The current keyboard bridge does not perform these writes;
+icon agreement remains unfinished. No game or tests ran for this research.
