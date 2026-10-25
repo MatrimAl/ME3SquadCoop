@@ -899,3 +899,31 @@ enemy damage remains unverified. Full dialogue and mission completion remain
 unverified. Original profiles/source/build were unchanged, native exceptions
 were zero and no game process remained. The memory helper exited1, so the
 observer audit is not an unqualified all-pass. Repeat validation is required.
+
+### Ordinary drop and remote player appearance
+
+A later protected pair reached the lower Mars platform with ordinary host
+movement input. Input stopped on loss of ground after about2.30 seconds;
+the native pawn then entered falling physics and landed near the measured
+bottom node, before guest disconnection. No position writes or forced custom
+traversal action were used. This proves one host drop, not guest traversal,
+enemy damage or mission completion. The guest bot's older36-second follow
+window had already ended; the protected combat test now allows bounded follow
+for145 seconds and requests disconnect after150 seconds. Native process
+deadlines remain unchanged. That follow-window change needs a live rerun.
+
+An owner-assisted run independently reported normal Ashley movement, firing,
+release-to-stop, ammunition consumption and reload, but an invisible host
+Shepard even at close range. Read-only Frida measurements confirmed a live
+replicated player with a null skeletal-mesh asset on the guest, while the
+host had a live composite mesh. Selected reflected appearance IDs matched,
+but helmet overrides differed. The normal appearance initialization path is
+being investigated; no appearance repair or full appearance synchronization
+is validated. Real enemy actors were present in the manual run, but the
+recorded impacts did not establish enemy health or shield loss.
+
+The drop run recorded no native exceptions, unchanged original profiles and
+no remaining game processes. Shared travel and lifecycle gates passed their
+limited scopes; connection-state aggregation failed, and a read-only monitor
+reported access denied. This is not an overall passing campaign test. Real
+full dialogue and attributed damage to a hostile remain unverified.

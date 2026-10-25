@@ -122,6 +122,8 @@ static void progress_input(uintptr_t base, uintptr_t engine) {
 }
 static uintptr_t progress_guest_leader=0;
 static DWORD progress_guest_scan_at=0;
+static int combat_action_opted(void);
+static DWORD progress_guest_follow_limit(int action) {return action==1?145000u:36000u;}
 static void progress_guest_follow_input(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t input,DWORD elapsed) {
     if (!progress_enabled) return;
     uintptr_t world=read_ptr(pc+0x198);DWORD now=GetTickCount();
@@ -137,7 +139,7 @@ static void progress_guest_follow_input(uintptr_t base,uintptr_t pc,uintptr_t pa
         if(candidates!=1)progress_guest_leader=0;
     }
     float forward=0,strafe=0,leader[3],position[3];int32_t rotation[3];
-    if(elapsed>=4000&&elapsed<36000&&is_live(base,progress_guest_leader)&&
+    if(elapsed>=4000&&elapsed<progress_guest_follow_limit(combat_action_opted())&&is_live(base,progress_guest_leader)&&
         read_at(progress_guest_leader+0x108,leader,sizeof leader)&&read_at(pawn+0x108,position,sizeof position)&&read_at(pc+0x114,rotation,sizeof rotation)) {
         float dx=leader[0]-position[0],dy=leader[1]-position[1],length=sqrtf(dx*dx+dy*dy);
         if(isfinite(length)&&length>125&&length<2000) {
