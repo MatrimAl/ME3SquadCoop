@@ -209,6 +209,11 @@ static int combat_route_discover(uintptr_t base,uintptr_t world,DWORD now) {
 }
 static int combat_lower_discover(uintptr_t base,uintptr_t world);
 static int combat_guest_route_finished;
+static float combat_guest_lower_arrival(unsigned point) {
+    /* The host parks near the last anchor. Keep the approach outside its
+     * capsule rather than requiring the guest bot to walk through Shepard. */
+    return point+1==COMBAT_ROUTE_COUNT+COMBAT_LOWER_COUNT?150.0f:70.0f;
+}
 /* QA guest must take the measured corners through the drop and lower road
  * instead of cutting directly toward a host several nodes ahead. Reuse the
  * host's validated nav inventory; ordinary input and gravity do the traversal. */
@@ -245,7 +250,7 @@ static int combat_guest_road_target(uintptr_t base,uintptr_t pc,uintptr_t pawn,u
        !read_at(node->pointer+0x108,observed,12)||!scene_readiness_finite3(observed)||distance(observed,goal)>2||
        !(point==COMBAT_ROUTE_COUNT?combat_guest_drop_corridor(position,origin,goal):combat_route_corridor(position,origin,goal)))return -1;
     int arrived=upper?combat_route_arrived(position,point,goal):
-        combat_route_horizontal(position,goal)<=70&&fabsf(position[2]-goal[2])<=20;
+        combat_route_horizontal(position,goal)<=combat_guest_lower_arrival(point)&&fabsf(position[2]-goal[2])<=20;
     /* Begin the lower leg before entering the top node's traversal cylinder;
      * the host's separately guarded action-button arrival radius is unchanged. */
     if(point+1==COMBAT_ROUTE_COUNT)arrived=combat_route_horizontal(position,goal)<=70&&fabsf(position[2]-goal[2])<=180;
@@ -574,6 +579,8 @@ static void combat_route_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD
     if(!q->report_at||now-q->report_at>=1000){q->report_at=now;combat_route_log("input","ordinary-host-axes",xyz,now);}
 }
 static int combat_route_qa_selftest(void) {
+    if(combat_guest_lower_arrival(COMBAT_ROUTE_COUNT)!=70||
+       combat_guest_lower_arrival(COMBAT_ROUTE_COUNT+COMBAT_LOWER_COUNT-1)!=150)return 0;
     float bottom[3]={-22054.248f,43431.023f,-380},landing[3]={-21949.033f,43319.332f,-378.508f};
     if(!combat_lower_landing(landing,bottom))return 0;
     float invalid[3]={bottom[0]+251,bottom[1],bottom[2]};if(combat_lower_landing(invalid,bottom))return 0;

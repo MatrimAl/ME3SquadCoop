@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-25: stop the encounter bot outside the parked host capsule
+
+The stable-landing repeat reached all lower anchors except the final arrival
+check. Guest and host stood about60 units apart, with the guest129 units from
+the last anchor and the host already parked nearer it. The guest continued
+ordinary movement input without advancing. This is consistent with character
+collision, not proof of a new terrain fault or expiry of the follow window.
+The final guest arrival radius is now150 units; intermediate nodes retain70
+and all height/identity/corridor guards remain. No actor collision is disabled.
+
+The completed run recorded192 Ashley samples with none below kill-Z, no aim
+attempt and no enemy-health decrease. Original profiles stayed unchanged,
+native exceptions were zero and no game remained. The memory helper exited1.
+Door capture completed but began too late to observe the host shuttle or
+either opening action; it cannot establish paired door collision correctness.
+Native checks passed after rebuilding; final arrival still needs a live test.
+
 ## 2026-10-25: wait for a stable landing before the aim experiment
 
 The protected guest traversed the upper anchors and reached the actual lower
