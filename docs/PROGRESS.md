@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-26: expand inventory analysis through channel teardown
+
+The requested background inventory export processed71 entries with70 nonempty
+decompilations and one missing exact entry. Six follow-up lifecycle dependencies
+also decompiled. Selected close/cleanup bodies remove the actor's hash key;
+one cleanup path additionally invalidates matching references in other-channel
+shadows before clearing its own Actor. Those shadow writes must not be confused
+with clearing the pawn's live inventory property. The association path and
+full-key removal were retained separately, with split unwind coverage explicit.
+
+Exporting76 bodies is not complete semantic review or a root-cause diagnosis.
+Hash replacement behavior and actual serialization/teardown ordering still
+need evidence; no overlapping-channel race or engine bug is asserted. No
+runtime repair was added. Research documentation/private indexing changed,
+source game identity stayed unchanged, and no game or tests ran. See
+[inventory lifecycle findings](INVENTORY-REPLICATION-RESEARCH.md).
+
 ## 2026-10-26: resolve native inventory lookup semantics offline
 
 Five retained-project entries decompiled in about13 seconds, covering the

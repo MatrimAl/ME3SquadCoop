@@ -231,3 +231,51 @@ No extra native lookup, readiness restriction, inventory-pointer restoration,
 class/closing bypass, forced replication or handoff replay was implemented.
 No game, archive operation or behavioral test ran. The supported source
 executable's digest was rechecked unchanged after reviewing the output.
+
+## Channel lifecycle expansion
+
+An owner-requested deeper batch expanded the five roots by one level of
+analyzed direct calls, concrete PackageMapLevel methods, selected ActorChannel
+virtuals and the actual send/receive archive methods. It processed71 entries
+from the saved project in about18 seconds:70 decompiled, with exact entry
+0xda350 explicitly missing. A follow-up selected six additional close/cleanup
+dependencies, all decompiled in about10 seconds. No analysis deadline or
+per-function timeout was imposed. These counts describe export coverage;
+semantic review of the whole batch is not complete.
+
+Selected reviewed paths now distinguish three lifecycle operations:
+
+| Entry RVA | Bounded observation |
+| --- | --- |
+| 0x48f800 | Associates Actor+0xa0/class+0xa8 and passes the actor/channel pair to helper0xb99b0 on connection+0x5fb0 |
+| 0x48fcf0 | For a nonnull Actor, calls hash removal0xc2210 before setting channel+0x68 closing bit2 |
+| 0x47f200 | Removes the Actor key, conditionally clears matching reference shadows in other channels, delegates nested reference cleanup, then clears its own Actor+0xa0 |
+| 0xc2210 | Compares full pointer keys, unlinks the matching bucket record and clears its allocation bit |
+
+The0xc2210 unwind fragment ending at0xc223d is only the entry fragment.
+Its Ghidra analyzed body includes further branches; the short fragment alone
+cannot describe hash removal. Likewise, a selected virtual at0x480480 formats
+actor/role diagnostic text and must not be labeled a lifecycle mutation merely
+because it neighbors close/cleanup slots.
+
+The inspected cleanup's reference-shadow pass applies only on its specific
+actor/channel flags and other-channel eligibility branches. It clears matching
+actor values from retained shadows and marks those channels for later work;
+it is not evidence that the current pawn's live InvManager was cleared there.
+That distinction preserves the earlier direct serializer-output observation.
+
+Consequently, a current actor pointer, index-table entry, hash association and
+shadow value may have different lifetimes during normal teardown. Observing
+one outside the exact serialization event cannot establish all the others.
+The inspected removal path deletes by actor key; this does not itself prove
+an overlapping-channel race or an incorrect removal in a real session.
+The association helper's internal replacement behavior and actual close/send/
+receive ordering remain unresolved. No engine hash bug is claimed.
+
+This narrows the next deferred measurement to the original reference scalar
+and serializer result together with its exact connection/channel lifetime,
+without assuming that nearby channel enumeration is the encoder's lookup.
+No package-map acceptance change, hash edit, pointer restoration or native
+handoff replay was added. Source executable identity remained unchanged;
+no game or behavioral test ran. The private review index separates selected
+reviewed observations from the remaining exported bodies.
