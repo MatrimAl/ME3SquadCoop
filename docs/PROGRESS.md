@@ -1657,3 +1657,15 @@ The session planner can include the panel opt-in flag. Normal native outputs
 compiled and the Python sources syntax-parsed; no GUI, IPC fixture, game or
 power request was executed. Actual panel rendering, handshake, native command
 acceptance and gameplay remain unverified. See [session panel](SESSION-PANEL.md).
+
+## Expire delayed panel delivery
+
+The local panel mailbox now includes a producer GetTickCount timestamp. Native
+Tick refuses delivery older than2 seconds before issuing any runtime command;
+the UI reports expiry and requires a fresh explicit request. Future-looking
+timestamps are also refused by the unsigned bounded age comparison. Already
+accepted ordinary join/listen waiting is a different stage and is unchanged.
+
+The protocol is now v2/5212 bytes on both sides; old versions are rejected.
+Normal native outputs rebuilt and Python syntax parsed. No game, GUI, IPC test
+or timestamp fixture was executed. Real delivery/expiry behavior remains pending.

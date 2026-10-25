@@ -27,8 +27,8 @@ a missing DLC, bypass config or restart failed native initialization.
 ## Protocol and identity
 
 Each opted-in game creates `Local\ME3SquadCoopPanel_<PID>` once. An existing
-name is refused rather than reused. The bounded5208-byte, pointer-free v1
-mapping contains a5192-byte status frame and a16-byte command mailbox. The
+name is refused rather than reused. The bounded5212-byte, pointer-free v2
+mapping contains a5192-byte status frame and a20-byte command mailbox. The
 status identifies PID and exact process creation FILETIME. The client retains
 a query/synchronize-only handle, checks MassEffect3.exe's filename and creation
 identity, and refuses a terminated process or snapshots older than3 seconds.
@@ -50,6 +50,15 @@ acceptance separately from later startup/power results. Duplicate latest IDs
 are ignored. A failed client while reserving the mailbox can leave that mailbox
 unavailable; no automatic mailbox stealing or process restart is implemented.
 
+The mailbox includes the producer's Windows monotonic tick timestamp. Tick
+rejects delivery more than2 seconds later, including apparent future timestamps
+under unsigned wraparound arithmetic. Acknowledgment3 explicitly means expired
+before delivery. The panel tells the user to submit a fresh request; it does not
+resend automatically. A command accepted on time can still have its documented
+native startup waiting period, such as waiting for a scene to finish. This
+delivery deadline does not change the native startup or gameplay policies.
+Version1 clients/runtimes are incompatible and must not be mixed.
+
 Power commands carry the currently displayed catalog scope/index. Catalog
 changes clear the panel selection, and native validation rejects stale input.
 Names come from the native power-name table, rather than localized display
@@ -66,6 +75,6 @@ power descriptions, a proven connection-error transcript or an in-game overlay.
 
 No new behavior tests were executed. Deferred validation must cover protocol
 layout parity, stale/changed process identity, command acknowledgment races,
-partial mailbox writers, role/scene refusal, catalog replacement, enable/disable
+partial mailbox writers, expired/future timestamps and wraparound, role/scene refusal, catalog replacement, enable/disable
 cleanup, and actual native startup/power results. Shared-memory publication and
 Tk rendering remain unverified despite successful compilation/syntax parsing.

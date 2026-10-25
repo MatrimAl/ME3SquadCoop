@@ -20,7 +20,7 @@ class Frame(C.LittleEndianStructure):
 class Memory(C.LittleEndianStructure):
     _pack_ = 4
     _fields_ = [("frame", Frame), ("command", C.c_int32), ("command_id", C.c_uint32),
-                ("scope", C.c_uint32), ("index", C.c_uint32)]
+                ("scope", C.c_uint32), ("index", C.c_uint32), ("sent_at", C.c_uint32)]
 
 
 class Session:
@@ -45,7 +45,7 @@ class Session:
         for name, (args, result) in specifications.items():
             function = getattr(self.kernel, name)
             function.argtypes, function.restype = args, result
-        if C.sizeof(Frame) != 5192 or C.sizeof(Memory) != 5208:
+        if C.sizeof(Frame) != 5192 or C.sizeof(Memory) != 5212:
             raise RuntimeError("Unsupported panel layout")
         try:
             # Query + wait only: no process memory access, injection or termination.
@@ -87,7 +87,7 @@ class Session:
             if before != after or after & 1:
                 continue
             if (frame.magic, frame.version, frame.bytes, frame.pid, frame.created) != (
-                    0x4d334350, 1, 5208, self.pid, self.created):
+                    0x4d334350, 2, 5212, self.pid, self.created):
                 raise RuntimeError("Panel identity/version unavailable or different")
             if frame.role not in (1, 2) or frame.power_count > 64:
                 raise RuntimeError("Invalid panel frame")
@@ -116,6 +116,7 @@ class Session:
                 C.c_uint32.from_address(self.view + offset).value = value
             if self.kernel.WaitForSingleObject(self.process, 0) != 258:
                 raise RuntimeError("Selected game process ended")
+            C.c_uint32.from_address(self.view + Memory.sent_at.offset).value = self.kernel.GetTickCount()
             self.kernel.InterlockedExchange(mailbox, code)
             return message_id
         except BaseException:
@@ -196,7 +197,9 @@ def main():
                     powers.insert("end", f"{index + 1}. {name or '(unnamed)'}")
                 shown, last_scope = catalog, frame.power_scope
             if pending is not None and frame.ack_id == pending:
-                result.set("Request accepted for processing" if frame.ack_result == 1 else "Request refused")
+                result.set({1: "Request accepted for processing", 2: "Request refused",
+                            3: "Request expired before delivery; send a fresh request"}.get(
+                                frame.ack_result, "Unknown request result"))
                 pending = None
             for button, code in controls:
                 allowed = code in (5, 6) or (frame.enabled and (

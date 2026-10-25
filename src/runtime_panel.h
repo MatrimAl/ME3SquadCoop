@@ -14,12 +14,12 @@ typedef struct RuntimePanelFrame {
 typedef struct RuntimePanelMemory {
     RuntimePanelFrame frame;
     LONG command;
-    uint32_t command_id,scope,index;
+    uint32_t command_id,scope,index,sent_at;
 } RuntimePanelMemory;
 #pragma pack(pop)
-_Static_assert(sizeof(RuntimePanelFrame)==5192,"panel frame v1");
+_Static_assert(sizeof(RuntimePanelFrame)==5192,"panel frame v2");
 _Static_assert(offsetof(RuntimePanelMemory,command)==5192,"panel mailbox alignment");
-_Static_assert(sizeof(RuntimePanelMemory)==5208,"panel protocol v1");
+_Static_assert(sizeof(RuntimePanelMemory)==5212,"panel protocol v2");
 static RuntimePanelMemory *runtime_panel_memory;
 static HANDLE runtime_panel_mapping;
 static uint64_t runtime_panel_created;
@@ -48,10 +48,15 @@ static void runtime_panel_commands(void) {
     RuntimePanelMemory *memory=runtime_panel_memory;if(!memory)return;
     LONG command=InterlockedCompareExchange(&memory->command,0,0);
     if(command<=0)return; /* -1 is a client reserving the mailbox. */
-    MemoryBarrier();uint32_t id=memory->command_id,scope=memory->scope,index=memory->index;
+    MemoryBarrier();uint32_t id=memory->command_id,scope=memory->scope,index=memory->index,sent_at=memory->sent_at;
     MemoryBarrier();
     if(InterlockedCompareExchange(&memory->command,0,command)!=command)return;
     if(!id||id==runtime_panel_ack)return;
+    /* This limits mailbox delivery delay only. A native join request which
+     * was accepted in time may still wait for ordinary player/story readiness. */
+    if((DWORD)(GetTickCount()-sent_at)>2000) {
+        runtime_panel_ack=id;runtime_panel_result=3;return;
+    }
     int accepted=0;
     if(g_dlc_active&&g_config_status==ME3_CONFIG_READY) {
         switch(command) {
@@ -70,7 +75,7 @@ static void runtime_panel_publish(uintptr_t base,uintptr_t engine,DWORD now) {
     RuntimePanelMemory *memory=runtime_panel_memory;
     if(!memory||(runtime_panel_published&&now-runtime_panel_published<250))return;
     runtime_panel_published=now;
-    RuntimePanelFrame frame={0};frame.magic=UINT32_C(0x4d334350);frame.version=1;
+    RuntimePanelFrame frame={0};frame.magic=UINT32_C(0x4d334350);frame.version=2;
     frame.bytes=sizeof(RuntimePanelMemory);frame.pid=GetCurrentProcessId();frame.created=runtime_panel_created;
     frame.role=g_runtime_config.role;frame.enabled=runtime_control_enabled;
     frame.startup=InterlockedCompareExchange(&runtime_network_start_status,0,0);frame.netmode=255;
