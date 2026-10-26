@@ -1,117 +1,76 @@
 # Runtime integration status
 
-The historical `remote_appearance_qa.h` path is now also callable from ordinary
-guest Tick, using the existing default-off appearance options. Protected entry
-retains its marker/action gates. Ordinary entry uses fresh native connection
-and local context checks and runs appearance last, after the power adapter.
-The same default-male, missing-mesh, simulated-role, unique-channel and loaded
-asset-group restrictions remain. Its admission fixture is shared between both
-entries. Three native targets built; ordinary and protected no-game harnesses
-passed. This does not yet prove live appearance application in ordinary entry,
-nor general customization, repeated player lifetimes or campaign travel.
+Ordinary guest startup now has a bounded positive path for host Shepard's
+initial actor and default male appearance. Two candidate pairs loaded
+`BioChar_Player` through the shipped `SFXGame.LoadPackage` before native join
+and then resolved the same initial archetype reference that had intermittently
+returned null. The second also reused the historical appearance initializer:
+stock `UpdateAppearance`, then `ApplyAppearance` after the existing asset group
+reported loaded. The native call retained the pawn/world and reported a live
+asset. Independent paired channel snapshots saw the same guest Shepard first
+with a null mesh asset, then five times with one live `SkeletalMesh` asset.
+A decoded video frame contains a second nearby helmeted figure, but its visual
+identity has not been independently attributed. This is model initialization
+evidence, not full rendered appearance, customization or campaign validation.
 
-One completed candidate pair from `3352439` dispatched stock guest loading of
-`BioChar_Player` before native join. The same static index577545 then resolved
-the correct archetype, native receive formed Shepard on channel17, and six
-paired snapshots retained both the guest cache entry and the replicated player.
-The player's skeletal-mesh asset was readable but null in all six snapshots,
-with the same default appearance IDs admitted by the old appearance path.
-This is bounded support for package preparation, not repeatable startup or
-rendered visibility. Cleanup restored the sandbox TOC byte-identical, preserved
-profiles and left no games, native exceptions or cleanup errors.
+The implementation remains default-off and scoped:
 
-The next default-off candidate calls the shipped `SFXGame.LoadPackage` once
-for `BioChar_Player`, after the guest's ordinary readiness window and before
-native join travel. It reuses the host loader's exact reflected parameter
-contract, additionally pins the measured native entry RVA0xb6cfa0, and refreshes
-readiness after the call. No map, cached-object, role or actor field is written.
-Three native targets built and the ordinary no-game harness passed. Live
-results for this candidate are pending; it is not a startup or visibility fix
-until the retained channel/cache observations establish its effect.
+- `ME3_SQUAD_COOP_GUEST_ARCHETYPE_PRELOAD=1` calls the stock package API once
+  after ordinary guest readiness and before travel. It reuses the host loader's
+  reflected parameter contract, additionally pins native entry RVA0xb6cfa0,
+  and refreshes world/player readiness after the call.
+- The existing `ME3_SQUAD_COOP_REMOTE_APPEARANCE_QA=1` and
+  `ME3_SQUAD_COOP_REMOTE_APPEARANCE_APPLY_QA=1` options admit the old appearance
+  path in ordinary guest Tick. It runs last with fresh connection/local context.
+  Default male IDs, absent mesh, simulated role, a unique current channel and
+  loaded assets remain required. Protected entry retains its marker/action gates.
+- Neither path writes package maps, cached objects, roles or appearance IDs.
+  No synthetic input or packet replay is introduced. Normal guest movement and
+  camera remain owner-reported working; this work does not change their code.
 
-A further unchanged-code pair from `1847930` reproduced the failure and
-captured the existing static map on both peers. Both maps selected entry194,
-relative index1144, with matching GUID and object-count1352. All six paired
-post-receive snapshots found the host's cached archetype at that index and a
-null guest cache entry. The guest Shepard channel remained without an Actor.
-This narrows the missing-reference case, but post-receive observations alone
-do not prove which internal resolver branch ran during initial decode.
-The first private sampler called entry+8 a linker; exact-image constructor
-RVA0xc5470 shows entry+0 is the input object's FName and entry+8 is that object
-pointer. The raw evidence is preserved and subsequent sampler labels corrected.
+Three native targets built. Ordinary and protected no-game harnesses passed,
+including the shared appearance admission restrictions. Both package-preload
+pairs and the preceding comparison pair ended at their owned deadlines with
+zero recorded native exceptions, original profiles unchanged, sandbox base TOC
+restored byte-identical, temporary authored files removed and no games or cleanup
+errors remaining. The appearance path still attempts once per process; general
+customization, new player lifetimes, mission travel and repeatable combat remain
+unfinished. These observations do not establish a playable campaign.
 
-Two completed ordinary pairs from `8f2d10e` now distinguish the intermittent
-initial-object failure. Both forwarded a static reference (tag0) with index
-577545 for the channel independently mapped to host Shepard. In the first
-pair, channel17 decoded `BioChar_Player.Archetypes.Soldier.MaleShepard_Soldier`,
-native receive formed the player, and six later snapshots retained its guest
-replica. In the second, channel9 decoded null, native flags changed1 to9,
-Actor/Class remained null, and six later snapshots retained that failure.
-Channel numbers must be mapped for each run; channel9 in the first pair was a
-Matinee actor. Neither observation proves a gameplay repair or rendered host
-appearance. A mesh component alone does not prove its mesh asset is populated.
+The missing-player investigation distinguished two stages. In unchanged-code
+pairs from `8f2d10e`, static reference tag0/index577545 sometimes resolved
+`BioChar_Player.Archetypes.Soldier.MaleShepard_Soldier` and sometimes returned
+null, after which native receive changed channel flags1 to9 with Actor/Class
+still absent. Each channel was independently mapped to host Shepard; numbers
+vary by run, and channel9 in a positive run was a Matinee actor. A mesh component
+alone was never treated as a loaded mesh asset.
 
-The failing nonzero static index excludes an encoded dynamic-channel null in
-this sample. Existing exact-image Level codec and resolver exports identify
-the next distinction: archive error, package-entry/linker/cache resolution,
-streamed-level filtering or requested-class rejection. No branch has yet been
-proven responsible. A focused export of archive forwarder RVA0x464910 confirms
-its archive+0xb0 connection -> connection+0xf0 map route. The retained Ghidra
-database stayed byte-identical; no new whole-binary analysis was performed.
-Both pairs closed at their owned deadlines with zero recorded native
-exceptions, original profiles unchanged, sandbox base TOC restored byte-identical,
-temporary authored files removed and no games or cleanup errors remaining.
+A pair from `1847930` selected static map entry194/relative index1144 on both
+peers, with matching GUID and object-count1352. Six post-receive snapshots found
+the host's archetype cache entry populated and the guest's null. After stock
+guest loading, the pair from `3352439` retained the archetype and formed player,
+but all six mesh-asset samples were null. The pair from `188fa55` then exercised
+the existing appearance path with the null-to-live asset result above.
+Post-receive cache snapshots do not identify the exact initial resolver failure
+branch. The first private sampler's entry+8 label was corrected: constructor
+RVA0xc5470 shows entry+0 is an FName and entry+8 is the input object pointer;
+the raw legacy evidence is preserved.
 
-The same initial-object opt-in now additionally observes the existing native
-one-bit reference tag and bounded index outputs. Exact scalar ABIs, two-slot
-installation pins and rollback policy are reused from the protected inventory
-reference observer; the ordinary adapter scopes them only to the already
-active initial-object decode and exact native caller addresses. It never reads
-or replays packet bits. Original arguments and outputs are forwarded once,
-with LastError preserved after observation; unrelated calls only forward.
-Three native targets built and the ordinary harness passed, including actual
-tag/index forwarding, caller filtering and output/error-state checks. The two
-live results above establish bounded tag/index capture. This does not enable appearance initialization
-or repair a null actor.
+Focused exports reused the retained exact-build Ghidra database without changing
+it or rerunning whole-binary analysis. Archive forwarder RVA0x464910 confirms
+archive+0xb0 connection -> connection+0xf0 map. The stock package API's native
+wrapper/body are RVAs0xb6cfa0/0xb965b0; its finalizer RVA0x12cfa0 performs loader
+cleanup, not a demonstrated package root pin. Package availability after join
+is supported by live cache observations, not inferred from dispatch alone.
 
-The ordinary initial-object observer run from `cb5960b` captured a readable
-null output from the first native reference decoder for channel9, followed by
-native receive changing flags1 to9 while Actor/Class remained null. Six
-separate paired channel snapshots identify that channel as current host
-Shepard's counterpart. This reproduces the earlier `d14faf7` decode-failure
-stage; it precedes the formed-player/null-mesh condition handled by the
-historical appearance experiment. Reference tag/index remain unavailable in
-this integration, so the underlying unresolved reference is still unknown.
-The old appearance path cannot act on a null Actor and has not been blindly
-enabled or replaced. Normal guest movement/camera remain owner-reported working.
-Native connection remained until the guest deadline, and terminal cleanup
-preserved original profiles, restored the sandbox base TOC byte-identical,
-removed temporary authored files and left no games/native exceptions/errors.
-
-The owner reported normal guest WASD movement and mouse camera working in the
-successful ordinary pair, but could not see host Shepard. Treat that as owner
-input evidence, not independently measured movement/combat. No input bootstrap
-change is justified by that report.
-
-History review identified `73adb0a`/`464dde3` and evidence `f9b2aff`: their
-protected appearance experiment handles an existing remote player with a null
-skeletal-mesh asset. It is not wired into the ordinary entry, and its recorded
-positive scope was asset application, not full customization/render proof.
-The latest unchanged ordinary pair instead yielded six read-only snapshots
-where host Shepard's channel mapped to a valid guest channel but no guest Actor
-pointer. Both peers remained connected until bounded shutdown. This earlier
-stage cannot be fixed by calling appearance code on a nonexistent actor.
-
-The existing initial-object decoder observer is now reused by the ordinary
-receive forwarder under default-off `ME3_SQUAD_COOP_INITIAL_OBJECT_TRACE=1`.
-The guest installs before connection-scope readiness, records the native first
-reference output and post-receive actor/class/flags, then forwards unchanged.
-It reuses existing exact pins, bounded rows and synchronous output copying;
-ordinary mode installs no scalar hooks, so tag/index inputs remain unknown.
-No decode replay, payload/actor/channel mutation or synthetic input is added.
-Three targets rebuilt and ordinary/protected no-game harnesses passed, with the
-shared observer selftest also invoked by the ordinary fixture. Live decode
-output for this ordinary integration remains pending.
+The default-off `ME3_SQUAD_COOP_INITIAL_OBJECT_TRACE=1` observer forwards the
+original first-object decoder and native scalar calls exactly once, recording
+their produced tag/index/output only in the matching initial-bunch, thread,
+archive and caller scope. It preserves LastError and never re-reads packet bits.
+Its forwarding/filter fixtures passed; earlier `cb5960b` evidence captured null
+before scalar integration. Historical `73adb0a`/`464dde3` and `f9b2aff` supplied
+the appearance initializer, while `d14faf7` recorded the earlier actor-formation
+failure. The current work reuses those paths rather than replacing working input.
 
 The opt-in stock morph-package load succeeded in an ordinary-entry pair from
 `0a03937`: the resident GUID changed to the disk/cache GUID through the shipped
