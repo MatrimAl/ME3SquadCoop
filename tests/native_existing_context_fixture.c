@@ -49,11 +49,13 @@ static int guest_player_context_dispatch(uintptr_t base,uintptr_t squad,const in
     (void)base;(void)method;uintptr_t pawn=*(uintptr_t*)parms;if(pawn)++native_calls;else ++clear_calls;
     if(dispatch_mode==1)return 0;
     put(squad+0x2cc,pawn);if(dispatch_mode!=2)put(squad+0x2a8,pawn);return 1;}
-static void line(const char *text){(void)text;}
+static char verification_detail[320];
+static void line(const char *text){if(strstr(text,"verification-detail"))snprintf(verification_detail,sizeof verification_detail,"%s",text);}
 #include "guest_existing_context.h"
 #define CHECK(x) do {if(!(x)){printf("FAIL existing-context line %d: %s\n",__LINE__,#x);return 1;}}while(0)
 static void reset(void){
     memset(objects,0,sizeof objects);memset(&guest_existing_context,0,sizeof guest_existing_context);
+    verification_detail[0]=0;
     memset(&guest_player_context_lease,0,sizeof guest_player_context_lease);
     for(unsigned i=0;i<12;++i)put(addr(i)+0x50,addr(11));
     current_chain=(CombatContextChain){addr(3),addr(4),addr(2),addr(6),1,1,1};
@@ -94,9 +96,12 @@ int main(void){
     reset();adapt(1);put(addr(6)+0x2cc,addr(10));adapt(1);
     CHECK(!read_ptr(addr(6)+0x2a8)&&read_ptr(addr(6)+0x2cc)==addr(10)&&!guest_existing_context.active&&!clear_calls);
     reset();dispatch_mode=2;adapt(1);CHECK(native_calls==1&&!guest_existing_context.active&&!read_ptr(addr(6)+0x2cc));
+    CHECK(strstr(verification_detail,"\"cached_player\":0")&&strstr(verification_detail,"\"combat_getter\":-1"));
     adapt(1);CHECK(native_calls==1);
     reset();dispatch_mode=1;adapt(1);CHECK(native_calls==1&&!guest_existing_context.active&&!read_ptr(addr(6)+0x2a8));
+    CHECK(strstr(verification_detail,"\"dispatch\":0")&&strstr(verification_detail,"\"conditions\":-1"));
     reset();getter_valid=0;adapt(1);CHECK(native_calls==1&&!guest_existing_context.active&&!read_ptr(addr(6)+0x2a8)&&!read_ptr(addr(6)+0x2cc));
+    CHECK(strstr(verification_detail,"\"current_player\":1")&&strstr(verification_detail,"\"combat_getter\":0"));
     reset();put(addr(6)+0x2cc,addr(10));adapt(1);CHECK(!native_calls&&read_ptr(addr(6)+0x2cc)==addr(10));
     reset();put(addr(6)+0x2cc,addr(1));adapt(1);adapt(0);CHECK(!read_ptr(addr(6)+0x2a8)&&read_ptr(addr(6)+0x2cc)==addr(1));
     reset();adapt(1);current_chain.world_valid=0;adapt(0);

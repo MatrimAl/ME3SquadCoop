@@ -130,12 +130,21 @@ static void guest_existing_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t p
         l->cache_writes_owned=1;
         dispatched=guest_player_context_dispatch(base,squad,&guest_player_context_methods.set_pawn,&target);
     }
-    int verified=dispatched&&guest_player_context_conditions(base,pc,pawn,info,1,1,0,&checked_channel,&checked_chain)&&
-        guest_existing_context_same(base,pc,pawn,info,&checked_channel,&checked_chain)&&
-        read_ptr(squad+0x2a8)==pawn&&read_ptr(squad+0x2cc)==pawn&&guest_existing_context_gate(base,pc);
+    /* Preserve the original short-circuit order, but record the first failed
+     * condition. -1 means the check was not reached, not a false result. */
+    int conditions=-1,scope=-1,cached_ok=-1,current_ok=-1,getter=-1;
+    if(dispatched)conditions=guest_player_context_conditions(base,pc,pawn,info,1,1,0,&checked_channel,&checked_chain);
+    if(conditions==1)scope=guest_existing_context_same(base,pc,pawn,info,&checked_channel,&checked_chain);
+    if(scope==1)cached_ok=read_ptr(squad+0x2a8)==pawn;
+    if(cached_ok==1)current_ok=read_ptr(squad+0x2cc)==pawn;
+    if(current_ok==1)getter=guest_existing_context_gate(base,pc);
+    int verified=getter==1;
     combat_context_read_chain(base,&checked_chain);
     if(!verified||!guest_existing_context_same(base,pc,pawn,info,&checked_channel,&checked_chain)||
        read_ptr(squad+0x2a8)!=pawn||read_ptr(squad+0x2cc)!=pawn) {
+        char details[320];snprintf(details,sizeof details,
+            "{\"guest_existing_context\":\"verification-detail\",\"native_ready\":%s,\"dispatch\":%d,\"conditions\":%d,\"scope\":%d,\"cached_player\":%d,\"current_player\":%d,\"combat_getter\":%d,\"not_checked\":-1,\"monotonic_ms\":%lu}\r\n",
+            native_ready?"true":"false",dispatched,conditions,scope,cached_ok,current_ok,getter,now);line(details);
         guest_existing_context_log("rejected","native-set-player-or-getter-not-verified",now);
         guest_existing_context_cleanup(base,"application-not-verified",now);return;
     }
