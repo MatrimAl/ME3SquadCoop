@@ -12,6 +12,13 @@ The pinned `SetPlayerPawn` flags are `0x20802`. This is a specific candidate
 explanation of the no-op, not a captured callspace return or a proven fix.
 Ordinary use of the current initializer must not be described as verified.
 
+An opt-in, game-thread preflight in a later ordinary same-PC pair returned 1
+for that role and function immediately before unchanged dispatch; the cached
+player again remained absent. Native script dispatch treats a nonzero result
+as the skip branch. The preflight is a separate native call, not a captured
+return from the dispatcher, and is disabled by default. No gameplay or fix is
+established by this observation.
+
 The adapter now logs each reached post-dispatch verification independently;
 `-1` indicates an earlier failure prevented a check. The authored-memory
 fixture checks dispatch failure, missing cached-player write and false getter
