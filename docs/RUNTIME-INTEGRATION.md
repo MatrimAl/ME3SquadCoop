@@ -1,5 +1,15 @@
 # Runtime integration status
 
+In one ordinary pair from `f9252b6`, both peers connected and twelve paired
+snapshots showed matching, stable host/guest Shepard archetype paths and class
+paths. The guest's skeletal-mesh asset was null in the first six snapshots;
+the normal guarded appearance calls then reported a live asset, and six later
+snapshots observed a live `SkeletalMesh` on the same guest player. This is
+bounded same-PC default-male evidence, not attributed rendered visibility,
+customization or a repeatability guarantee: other recorded runs still failed
+to create the guest Shepard actor. Cleanup restored the sandbox TOC and left
+no games, original-profile changes, native exceptions or cleanup errors.
+
 Additional exact-build native exports clarify the asset-loader candidate. The
 request copier makes a separate path string and copies the remaining fields,
 including its object reference. The group-ready method returns true when a

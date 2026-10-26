@@ -1,5 +1,11 @@
 # Background co-op focus
 
+One ordinary pair from `f9252b6` started the host listener and connected the
+guest. The host focus policy installed, but 40 startup samples contained no
+focus-owned pause; therefore this is not a demonstrated recovery from focus
+loss. Its terminal audit restored the sandbox TOC, preserved original profiles,
+and reported no remaining games, native exceptions or cleanup errors.
+
 The ordinary entry also extends the same policy to a pending host Listen and
 to a successfully started host listener awaiting its first peer. The existing
 standalone/no-driver and listener/no-server/no-peer checks constrain these
