@@ -1,5 +1,29 @@
 # Native activation DLC packaging
 
+## Config resolution restored with combined TOC candidate
+
+An ordinary pair from `d517c7a` used the invariant starter DLC TOC together with
+the additive basegame TOC. Both native config-name lookups returned1 and the
+correct resolved path, followed by successful reads of the authored config.
+The guest also opened the authored English TLK. Its inspected80s frame shows
+EntryMenu without the previously persistent corrupt-content modal. This is
+positive evidence for config resolution/opening and a sampled visible-warning
+change; it does not establish every engine validation stage or independently
+attribute success to either TOC change. Preparation receipts remain immutable
+offline artifacts with EngineAccepted=false.
+
+Guest join dispatched after five samples/1000ms at world time67.954, but no
+native connection interval was observed. The viewport reported Connecting and
+the guest returned to EntryMenu; the exact connection failure remains unknown.
+Do not classify this run as playable co-op or complete package acceptance.
+
+Both window encoders exited0. Terminal audit and SHA-256 readback confirmed
+the private basegame TOC restored byte-identical to its retained baseline.
+Temporary authored files were removed; original profile unchanged; no game
+processes, native exceptions, forced child cleanup or cleanup errors remained.
+Only the independent copy's TOC was temporarily changed. The player installer
+and distribution allowlist still require a reviewed supported TOC workflow.
+
 ## Confirmed config lookup failure and deterministic TOC preparation
 
 The corrected observer run (`7743c40`) first logged manager-not-ready, then

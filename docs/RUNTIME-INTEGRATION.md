@@ -1,5 +1,12 @@
 # Runtime integration status
 
+The combined invariant-DLC/additive-base-TOC experiment now resolves and opens
+the authored config on both roles. A sampled guest frame has no corrupt-DLC
+modal, but ordinary join still returns to EntryMenu without an observed native
+connection interval. Native connection failure diagnostics are the next work;
+do not report the ordinary guest as connected. The sandbox base TOC was
+restored byte-identical after process cleanup. See [package evidence](DLC-PACKAGING.md).
+
 An earlier ordinary English-DLC candidate pair opened a native host listener,
 but the guest never dispatched its join request: its story/player readiness
 predicate remained blocked. A corrected full-size guest recording was black;
