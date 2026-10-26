@@ -4,6 +4,7 @@ class SFXSquadCoop_ReviveAction extends SFXCustomAction_SingleAnim;
 
 var SFXSquadCoop_ReviveContext Context;
 var bool bBaseStarted;
+var bool bAdmissionClosed;
 var bool bFinishing;
 var bool bStopping;
 var bool bTargetCleanupPending;
@@ -36,7 +37,7 @@ function bool PresentationContext(BioPawn SyncPawn)
 
 function bool InternalCanDoCustomAction(BioPawn SyncPawn, bool bForced)
 {
-    if (bBaseStarted || bStopping || bFinishing || bTargetCleanupPending
+    if (bAdmissionClosed || bBaseStarted || bStopping || bFinishing || bTargetCleanupPending
         || !PresentationContext(SyncPawn))
         return false;
     if (int(m_oPawn.Role) != 3)
@@ -275,6 +276,7 @@ function BodyStanceAnimEndNotification(AnimNodeSequence SeqNode, float PlayedTim
 
 defaultproperties
 {
+    bAdmissionClosed=true
     BS_Anim={AnimName=('CB_MP_Revive')}
     fAnimDuration=0.0
     fAnimBlendInTime=0.4

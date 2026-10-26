@@ -20,7 +20,7 @@ function bool HasPendingWork()
 function bool Ready()
 {
     return bReady && !bBusy && !bPreparing && !bRetiring && Binding != None
-        && Binding.ValidBinding() && Binding.OrdinaryWorld()
+        && Binding.AdmissionOpen() && Binding.OrdinaryWorld()
         && (Animation == None || (Animation.IsRegistered()
             && Animation.Pawn == Binding.ControlledPawn && Animation.Mesh == Binding.CapturedMesh
             && Animation.ExpectedAnimation == Binding.CapturedAnimation));
@@ -98,6 +98,8 @@ function bool Prepare(SFXPawn_PlayerParty Candidate, SFXPlayerController Admissi
         || (Animation != None && (!Animation.IsRegistered()
             || Animation.ExpectedAnimation != Binding.CapturedAnimation)))
         return FailPreparation('PreparedContextChanged');
+    if (!Binding.OpenAdmission())
+        return FailPreparation('AdmissionOpenRefused');
     bPreparing = false;
     bReady = true;
     bBusy = false;

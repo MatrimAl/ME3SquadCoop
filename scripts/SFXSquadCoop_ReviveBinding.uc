@@ -111,6 +111,50 @@ function bool ValidBinding()
         && CapturedMesh.FindAnimSequence('CB_MP_Revive') == CapturedAnimation;
 }
 
+function bool AdmissionOpen()
+{
+    local SFXSquadCoop_ReviveAction Authored;
+
+    if (!ValidBinding())
+        return false;
+    Authored = SFXSquadCoop_ReviveAction(CreatedAction);
+    return Authored != None && !Authored.bAdmissionClosed;
+}
+
+function bool OpenAdmission()
+{
+    local SFXSquadCoop_ReviveAction Authored;
+
+    if (!ValidBinding() || !OrdinaryWorld() || !IdlePawn() || ActionHasPendingWork())
+        return false;
+    Authored = SFXSquadCoop_ReviveAction(CreatedAction);
+    if (Authored == None)
+        return false;
+    Authored.bAdmissionClosed = false;
+    return AdmissionOpen();
+}
+
+function bool CloseAdmission()
+{
+    local SFXSquadCoop_ReviveAction Authored;
+
+    if (!bBound)
+        return true;
+    if (bInstancing || !SameTables() || ControlledPawn.CustomActionClasses[5] != SelectedClass
+        || ControlledPawn.CustomActions[5] != CreatedAction)
+        return false;
+    if (CreatedAction == None)
+        return true;
+    if (!InstanceContextMatches())
+        return false;
+    Authored = SFXSquadCoop_ReviveAction(CreatedAction);
+    // Existing basegame classes have no authored admission gate. They are
+    // outside the coordinated lifecycle and still require external admission.
+    if (Authored != None)
+        Authored.bAdmissionClosed = true;
+    return true;
+}
+
 function bool Bind(SFXPawn_PlayerParty Candidate, SFXPlayerController LocalAdmission,
     class<BioCustomAction> ActionClass, bool bSimulatedPresentation)
 {
@@ -203,6 +247,9 @@ function bool Release()
         bBound = false;
         return Reset();
     }
+    // Close admission even if an ongoing action prevents removal this update.
+    if (!CloseAdmission())
+        return false;
     if (!SameTables() || !IdlePawn() || ControlledPawn.CustomActionClasses[5] != SelectedClass
         || ControlledPawn.CustomActions[5] != CreatedAction
         || (CreatedAction != None && (!InstanceContextMatches() || ActionHasPendingWork())))

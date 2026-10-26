@@ -11,6 +11,10 @@ establish a working campaign revive feature.
 ## Action flow
 
 Admission retains the inherited InternalCanDoCustomAction checks. Presentation
+additionally refuses while the authored bAdmissionClosed gate is set. It is
+closed by default and enabled by the coordinated setup only after readiness;
+binding retirement closes it before waiting for an ongoing action to stop.
+The gate does not prevent that ongoing action's duration/cleanup. Presentation
 requires distinct party pawns in the current native world and no cached AI
 controller; a nonnull cached player controller must match reciprocal possession.
 Authority additionally captures the context's controller, target, life, range,
@@ -161,8 +165,8 @@ script ordering described above, not live cleanup after travel/control changes.
 
 All five authored classes compiled with zero errors/warnings and unchanged tracked
 input hashes. The saved private package SHA-256 is
-`9cb6c8a73dc2a59f8c27876bdb25ff57394c601bd91ca85333d96ffc3c781593`
-for the five-class nonauthority presentation-duration revision.
+`add7fe987215ccac548c087a2805841e115f54fae1b930b41815e5405471ea4a`
+for the five-class coordinated authored-admission revision.
 LEC accepts the external root-motion enums as
 ERootMotionMode.RMM_Ignore and ERootMotionRotationMode.RMRM_Ignore; the body
 stance animation names are an array. This is compilation/save evidence only.

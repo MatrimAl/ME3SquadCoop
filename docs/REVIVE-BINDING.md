@@ -23,6 +23,13 @@ no active/activating conversation. They do not change roles or possession.
 Runtime admission and the actual replicated actor on each peer still need
 integration; the presentation argument is not an authorization token.
 
+Authored instances now start with admission closed. Binding alone does not
+enable native action attempts: the setup coordinator calls OpenAdmission only
+after all preparation checks. It requires the same valid binding/ordinary idle
+context and no pending action work. AdmissionOpen is part of setup readiness.
+The existing basegame class has no such authored gate and is not selected by
+the coordinator. This local mechanism is not a peer handshake or session ACL.
+
 Binding refuses busy/downed/dead/ragdoll pawns, arrays shorter than slot5,
 populated action instances and any different existing class at slot5. It never
 resizes the arrays or overwrites another action. It captures the class baseline
@@ -43,6 +50,10 @@ retire that record instead of treating false as 'nothing changed'.
 
 ## Retirement
 
+Release closes the exact authored instance's admission gate before checking
+idle/action cleanup. A running action can therefore keep its slot for cleanup
+while new InternalCanDoCustomAction attempts refuse. Closing does not interrupt
+that action or suppress its Stop. A changed binding refuses the gate write.
 Release requires the same current actor/control/world/role, table lengths,
 class entry and created instance, with no current action/power action. It
 refuses a started action, any pawn timer targeting that action (including

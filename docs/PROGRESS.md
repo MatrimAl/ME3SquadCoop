@@ -1,5 +1,20 @@
 # Progress
 
+## 2026-10-26: close new revive admission during pending retirement
+
+Runtime-lifecycle review exposed a missing link: clearing setup readiness did
+not itself prevent the installed authored action accepting another attempt
+while its binding awaited retirement. The authored action now starts with a
+closed admission gate. Setup opens it only after preparation checks; binding
+release closes it before checking idle/pending cleanup, leaving a running
+action to finish through its existing path. Readiness includes that gate.
+
+Gate writes require the exact current owned binding; it is not a story/session
+ACL, peer handshake or gate for the separate existing basegame class. Runtime
+pre-handoff invocation and cross-peer ordering remain unfinished. Five classes
+compiled without errors/warnings and unchanged tracked inputs. No game or
+tests ran. See [coordinated admission](REVIVE-SETUP.md).
+
 ## 2026-10-26: give nonauthority revive presentation a local end deadline
 
 The prior native-body assumption for BioPawn.EndCustomAction was corrected

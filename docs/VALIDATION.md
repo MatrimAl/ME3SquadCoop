@@ -1,5 +1,13 @@
 # Validation status
 
+Authored revive action admission now starts closed, opens only after final
+coordinated preparation, and closes before binding retirement waits for a
+running action's cleanup. Readiness requires that local gate open. Changed
+identity refuses gate writes; existing actions keep their completion path.
+All five classes compiled without errors/warnings and with unchanged tracked
+inputs. Runtime invocation, peer coordination and actual retirement behavior
+remain unverified. No game or tests ran. See [setup admission](REVIVE-SETUP.md).
+
 Revive presentation peers now have a local native-config/world-clock deadline
 that ends their action without dispatching revival or reporting success.
 This fills a source-level lifetime gap while authority retains actual revival.
