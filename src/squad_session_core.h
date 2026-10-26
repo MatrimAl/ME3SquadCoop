@@ -53,6 +53,9 @@ typedef struct {
 /* Ordinary runtime may retain an existing lease in a verified native command
  * menu. NULL keeps the protected probe's original scene policy. */
 static int (*session_command_menu_retained)(uintptr_t,SessionContext);
+/* Optional ordinary-entry resource cleanup. NULL preserves probe behavior.
+ * Called under session_releasing before native control is detached. */
+static void (*session_before_control_release)(uintptr_t,uintptr_t);
 static SessionContext session_context(uintptr_t engine) {
     SessionContext c = {0}; c.mode = 255;
     c.pc = local_controller(engine);
@@ -221,6 +224,13 @@ static void session_release(uintptr_t base, SessionContext c, const char *reason
     if (!session_active || session_releasing) return;
     if(session_travel_hold_or_retire(base,c,now))return;
     session_releasing = 1;
+    if(session_before_control_release) {
+        session_before_control_release(base,session_engine);
+        /* The hook may invoke native cleanup; never reuse its pre-call world
+         * context for UnPossess or AI restoration. */
+        c=session_context(session_engine);
+        if(session_travel_hold_or_retire(base,c,now)){session_releasing=0;return;}
+    }
 #ifdef ME3_PROTECTED_GUEST_TEAM_QA
     guest_team_qa_release(base,now);
 #endif

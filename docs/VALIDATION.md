@@ -1,5 +1,16 @@
 # Validation status
 
+The default-off preparation bridge now has separate host story-pawn and
+guest-companion slots, with local guest preparation retained. Candidate
+admission binds session ownership and full native actor-channel/connection/
+driver lifetimes rather than a pawn-name search. An opt-in pre-release callback
+requests cleanup before UnPossess; the core refreshes context and travel scope
+after that callback. Pending cleanup is retained without blocking story flow
+or opening admission. Three native targets built; no game, fixture, deployment
+or actual host preparation was observed. The seven-class script/asset package
+did not change. Simulated-host presentation on the guest and real per-peer
+agreement remain unfinished. See [host preparation](REVIVE-HOST-PREPARATION.md).
+
 A private owner-derived package now combines seven compiled script classes
 with one CB_MP_Revive animation closure and a reflected factory-default anchor.
 Ten asset exports were added without porting a pawn, mesh, world or game class.

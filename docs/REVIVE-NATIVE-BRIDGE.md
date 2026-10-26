@@ -1,13 +1,18 @@
 # Native revive preparation candidate
 
-`src/runtime_revive_prepare.h` connects the ordinary guest Tick to the authored
-factory/service. It is disabled by default. The explicit research opt-in is
+`src/runtime_revive_prepare.h` connects ordinary Tick to the authored
+factory/service. The guest has its local pawn slot; the
+[host preparation path](REVIVE-HOST-PREPARATION.md) has separate story-pawn and
+guest-companion slots. It is disabled by default. The explicit research opt-in is
 `ME3_SQUAD_COOP_REVIVE_PREPARE_QA=1`, read once per process. This is preparation
 work, not a supported player setting or a completed revive feature. The
 protected probe does not include this path.
 
-The candidate requires an enabled, transport-scoped ordinary guest session,
-registered reciprocal local party-pawn ownership and the current native world.
+The candidate requires an enabled, transport-scoped ordinary session and the
+current native world. Guest admission uses registered reciprocal local Ashley
+ownership; host admission uses the captured story/possession lease and the
+exact guest connection. Every scope also captures its native actor-channel,
+connection and driver identity/index.
 It resolves unique full identities for the already loaded factory class,
 factory default object and service class under `ME3SquadCoopActions`. It does
 not load packages or animations. It now also resolves the exact already-loaded
@@ -40,8 +45,8 @@ to 250ms cadence.
 
 ## One captured preparation lifetime
 
-One factory attempt belongs to captured controller/pawn/world stamps and the
-guest context registration generation. A positive local token is never reused
+One factory attempt per slot belongs to captured controller/pawn/world/channel
+stamps and the guest registration generation or host session epoch. A positive local token is never reused
 within the process. The returned service is retained even if its initialization
 failed; status0 does not trigger repeated spawning. A nonzero unvalidated
 return blocks replacement rather than authorizing cleanup against an unknown
@@ -66,7 +71,7 @@ a new admitted scope.
 This preparation-only path does not hold back a narrative handoff and does not
 claim its initial cleanup request precedes every native scene transition.
 It retains unresolved cleanup instead of opening admission or overwriting a
-slot. Runtime host services, simulated-peer counterparts, shared loading,
+slot. Actual host service invocation, the guest simulated-host counterpart, shared loading,
 authenticated peer readiness, production pre-handoff ordering and actual
 mutual revival remain unfinished. No game, package installation, runtime ABI
 observation, factory dispatch, fixture or behavioral test was performed for

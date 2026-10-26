@@ -137,6 +137,8 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     if(g_runtime_config.role==ME3_ROLE_GUEST) {
         runtime_guest_frame(base,engine,after,now);return;
     }
+    session_before_control_release=runtime_revive_opted()?runtime_revive_before_host_release:NULL;
+    if(!after)runtime_revive_host_tick(base,engine,now);
     /* The core must see disable/world invalidation while a lease exists.
      * Its pending native-disconnect path continues proving actual removal. */
     if(session_active&&(!runtime_control_enabled||!runtime_scope_ready)) {

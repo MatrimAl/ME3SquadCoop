@@ -1,7 +1,7 @@
 #ifndef ME3_RUNTIME_REVIVE_PREPARE_H
 #define ME3_RUNTIME_REVIVE_PREPARE_H
 /* Explicit preparation-only candidate. No loader, Activate call, RPC, input
- * or claim of peer agreement. Only the ordinary guest entry includes it. */
+ * or claim of peer agreement. The protected probe does not include it. */
 typedef struct {
     uint16_t bytes,offset[6];
     uint32_t bool_mask[6];
@@ -10,13 +10,19 @@ typedef struct {
     GuestCameraStamp factory,cdo,service_class,create,status,retire,handoff,destroy,animset;
 } RuntimeReviveApi;
 typedef struct {
-    GuestCameraStamp pc,pawn,world,service;
-    uintptr_t uncertain_result;
+    GuestCameraStamp pc,pawn,world,channel,connection,driver;
     unsigned long registration;
+    int channel_index;
+} RuntimeReviveAdmission;
+typedef struct {
+    RuntimeReviveAdmission scope;
+    GuestCameraStamp service;
+    uintptr_t uncertain_result;
     int token,attempted,retiring,last_status,busy;
     DWORD poll_at,resolve_at;
 } RuntimeRevivePreparation;
-static RuntimeRevivePreparation runtime_revive_preparation;
+static RuntimeRevivePreparation runtime_revive_preparations[2];
+static int runtime_revive_dispatching;
 static int runtime_revive_serial;
 static unsigned runtime_revive_dispatch_generation;
 static RuntimeReviveApi runtime_revive_cached_api;
@@ -32,11 +38,13 @@ static int runtime_revive_opted(void) {
     }
     return opted;
 }
-static void runtime_revive_note(const char *event,int status) {
+static void runtime_revive_note(RuntimeRevivePreparation *q,const char *event,int status) {
     char row[420];
-    snprintf(row,sizeof row,"{\"runtime_revive_prepare\":\"%s\",\"token\":%d,\"status\":%d,"
+    snprintf(row,sizeof row,"{\"runtime_revive_prepare\":\"%s\",\"slot\":%d,\"token\":%d,\"status\":%d,"
+        "\"role\":%d,\"scope_generation\":%lu,\"channel_index\":%d,"
         "\"activation_dispatched_by_bridge\":false,\"monotonic_ms\":%llu}\r\n",event,
-        runtime_revive_preparation.token,status,(unsigned long long)GetTickCount64());line(row);
+        (int)(q-runtime_revive_preparations),q->token,status,(int)g_runtime_config.role,
+        q->scope.registration,q->scope.channel_index,(unsigned long long)GetTickCount64());line(row);
 }
 static int runtime_revive_path(uintptr_t base,uintptr_t object,const char *path) {
     GuestCameraStamp stamp;
@@ -174,24 +182,24 @@ static int runtime_revive_current_world(uintptr_t base,uintptr_t engine,const Gu
         chain.info==world->pointer&&guest_camera_stamp_matches(base,world,1)&&
         guest_camera_actor_live(base,world->pointer);
 }
-static int runtime_revive_dispatch(uintptr_t base,uintptr_t engine,const GuestCameraStamp *world,
+static int runtime_revive_dispatch(uintptr_t base,uintptr_t engine,RuntimeRevivePreparation *q,const GuestCameraStamp *world,
     const GuestCameraStamp *object,const GuestCameraStamp *fn,void *params) {
-    if(runtime_revive_preparation.busy||!runtime_revive_current_world(base,engine,world)||!guest_camera_stamp_matches(base,object,1)||
+    if(runtime_revive_dispatching||q->busy||!runtime_revive_current_world(base,engine,world)||!guest_camera_stamp_matches(base,object,1)||
        !guest_camera_stamp_matches(base,fn,1))return 0;
     uintptr_t pe=read_ptr(read_ptr(object->pointer)+0x230);
     if(pe<base||pe>=base+0x1300000)return 0;
-    runtime_revive_preparation.busy=1;++runtime_revive_dispatch_generation;
+    runtime_revive_dispatching=q->busy=1;++runtime_revive_dispatch_generation;
     ((ProcessEvent)pe)((void*)object->pointer,(void*)fn->pointer,params,NULL);
-    runtime_revive_preparation.busy=0;return 1;
+    runtime_revive_dispatching=q->busy=0;return 1;
 }
-static int runtime_revive_service_call(uintptr_t base,uintptr_t engine,const RuntimeReviveApi *api,
+static int runtime_revive_service_call(uintptr_t base,uintptr_t engine,RuntimeRevivePreparation *q,const RuntimeReviveApi *api,
     const GuestCameraStamp *fn,int integer,int *result) {
-    RuntimeRevivePreparation *q=&runtime_revive_preparation;RuntimeReviveLayout layout;unsigned char params[128]={0};
+    RuntimeReviveLayout layout;unsigned char params[128]={0};
     if(q->service.klass!=api->service_class.pointer||!guest_camera_actor_live(base,q->service.pointer)||
-       read_ptr(q->service.pointer+0x198)!=q->world.pointer||
+       read_ptr(q->service.pointer+0x198)!=q->scope.world.pointer||
        !runtime_revive_layout(base,fn,api->service_class.pointer,0,integer,&layout))return 0;
     memcpy(params+layout.offset[0],&q->token,4);
-    if(!runtime_revive_dispatch(base,engine,&q->world,&q->service,fn,params))return 0;
+    if(!runtime_revive_dispatch(base,engine,q,&q->scope.world,&q->service,fn,params))return 0;
     uint32_t raw=0;memcpy(&raw,params+layout.offset[1],4);
     if(integer) {if(raw>4)return 0;*result=(int)raw;}
     else *result=(raw&layout.bool_mask[1])!=0;
@@ -207,76 +215,136 @@ static int runtime_revive_disposed(uintptr_t base,const GuestCameraStamp *stamp)
     if(!read_at(objects.data+(SIZE_T)stamp->index*8,&slot,8))return 0;
     return slot!=stamp->pointer;
 }
-static void runtime_revive_prepare_tick(uintptr_t base,uintptr_t engine,SessionContext c,int ordinary,DWORD now) {
-    RuntimeRevivePreparation *q=&runtime_revive_preparation;
-    if(!runtime_revive_opted()||q->busy||session_game_thread!=GetCurrentThreadId()||session_engine!=engine)return;
+static int runtime_revive_scope_same(const RuntimeReviveAdmission *a,const RuntimeReviveAdmission *b) {
+    const GuestCameraStamp *left[]={&a->pc,&a->pawn,&a->world,&a->channel,&a->connection,&a->driver};
+    const GuestCameraStamp *right[]={&b->pc,&b->pawn,&b->world,&b->channel,&b->connection,&b->driver};
+    if(!a->registration||a->registration!=b->registration||a->channel_index!=b->channel_index)return 0;
+    for(unsigned i=0;i<6;++i)if(!guest_camera_stamp_core_equal(left[i],right[i])||
+        strcmp(left[i]->full_name,right[i]->full_name))return 0;
+    return 1;
+}
+/* Host candidates come only from the captured story/possession lease, never
+ * a pawn class/name scan. Both host pawns must map to that exact guest's
+ * reciprocal native channel/connection lifetime. */
+static int runtime_revive_read_admission(uintptr_t base,SessionContext c,uintptr_t candidate,
+    unsigned long registration,RuntimeReviveAdmission *out) {
+    memset(out,0,sizeof *out);NetworkActorIdentityEntry network={0};
+    if(!registration||!session_actor_live(base,candidate)||!is_kind_of(base,candidate,"SFXPawn_PlayerParty")||
+       read_ptr(candidate+0x198)!=c.world||session_engine_blocked(c))return 0;
+    if(g_runtime_config.role==ME3_ROLE_GUEST) {
+        if(candidate!=c.pawn||registration!=guest_player_context_registration_token()||
+           !guest_player_context_registered_for(c.pc,c.pawn)||
+           !guest_player_context_basic_owned(base,c.pc,c.pawn,c.world))return 0;
+    } else if(g_runtime_config.role==ME3_ROLE_HOST) {
+        if(!session_active||session_releasing||session_fault||session_cleanup_pending||session_pending_reason||
+           registration!=session_epoch||c.pc!=session_host||c.pawn!=session_shepard||c.world!=session_world||
+           c.squad!=session_squad||(candidate!=session_shepard&&candidate!=session_pawn)||
+           !session_story_valid(base)||!session_handle_matches(session_world_handle)||
+           !session_handle_matches(session_pc_handle)||!session_handle_matches(session_pawn_handle)||
+           !session_handle_matches(session_connection_handle)||
+           read_ptr(session_remote+0x67c)!=session_connection||
+           !session_peer_connected(base,session_remote,session_world)||
+           read_ptr(session_remote+0x3bc)!=session_pawn||read_ptr(session_pawn+0x374)!=session_remote)return 0;
+    } else return 0;
+    if(!guest_player_context_channel(base,candidate,&network)||
+       (g_runtime_config.role==ME3_ROLE_HOST&&network.connection!=session_connection))return 0;
+    if(!guest_camera_stamp_read(base,c.pc,&out->pc,1)||!guest_camera_stamp_read(base,candidate,&out->pawn,1)||
+       !guest_camera_stamp_read(base,c.world,&out->world,1)||!guest_camera_stamp_read(base,network.channel,&out->channel,1)||
+       !guest_camera_stamp_read(base,network.connection,&out->connection,1)||
+       !guest_camera_stamp_read(base,network.driver,&out->driver,1))return 0;
+    out->registration=registration;out->channel_index=network.index;return 1;
+}
+static void runtime_revive_prepare_one(uintptr_t base,uintptr_t engine,SessionContext c,uintptr_t candidate,
+    unsigned long registration,int ordinary,DWORD now,RuntimeRevivePreparation *q) {
+    if(!runtime_revive_opted()||runtime_revive_dispatching||q->busy||session_game_thread!=GetCurrentThreadId()||session_engine!=engine)return;
     if(q->uncertain_result)return; /* Never replace an unvalidated factory result. */
     if(q->service.pointer) {
         if(runtime_revive_disposed(base,&q->service)) {
-            memset(&q->service,0,sizeof q->service);runtime_revive_note("service-disposed",0);
+            memset(&q->service,0,sizeof q->service);runtime_revive_note(q,"service-disposed",0);
         } else {
             if(q->poll_at&&now-q->poll_at<250)return;q->poll_at=now;
-            if(!ordinary||!runtime_control_enabled||!runtime_scope_ready||c.pc!=q->pc.pointer||
-               c.pawn!=q->pawn.pointer||guest_player_context_registration_token()!=q->registration||
-               !guest_camera_stamp_matches(base,&q->pc,1)||!guest_camera_stamp_matches(base,&q->pawn,1))q->retiring=1;
-            if(!runtime_revive_current_world(base,engine,&q->world))return;
+            RuntimeReviveAdmission current;
+            if(!ordinary||!runtime_control_enabled||!runtime_scope_ready||
+               !runtime_revive_read_admission(base,c,candidate,registration,&current)||
+               !runtime_revive_scope_same(&current,&q->scope))q->retiring=1;
+            if(!runtime_revive_current_world(base,engine,&q->scope.world))return;
             RuntimeReviveApi api;int status=0,result=0;
-            if(!runtime_revive_resolve(base,&api)||!runtime_revive_service_call(base,engine,&api,&api.status,1,&status)) {
-                if(q->last_status!=-2){q->last_status=-2;runtime_revive_note("service-contract-unavailable",-2);}
+            if(!runtime_revive_resolve(base,&api)||!runtime_revive_service_call(base,engine,q,&api,&api.status,1,&status)) {
+                if(q->last_status!=-2){q->last_status=-2;runtime_revive_note(q,"service-contract-unavailable",-2);}
                 return;
             }
-            if(status!=q->last_status){q->last_status=status;runtime_revive_note("service-status",status);}
+            if(status!=q->last_status){q->last_status=status;runtime_revive_note(q,"service-status",status);}
             if(status!=1)q->retiring=1; /* Includes unexpected active admission. */
             if(q->retiring) {
-                runtime_revive_service_call(base,engine,&api,&api.handoff,0,&result);
+                runtime_revive_service_call(base,engine,q,&api,&api.handoff,0,&result);
                 /* A handoff result is not disposal permission. */
-                if(runtime_revive_service_call(base,engine,&api,&api.status,1,&status)&&status==4&&
-                   runtime_revive_service_call(base,engine,&api,&api.destroy,0,&result)&&result)
-                    runtime_revive_note("destruction-requested",status);
+                if(runtime_revive_service_call(base,engine,q,&api,&api.status,1,&status)&&status==4&&
+                   runtime_revive_service_call(base,engine,q,&api,&api.destroy,0,&result)&&result)
+                    runtime_revive_note(q,"destruction-requested",status);
             }
             return;
         }
     }
-    if(!ordinary||!runtime_control_enabled||!runtime_scope_ready||g_runtime_config.role!=ME3_ROLE_GUEST||
-       !guest_player_context_registered_for(c.pc,c.pawn)||
-       !guest_player_context_basic_owned(base,c.pc,c.pawn,c.world)||!is_kind_of(base,c.pawn,"SFXPawn_PlayerParty"))return;
-    unsigned long registration=guest_player_context_registration_token();
-    if(q->attempted&&registration==q->registration&&guest_camera_stamp_matches(base,&q->pc,1)&&
-       guest_camera_stamp_matches(base,&q->pawn,1)&&guest_camera_stamp_matches(base,&q->world,1)&&
-       c.pc==q->pc.pointer&&c.pawn==q->pawn.pointer&&c.world==q->world.pointer)return;
+    if(!ordinary||!runtime_control_enabled||!runtime_scope_ready)return;
     if(q->resolve_at&&now-q->resolve_at<5000)return;q->resolve_at=now;
+    RuntimeReviveAdmission admitted;
+    if(!runtime_revive_read_admission(base,c,candidate,registration,&admitted))return;
+    if(q->attempted&&runtime_revive_scope_same(&admitted,&q->scope))return;
     RuntimeReviveApi api;RuntimeReviveLayout layout;unsigned char params[128]={0};
     if(!runtime_revive_resolve(base,&api)) {
-        if(q->last_status!=-2){q->last_status=-2;runtime_revive_note("loaded-contract-unavailable",-2);}
+        if(q->last_status!=-2){q->last_status=-2;runtime_revive_note(q,"loaded-contract-unavailable",-2);}
         return;
     }
     if(!api.animset.pointer||!guest_camera_stamp_matches(base,&api.animset,1)) {
-        if(q->last_status!=-3){q->last_status=-3;runtime_revive_note("owned-animation-unavailable",-3);}
+        if(q->last_status!=-3){q->last_status=-3;runtime_revive_note(q,"owned-animation-unavailable",-3);}
         return;
     }
-    GuestCameraStamp pc,pawn,world;
-    if(!guest_camera_stamp_read(base,c.pc,&pc,1)||!guest_camera_stamp_read(base,c.pawn,&pawn,1)||
-       !guest_camera_stamp_read(base,c.world,&world,1)||!runtime_revive_current_world(base,engine,&world)||
+    if(!runtime_revive_current_world(base,engine,&admitted.world)||
        !runtime_revive_layout(base,&api.create,api.factory.pointer,1,0,&layout)||runtime_revive_serial==INT32_MAX)return;
-    q->pc=pc;q->pawn=pawn;q->world=world;q->registration=registration;q->token=++runtime_revive_serial;
+    q->scope=admitted;q->token=++runtime_revive_serial;
     q->attempted=1;q->retiring=0;q->last_status=-1;
-    memcpy(params+layout.offset[0],&c.pawn,8);memcpy(params+layout.offset[1],&c.pc,8);
+    memcpy(params+layout.offset[0],&candidate,8);memcpy(params+layout.offset[1],&c.pc,8);
     memcpy(params+layout.offset[2],&api.animset.pointer,8);
     memcpy(params+layout.offset[3],&q->token,4);
     /* Only the exact already-loaded owner-derived set is supplied. Setup
      * validates its unique sequence and registration; no loader is called. */
-    if(!guest_player_context_registered_for(c.pc,c.pawn)||
-       guest_player_context_registration_token()!=registration||
-       !guest_player_context_basic_owned(base,c.pc,c.pawn,c.world)||
+    RuntimeReviveAdmission checked;
+    if(!runtime_revive_read_admission(base,c,candidate,registration,&checked)||
+       !runtime_revive_scope_same(&checked,&admitted)||
        !guest_camera_stamp_matches(base,&api.animset,1)||
-       !runtime_revive_dispatch(base,engine,&q->world,&api.cdo,&api.create,params))return;
+       !runtime_revive_dispatch(base,engine,q,&q->scope.world,&api.cdo,&api.create,params))return;
     uintptr_t created=0;memcpy(&created,params+layout.offset[5],8);
-    if(!created){runtime_revive_note("factory-returned-none",0);return;}
+    if(!created){runtime_revive_note(q,"factory-returned-none",0);return;}
     q->uncertain_result=created;
     if(guest_camera_stamp_read(base,created,&q->service,1)&&q->service.klass==api.service_class.pointer&&
-       guest_camera_actor_live(base,created)&&read_ptr(created+0x198)==q->world.pointer&&
-       read_ptr(created+0x180)==q->pc.pointer) {
-        q->uncertain_result=0;runtime_revive_note("factory-returned-service",0);
-    } else runtime_revive_note("factory-result-unvalidated",0);
+       guest_camera_actor_live(base,created)&&read_ptr(created+0x198)==q->scope.world.pointer&&
+       read_ptr(created+0x180)==q->scope.pc.pointer) {
+        q->uncertain_result=0;runtime_revive_note(q,"factory-returned-service",0);
+    } else runtime_revive_note(q,"factory-result-unvalidated",0);
+}
+static void runtime_revive_prepare_tick(uintptr_t base,uintptr_t engine,SessionContext c,int ordinary,DWORD now) {
+    runtime_revive_prepare_one(base,engine,c,c.pawn,guest_player_context_registration_token(),ordinary,now,
+        &runtime_revive_preparations[0]);
+}
+static void runtime_revive_host_tick(uintptr_t base,uintptr_t engine,DWORD now) {
+    if(!runtime_revive_opted()||runtime_revive_dispatching||session_game_thread!=GetCurrentThreadId())return;
+    for(unsigned slot=0;slot<2;++slot) {
+        SessionContext c=session_context(engine);
+        int ordinary=runtime_control_enabled&&runtime_scope_ready&&!session_engine_blocked(c);
+        unsigned before=runtime_revive_dispatch_generation;
+        runtime_revive_prepare_one(base,engine,c,slot?session_pawn:c.pawn,session_epoch,ordinary,now,
+            &runtime_revive_preparations[slot]);
+        if(before!=runtime_revive_dispatch_generation)runtime_scope_ready=runtime_session_scope(base,engine);
+    }
+}
+/* Preparation-only cleanup request before the core's UnPossess. It never
+ * blocks a narrative handoff, clears a scene gate or opens action admission. */
+static void runtime_revive_before_host_release(uintptr_t base,uintptr_t engine) {
+    if(!runtime_revive_opted()||runtime_revive_dispatching||session_game_thread!=GetCurrentThreadId())return;
+    for(unsigned slot=0;slot<2;++slot) {
+        RuntimeRevivePreparation *q=&runtime_revive_preparations[slot];
+        q->retiring=1;q->poll_at=0;
+        runtime_revive_prepare_one(base,engine,session_context(engine),0,0,0,GetTickCount(),q);
+    }
 }
 #endif
