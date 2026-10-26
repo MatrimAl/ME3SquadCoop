@@ -182,16 +182,33 @@ static int combat_fire_roles_selftest(void) {
     pawn[0]=3;weapon[0]=255;
     return !combat_fire_roles_valid(pawn,weapon,0);
 }
+/* Resolve either of the two validated native squad leases. Never fabricate a
+ * created-squad lease when the game already owns the local squad. */
+typedef struct CombatFireContext {unsigned long token;uintptr_t squad,channel;int channel_index,existing;} CombatFireContext;
+static int combat_fire_context(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,
+                               const NetworkActorIdentityEntry *channel,const CombatContextChain *chain,
+                               CombatFireContext *out) {
+    GuestPlayerContextLease *l=&guest_player_context_lease;GuestExistingContextLease *e=&guest_existing_context;
+    memset(out,0,sizeof *out);
+    if(e->registered&&e->active&&guest_existing_context_same(base,pc,pawn,world,channel,chain)&&
+       read_ptr(chain->squad+0x2a8)==pawn&&read_ptr(chain->squad+0x2cc)==pawn&&guest_existing_context_gate(base,pc)) {
+        out->token=e->token;out->squad=chain->squad;out->channel=channel->channel;out->channel_index=channel->index;out->existing=1;return 1;
+    }
+    if(l->registered&&!l->pending_cleanup&&!l->suppressed&&l->getter_after==1&&
+       guest_player_context_same(base,pc,pawn,world,channel)&&guest_player_context_squad_shape(base,pawn)&&
+       chain->squad==l->squad.pointer&&chain->cached==pawn&&combat_context_derived(chain,combat_context_layout(base),1)==1) {
+        out->token=l->token;out->squad=l->squad.pointer;out->channel=l->channel.pointer;out->channel_index=l->channel_index;return 1;
+    }
+    return 0;
+}
 static int combat_fire_conditions(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,int ordinary,
-                                  int enabled,uintptr_t *mode_out,uintptr_t *weapon_out,const char **reason) {
-    *reason="eligible";GuestPlayerContextLease *l=&guest_player_context_lease;
+                                  int enabled,uintptr_t *mode_out,uintptr_t *weapon_out,CombatFireContext *context,const char **reason) {
+    *reason="eligible";memset(context,0,sizeof *context);
     if(!enabled||!progress_enabled||!has_marker(root)||test_action!=5||strcmp(test_role,"client")){*reason="disabled";return 0;}
     NetworkActorIdentityEntry channel={0};CombatContextChain chain;
     if(!ordinary||!guest_player_context_conditions(base,pc,pawn,world,ordinary,enabled,1,&channel,&chain)){
         *reason=!ordinary?"scene":guest_player_context_reason;return 0;}
-    if(!l->registered||l->pending_cleanup||l->suppressed||l->getter_after!=1||
-       !guest_player_context_same(base,pc,pawn,world,&channel)||!guest_player_context_squad_shape(base,pawn)||
-       chain.squad!=l->squad.pointer||chain.cached!=pawn||combat_context_derived(&chain,combat_context_layout(base),1)!=1){*reason="registered-native-context";return 0;}
+    if(!combat_fire_context(base,pc,pawn,world,&channel,&chain,context)){*reason="registered-native-context";return 0;}
     uintptr_t manager=read_ptr(pc+0xc38);GameArray modes={0};
     if(!read_at(manager+0x70,&modes,sizeof modes)||!modes.data||modes.count<1||modes.count>64||modes.max<modes.count||modes.max>128){*reason="mode-array";return 0;}
     uintptr_t mode=read_ptr(modes.data);
@@ -210,31 +227,31 @@ static int combat_fire_conditions(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
 }
 static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,
                                 int ordinary,int enabled,int after,DWORD now) {
-    CombatFirePulse *p=&combat_fire_pulse;GuestPlayerContextLease *l=&guest_player_context_lease;
+    CombatFirePulse *p=&combat_fire_pulse;CombatFireContext context={0};
     uintptr_t mode=0,weapon=0;const char *reason=NULL;
-    int eligible=combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&reason);
-    int same=p->token&&p->token==l->token&&p->pc.pointer==pc&&p->pawn.pointer==pawn&&p->world.pointer==world&&
+    int eligible=combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&context,&reason);
+    int same=p->token&&p->token==context.token&&p->pc.pointer==pc&&p->pawn.pointer==pawn&&p->world.pointer==world&&
         p->mode.pointer==mode&&p->weapon.pointer==weapon&&guest_camera_stamp_matches(base,&p->pc,0)&&
         guest_camera_stamp_matches(base,&p->pawn,0)&&guest_camera_stamp_matches(base,&p->mode,0)&&
-        guest_camera_stamp_matches(base,&p->weapon,0)&&l->channel.pointer==p->channel&&l->channel_index==p->channel_index;
+        guest_camera_stamp_matches(base,&p->weapon,0)&&context.channel==p->channel&&context.channel_index==p->channel_index;
     if(p->active){
         if(!eligible||!same||now-p->pressed_at>=250){combat_fire_stop(base,!eligible?reason:!same?"ownership-or-weapon-change":"250ms-timeout",now);return;}
         if(after)++p->ticks;return;
     }
     if(!eligible){
         p->stable_at=0;p->positive_getter=0;
-        if(enabled&&progress_enabled&&test_action==5&&l->registered&&(!p->report_at||now-p->report_at>=5000)){
+        if(enabled&&progress_enabled&&test_action==5&&guest_player_context_registered_for(pc,pawn)&&(!p->report_at||now-p->report_at>=5000)){
             p->report_at=now;guest_camera_stamp_read(base,pc,&p->pc,1);guest_camera_stamp_read(base,pawn,&p->pawn,1);
-            memset(&p->weapon,0,sizeof p->weapon);if(weapon)guest_camera_stamp_read(base,weapon,&p->weapon,1);p->token=l->token;
+            memset(&p->weapon,0,sizeof p->weapon);if(weapon)guest_camera_stamp_read(base,weapon,&p->weapon,1);p->token=guest_player_context_registration_token();
             combat_fire_log(base,"eligibility",reason,now,0,0,0,0,0);}
         return;
     }
-    if(!combat_fire_attempt_ready(p->attempted_token,l->token,p->attempts,combat_fire_repeat_opted(),now-p->release_at))return;
+    if(!combat_fire_attempt_ready(p->attempted_token,context.token,p->attempts,combat_fire_repeat_opted(),now-p->release_at))return;
     if(!same){
         unsigned long attempted=p->attempted_token;unsigned attempts=p->attempts;
         DWORD report=p->report_at,released=p->release_at;memset(p,0,sizeof *p);
         p->attempts=attempts;p->release_at=released;
-        p->attempted_token=attempted;p->report_at=report;p->token=l->token;p->channel=l->channel.pointer;p->channel_index=l->channel_index;
+        p->attempted_token=attempted;p->report_at=report;p->token=context.token;p->channel=context.channel;p->channel_index=context.channel_index;
         if(!guest_camera_stamp_read(base,pc,&p->pc,1)||!guest_camera_stamp_read(base,pawn,&p->pawn,1)||
            !guest_camera_stamp_read(base,world,&p->world,1)||!guest_camera_stamp_read(base,mode,&p->mode,1)||
            !guest_camera_stamp_read(base,weapon,&p->weapon,1))return;
@@ -243,7 +260,8 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
     unsigned char before=255;
     if(!read_at(pc+0x480,&before,1)||before){p->stable_at=0;p->positive_getter=0;return;}
     if(!p->stable_at)p->stable_at=now;
-    if(!p->gate_at||now-p->gate_at>=1000){p->gate_at=now;p->positive_getter=guest_player_context_gate(base,"fire-bot-baseline",now)==1;
+    if(!p->gate_at||now-p->gate_at>=1000){p->gate_at=now;p->positive_getter=context.existing?
+        guest_existing_context_gate(base,pc):guest_player_context_gate(base,"fire-bot-baseline",now)==1;
         if(!p->positive_getter)p->stable_at=0;}
     /* Observe normal input during the retained valid ownership window. The
      * eight-second QA delay outlasted the measured inventory loss (~six s).
@@ -257,8 +275,9 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
     }
     if(p->attempted_token!=p->token)p->attempts=0;
     ++p->attempts;p->attempted_token=p->token; /* Default one; explicit cancellation QA permits one re-press. */
-    if(guest_player_context_gate(base,"fire-bot-pre-dispatch",now)!=1||
-       !combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&reason)||
+    if(!(context.existing?guest_existing_context_gate(base,pc):guest_player_context_gate(base,"fire-bot-pre-dispatch",now)==1)||
+       !combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&context,&reason)||context.token!=p->token||
+       context.channel!=p->channel||context.channel_index!=p->channel_index||
        mode!=p->mode.pointer||weapon!=p->weapon.pointer||!guest_camera_stamp_matches(base,&p->pc,1)||
        !guest_camera_stamp_matches(base,&p->pawn,1)||!guest_camera_stamp_matches(base,&p->mode,1)||
        !guest_camera_stamp_matches(base,&p->weapon,1)||!read_at(pc+0x480,&before,1)||before)return;

@@ -1,5 +1,13 @@
 # Existing native guest squad context
 
+The protected research fire bot now resolves either a validated existing
+squad lease or the original created-squad lease. The existing branch rechecks
+the same local pawn, world, squad caches, channel and native combat getter;
+the existing weapon and input guards remain in force. This is test-only code,
+not an ordinary-entry fire automation. It compiled and the probe harness passed,
+but neither branch was exercised in a game after this change; the harness
+does not validate the new engine-owned squad branch.
+
 Following that startup race, `4e4fcce` requires a sampled 1.5-second empty
 squad window before creating a guest-local squad, resetting on ownership,
 eligibility, squad presence or a sampling gap over one second. In one same-PC
