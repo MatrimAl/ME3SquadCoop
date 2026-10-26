@@ -1,5 +1,20 @@
 # Progress
 
+## 2026-10-26: prepare repeatable private script-package builds
+
+The existing local Legendary Explorer assembly exposes FileLib, CompileClass
+and package-save APIs. A new PowerShell7 command prepares ordered authored
+class compilation into a fresh repository-local package, with explicit game/
+tool roots, diagnostics and input/output digest receipts. Existing/outside
+paths and junction/symlink output ancestors are refused; no installer or game
+launcher invokes it. Failed compile sets do not reach the final package save.
+
+Only API reflection and PowerShell syntax parsing were performed. The new tool
+has not compiled a class or saved/loaded a package; no game or tests ran. It
+prepares a reusable route for the missing shared revive action rather than
+claiming that the action, animation or per-peer assignment exists. See
+[script build preparation](SCRIPT-PACKAGE-BUILD.md).
+
 ## 2026-10-26: identify missing serialized revive action prerequisite
 
 Fresh property reads show null custom-action class5 in the inspected Ashley
