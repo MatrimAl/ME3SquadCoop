@@ -16,6 +16,9 @@ typedef struct GuestHitFrame {
     struct GuestHitFrame *previous;unsigned id,parent,nested_calls;
     unsigned long generation,epoch;uintptr_t target,weapon,pc;unsigned char mode;int32_t hits,channel_index,weapon_index;
     int captured,scope_after;GuestHitSample before,after;
+    int input_actor_valid,input_actor_is_pawn,input_geometry_valid;
+    char input_actor_class[96];
+    float input_start[3],input_location[3],input_direction[3],input_penetration;
 } GuestHitFrame;
 typedef struct GuestHitObserver {GuestHitFrame *current;unsigned rows,calls;} GuestHitObserver;
 typedef struct GuestHitOps {

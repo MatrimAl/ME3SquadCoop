@@ -1,5 +1,27 @@
 # Drained guest instant-hit observations
 
+The focused damage follow-up now records supplied Impact start/location/ray
+direction/penetration and distinguishes a live authoritative world actor from
+the stricter BioPawn health target. A non-pawn impact no longer has to be
+interpreted from a failed health sample alone: its input actor class is logged.
+Geometry field offsets are read from the actual reflected native ImpactInfo
+layout, with vector/float types, bounds, dimensions and nonoverlap checked;
+native struct declaration order is not used as a memory-layout assumption.
+Invalid geometry remains null. These are input snapshots before the original
+consumer and its delegates, not proof of a fresh host physics trace or its
+eventual damage target. The normal aim QA row also logs its viewpoint,
+rotation and aim point with the existing 65-unit height offset unchanged.
+
+A targeted offline decompilation of the selected ProcessInstantHit_Internal
+body did not reference its optional NumHits parameter. Its TakeDamage branch
+checks damage suppression and a nonnull Impact.HitActor after impact delegates.
+Consequently num_hits=0 is not a miss verdict. A focused Flash review's proposed
+five-frame settling requirement was also unsupported: retained ammo samples
+are roughly one second apart, and the evaluator requires three spanning at
+least two seconds. Missing samples do not prove continued firing or latency.
+No aim/stance/payload changes were made from those hypotheses. Three native
+targets built; the new fields have not been observed in game or fixtures.
+
 This protected developer observer is default off. It is a way to gather
 stronger combat evidence; it does not make combat work or certify a playable
 mod. Enable it only in the existing protected host test with
@@ -36,7 +58,7 @@ replication fields are not used. Missing, unreadable, non-finite, ambiguous,
 replaced, or destroyed sources remain invalid; an invalid read never means zero
 health or no shields.
 
-At most 64 calls reserve 128 paired records. Nested dispatches maintain separate
+At most 256 calls reserve 512 paired records. Nested dispatches maintain separate
 scopes and are counted. Records distinguish stable health/shield pairs and
 observed decreases from a damage verdict: `damage_verified` and
 `hostility_verified` remain false. A decrease within this dispatch is a scoped

@@ -136,7 +136,8 @@ finish:
     if(!network_actor_read_scope(base,target,&again)||memcmp(&current,&again,sizeof current))
         out->target_valid=out->health_valid=out->shield_valid=0;
 }
-static int guest_hit_method_valid(uintptr_t base) {
+typedef struct GuestHitGeometryLayout {int offsets[4];} GuestHitGeometryLayout;
+static int guest_hit_method_valid(uintptr_t base,GuestHitGeometryLayout *output) {
     GuestPlayerContextMethod *m=&guest_hit_method;uintptr_t fn=m->function.pointer;GameArray script={0};
     if(!guest_player_context_method_matches(base,m,1)||strcmp(m->function.full_name,"SFXGame.SFXWeapon.ProcessInstantHit_Internal")||
        !guest_player_context_function_abi(base,fn,"SFXWeapon","ProcessInstantHit_Internal",0x24102,108,65535,0,0xf52b0,3)||
@@ -153,21 +154,51 @@ static int guest_hit_method_valid(uintptr_t base) {
     GuestCameraStamp structure;int32_t size=0;
     if(!guest_camera_stamp_read(base,impact,&structure,1)||strcmp(structure.full_name,"Engine.Actor.ImpactInfo")||
        !narrative_probe_object(base,impact,"ScriptStruct")||!read_at(impact+0x78,&size,4)||size!=100)return 0;
-    unsigned hit_fields=0;prop=read_ptr(impact+0x70);
+    unsigned hit_fields=0,geometry_fields=0;GuestHitGeometryLayout geometry={{0}};prop=read_ptr(impact+0x70);
     for(unsigned i=0;prop&&i<32;++i){char name[96];
         if(!is_live(base,prop)||read_ptr(prop+0x40)!=impact)return 0;object_name(base,prop,name,sizeof name);
         if(!strcmp(name,"HitActor")){
             if(!combat_fire_property(base,prop,"ObjectProperty","Engine.Actor.ImpactInfo.HitActor",0x58,0x100000)||
                !read_at(prop+0x74,&size,4)||size!=8)return 0;
             ++hit_fields;
-        }prop=read_ptr(prop+0x68);
+        }
+        const char *vectors[]={"HitLocation","RayDir","StartTrace"};
+        for(unsigned v=0;v<3;++v)if(!strcmp(name,vectors[v])) {
+            GuestCameraStamp field,type;int32_t offset=-1,element=0,dimension=0;
+            char expected_path[180];snprintf(expected_path,sizeof expected_path,"Engine.Actor.ImpactInfo.%s",vectors[v]);
+            if(!guest_camera_stamp_read(base,prop,&field,1)||strcmp(field.full_name,expected_path)||
+               !narrative_probe_object(base,prop,"StructProperty")||!read_at(prop+0x94,&offset,4)||offset<0||offset>88||(offset&3)||
+               !read_at(prop+0x74,&element,4)||element!=12||!read_at(prop+0x70,&dimension,4)||dimension!=1||
+               !guest_camera_stamp_read(base,read_ptr(prop+0xd0),&type,1)||strcmp(type.full_name,"Core.Object.Vector"))return 0;
+            if(geometry_fields&(1u<<v))return 0;
+            geometry.offsets[v]=offset;geometry_fields|=1u<<v;
+        }
+        if(!strcmp(name,"PenetrationDepth")) {
+            GuestCameraStamp field;int32_t offset=-1,element=0,dimension=0;
+            if(!guest_camera_stamp_read(base,prop,&field,1)||strcmp(field.full_name,"Engine.Actor.ImpactInfo.PenetrationDepth")||
+               !narrative_probe_object(base,prop,"FloatProperty")||!read_at(prop+0x94,&offset,4)||offset<0||offset>96||(offset&3)||
+               !read_at(prop+0x74,&element,4)||element!=4||!read_at(prop+0x70,&dimension,4)||dimension!=1)return 0;
+            if(geometry_fields&8)return 0;
+            geometry.offsets[3]=offset;geometry_fields|=8;
+        }
+        prop=read_ptr(prop+0x68);
     }
-    if(prop||hit_fields!=1)return 0;
+    if(prop||hit_fields!=1||geometry_fields!=15)return 0;
+    for(unsigned i=0;i<4;++i) {
+        int width=i==3?4:12,start=geometry.offsets[i];
+        if(start<96&&88<start+width)return 0; /* Native HitActor pointer. */
+        for(unsigned j=0;j<i;++j) {
+            int other_width=j==3?4:12;
+            if(start<geometry.offsets[j]+other_width&&geometry.offsets[j]<start+width)return 0;
+        }
+    }
     /* Bind the native cached FNameEntry to this reflected function's name. */
     uintptr_t cached=read_ptr(base+0x17a9458),pool=read_ptr(base+NAME_POOLS_RVA+(m->function.name[0]>>29)*8);
     const char expected[]="ProcessInstantHit_Internal";char actual[sizeof expected];
-    return cached&&pool&&cached==pool+(m->function.name[0]&0x1fffffff)&&!m->function.name[1]&&
+    int valid=cached&&pool&&cached==pool+(m->function.name[0]&0x1fffffff)&&!m->function.name[1]&&
         read_at(cached+12,actual,sizeof actual)&&!memcmp(actual,expected,sizeof expected);
+    if(valid&&output)*output=geometry;
+    return valid;
 }
 static int guest_hit_live_scope(void) {
     AmmoWireScope *s=&ammo_wire_scope;unsigned char net=255,weapon_role=255,pawn_role=255;
@@ -176,14 +207,30 @@ static int guest_hit_live_scope(void) {
         read_at(s->pawn.pointer+0x26a,&pawn_role,1)&&pawn_role==3&&read_ptr(s->pc.pointer+0x67c)==s->channel.connection;
 }
 static int guest_hit_live_eligible(void *context,const GuestHitArgs *args,uintptr_t caller,GuestHitFrame *frame) {
-    (void)context;AmmoWireScope *s=&ammo_wire_scope;
+    (void)context;AmmoWireScope *s=&ammo_wire_scope;GuestHitGeometryLayout geometry;
     if(!guest_hit_call_matches(caller,s->base+0xb1f6e3,(uintptr_t)args->self,s->weapon.pointer,
         (uintptr_t)args->function,guest_hit_method.function.pointer,args->params!=NULL,args->result==NULL,1)||
-       !guest_hit_installed||!guest_hit_live_scope()||!guest_hit_method_valid(s->base)||
+       !guest_hit_installed||!guest_hit_live_scope()||!guest_hit_method_valid(s->base,&geometry)||
        !guest_hit_dispatch_valid(s->base,(uintptr_t)args->self,1)||
        !read_at((uintptr_t)args->params,&frame->mode,1)||
        !read_at((uintptr_t)args->params+0x5c,&frame->target,8)||
        !read_at((uintptr_t)args->params+0x68,&frame->hits,4))return 0;
+    /* These are the supplied Impact values at the dispatch boundary, not
+     * proof of a fresh host physics trace or the eventual TakeDamage target. */
+    frame->input_geometry_valid=read_at((uintptr_t)args->params+4+geometry.offsets[0],frame->input_location,12)&&
+        read_at((uintptr_t)args->params+4+geometry.offsets[1],frame->input_direction,12)&&
+        read_at((uintptr_t)args->params+4+geometry.offsets[2],frame->input_start,12)&&
+        read_at((uintptr_t)args->params+4+geometry.offsets[3],&frame->input_penetration,4);
+    for(unsigned i=0;i<3;++i)if(!isfinite(frame->input_start[i])||fabsf(frame->input_start[i])>1e9f||
+        !isfinite(frame->input_location[i])||fabsf(frame->input_location[i])>1e9f||
+        !isfinite(frame->input_direction[i])||fabsf(frame->input_direction[i])>1e9f)frame->input_geometry_valid=0;
+    if(!isfinite(frame->input_penetration)||fabsf(frame->input_penetration)>1e9f)frame->input_geometry_valid=0;
+    GuestHitKey actor;unsigned char role=255;
+    if(guest_camera_actor_live(s->base,frame->target)&&guest_hit_key(s->base,frame->target,&actor)&&
+       read_ptr(frame->target+0x198)==s->world.pointer&&read_at(frame->target+0x26a,&role,1)&&role==3) {
+        frame->input_actor_valid=1;frame->input_actor_is_pawn=is_kind_of(s->base,frame->target,"Pawn");
+        object_name(s->base,actor.klass,frame->input_actor_class,sizeof frame->input_actor_class);
+    }
     frame->generation=s->generation;frame->epoch=s->epoch;frame->weapon=s->weapon.pointer;frame->pc=s->pc.pointer;
     frame->channel_index=s->channel.index;frame->weapon_index=s->weapon.index;return 1;
 }
@@ -191,20 +238,28 @@ static int guest_hit_live_same(void *context,const GuestHitArgs *args,const Gues
     (void)context;AmmoWireScope *s=&ammo_wire_scope;
     return s->generation==frame->generation&&s->epoch==frame->epoch&&(uintptr_t)args->self==s->weapon.pointer&&
         s->weapon.pointer==frame->weapon&&s->pc.pointer==frame->pc&&s->channel.index==frame->channel_index&&s->weapon.index==frame->weapon_index&&
-        guest_hit_live_scope()&&guest_hit_method_valid(s->base)&&guest_hit_dispatch_valid(s->base,(uintptr_t)args->self,1);
+        guest_hit_live_scope()&&guest_hit_method_valid(s->base,NULL)&&guest_hit_dispatch_valid(s->base,(uintptr_t)args->self,1);
 }
 #include "guest_hit_damage_inputs.h"
 static void guest_hit_live_emit(void *context,const GuestHitFrame *frame,int leaving) {
     (void)context;const GuestHitSample *sample=leaving?&frame->after:&frame->before;
     if(!leaving)guest_hit_damage_inputs(frame);
-    char health[48],shields[48],row[2000];int hp=leaving&&guest_hit_health_pair(frame),sp=leaving&&guest_hit_shield_pair(frame);
+    char health[48],shields[48],row[3000],actor_class[220],geometry[650];int hp=leaving&&guest_hit_health_pair(frame),sp=leaving&&guest_hit_shield_pair(frame);
+    identity_quote(frame->input_actor_class,actor_class,sizeof actor_class);
+    if(frame->input_geometry_valid)snprintf(geometry,sizeof geometry,
+        "\"input_impact_start\":[%.4f,%.4f,%.4f],\"input_impact_location\":[%.4f,%.4f,%.4f],"
+        "\"input_impact_ray_direction\":[%.6f,%.6f,%.6f],\"input_penetration_depth\":%.6f",
+        frame->input_start[0],frame->input_start[1],frame->input_start[2],
+        frame->input_location[0],frame->input_location[1],frame->input_location[2],
+        frame->input_direction[0],frame->input_direction[1],frame->input_direction[2],frame->input_penetration);
+    else snprintf(geometry,sizeof geometry,"\"input_impact_start\":null,\"input_impact_location\":null,\"input_impact_ray_direction\":null,\"input_penetration_depth\":null");
     narrative_probe_float(health,sample->health_valid,sample->health);narrative_probe_float(shields,sample->shield_valid,sample->shields);
-    snprintf(row,sizeof row,"{\"guest_hit_trace\":\"%s\",\"call\":%u,\"parent_call\":%u,\"nested_dispatch_calls\":%u,\"generation\":%lu,\"epoch\":%lu,\"channel_index\":%d,\"weapon_index\":%d,\"target_pointer\":\"0x%llx\",\"target_index\":%d,\"target_valid\":%s,\"health\":%s,\"shields\":%s,\"shield_present\":%s,\"health_pair_valid\":%s,\"shield_pair_valid\":%s,\"health_decrease_observed\":%s,\"shield_decrease_observed\":%s,\"firing_mode\":%u,\"num_hits\":%d,\"scope_after_valid\":%s,\"original_forwarded\":%s,\"damage_verified\":false,\"hostility_verified\":false,\"probe_changed_payload\":false,\"monotonic_ms\":%lu}\r\n",
+    snprintf(row,sizeof row,"{\"guest_hit_trace\":\"%s\",\"call\":%u,\"parent_call\":%u,\"nested_dispatch_calls\":%u,\"generation\":%lu,\"epoch\":%lu,\"channel_index\":%d,\"weapon_index\":%d,\"target_pointer\":\"0x%llx\",\"target_index\":%d,\"target_valid\":%s,\"health\":%s,\"shields\":%s,\"shield_present\":%s,\"health_pair_valid\":%s,\"shield_pair_valid\":%s,\"health_decrease_observed\":%s,\"shield_decrease_observed\":%s,\"firing_mode\":%u,\"num_hits\":%d,\"scope_after_valid\":%s,\"original_forwarded\":%s,\"damage_verified\":false,\"hostility_verified\":false,\"probe_changed_payload\":false,\"input_actor_valid\":%s,\"input_actor_is_pawn\":%s,\"input_actor_class\":\"%s\",\"input_impact_geometry_valid\":%s,%s,\"monotonic_ms\":%lu}\r\n",
         leaving?"leave":"enter",frame->id,frame->parent,frame->nested_calls,frame->generation,frame->epoch,frame->channel_index,frame->weapon_index,
         (unsigned long long)frame->target,sample->target.index,sample->target_valid?"true":"false",health,shields,
         sample->shield_present?"true":"false",hp?"true":"false",sp?"true":"false",
         hp&&frame->after.health<frame->before.health?"true":"false",sp&&frame->after.shields<frame->before.shields?"true":"false",
-        (unsigned)frame->mode,frame->hits,leaving?(frame->scope_after?"true":"false"):"null",leaving?"true":"false",GetTickCount());line(row);
+        (unsigned)frame->mode,frame->hits,leaving?(frame->scope_after?"true":"false"):"null",leaving?"true":"false",frame->input_actor_valid?"true":"false",frame->input_actor_is_pawn?"true":"false",actor_class,frame->input_geometry_valid?"true":"false",geometry,GetTickCount());line(row);
 }
 static const GuestHitOps guest_hit_live_ops={guest_hit_live_eligible,guest_hit_live_same,guest_hit_live_sample,guest_hit_live_emit};
 static void guest_hit_exec(void *self,void *function,void *params,void *result) {
@@ -230,7 +285,7 @@ static void guest_hit_trace_prepare(void) {
     if(!supported_image(s->base)){reason="unsupported-image";goto rejected;}
     if(!guest_hit_dispatch_valid(s->base,s->weapon.pointer,0)){reason="native-slot-or-drain-pins";goto rejected;}
     if(!guest_player_context_method_stamp(s->base,fn,&guest_hit_method)){reason="reflected-method-discovery";goto rejected;}
-    if(!guest_hit_method_valid(s->base)){reason="reflected-event-abi-or-cached-name";goto rejected;}
+    if(!guest_hit_method_valid(s->base,NULL)){reason="reflected-event-abi-or-cached-name";goto rejected;}
     uintptr_t slot=s->base+0x14fa430+0x230;guest_hit_original=(ProcessEvent)(s->base+0x40d450);guest_hit_base=s->base;
     if(!VirtualProtect((void*)slot,8,PAGE_READWRITE,&protection))goto rejected;
     PVOID previous=InterlockedCompareExchangePointer((PVOID volatile*)slot,(PVOID)guest_hit_exec,(PVOID)guest_hit_original);

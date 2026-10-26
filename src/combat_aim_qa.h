@@ -152,8 +152,8 @@ static void combat_aim_qa_tick(uintptr_t base,uintptr_t engine,int after,DWORD n
                 render_capture(base,engine,L"guest-progress");
             }
         }else if(now-q->phase_at>=2000){combat_aim_finish(base,"normal-two-second-fire-release",now);return;}
-        if(!q->report_at||now-q->report_at>=1000){char row[500];q->report_at=now;
-            snprintf(row,sizeof row,"{\"combat_aim_errors\":true,\"yaw\":%d,\"pitch\":%d,\"target_index\":%d,\"monotonic_ms\":%lu}\r\n",ey,ep,q->target.index,now);line(row);}
+        if(!q->report_at||now-q->report_at>=1000){char row[1000];q->report_at=now;
+            snprintf(row,sizeof row,"{\"combat_aim_errors\":true,\"yaw\":%d,\"pitch\":%d,\"target_index\":%d,\"view_position\":[%.4f,%.4f,%.4f],\"view_rotation\":[%d,%d,%d],\"aim_position\":[%.4f,%.4f,%.4f],\"aim_height_offset\":65,\"firing\":%s,\"monotonic_ms\":%lu}\r\n",ey,ep,q->target.index,view.xyz[0],view.xyz[1],view.xyz[2],view.rotation[0],view.rotation[1],view.rotation[2],target_xyz[0],target_xyz[1],target_xyz[2],q->firing?"true":"false",now);line(row);}
     }
     if(!combat_aim_write(base,yaw,pitch))combat_aim_finish(base,"normal-look-input-write",now);
 }

@@ -1,5 +1,18 @@
 # Validation status
 
+Work now prioritizes the observed walking/damage blockers; the unfinished
+replicated revive-peer prototype was retained privately, with active script
+sources restored byte-identically to the verified prior input. A focused
+read-only Flash review completed, but selected source decompilation contradicted
+its inference that NumHits0 proves a miss; the selected consumer does not use
+that argument. Its five-frame settling hypothesis was likewise unsupported by
+the roughly one-second sampling cadence. The observer now records input impact
+geometry/actor classification and the QA viewpoint/aim point to distinguish
+the next shot-path failure. Field offsets come from reflected native metadata,
+not guessed native-struct order. Three native targets built with current
+fingerprints. No game, fixture or new damage/playability result was observed.
+See [damage observation scope](GUEST-HIT-TRACE.md).
+
 The default-off preparation bridge now has separate host story-pawn and
 guest-companion slots, with local guest preparation retained. Candidate
 admission binds session ownership and full native actor-channel/connection/
