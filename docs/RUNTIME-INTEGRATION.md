@@ -1,5 +1,22 @@
 # Runtime integration status
 
+The first completed event-observed ordinary pair from `cc1e555` captured a
+native kind4 Connection Lost event naming a version mismatch for
+`BIOG_HMF_HED_PROMorph_R`. The package GUID in the event matches the sole found
+disk file; the differing advertised info GUID matches the stable host resident
+package's+0x6c field. Thus this run's immediate rejection is a concrete package
+identity disagreement. Why the resident identity differs remains unproven;
+an incompletely initialized package is a hypothesis, not permission to rewrite
+GUIDs or disable validation. No native connection interval was observed.
+
+An earlier attempt had a reused Windows PID colliding with an existing
+CREATE_NEW log, so host readiness could not be observed and no guest launched.
+Its coordinator exited and restored the sandbox TOC; it is not a connection
+test. The private retry preserved42 old PID logs with hashes before launching
+any game, avoiding overwrites and stale evidence. Both completed-pair encoders
+exited0. Final audit confirms exact base-TOC restoration, unchanged original
+profile, no remaining games, native exceptions or cleanup errors.
+
 An optional guest-only `ME3_SQUAD_COOP_JOIN_EVENT_TRACE=1` observer now records
 the supported Engine.UpdateProgress virtual's title/message arguments at event
 time. It is distinct from the existing post-Tick viewport-slot polling, which
