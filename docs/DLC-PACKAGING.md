@@ -201,3 +201,37 @@ receipt labels the distinct variant and records allocation verification=false,
 Installed=false and EngineAccepted=false. This is an English research candidate,
 not support for every language or a release/install payload. No new game run
 has evaluated its language acceptance.
+
+
+## Offline candidate verification
+
+`tools/verify_activation_dlc.ps1` reads a private preparation receipt and the
+exact candidate files without installing or launching anything. It rejects
+unsupported variants, unverified preparation status, redirected paths, extra
+files, duplicate receipt paths and digest/size changes. It checks every Mount
+word, including the selected variant's TLK references and zero reserved tail,
+and reads the actual TOC for an exact set of correctly sized content entries.
+Named config must decompile to the single intended property; English metadata
+must resolve the authored strings from the actual TLK, including both gender
+markers. Receipt, payload and tool hashes are rechecked after inspection.
+
+```powershell
+& tools/verify_activation_dlc.ps1 -Receipt C:\ResearchRepo\local\activation-dlc\english-candidate\preparation.json `
+  -LegendaryExplorerPath C:\Tools\LegendaryExplorer
+```
+
+The English candidate passed. Three authored negative copies were rejected:
+a changed Mount TLK reference with updated receipt hash, a duplicate receipt
+path, and changed config length with an updated receipt hash but stale TOC.
+These are offline artifact checks, not game or installation tests. The verifier
+is separate from the unchanged distribution installer allowlist; verification
+never changes EngineAccepted or grants release readiness.
+
+Additional static review maps the visible English-language message to base
+TLK ID0x54c14. The supported native DLC routine at RVA0xafd960 records this ID
+when its conditional metadata lookup fails. It passes selector2 and a DLC
+record identifier derived from the Mount alongside the DLC-derived name. This
+supports checking the TLK's language metadata and references together; it does
+not prove that an arbitrary TLK file alone is sufficient or that this exact
+branch was captured at runtime. The new metadata candidate remains untested
+in the engine.
