@@ -4,7 +4,9 @@
 the existing `SFXCustomAction_SingleAnim`. It and the separate
 [revive context](REVIVE-CONTEXT.md) compile together against LE3 dependencies.
 The class is not installed, mounted, constructed by the runtime or assigned to
-a pawn. It does not establish a working campaign revive feature.
+a pawn. A [compiled binding component](REVIVE-BINDING.md) now prepares a scoped
+native instancing/retirement path, but no runtime invokes it. It does not
+establish a working campaign revive feature.
 
 ## Action flow
 
@@ -69,7 +71,7 @@ external prerequisites for a future scoped installer.
 
 | Requirement | Current boundary |
 | --- | --- |
-| Shared class availability and slot5 assignment | Neither peer loads or assigns this class yet; no per-mission edits are made |
+| Shared class availability and slot5 assignment | Compiled scoped binding/retirement component; no runtime loading/invocation or per-peer assignment evidence |
 | Animation availability | Located in two human-player carrier mesh/set chains; no scoped Ashley loading/assignment or playback evidence |
 | Native target usage | Captured module/callback/field/lens baseline and scoped disable/restore; actual engine visibility, overlap and client presentation remain unverified |
 | Downed death timer | Captured native binding/fields and conditional pause/resume; native timer/recovery behavior and identical replacement remain unverified |
@@ -88,9 +90,9 @@ SingleAnim start/stop own their animation/timeline/root-motion work and
 optional OnTimeUp timer. This bounded review does not establish the surrounding
 native end-state transition order or cleanup after travel/control changes.
 
-Both authored classes compiled with zero errors/warnings and unchanged tracked
+Context, action and binding compiled with zero errors/warnings and unchanged tracked
 input hashes. The saved private package SHA-256 is
-`d5098e166210004a03187a17b04df28829d86bfe70f953f34d2925a8644a2e7d`.
+`01783b8482808e26e88bce56e579832b021204abc1ed6a71b7e2605bee925f1c`.
 LEC accepts the external root-motion enums as
 ERootMotionMode.RMM_Ignore and ERootMotionRotationMode.RMRM_Ignore; the body
 stance animation names are an array. This is compilation/save evidence only.

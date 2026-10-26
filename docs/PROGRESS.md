@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-26: compile scoped native revive instancing component
+
+The authored binding component accepts an already loaded authored or existing
+revive class, requires CB_MP_Revive lookup on the current mesh and only fills an
+empty action instance slot5 with a compatible class baseline. It invokes native
+VerifyCAHasBeenInstanced for object creation/controller initialization rather
+than hand-writing cached context. Owned and explicit simulated presentation
+contexts are distinct; neither substitutes for runtime co-op admission.
+
+Retirement conditionally restores only its captured class/unused instance,
+refusing active/timer-owning/pending-cleanup actions and changed identity.
+The instancing script decoded with matching727/1055 lengths and16 aligned
+branch targets. All three authored classes compiled together without errors/
+warnings and with unchanged tracked inputs. The component remains uncalled;
+runtime package/class loading, per-peer admission, animation provisioning and
+pre-handoff retirement remain unfinished. No game or tests ran. See
+[binding contract](REVIVE-BINDING.md).
+
 ## 2026-10-26: locate revive animation carriers and basegame class
 
 Selected offline reads found CB_MP_Revive in the female and male human soldier

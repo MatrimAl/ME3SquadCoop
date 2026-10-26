@@ -1,5 +1,14 @@
 # Validation status
 
+A scoped revive binding component compiled with the action/context as one
+three-class package. It requires a loaded animation, empty instance slot5 and
+current owned or explicit simulated presentation context, then uses the native
+VerifyCAHasBeenInstanced path instead of writing controller caches. Retirement
+refuses started/timer-owning/pending-cleanup actions. The selected instancing
+script decoded fully with16 aligned branch destinations. No runtime calls the
+component; per-peer admission/loading/retirement remain unfinished. Tracked
+inputs stayed unchanged; no game or tests ran. See [binding limits](REVIVE-BINDING.md).
+
 Offline reads located CB_MP_Revive and its mesh/dynamic-set links in two
 selected human-player packages, and a basegame revive Class export in
 BioP_Char. These do not establish runtime loading, Ashley playback or slot5
