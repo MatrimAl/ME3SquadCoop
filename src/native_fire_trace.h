@@ -56,11 +56,13 @@ static void native_fire_snapshot(const char *stage,unsigned id,unsigned long gen
 }
 static void native_fire_exec(void *self) {
     DWORD before=GetLastError();AmmoWireScope *s=&ammo_wire_scope;unsigned id=0;unsigned long generation=s->generation;
-    int capture=native_fire_installed&&GetCurrentThreadId()==ammo_wire_thread&&(uintptr_t)self==s->weapon.pointer&&
+    int eligible=native_fire_installed&&GetCurrentThreadId()==ammo_wire_thread&&(uintptr_t)self==s->weapon.pointer&&
         native_fire_context_matches((uintptr_t)self,s->weapon.pointer,
         GetCurrentThreadId(),ammo_wire_thread,s->generation,generation,ammo_wire_scope_valid())&&
         guest_player_context_method_matches(s->base,&native_fire_method,0)&&
-        native_fire_dispatch_valid(s->base,(uintptr_t)self,1)&&native_fire_reserve();
+        native_fire_dispatch_valid(s->base,(uintptr_t)self,1);
+    if(eligible)ammo_rpc_fire_activity((uintptr_t)self);
+    int capture=eligible&&native_fire_reserve();
     int incoming=capture&&ammo_wire_receive&&ammo_wire_receive->channel==s->channel.channel;
     if(capture){id=++native_fire_calls;native_fire_snapshot("enter",id,generation,incoming);}
     SetLastError(before);native_fire_original(self);DWORD after=GetLastError();

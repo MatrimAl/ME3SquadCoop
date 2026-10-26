@@ -120,3 +120,34 @@ verifier remained false; movement and full campaign gates also remained false.
 Original profiles stayed unchanged, native exceptions were zero and all game
 processes exited. The default-off adapter remains confined to the protected
 probe pending ordinary-entry integration and verification.
+
+
+## Pending snapshots and intervening local activity
+
+Preparation for ordinary-entry reuse exposed a protocol-lifetime gap in the
+protected adapter: a sampled count change reset its settling timer but left an
+outstanding request active. Final counter equality also cannot establish that
+no local activity occurred; an authoritative decode can return a predicted
+counter to an earlier value. The guest now cancels the pending request whenever
+its sampled used/spare values change, then begins a fresh settling interval.
+A rejected old response cannot reuse that cancelled request.
+
+When the separately opted-in native firing observer is installed, its exact
+validated selected-weapon entry also invalidates the pending reply before the
+unchanged original FireAmmunition call. This cancellation is independent of the
+observer's record budget. It changes mod request state only; it does not consume
+a native firing call, change a hit or write host ammunition. Native forwarding,
+arguments and LastError remain unchanged. Both existing opt-ins are still
+required for this entry-based protection; other firing paths remain outside
+that slot's coverage. This is not a claim that every ammo-changing action has
+an event-level observer.
+
+All three targets built. The native reconciliation and firing-forwarding
+self-tests passed. Four deliberately broken protocol variants were rejected,
+including retaining a reply after local activity and accepting it when the
+counts return to the earlier value. These are authored-memory/protocol checks,
+not a newly observed game fault or a repeated gameplay test. No game ran for
+this change. The existing adapter remains in the protected probe; moving it to
+the ordinary entry still requires independent current scope, authenticated
+incoming RPC receive context and lifecycle invalidation without research
+markers, logging budgets or test-action policy.

@@ -23,6 +23,16 @@ static int ammo_rpc_opted(void) {
     if(ammo_rpc_enabled<0){wchar_t value[8]={0};ammo_rpc_enabled=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_AMMO_RECONCILE",value,8)==1&&value[0]==L'1';}
     return ammo_rpc_enabled&&progress_enabled&&(test_action==5||test_action==6);
 }
+static void ammo_rpc_mark_local_activity(AmmoRpcState *state) {
+    ammo_reconcile_cancel_pending(&state->pending);state->dirty=1;state->quiet=0;
+}
+/* Called only from an independently validated native firing entry, before its
+ * unchanged original call. No record budget grants or removes cancellation. */
+static void ammo_rpc_fire_activity(uintptr_t weapon) {
+    if(!ammo_rpc_opted()||test_action!=5||GetCurrentThreadId()!=ammo_wire_thread||
+       weapon!=ammo_wire_scope.weapon.pointer||!ammo_wire_scope_valid())return;
+    ammo_rpc_mark_local_activity(&ammo_rpc_state);
+}
 static void ammo_rpc_log(const char *event,const char *reason,uint64_t id,int used,int spare) {
     if(ammo_rpc_events>=128)return;++ammo_rpc_events;char row[1000],safe[200];identity_quote(reason,safe,sizeof safe);
     snprintf(row,sizeof row,"{\"ammo_reconcile\":\"%s\",\"reason\":\"%s\",\"side\":\"%s\",\"generation\":%lu,\"request\":%llu,\"channel_index\":%d,\"used\":%d,\"spare\":%d,\"monotonic_ms\":%lu}\r\n",event,safe,test_action==6?"host":"guest",ammo_wire_scope.generation,(unsigned long long)id,ammo_wire_scope.channel.index,used,spare,GetTickCount());line(row);
@@ -147,7 +157,7 @@ static void ammo_reconcile_tick(void) {
         int sent=ammo_rpc_send(1,&reply);ammo_rpc_log(sent?"replied":"send-unverified","settled-host-snapshot",reply.request,used,spare);
         if(sent){t->last_host_id=t->host_id;t->host_pending=0;}return;
     }
-    if(t->used!=used||t->spare!=spare){t->used=used;t->spare=spare;t->dirty=1;t->quiet=0;}
+    if(t->used!=used||t->spare!=spare){t->used=used;t->spare=spare;ammo_rpc_mark_local_activity(t);}
     if(!idle){t->quiet=0;t->pending.active=0;return;}
     if(t->pending.active){
         if(now-t->pending.sent_at>5000){t->pending.active=0;t->quiet=0;return;}
@@ -169,6 +179,11 @@ static int ammo_rpc_selftest(void) {
     AmmoRpcExec saved=ammo_rpc_original;int installed=ammo_rpc_installed;DWORD error=GetLastError();
     ammo_rpc_installed=0;ammo_rpc_original=ammo_rpc_fixture_forward;ammo_rpc_fixture_calls=0;
     ammo_rpc_exec(NULL,NULL,NULL);int ok=ammo_rpc_fixture_calls==1&&GetLastError()==123;
+    AmmoRpcState activity={0};activity.pending.active=1;activity.quiet=100;
+    activity.pending.request=77;activity.pending.generation=3;
+    ammo_rpc_mark_local_activity(&activity);
+    ok=ok&&!activity.pending.active&&activity.dirty&&activity.quiet==0&&
+        activity.pending.request==77&&activity.pending.generation==3;
     ammo_rpc_original=saved;ammo_rpc_installed=installed;SetLastError(error);return ok&&ammo_reconcile_protocol_selftest();
 }
 #endif

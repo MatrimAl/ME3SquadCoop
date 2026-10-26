@@ -36,6 +36,11 @@ static int ammo_reconcile_format(const AmmoReconcileMessage *m,wchar_t text[96])
     AmmoReconcileMessage check;
     return n>0&&n<96&&ammo_reconcile_parse(text,(size_t)n+1,&check)&&check.kind==m->kind?n+1:0;
 }
+/* Counter equality cannot prove an outstanding snapshot predates no local
+ * activity: native replication may return a predicted count to its old value. */
+static void ammo_reconcile_cancel_pending(AmmoReconcilePending *pending) {
+    pending->active=0;
+}
 static int ammo_reconcile_response_allowed(const AmmoReconcilePending *p,const AmmoReconcileMessage *m,
         unsigned long generation,unsigned channel,uint32_t now,int idle,int used,int spare) {
     return p->active&&m->kind==L'A'&&m->request==p->request&&m->channel==p->channel&&channel==p->channel&&
@@ -54,6 +59,12 @@ static int ammo_reconcile_protocol_selftest(void) {
         ammo_reconcile_response_allowed(&p,&m,1,26,5101,1,3,210)||
         ammo_reconcile_response_allowed(&p,&m,1,26,200,0,3,210)||
         ammo_reconcile_response_allowed(&p,&m,1,26,200,1,4,210))return 0;
-    m.request++;return !ammo_reconcile_response_allowed(&p,&m,1,26,200,1,3,210);
+    /* New local activity invalidates the old reply even if counts later
+     * return to the pending request's original value (an observed ABA). */
+    ammo_reconcile_cancel_pending(&p);
+    if(ammo_reconcile_response_allowed(&p,&m,1,26,200,1,3,210)||
+       ammo_reconcile_response_allowed(&p,&m,1,26,200,1,2,210))return 0;
+    p.active=1;m.request++;
+    return !ammo_reconcile_response_allowed(&p,&m,1,26,200,1,3,210);
 }
 #endif

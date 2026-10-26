@@ -11,6 +11,7 @@ if __name__ == "__main__":
     parser.add_argument("zig", type=Path)
     args = parser.parse_args()
     check_mutations(args.zig.resolve(strict=True), {
+        "local-activity-keeps-pending-reply": [("pending->active=0;", "(void)pending;")],
         "old-control-generation-accepted": [("generation==p->generation&&", "")],
         "wrong-response-request-accepted": [("m->request==p->request&&", "")],
         "response-during-firing-accepted": [("idle==1&&", "")],
