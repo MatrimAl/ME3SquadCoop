@@ -37,7 +37,11 @@ static int local_squad_hook_ready(uintptr_t base) {
 }
 static int runtime_local_squad_set(uintptr_t base,uintptr_t actor,void *parms) {
     static int loaded,enabled;
-    if(!loaded){wchar_t value[4]={0};loaded=1;enabled=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_LOCAL_SQUAD_SET",value,4)==1&&value[0]==L'1';}
+    if(!loaded){
+        wchar_t value[4]={0};loaded=1;
+        DWORD length=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_LOCAL_SQUAD_SET",value,4);
+        enabled=!length||(length==1&&value[0]==L'1');
+    }
     GuestPlayerContextMethod *method=&guest_player_context_methods.set_pawn;
     unsigned char role=255,net=255;uintptr_t info=read_ptr(actor+0x198);
     if(!enabled||!guest_camera_actor_live(base,actor)||!guest_player_context_methods_valid(base,1)||

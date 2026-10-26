@@ -74,15 +74,23 @@ preparation, so its timeout is not a movement or firing verdict. The sandbox
 TOC and original profiles were restored, and no game remained. The exact
 replacement actor and rejected destroy prerequisite remain to be established.
 
-An opt-in ordinary guest candidate now admits the pinned SetPlayerPawn script
+The ordinary guest context bridge admits the pinned SetPlayerPawn script
 through the native role check only for the exact current squad and method on
 the dispatching thread. The callspace detour forwards the original decision
 for other calls; its temporary scope allows at most one matching skip result.
-It is enabled only with `ME3_SQUAD_COOP_LOCAL_SQUAD_SET=1` and is not a
-default-on or gameplay release. Its local fixture covers filtering, original
-forwarding, one-shot behavior and other-thread isolation.
-The guest session planner exposes this opt-in as `--local-squad-set`; host
-plans reject it. Generating a plan does not launch the game or validate play.
+It now defaults on within the existing admitted guest context, following the
+recorded acquisition and disable/cleanup observations below. The stable-empty
+squad wait, actor/method/thread identity checks and reciprocal ownership guards
+remain unchanged. `ME3_SQUAD_COOP_LOCAL_SQUAD_SET=0` explicitly disables it;
+other nonempty values except `1` also refuse the adaptation. Disabled co-op and
+host contexts do not gain admission from this default.
+The guest session planner emits `1` by default and supports explicit
+`--no-local-squad-set` for diagnosis. Host plans do not emit this setting and
+reject explicit enablement. Inherited stale flags are still removed.
+All four native outputs rebuilt and three planner/CLI tests passed for this
+default change; no game was launched. The earlier local fixture covers filtering,
+original forwarding, one-shot behavior and other-thread isolation. This change
+does not establish powers, damage, mission travel or a gameplay release.
 
 In one ordinary same-PC run from `35ecadb`, the native skip was adapted and
 SetPlayerPawn produced a registered guest squad context with a positive combat
