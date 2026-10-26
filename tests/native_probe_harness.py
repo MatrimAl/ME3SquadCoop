@@ -75,6 +75,8 @@ probe.SquadProbeFolderTest.restype = ctypes.c_int
 assert probe.SquadProbeFolderTest() == 1, "Documents redirect changed another folder"
 probe.SquadProbePathTest.restype = ctypes.c_int
 assert probe.SquadProbePathTest() == 1, "file-write guard accepted an outside path"
+probe.SquadProbeDlcResolveSelfTest.restype=ctypes.c_int
+assert probe.SquadProbeDlcResolveSelfTest()==1, "DLC resolver observer changed forwarding, output, LastError or selector budget"
 probe.SquadProbeEnabled.argtypes = [ctypes.c_wchar_p]
 probe.SquadProbeEnabled.restype = ctypes.c_int
 with tempfile.TemporaryDirectory(dir=ROOT / "local") as tmp:

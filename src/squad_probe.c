@@ -662,6 +662,7 @@ static int install_tick_bridge(uintptr_t base) {
     }
     return 1;
 }
+#include "dlc_resolve_trace.h"
 static DWORD WINAPI observe(void *unused) {
     (void)unused;
     uintptr_t base = (uintptr_t)GetModuleHandleW(NULL);
@@ -677,6 +678,7 @@ static DWORD WINAPI observe(void *unused) {
     if(collision_baseline_qa_opted())line("{\"collision_baseline_qa\":true,\"route_stop\":\"second-host-acquisition\",\"guest_synthetic_input\":true,\"guest_input_policy\":\"existing-two-second-pulse-after-reacquisition\",\"guest_firing\":false,\"synthetic_scene\":true,\"reacquisition\":true,\"combat_tested\":false}\r\n");
     if(probe_guards_only)line("{\"guards_only_qa\":true,\"engine_bridge_disabled\":true,\"action_plan_ignored\":true,\"private_guards_ready\":true}\r\n");
     if(probe_dlc_io_trace)line("{\"dlc_file_open_observer\":true,\"scope\":\"sandbox-authored-dlc-CreateFileW-import-only\",\"max_rows\":64,\"native_file_cache_observed\":false}\r\n");
+    if(probe_dlc_io_trace&&!dlc_resolve_install(base))line("{\"dlc_resolve_observer\":false,\"reason\":\"identity-or-install-refused\"}\r\n");
     AddVectoredExceptionHandler(0, exception_observer);
     int bridge_installed = 0, pe_identity_logged = 0; LONG logged_blocks = -1, logged_isolations = 0;
     for (int tick = 0; tick < 140 && has_marker(root); ++tick) {

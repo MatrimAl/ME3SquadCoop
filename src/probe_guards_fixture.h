@@ -1,5 +1,31 @@
 #ifndef ME3_PROBE_GUARDS_FIXTURE_H
 #define ME3_PROBE_GUARDS_FIXTURE_H
+static unsigned dlc_resolve_fixture_calls;
+static void *dlc_resolve_fixture_self;
+static const wchar_t *dlc_resolve_fixture_name;
+static GameString *dlc_resolve_fixture_output;
+static int dlc_resolve_fixture_original(void *self,const wchar_t *name,GameString *output) {
+    ++dlc_resolve_fixture_calls;
+    int valid=self==dlc_resolve_fixture_self&&name==dlc_resolve_fixture_name&&output==dlc_resolve_fixture_output;
+    if(output)*output=(GameString){(wchar_t*)L"CookedPCConsole\\Default_DLC_MOD_ME3SquadCoop.bin",46,46};
+    SetLastError(ERROR_PATH_NOT_FOUND);return valid?7:0;
+}
+__declspec(dllexport) int SquadProbeDlcResolveSelfTest(void) {
+    DlcResolveOriginal saved=dlc_resolve_original;LONG rows=dlc_resolve_rows;HANDLE saved_log=log_file;
+    log_file=INVALID_HANDLE_VALUE;dlc_resolve_original=dlc_resolve_fixture_original;dlc_resolve_rows=0;
+    wchar_t selected[64]=L"Default_DLC_MOD_ME3SquadCoop.bin",other[64]=L"Default_Other.bin";
+    GameString output={0};dlc_resolve_fixture_calls=0;dlc_resolve_fixture_self=&output;dlc_resolve_fixture_output=&output;
+    int ok=dlc_resolve_name(selected)&&!dlc_resolve_name(other)&&!dlc_resolve_name(NULL);
+    dlc_resolve_fixture_name=selected;
+    ok=ok&&dlc_resolve_forward(&output,selected,&output)==7&&GetLastError()==ERROR_PATH_NOT_FOUND&&
+        dlc_resolve_fixture_calls==1&&dlc_resolve_rows==1&&output.data;
+    dlc_resolve_fixture_name=other;
+    ok=ok&&dlc_resolve_forward(&output,other,&output)==7&&GetLastError()==ERROR_PATH_NOT_FOUND&&
+        dlc_resolve_fixture_calls==2&&dlc_resolve_rows==1;
+    dlc_resolve_fixture_name=selected;dlc_resolve_rows=16;
+    ok=ok&&dlc_resolve_forward(&output,selected,&output)==7&&dlc_resolve_fixture_calls==3&&dlc_resolve_rows==17;
+    dlc_resolve_original=saved;dlc_resolve_rows=rows;log_file=saved_log;return ok;
+}
 static LPCWSTR probe_io_expected_path;
 static unsigned probe_io_fixture_calls,probe_io_fixture_args;
 static HANDLE probe_io_fixture_result;

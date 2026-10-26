@@ -1,5 +1,37 @@
 # Native activation DLC packaging
 
+## File-open trace result and selected resolver
+
+The first IO-observed ordinary pair (`d613e93`) again dispatched guest join and
+showed the named corrupt-content dialog in its inspected guest80s frame. Both
+roles recorded successful opens of the authored Mount and TOC via the sandbox
+game path. Failed profile-prefixed probes preceded those successful fallbacks.
+The captured import-only rows contain no config open; this does not establish
+whether the native config lookup ran or failed. Terminal cleanup preserved the
+original profile, removed temporary authored files and left no game processes,
+native exceptions or cleanup errors.
+
+A read-only host snapshot identified the file-manager vtable and its open and
+resolve targets, with stable readback. An initial snapshot made with an unopened
+reader was invalidated and superseded; its zero addresses are not evidence.
+Four further selected functions exported successfully from the unchanged
+retained database. The resolve wrapper forwards its three arguments to a
+locked directory-list lookup and converts its returned pointer to a boolean;
+the open wrapper first checks an archive/cache helper before a fallback.
+Decompiler output has unresolved globals/forwarded arguments, so exact ABI and
+forwarding decisions use the supported instruction bytes as well.
+
+The same default-off IO flag now also installs a pinned, process-lifetime
+forwarding observer at file-manager virtual+e8 in guards-only mode. It records
+only Default_DLC_MOD_ME3SquadCoop.bin, at most16 rows, with the native result and
+bounded copied output path. It preserves self/name/output arguments, the
+return value and LastError. The exact vtable, original target and wrapper bytes
+must match; install refusal is logged. It does not alter a lookup result or
+cache and cannot be unloaded during the process. Three targets built and the
+native probe harness passed including actual callback forwarding, output,
+LastError, unrelated-name filtering and record-cap checks. This resolver
+observer still requires a live run.
+
 ## Starter config runtime result and file-access observation
 
 A subsequent ordinary pair from revision `2c5c36b` used the pinned eight-asset
