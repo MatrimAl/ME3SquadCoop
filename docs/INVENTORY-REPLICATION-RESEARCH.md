@@ -354,3 +354,38 @@ privately with hashes rather than rewriting the worker's claims into facts.
 No new game/process observation, runtime source change, pointer restoration,
 package-map edit or behavioral test followed from this review. The inventory
 root cause and repeatable equipment readiness remain unresolved.
+
+## Indexed client activation target
+
+A focused private package/native comparison for the supported LE3 executable
+SHA-256 `b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001`
+identified the NamedFunction call in Engine.Weapon.ClientGivenTo: slot223,
+ClientWeaponSet. Engine's serialized class table points to its executable
+Weapon.ClientWeaponSet body; SFXWeapon and the concrete Avenger package point
+to the four-byte empty SFXWeapon override instead. The native opcode handler
+at RVA0xe9e20 forwards name and slot through lookup; the indexed class helper
+at RVA0xcbb30 reads the script table at class+0x144/count+0x14c. These offsets
+were checked against exact-file instructions. State-specific lookup can precede
+class lookup, so the package table alone does not prove the live guest target.
+This is an activation lead, not a proven cause of all equipment failures.
+
+The shared host equipment bridge now revalidates that its selected weapon
+class's slot223 equals the exact already-validated first ClientWeaponSet
+function. Both fresh and cached method resolution reject a mismatch. This
+does not substitute an Engine function for an override, execute a lookup helper,
+alter a class table, or force an activation/state/ownership change. The indexed
+read has exact native instruction pins, bounded count/capacity and stable array
+header readback. The caller still owns live object/function identity checks.
+
+An admitted host handoff logs `class-script-slot` immediately before the normal
+ClientGivenTo attempt, distinguishing the Engine body from the validated empty
+SFX override. This is a host class-table observation: the row explicitly keeps
+guest execution unverified and state override unobserved. Actual guest method
+entry remains a separate next measurement. A false bDoNotActivate requests
+normal activation policy; it does not guarantee activation succeeds.
+
+All three native targets built. The full ordinary runtime fixture passed with
+the new script-slot fixture. Compiled negative controls rejected a wrong target,
+an index outside the declared count and a capacity smaller than count. Fixture
+memory is allocated locally; no game was launched and no live activation fix
+or completed campaign progression was demonstrated.

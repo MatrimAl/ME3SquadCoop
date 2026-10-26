@@ -1,9 +1,11 @@
 #ifndef ME3_GUEST_EQUIPMENT_BOOTSTRAP_H
 #define ME3_GUEST_EQUIPMENT_BOOTSTRAP_H
+#include "native_script_slot.h"
 /* Shared NORMAL host -> owning-client equipment handoff, once per ownership
  * epoch. Both the protected probe and ordinary runtime include this path.
  * Root capture18912, exactLE3 build only. No direct Owner/role/flag/ammo writes.
- * Important: false means normal active handoff; true would force Inactive.
+ * false requests normal activation policy, not guaranteed activation. The
+ * selected subclass/state may override the Engine activation body entirely.
  */
 typedef struct GuestEquipmentOperand { unsigned int at; const char *kind,*path; int32_t offset; uint64_t flags; } GuestEquipmentOperand;
 typedef struct GuestEquipmentName { unsigned int at; const char *name; } GuestEquipmentName;
@@ -358,6 +360,7 @@ static const char *guest_equipment_resolve_check(uintptr_t base,uintptr_t pc,uin
     if(guest_equipment_methods_valid(base)) {
         if(guest_equipment_find_first(base,read_ptr(weapon+0x50),"ClientGivenTo")!=m->given.function.pointer) return "first-given-mismatch";
         if(guest_equipment_find_first(base,read_ptr(weapon+0x50),"ClientWeaponSet")!=m->first_weapon_set.function.pointer) return "first-weapon-set-mismatch";
+        if(!native_script_slot_matches(base,read_ptr(weapon+0x50),223,m->first_weapon_set.function.pointer)) return "indexed-weapon-set-mismatch";
         if(guest_equipment_find_first(base,read_ptr(inventory+0x50),"ClientWeaponSet")!=m->inventory_set.function.pointer) return "first-inventory-set-mismatch";
         if(guest_equipment_find_first(base,read_ptr(pc+0x50),"NotifyAddInventory")!=m->notify.function.pointer) return "first-notify-mismatch";
         return NULL;
@@ -385,6 +388,7 @@ static const char *guest_equipment_resolve_check(uintptr_t base,uintptr_t pc,uin
     m->base=base;m->ready=1;
     const char *err = guest_equipment_methods_check(base);
     if(err) { m->ready=0; return err; }
+    if(!native_script_slot_matches(base,read_ptr(weapon+0x50),223,m->first_weapon_set.function.pointer)) {m->ready=0;return "indexed-weapon-set-mismatch";}
     return NULL;
 }
 
@@ -475,6 +479,12 @@ static void guest_equipment_bootstrap_tick(uintptr_t base,uintptr_t host,uintptr
     if(!read_at(pawn+0xe20,&pawn_flags,4)||(pawn_flags&(0x40000|0x300)))
         return guest_equipment_reject("pawn-life-or-busy-state",epoch,pawn,weapon,inventory,now);
     guest_equipment_attempted_epoch=epoch;guest_equipment_attempted_remote=remote;
+    char dispatch_row[700];
+    snprintf(dispatch_row,sizeof dispatch_row,
+        "{\"guest_equipment_bootstrap\":\"class-script-slot\",\"epoch\":%u,\"slot\":223,\"matches_first_declared\":true,\"targets_engine_weapon_body\":%s,\"targets_empty_sfx_override\":%s,\"state_override_observed\":false,\"guest_execution_verified\":false}\r\n",
+        epoch,guest_equipment_methods.first_weapon_set.function.pointer==guest_equipment_methods.weapon_set.function.pointer?"true":"false",
+        guest_equipment_methods.first_weapon_set.function.pointer!=guest_equipment_methods.weapon_set.function.pointer?"true":"false");
+    line(dispatch_row);
     ((ProcessEvent)pe)((void*)weapon,(void*)guest_equipment_methods.given.function.pointer,&parms,NULL);
     int stable=guest_camera_stamp_matches(base,&ps,1)&&guest_camera_stamp_matches(base,&ws,1)&&guest_camera_stamp_matches(base,&is,1)&&
       guest_camera_stamp_matches(base,&rs,1)&&guest_camera_stamp_matches(base,&cs,1);

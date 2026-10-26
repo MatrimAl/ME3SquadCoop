@@ -777,6 +777,7 @@ __declspec(dllexport) int SquadAmmoTraceSelfTest(void) { return ammo_trace_selft
 __declspec(dllexport) int SquadFunctionLookupSelfTest(void) { return function_lookup_selftest(); }
 __declspec(dllexport) int SquadNetworkActorSelfTest(void) { return network_actor_identity_selftest(); }
 __declspec(dllexport) int SquadRpcReceiveContextSelfTest(void) { return native_rpc_receive_context_selftest(); }
+__declspec(dllexport) int SquadNativeScriptSlotSelfTest(void) { return native_script_slot_selftest(); }
 __declspec(dllexport) int SquadAmmoWireSelfTest(void) { return ammo_wire_selftest(); }
 __declspec(dllexport) int SquadAmmoReconcileSelfTest(void) { return ammo_rpc_selftest(); }
 __declspec(dllexport) int SquadFireRpcTraceSelfTest(void) { return fire_rpc_selftest(); }

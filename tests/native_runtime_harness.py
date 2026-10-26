@@ -44,6 +44,7 @@ def main():
                  "ME3RuntimeCinematicSelfTest", "ME3RuntimeCoreCleanupSelfTest",
                  "ME3RuntimeTickForwardingSelfTest", "ME3RuntimeNetworkStartSelfTest",
                  "ME3RuntimeRpcReceiveSelfTest",
+                 "ME3RuntimeScriptSlotSelfTest",
                  "ME3RuntimeJoinRequestSelfTest", "ME3RuntimeRejoinRequestSelfTest", "ME3RuntimeTravelIdleSelfTest",
                  "ME3RuntimeJoinReadinessSelfTest",
                  "ME3RuntimeJoinDiagnosticsSelfTest",

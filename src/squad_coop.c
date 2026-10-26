@@ -134,6 +134,7 @@ __declspec(dllexport) const char* ME3SquadCoopVersion(void) {
 }
 __declspec(dllexport) int ME3SquadCoopConfigStatus(void) {return g_config_status;}
 #ifdef ME3_RUNTIME_FIXTURE
+__declspec(dllexport) int ME3RuntimeScriptSlotSelfTest(void) {return native_script_slot_selftest();}
 #include "runtime_rpc_receive_selftest.h"
 __declspec(dllexport) int ME3RuntimeRpcReceiveSelfTest(void) {return runtime_rpc_receive_selftest();}
 #include "runtime_core_fixture.h"
