@@ -1,5 +1,13 @@
 # Validation status
 
+An authored-script DLC candidate was generated privately with the compiled
+five-class PCC, minimal startup config, reviewed Mount bytes and LEC-generated
+TOC. Config values/types roundtripped; TOC readback matched each of the three
+payload entries and sizes. Tracked inputs stayed unchanged. This is file
+consistency, not engine acceptance or a fix for the earlier corrupt-DLC report.
+No installation, runtime invocation, game or behavioral tests ran. See
+[script candidate limits](SCRIPT-DLC-CANDIDATE.md).
+
 A revive setup coordinator now joins optional animation registration and
 action binding, retaining failed preparation/retirement state. It prepares
 animation before binding and retires binding before animation; readiness

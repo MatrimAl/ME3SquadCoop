@@ -1,5 +1,9 @@
 # Coordinated revive preparation and retirement
 
+A separate [script DLC candidate](SCRIPT-DLC-CANDIDATE.md) now prepares config/
+Mount/TOC around the compiled classes; it remains uninstalled and does not
+establish shared loading or invoke this coordinator.
+
 `scripts/SFXSquadCoop_ReviveSetup.uc` joins the existing authored binding and
 optional animation lease into one local lifecycle. It is compiled, not loaded
 or called by runtime code. The owner runtime must retain the object across

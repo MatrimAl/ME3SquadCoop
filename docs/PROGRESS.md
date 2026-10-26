@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: prepare authored script startup DLC candidate
+
+A new offline tool checks the successful compile receipt/current inputs and
+copies the authored five-class package into a separate private DLC candidate.
+It compiles minimal startup/seekfree config, writes the reviewed Mount format
+and generates the root TOC through the existing LEC API. Readback preserved
+startup operation types/values and matched the PCC/Mount/config TOC sizes.
+All tracked compile inputs and tool assembly retained their hashes.
+
+Installed LEMP/base config reads supplied bounded schema evidence; no game
+config/assets were copied. Engine startup naming/localization/acceptance,
+shared dependencies and runtime setup invocation remain unfinished. The
+candidate changes no release installer contract and is not a demonstrated fix
+for the earlier corrupt-DLC dialog. No game, install/deploy or tests ran. See
+[script DLC candidate](SCRIPT-DLC-CANDIDATE.md).
+
 ## 2026-10-26: coordinate revive preparation and ordered retirement
 
 The authored setup object joins optional animation registration and the

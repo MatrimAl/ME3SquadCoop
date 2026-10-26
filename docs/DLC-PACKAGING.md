@@ -1,5 +1,10 @@
 # Native activation DLC packaging
 
+A separate [authored-script candidate](SCRIPT-DLC-CANDIDATE.md) now stages the
+revive package, minimal startup config and generated/read-back TOC privately.
+It is not installed or engine-validated and does not change the asset-free
+distribution/installer contract described here.
+
 A protected test has now received an owner-reported corrupt-DLC dialog naming
 `DLC_MOD_ME3SquadCoop`. The screenshot did not capture process attribution.
 **The Mount-only activation container is not an engine-validated package and
