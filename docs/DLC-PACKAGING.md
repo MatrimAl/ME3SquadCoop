@@ -1,5 +1,25 @@
 # Native activation DLC packaging
 
+## Resolver startup observation
+
+The first resolver-instrumented pair (`257597b`) reported installation refusal
+on both processes, so it produced no resolver result. A later read-only host
+snapshot matched the expected vtable, original target and wrapper bytes. The
+initial revision did not distinguish refusal conditions; startup timing is a
+lead, not an established cause. Guest join dispatched and an inspected80s
+frame again showed the named corrupt-DLC warning. Cleanup left no game
+processes, preserved the original profile and removed temporary authored files
+without native exceptions or cleanup errors. Both recorders exited0.
+
+Installation now distinguishes missing manager, vtable/slot identity, wrapper
+pins, protection failure and concurrent slot change. It retries only within
+the existing bounded worker loop, at most140 attempts, logging reason changes;
+all identity checks remain required on every attempt. Successful installation
+stops retries. Synthetic allocated-image checks exercised missing-manager and
+wrong-pin refusal, successful actual slot installation, no second installation
+and the attempt cap. Three native targets rebuilt and the full no-game probe
+harness passed. The corrected installer has not yet been run in-game.
+
 ## File-open trace result and selected resolver
 
 The first IO-observed ordinary pair (`d613e93`) again dispatched guest join and

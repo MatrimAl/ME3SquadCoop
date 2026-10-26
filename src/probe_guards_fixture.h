@@ -24,6 +24,28 @@ __declspec(dllexport) int SquadProbeDlcResolveSelfTest(void) {
         dlc_resolve_fixture_calls==2&&dlc_resolve_rows==1;
     dlc_resolve_fixture_name=selected;dlc_resolve_rows=16;
     ok=ok&&dlc_resolve_forward(&output,selected,&output)==7&&dlc_resolve_fixture_calls==3&&dlc_resolve_rows==17;
+    int saved_trace=probe_dlc_io_trace,saved_only=probe_guards_only,saved_installed=dlc_resolve_installed;
+    unsigned saved_attempts=dlc_resolve_install_attempts;
+    const char *saved_reason=dlc_resolve_install_reason;
+    unsigned char *image=VirtualAlloc(NULL,0x1900000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
+    if(!image)ok=0;
+    else {
+        uintptr_t base=(uintptr_t)image,manager=base+0x1000,vt=base+0x12ff310,target=base+0xa48b80;
+        probe_dlc_io_trace=probe_guards_only=1;
+        ok=ok&&!dlc_resolve_install(base)&&!strcmp(dlc_resolve_install_reason,"manager-not-ready");
+        memcpy(image+0x17cd5d0,&manager,8);memcpy((void*)manager,&vt,8);memcpy((void*)(vt+0xe8),&target,8);
+        ok=ok&&!dlc_resolve_install(base)&&!strcmp(dlc_resolve_install_reason,"wrapper-pins");
+        const unsigned char pins[]={0x48,0x83,0xec,0x28,0x45,0x33,0xc9,0xe8,0xc4,0xd7,0xff,0xff,0x33,0xc9,0x48,0x85,0xc0,0x0f,0x95,0xc1,0x8b,0xc1,0x48,0x83,0xc4,0x28,0xc3};
+        memcpy((void*)target,pins,sizeof pins);
+        dlc_resolve_install_attempts=140;dlc_resolve_installed=0;dlc_resolve_install_observe(base);
+        ok=ok&&read_ptr(vt+0xe8)==target&&dlc_resolve_install_attempts==140;
+        dlc_resolve_install_attempts=0;dlc_resolve_install_observe(base);
+        ok=ok&&dlc_resolve_installed&&dlc_resolve_install_attempts==1&&read_ptr(vt+0xe8)==(uintptr_t)dlc_resolve_forward;
+        dlc_resolve_install_observe(base);ok=ok&&dlc_resolve_install_attempts==1;
+        VirtualFree(image,0,MEM_RELEASE);
+    }
+    probe_dlc_io_trace=saved_trace;probe_guards_only=saved_only;dlc_resolve_installed=saved_installed;
+    dlc_resolve_install_attempts=saved_attempts;dlc_resolve_install_reason=saved_reason;
     dlc_resolve_original=saved;dlc_resolve_rows=rows;log_file=saved_log;return ok;
 }
 static LPCWSTR probe_io_expected_path;

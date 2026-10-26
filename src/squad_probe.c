@@ -678,11 +678,12 @@ static DWORD WINAPI observe(void *unused) {
     if(collision_baseline_qa_opted())line("{\"collision_baseline_qa\":true,\"route_stop\":\"second-host-acquisition\",\"guest_synthetic_input\":true,\"guest_input_policy\":\"existing-two-second-pulse-after-reacquisition\",\"guest_firing\":false,\"synthetic_scene\":true,\"reacquisition\":true,\"combat_tested\":false}\r\n");
     if(probe_guards_only)line("{\"guards_only_qa\":true,\"engine_bridge_disabled\":true,\"action_plan_ignored\":true,\"private_guards_ready\":true}\r\n");
     if(probe_dlc_io_trace)line("{\"dlc_file_open_observer\":true,\"scope\":\"sandbox-authored-dlc-CreateFileW-import-only\",\"max_rows\":64,\"native_file_cache_observed\":false}\r\n");
-    if(probe_dlc_io_trace&&!dlc_resolve_install(base))line("{\"dlc_resolve_observer\":false,\"reason\":\"identity-or-install-refused\"}\r\n");
+    dlc_resolve_install_observe(base);
     AddVectoredExceptionHandler(0, exception_observer);
     int bridge_installed = 0, pe_identity_logged = 0; LONG logged_blocks = -1, logged_isolations = 0;
     for (int tick = 0; tick < 140 && has_marker(root); ++tick) {
         Sleep(1000);
+        dlc_resolve_install_observe(base);
         if (blocked_writes != logged_blocks) { log_blocked_path(); logged_blocks = blocked_writes; }
         if (instance_mutex_isolations != logged_isolations) {
             line("{\"engine_instance_mutex_isolated\":true,\"scope\":\"verified-test-role-and-exact-callsite\",\"activation_modified\":false}\r\n");
