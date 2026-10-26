@@ -1,5 +1,16 @@
 # Existing native guest squad context
 
+An ordinary pair from `f5f8f74` connected but reached a different startup
+ordering: the world squad slot was empty, so the created-squad path briefly
+registered a local squad and obtained a positive combat getter. Within one
+sample the engine replaced the world slot. The old squad cleanup reported
+`destroy_dispatched:false` and exhausted its bounded retries, leaving cleanup
+pending for that process. The movement/fire observer waited specifically
+for existing-squad registration and sent no input; its wait began during
+preparation, so its timeout is not a movement or firing verdict. The sandbox
+TOC and original profiles were restored, and no game remained. The exact
+replacement actor and rejected destroy prerequisite remain to be established.
+
 An opt-in ordinary guest candidate now admits the pinned SetPlayerPawn script
 through the native role check only for the exact current squad and method on
 the dispatching thread. The callspace detour forwards the original decision
