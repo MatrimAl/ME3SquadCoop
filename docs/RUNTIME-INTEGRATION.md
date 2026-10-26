@@ -1,5 +1,17 @@
 # Runtime integration status
 
+Host morph-package preparation now defaults on for an ordinary configured host,
+using the same stock `SFXGame.LoadPackage` call and pinned native entry. A
+pre-existing resident package is no longer required before dispatch; missing or
+unreadable before/after GUIDs are marked unreadable rather than treated as zero
+identity evidence. The engine still owns loading and package validation.
+Host and guest attempts now bind to the admitted WorldInfo identity and refuse
+native re-entry; a newly admitted world can request its own preparation. The
+explicit diagnostic options can disable either preparation with0. Three native
+targets built and ordinary/protected no-game harnesses passed, including option,
+world identity, failure and re-entry cases. Live default host preparation,
+absent-package behavior and actual mission transitions are not yet verified.
+
 The existing focus getter policy is now admitted during a pending, unconsumed
 ordinary guest join in its standalone world. It remains subject to the exact
 Tick caller, native ABI, current local world/player, mode0 and pause-ownership
@@ -19,8 +31,8 @@ the guest remained in a standalone PlayersOnly state and sampled video was
 black. The native focus-owner flag was not captured, so focus loss is a lead,
 not the established pause cause. Both runs cleaned up without native exceptions
 or profile/TOC changes. Default guest preparation remains live-unverified;
-earlier positive runs set the options explicitly. Host morph-package preparation
-remains a separate opt-in.
+earlier positive runs set the options explicitly. The earlier host morph-package
+path also required opt-in; its new default policy is described above.
 
 The latest appearance bookkeeping binds its attempt to the admitted player and
 WorldInfo identities rather than the whole process. Matching identities retain
@@ -48,7 +60,7 @@ evidence, not full rendered appearance, customization or campaign validation.
 
 The ordinary guest implementation is automatic and remains scoped:
 
-- Guest archetype preparation calls the stock package API once
+- Guest archetype preparation calls the stock package API once per admitted world
   after ordinary guest readiness and before travel. It reuses the host loader's
   reflected parameter contract, additionally pins native entry RVA0xb6cfa0,
   and refreshes world/player readiness after the call. Setting
