@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-26: stage gradual manual feature and recording reviews
+
+The owner requested gradual feature preparation with reviewable gameplay
+recordings. A new offline preparation tool staged six private cases and
+hash-checked current native/script artifacts without installation or launch.
+Movement/cover, weapons, powers, Shift menu, revive and scene/travel return
+have separate criteria and per-peer video/log/review destinations. Revive is
+explicitly integration-pending rather than ready to exercise.
+
+An existing workspace FFmpeg advertises HWND-scoped gfxcapture. A recorder
+candidate verifies explicit sandbox executable/PID/HWND identity and writes
+per-peer MKV segments, requested start clocks and exit metadata. It sends no
+input, starts no game and awaits a STOP request/game exit/window loss. Closed
+segments support later intermittent frame review; continuous model vision,
+first-frame/log alignment and valid capture are not claimed. Source syntax
+was parsed; no recorder, game or behavioral tests ran. See
+[feature preparation and capture limits](FEATURE-REVIEW.md).
+
 ## 2026-10-26: compile scoped temporary revive animation registration
 
 The new authored animation lease accepts an already loaded set, refuses an

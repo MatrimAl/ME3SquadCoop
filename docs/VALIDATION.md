@@ -1,5 +1,13 @@
 # Validation status
 
+Six manual feature-review cases were staged privately with hash-checked
+native artifacts and the current four-class script package. Nothing was
+installed or launched; revive remains integration-pending. A separate exact
+PID/HWND recorder candidate prepares per-peer segmented MKV and timing
+metadata without game input. Existing FFmpeg help advertises HWND gfxcapture;
+recorder/preparation syntax parsed. No live capture, frame decoding, game or
+behavioral tests ran. See [manual feature review](FEATURE-REVIEW.md).
+
 A temporary revive-animation lease compiled with the context/action/binding
 as a four-class package, without errors/warnings and with unchanged tracked
 inputs. It uses native temporary registration for an already loaded set and
