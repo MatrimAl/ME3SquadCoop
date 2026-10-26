@@ -60,6 +60,7 @@ static void runtime_tick(void *self,float delta) {
     runtime_original_tick(self,delta);
     runtime_join_progress_poll(base,(uintptr_t)self,GetTickCount());
     runtime_session_frame(base,(uintptr_t)self,1,GetTickCount());
+    runtime_join_outcome_tick(runtime_scope_ready,GetTickCount());
     runtime_host_capacity_poll(base,(uintptr_t)self);
     runtime_panel_publish(base,(uintptr_t)self,GetTickCount());
 }
@@ -138,7 +139,7 @@ __declspec(dllexport) int ME3RuntimeNetworkStartSelfTest(void) {return runtime_n
 __declspec(dllexport) int ME3RuntimeTravelIdleSelfTest(void) {return runtime_join_travel_idle_selftest();}
 __declspec(dllexport) int ME3RuntimeJoinReadinessSelfTest(void) {return runtime_join_readiness_selftest();}
 __declspec(dllexport) int ME3RuntimeJoinDiagnosticsSelfTest(void) {return runtime_join_diagnostics_selftest();}
-__declspec(dllexport) int ME3RuntimeJoinProgressSelfTest(void) {return runtime_join_progress_selftest();}
+__declspec(dllexport) int ME3RuntimeJoinProgressSelfTest(void) {return runtime_join_progress_selftest()&&runtime_join_outcome_selftest();}
 #include "runtime_transport_fixture.h"
 __declspec(dllexport) int ME3RuntimeTransportSelfTest(void) {return runtime_transport_selftest();}
 #include "runtime_host_fixture.h"

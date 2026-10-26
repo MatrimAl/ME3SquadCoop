@@ -11,7 +11,7 @@ typedef enum RuntimeNetworkStartStatus {
     RUNTIME_START_HOST_NATIVE_FAILED=10,RUNTIME_START_HOST_VERIFY_FAILED=11,
     RUNTIME_START_RETRY_WAITING=12,RUNTIME_START_RETRY_REFUSED=13,RUNTIME_START_RETRY_EXPIRED=14,
     RUNTIME_START_RELISTEN_WAITING=15,RUNTIME_START_RELISTEN_REFUSED=16,RUNTIME_START_RELISTEN_EXPIRED=17,
-    RUNTIME_START_CANCELLED=18
+    RUNTIME_START_CANCELLED=18,RUNTIME_START_JOIN_UNCONFIRMED=19
 } RuntimeNetworkStartStatus;
 static volatile LONG runtime_join_requested,runtime_join_attempted,runtime_network_start_status;
 static volatile LONG runtime_listen_requested,runtime_listen_attempted;
@@ -109,6 +109,7 @@ static int runtime_auto_rejoin_target_valid(const CombatContextChain *chain) {
 #include "runtime_join_readiness.h"
 #include "runtime_join_diagnostics.h"
 #include "runtime_join_progress.h"
+#include "runtime_join_outcome.h"
 #include "runtime_rejoin.h"
 #include "runtime_auto_rejoin.h"
 #include "runtime_relisten.h"
@@ -254,6 +255,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
     memset(&runtime_auto_rejoin_target,0,sizeof runtime_auto_rejoin_target);
     ConsoleParms params={0};params.command.data=command;params.command.count=params.command.max=(int32_t)wcslen(command)+1;
     params.write_log=1;runtime_join_progress_begin(engine,now);
+    runtime_join_outcome=(RuntimeJoinOutcome){now,1};
     int dispatched=invoke(base,c.pc,"PlayerController","ConsoleCommand",&params);
     runtime_join_log_console_result(&params.result);
     if(params.result.data&&guest_cinematic_allocator_pins(base)) {

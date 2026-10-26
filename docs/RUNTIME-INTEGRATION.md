@@ -282,3 +282,31 @@ ordinary network tests. Do not bypass engine package checks or treat presence
 as successful mounting. Cleanup removed the temporary ASI and DLC, restored the
 probe gate, retained original locks through shutdown, left original profiles
 unchanged, recorded no native exception and left no game process.
+
+
+## Dispatched join outcome
+
+The ordinary entry now distinguishes sending a join request from observing its
+native client context. After its own dispatched request, it observes the same
+validated native scope used by runtime session admission. A valid scope changes
+the startup status to Already networked; companion ownership remains a separate
+panel field. If no valid scope is observed for60seconds, startup status19 reads
+Join not confirmed and directs the player to inspect the game for a DLC or
+connection message. This is an observation deadline, not a native rejection,
+connection cancellation or automatic retry. A later valid scope can still
+replace the unconfirmed status. It never reads UI text as an authority signal.
+
+Cancellation, disable, host operation and explicit recovery statuses are
+preserved. Publishing the observed result uses compare/exchange so it cannot
+overwrite a concurrently published command status. Retry still uses the existing
+native-world/loading/cleanup and stable-player gates; this change does not
+acknowledge game dialogs, modify DLC, reset session faults or select a mission.
+The panel gives current native network/control state precedence over a previous
+unconfirmed join warning.
+
+All three native targets built. The actual ordinary DLL harness passed,
+including the outcome policy's60-second boundary, DWORD wraparound, late scope,
+cancel/retry/host/disable cases. The harness was brought up to date with the
+ordinary runtime's existing readiness-channel and MinHook link dependencies.
+Three panel guidance tests passed. No game ran for this change; actual native
+connection and full campaign behavior remain unverified.

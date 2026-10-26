@@ -146,7 +146,7 @@ STARTUP = {0: "Idle", 1: "Waiting for player control", 2: "Join dispatched", 3: 
            8: "Listening", 9: "Capacity refused", 10: "Listen failed", 11: "Listen verification failed",
            12: "Waiting to retry", 13: "Retry refused", 14: "Retry expired",
            15: "Waiting for new-mission listener", 16: "New-mission listener refused", 17: "New-mission listener expired",
-           18: "Pending connection request cancelled"}
+           18: "Pending connection request cancelled", 19: "Join not confirmed - check the game"}
 POWER = {0: "Idle", 1: "Queued", 2: "Rejected", 3: "Native order accepted", 4: "Native order refused"}
 CONTROL = {0: "Waiting for companion", 1: "Companion controlled", 2: "Scene / control suspended",
            3: "Waiting for mission transition", 4: "Control fault — restart required",
@@ -174,6 +174,8 @@ def recovery_hint(frame):
         return "Companion control is available. Native combat, cooldown and target rules still apply."
     if frame.netmode in (2, 3):
         return "Native networking is active; waiting for companion control. Another Join or Listen request is not needed."
+    if frame.startup == 19:
+        return "A native connection has not been confirmed. Check the game for a DLC or connection message. Retry join waits for native loading and cleanup; it does not dismiss messages or repair DLC."
     if frame.startup in (4, 5, 6, 7, 9, 10, 11):
         return "Startup was refused or failed. Check runtime configuration and diagnostics before starting a new session."
     if frame.startup in (1, 2, 12, 15):

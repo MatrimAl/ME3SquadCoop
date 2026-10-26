@@ -34,7 +34,10 @@ def main():
                TMP=str(ROOT / "local/compiler-tmp"), TEMP=str(ROOT / "local/compiler-tmp"))
     subprocess.run([str(args.zig.resolve(strict=True)), "cc", "-target", "x86_64-windows-gnu",
                     "-std=c17", "-O2", "-shared", "-DME3_RUNTIME_FIXTURE",
-                    str(ROOT / "src/squad_coop.c"), "-lbcrypt", "-o", str(dll)], env=env, check=True)
+                    str(ROOT / "src/squad_coop.c"), str(ROOT / "src/runtime_ready_channel.c"),
+                    *[str(ROOT / "third_party/minhook/src" / name) for name in
+                      ("buffer.c", "hook.c", "trampoline.c", "hde/hde64.c")],
+                    "-lbcrypt", "-luser32", "-lws2_32", "-o", str(dll)], env=env, check=True)
     entry = ctypes.CDLL(str(dll))
     for name in ("ME3RuntimeIdentitySelfTest", "ME3RuntimeConfigSelfTest", "ME3RuntimeSupportSelfTest",
                  "ME3RuntimePolicySelfTest", "ME3RuntimeSessionGateSelfTest", "ME3RuntimeCameraSelfTest",
