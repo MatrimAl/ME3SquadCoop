@@ -3,10 +3,13 @@
 param(
  [Parameter(Mandatory)][string]$LegendaryExplorerPath,
  [Parameter(Mandatory)][string]$OutputDirectory,
- [switch]$IncludeMinimalConfig
+ [switch]$IncludeMinimalConfig,
+ [switch]$IncludeEnglishTlk
 )
 $ErrorActionPreference='Stop'
 if($PSVersionTable.PSVersion.Major -lt 7){throw 'PowerShell7 required'}
+if($IncludeEnglishTlk -and !$IncludeMinimalConfig){throw 'English metadata variant requires the minimal named config'}
+$activationStringID=if($IncludeEnglishTlk){1915100}else{0}
 $activationRepo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $activationPrivate=[IO.Path]::GetFullPath((Join-Path $activationRepo 'local'))+[IO.Path]::DirectorySeparatorChar
 $activationOutput=[IO.Path]::GetFullPath($OutputDirectory)
@@ -37,12 +40,13 @@ $activationCooked=Join-Path $activationRoot 'CookedPCConsole'
 $null=New-Item -ItemType Directory -Path $activationCooked
 $activationStatus=[ordered]@{Status='preparing';Installed=$false;EngineAccepted=$false;GameExecuted=$false;
  ContainsOwnerGameAssets=$false;ToolSHA256=$activationToolHash;Files=@();
- Variant=$(if($IncludeMinimalConfig){'mount-toc-minimal-config'}else{'mount-toc'})}
+ Variant=$(if($IncludeEnglishTlk){'mount-toc-config-english-tlk'}elseif($IncludeMinimalConfig){'mount-toc-minimal-config'}else{'mount-toc'});
+ ResearchStringID=$activationStringID;StringIDAllocationVerified=$false}
 try {
  $activationStream=[IO.MemoryStream]::new()
  $activationWriter=[IO.BinaryWriter]::new($activationStream)
  try {
-  foreach($activationWord in @([uint32]1,[uint32]0x2ad,[uint32]0xcd,[uint32]0x3006b,[uint32]5100,[uint32]0,[uint32]0x0c,[uint32]0,[uint32]0)){$activationWriter.Write([uint32]$activationWord)}
+  foreach($activationWord in @([uint32]1,[uint32]0x2ad,[uint32]0xcd,[uint32]0x3006b,[uint32]5100,[uint32]0,[uint32]0x0c,[uint32]$activationStringID,[uint32]$activationStringID)){$activationWriter.Write([uint32]$activationWord)}
   $activationWriter.Write([byte[]]::new(72))
   $activationBytes=$activationStream.ToArray()
  } finally {$activationWriter.Dispose();$activationStream.Dispose()}
@@ -67,6 +71,22 @@ try {
   if($activationProperties.Count -ne 1 -or $activationProperties[0].GetAttribute('name') -ne 'seekfreepcpaths' -or
      $activationProperties[0].GetAttribute('type') -ne '2' -or $activationProperties[0].InnerText -ne '..\..\BIOGame\DLC\DLC_MOD_ME3SquadCoop\CookedPCConsole'){throw 'Minimal config roundtrip mismatch'}
  }
+ if($IncludeEnglishTlk){
+  # Project-authored strings only; no copied game/default TLK content.
+  $activationStrings=[Collections.Generic.List[LegendaryExplorerCore.TLK.TLKStringRef]]::new()
+  $activationTexts=@('ME3 Squad Co-op','DLC_MOD_ME3SquadCoop','en-us','Male','Female')
+  $activationIDs=@($activationStringID,($activationStringID+1),($activationStringID+2),($activationStringID+3),($activationStringID+3))
+  for($activationIndex=0;$activationIndex -lt $activationTexts.Count;$activationIndex++){
+   $activationStrings.Add([LegendaryExplorerCore.TLK.TLKStringRef]::new($activationIDs[$activationIndex],($activationTexts[$activationIndex]+[char]0),1,-1))
+  }
+  $activationTlk=Join-Path $activationCooked 'DLC_MOD_ME3SquadCoop_INT.tlk'
+  [LegendaryExplorerCore.TLK.ME2ME3.HuffmanCompression]::SaveToTlkFile($activationTlk,$activationStrings)
+  $activationTlkReader=[LegendaryExplorerCore.TLK.ME2ME3.ME2ME3TalkFile]::new($activationTlk)
+  for($activationIndex=0;$activationIndex -lt 4;$activationIndex++){
+   if($activationTlkReader.FindDataById(($activationStringID+$activationIndex),$false,$true,$true,$true) -ne $activationTexts[$activationIndex]){throw 'Authored TLK male readback mismatch'}
+  }
+  if($activationTlkReader.FindDataById(($activationStringID+3),$false,$true,$true,$false) -ne 'Female'){throw 'Authored TLK female readback mismatch'}
+ }
  $activationTOC=[LegendaryExplorerCore.Unreal.TOCCreator]::CreateDLCTOCForDirectory($activationRoot,[LegendaryExplorerCore.Packages.MEGame]::LE3)
  try {[IO.File]::WriteAllBytes((Join-Path $activationRoot 'PCConsoleTOC.bin'),$activationTOC.ToArray())} finally {$activationTOC.Dispose()}
  $activationParsed=[LegendaryExplorerCore.Unreal.TOCBinFile]::new((Join-Path $activationRoot 'PCConsoleTOC.bin'))
@@ -77,10 +97,14 @@ try {
   $activationConfigEntries=@($activationEntries|Where-Object {$_.Name.Replace('/','\') -eq 'CookedPCConsole\Default_DLC_MOD_ME3SquadCoop.bin'})
   if($activationConfigEntries.Count -ne 1 -or $activationConfigEntries[0].Size -ne (Get-Item -LiteralPath $activationConfig).Length){throw 'TOC config entry mismatch'}
  }
+ if($IncludeEnglishTlk){
+  $activationTlkEntries=@($activationEntries|Where-Object {$_.Name.Replace('/','\') -eq 'CookedPCConsole\DLC_MOD_ME3SquadCoop_INT.tlk'})
+  if($activationTlkEntries.Count -ne 1 -or $activationTlkEntries[0].Size -ne (Get-Item -LiteralPath $activationTlk).Length){throw 'TOC TLK entry mismatch'}
+ }
  if((Get-FileHash -LiteralPath $activationAssembly -Algorithm SHA256).Hash -ne $activationToolHash){throw 'Tool assembly changed'}
  $activationStatus.TOCEntries=$activationEntries
  $activationStatus.Files=@(Get-ChildItem -LiteralPath $activationRoot -File -Recurse|ForEach-Object {@{RelativePath=[IO.Path]::GetRelativePath($activationRoot,$_.FullName);Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}})
- $activationExpectedCount=if($IncludeMinimalConfig){3}else{2}
+ $activationExpectedCount=if($IncludeEnglishTlk){4}elseif($IncludeMinimalConfig){3}else{2}
  if($activationStatus.Files.Count -ne $activationExpectedCount){throw 'Unexpected activation payload'}
  $activationStatus.Status='prepared-not-installed'
 } catch {$activationStatus.Status='failed';$activationStatus.Error=$_.Exception.Message;throw}

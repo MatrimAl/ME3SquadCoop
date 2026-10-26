@@ -172,3 +172,32 @@ Readback requires exactly that one property, and regenerated TOC readback
 requires both the unchanged Mount and the correctly sized named coalesced.
 The candidate receipt still records EngineAccepted=false and Installed=false.
 This narrows the next experiment; it does not establish the corruption fix.
+
+
+## Named config result and English metadata candidate
+
+The protected named-config pair changed the visible rejection: guest video
+showed "DLC does not run in English" naming this mod, rather than the preceding
+corrupt-content warning. No native connection interval was established. This
+supports the relevance of the named config, but is not full package acceptance
+or proof of which exact internal branch ran. The supported base TLK independently
+maps0x51692 to the observed corruption message, with input hashes unchanged.
+The run cleaned up all three temporary DLC files and the ASI, left original
+profiles unchanged, recorded zero native exceptions and left no game process.
+
+An explicit -IncludeEnglishTlk option, requiring -IncludeMinimalConfig, now
+prepares a separate English-only metadata candidate. Official retained starter
+code specifies own-name, folder, language and Male/Female metadata records.
+The locally read LEMP English metadata uses en-us; only that metadata value was
+used as a format reference, with no game TLK bytes or dialogue copied. The new
+TLK contains project-authored strings and is encoded/read back using existing
+LEC. Both gender-table readbacks and the regenerated TOC entry are checked.
+
+The private candidate uses research string ID1915100, absent from the examined
+base English table; a registered allocation or compatibility with every mod is
+not established. Mount's two TLK ID fields now reference that ID. All other
+Mount bytes and the preceding named config remain identical. The generated
+receipt labels the distinct variant and records allocation verification=false,
+Installed=false and EngineAccepted=false. This is an English research candidate,
+not support for every language or a release/install payload. No new game run
+has evaluated its language acceptance.
