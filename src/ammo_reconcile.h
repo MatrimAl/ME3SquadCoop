@@ -1,6 +1,6 @@
 #ifndef ME3_AMMO_RECONCILE_H
 #define ME3_AMMO_RECONCILE_H
-#include "ammo_reconcile_protocol.h"
+#include "ammo_reconcile_host.h"
 /* Research-only control messages over existing owner-PC native RPCs. Both
  * participants must opt in. Reserved messages are consumed before chat/UI.
  * Ordinary messages and outbound dispatch retain the original script entry.
@@ -15,7 +15,7 @@ static unsigned ammo_rpc_events,ammo_rpc_sequences;
 typedef struct AmmoRpcState {
     unsigned long generation;int have,used,spare,dirty;DWORD quiet,wait_log,retry;
     unsigned retries;AmmoReconcilePending pending;
-    uint64_t host_id,last_host_id;int host_pending,host_used,host_spare;DWORD host_quiet,host_received;
+    AmmoReconcileHost host;
 } AmmoRpcState;
 static AmmoRpcState ammo_rpc_state;
 static void ammo_rpc_exec(void*,void*,void*);
@@ -83,10 +83,9 @@ static int ammo_rpc_receive(uintptr_t self,uintptr_t frame) {
        m.channel!=(unsigned)s->channel.index){ammo_rpc_log("rejected","schema-or-current-scope",0,0,0);return 1;}
     DWORD now=GetTickCount();
     if(test_action==6){
-        if(m.kind!=L'Q'||m.request<=t->last_host_id||(t->host_pending&&m.request<t->host_id)){
-            ammo_rpc_log("rejected","request-order",m.request,0,0);return 1;
-        }
-        if(!t->host_pending||m.request!=t->host_id){t->host_id=m.request;t->host_pending=1;t->host_quiet=0;t->host_received=now;ammo_rpc_log("received-request","native-owner-pc-rpc",m.request,0,0);}
+        int accepted=ammo_reconcile_host_request(&t->host,&m,now);
+        if(!accepted)ammo_rpc_log("rejected","request-order",m.request,0,0);
+        else if(accepted==1)ammo_rpc_log("received-request","native-owner-pc-rpc",m.request,0,0);
         return 1;
     }
     int used=0,spare=0;char state[96]={0};int idle=ammo_rpc_idle(&used,&spare,state);
@@ -148,14 +147,11 @@ static void ammo_reconcile_tick(void) {
     int used=0,spare=0;char state[96]={0};int idle=ammo_rpc_idle(&used,&spare,state);
     if(t->generation!=s->generation){memset(t,0,sizeof *t);t->generation=s->generation;t->have=1;t->used=used;t->spare=spare;}
     if(test_action==6){
-        if(!t->host_pending)return;
-        if(now-t->host_received>5000){t->host_pending=0;return;}
-        if(!idle){t->host_quiet=0;return;}
-        if(!t->host_quiet||t->host_used!=used||t->host_spare!=spare){t->host_used=used;t->host_spare=spare;t->host_quiet=now;return;}
-        if(now-t->host_quiet<250)return;
-        AmmoReconcileMessage reply={L'A',t->host_id,(unsigned)s->channel.index,used,spare};
+        AmmoReconcileMessage reply={0};
+        if(!ammo_reconcile_host_snapshot(&t->host,idle,used,spare,(unsigned)s->channel.index,now,&reply))return;
         int sent=ammo_rpc_send(1,&reply);ammo_rpc_log(sent?"replied":"send-unverified","settled-host-snapshot",reply.request,used,spare);
-        if(sent){t->last_host_id=t->host_id;t->host_pending=0;}return;
+        if(sent)ammo_reconcile_host_sent(&t->host,&reply);
+        return;
     }
     if(t->used!=used||t->spare!=spare){t->used=used;t->spare=spare;ammo_rpc_mark_local_activity(t);}
     if(!idle){t->quiet=0;t->pending.active=0;return;}
@@ -184,6 +180,6 @@ static int ammo_rpc_selftest(void) {
     ammo_rpc_mark_local_activity(&activity);
     ok=ok&&!activity.pending.active&&activity.dirty&&activity.quiet==0&&
         activity.pending.request==77&&activity.pending.generation==3;
-    ammo_rpc_original=saved;ammo_rpc_installed=installed;SetLastError(error);return ok&&ammo_reconcile_protocol_selftest();
+    ammo_rpc_original=saved;ammo_rpc_installed=installed;SetLastError(error);return ok&&ammo_reconcile_protocol_selftest()&&ammo_reconcile_host_selftest();
 }
 #endif

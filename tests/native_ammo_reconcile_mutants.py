@@ -16,3 +16,10 @@ if __name__ == "__main__":
         "wrong-response-request-accepted": [("m->request==p->request&&", "")],
         "response-during-firing-accepted": [("idle==1&&", "")],
     }, "ammo_reconcile_protocol.h", "SquadAmmoReconcileSelfTest")
+
+    check_mutations(args.zig.resolve(strict=True), {
+        "host-replies-before-quiet-window": [("if(now-s->quiet_at<250)return 0;", "")],
+        "host-replies-while-firing": [("if(idle!=1||", "if(")],
+        "host-keeps-expired-request": [("now-s->received_at>5000", "0")],
+        "duplicate-extends-host-deadline": [("return m->channel==s->channel?2:0;", "{s->received_at=now;return m->channel==s->channel?2:0;}")],
+    }, "ammo_reconcile_host.h", "SquadAmmoReconcileSelfTest")

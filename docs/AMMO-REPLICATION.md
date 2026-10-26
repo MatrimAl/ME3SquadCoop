@@ -151,3 +151,31 @@ this change. The existing adapter remains in the protected probe; moving it to
 the ordinary entry still requires independent current scope, authenticated
 incoming RPC receive context and lifecycle invalidation without research
 markers, logging budgets or test-action policy.
+
+
+## Shared host response scheduler
+
+The protected adapter now uses `ammo_reconcile_host.h` for request ordering,
+settling, expiry and response completion. The header has no game objects,
+process/thread APIs, hooks, log budget, research marker or test-action policy.
+It can be reused by the ordinary transport without copying those dependencies.
+Its caller remains responsible for native owner authentication and resetting
+state on every weapon/world/connection lifetime change. It is not a replacement
+for those checks and is not yet wired into ordinary networking.
+
+Requests contain no client-supplied ammo values. A pending duplicate retains
+the original request deadline and quiet interval; completed/older IDs are
+rejected. Host counters must be valid, idle and unchanged for250ms, with a
+five-second request lifetime. A channel change cancels the pending snapshot.
+Only a matching successfully sent response advances completion history; a
+failed send can retry within the same deadline. Explicit sampled-state storage
+also handles a timer beginning at native tick0 instead of treating0 as absent.
+
+All three targets built. Native self-tests cover the250ms boundary, counter
+changes, firing interruption, duplicate IDs, channel changes, stale requests
+and DWORD wraparound. Eight compiled fault variants were rejected across the
+host scheduler and existing reply protocol, including early replies, replies
+while firing, expired requests and duplicate deadline extension. These results
+verify the authored scheduler, not game traffic or ordinary-entry ammunition
+correction. No game was launched. The previous real-fire run remains evidence
+for its then-current protected source, not a live result for this refactoring.
