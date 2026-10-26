@@ -64,11 +64,13 @@ static const char *guest_player_context_reason="not-evaluated";
 static int guest_existing_context_cleanup(uintptr_t base,const char *reason,DWORD now);
 /* Wait for a continuously observed empty world squad before synthesizing one.
  * Native replication can fill the slot shortly after local possession. */
-typedef struct GuestEmptySquadWindow {unsigned long token;DWORD first,last;unsigned samples;} GuestEmptySquadWindow;
+typedef struct GuestEmptySquadWindow {unsigned long token;uintptr_t channel,connection,driver;int index;DWORD first,last;unsigned samples;} GuestEmptySquadWindow;
 static GuestEmptySquadWindow guest_empty_squad_window;
-static int guest_empty_squad_ready(GuestEmptySquadWindow *w,unsigned long token,int empty,DWORD now) {
-    if(!empty||!token){memset(w,0,sizeof *w);return 0;}
-    if(w->token!=token||!w->samples||now-w->last>1000){w->token=token;w->first=now;w->samples=1;}
+static int guest_empty_squad_ready(GuestEmptySquadWindow *w,unsigned long token,int empty,const NetworkActorIdentityEntry *c,DWORD now) {
+    if(!empty||!token||!c||!c->channel||!c->connection||!c->driver||c->index<=0){memset(w,0,sizeof *w);return 0;}
+    if(w->token!=token||w->channel!=c->channel||w->connection!=c->connection||w->driver!=c->driver||
+       w->index!=c->index||!w->samples||now-w->last>1000){
+        w->token=token;w->channel=c->channel;w->connection=c->connection;w->driver=c->driver;w->index=c->index;w->first=now;w->samples=1;}
     else if(now!=w->last&&w->samples<UINT_MAX)++w->samples;
     w->last=now;
     return w->samples>=4&&now-w->first>=1500;
@@ -86,11 +88,14 @@ static void guest_player_context_observe_scope(uintptr_t pc,uintptr_t pawn,uintp
     guest_player_context_last_pc=pc;guest_player_context_last_pawn=pawn;guest_player_context_last_info=info;
 }
 static int guest_player_context_scope_selftest(void) {
-    GuestEmptySquadWindow w={0};
-    if(guest_empty_squad_ready(&w,1,1,100)||guest_empty_squad_ready(&w,1,1,600)||
-       guest_empty_squad_ready(&w,1,1,1100)||!guest_empty_squad_ready(&w,1,1,1600)||
-       guest_empty_squad_ready(&w,1,0,1700)||guest_empty_squad_ready(&w,1,1,1800)||
-       guest_empty_squad_ready(&w,2,1,2300)||guest_empty_squad_ready(&w,2,1,3401))return 0;
+    GuestEmptySquadWindow w={0};NetworkActorIdentityEntry channel={0};
+    channel.channel=11;channel.connection=12;channel.driver=13;channel.index=4;
+    if(guest_empty_squad_ready(&w,1,1,&channel,100)||guest_empty_squad_ready(&w,1,1,&channel,600)||
+       guest_empty_squad_ready(&w,1,1,&channel,1100)||!guest_empty_squad_ready(&w,1,1,&channel,1600)||
+       guest_empty_squad_ready(&w,1,0,&channel,1700)||guest_empty_squad_ready(&w,1,1,&channel,1800)||
+       guest_empty_squad_ready(&w,2,1,&channel,2300)||guest_empty_squad_ready(&w,2,1,&channel,3401))return 0;
+    channel.connection=14;
+    if(guest_empty_squad_ready(&w,2,1,&channel,3901)||w.samples!=1||w.first!=3901)return 0;
     unsigned long token=guest_player_context_token;int owned=guest_player_context_owned_last,ok=1;
     uintptr_t pc=guest_player_context_last_pc,pawn=guest_player_context_last_pawn,info=guest_player_context_last_info;
     guest_player_context_token=0;guest_player_context_owned_last=0;
@@ -561,7 +566,7 @@ static void guest_player_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t paw
     NetworkActorIdentityEntry channel={0};CombatContextChain chain={0};
     int eligible=guest_player_context_conditions(base,pc,pawn,info,ordinary_mode,enabled,!l->registered&&!guest_existing_context.registered,&channel,&chain);
     int empty_stable=guest_empty_squad_ready(&guest_empty_squad_window,guest_player_context_token,
-        eligible&&!l->tracked&&!guest_existing_context.active&&!chain.squad,now);
+        eligible&&!l->tracked&&!guest_existing_context.active&&!chain.squad,&channel,now);
     guest_existing_context_adapt(base,pc,pawn,info,eligible,&channel,&chain,now);
     if(!eligible&&owned&&(!guest_player_context_last_rejection||now-guest_player_context_last_rejection>=5000)) {
         guest_player_context_last_rejection=now;guest_player_context_log("eligibility",guest_player_context_reason,now,0);
