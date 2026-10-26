@@ -240,8 +240,17 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
         guest_camera_stamp_matches(base,&p->pawn,0)&&guest_camera_stamp_matches(base,&p->mode,0)&&
         guest_camera_stamp_matches(base,&p->weapon,0)&&context.channel==p->channel&&context.channel_index==p->channel_index;
     if(p->active){
+#ifdef ME3_ORDINARY_FIRE_QA
+        /* This QA path presses before the original engine Tick. Count that
+         * completed Tick before checking elapsed time, even if it was slow. */
+        if(after)++p->ticks;
+#endif
         if(!eligible||!same||now-p->pressed_at>=250){combat_fire_stop(base,!eligible?reason:!same?"ownership-or-weapon-change":"250ms-timeout",now);return;}
+#ifndef ME3_ORDINARY_FIRE_QA
         if(after)++p->ticks;return;
+#else
+        return;
+#endif
     }
     if(!eligible){
         p->stable_at=0;p->positive_getter=0;
@@ -276,7 +285,11 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
      * eight-second QA delay outlasted the measured inventory loss (~six s).
      * Native permission, continuous identity/chain checks and release stay. */
     DWORD baseline=combat_fire_repeat_opted()?250:2000;
+#ifdef ME3_ORDINARY_FIRE_QA
+    if(after||!p->positive_getter||!p->stable_at||now-p->stable_at<baseline)return;
+#else
     if(!after||!p->positive_getter||!p->stable_at||now-p->stable_at<baseline)return;
+#endif
     if(!combat_fire_resolve(base,mode,now)){
         if(!p->report_at||now-p->report_at>=5000){p->report_at=now;
             combat_fire_log(base,"method-unavailable",combat_fire_resolution_reason,now,1,before,0,0,0);}
