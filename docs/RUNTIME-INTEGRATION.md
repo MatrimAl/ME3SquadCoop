@@ -1,5 +1,17 @@
 # Runtime integration status
 
+A same-PC run from `284b314` left all four package/appearance preparation
+options unset. The host's stock preload dispatched, changed the observed morph
+GUID to the disk/cache GUID and opened the listener. The guest's stock
+`BioChar_Player` preload also dispatched and the peers connected, but its
+initial Shepard reference577545 returned null. All six later guest channel and
+cache snapshots lacked the actor/archetype. This contradicts reliable recovery
+from package dispatch alone; do not claim the missing-Shepard issue is fixed.
+The guest focus observer recorded no focus-owned pause in 71 startup samples,
+so this run did not test recovery from the preceding startup stall. Terminal
+audit preserved original profiles, restored the sandbox TOC byte-identical and
+left no games, native exceptions, forced cleanup or cleanup errors.
+
 Host morph-package preparation now defaults on for an ordinary configured host,
 using the same stock `SFXGame.LoadPackage` call and pinned native entry. A
 pre-existing resident package is no longer required before dispatch; missing or
@@ -9,8 +21,9 @@ Host and guest attempts now bind to the admitted WorldInfo identity and refuse
 native re-entry; a newly admitted world can request its own preparation. The
 explicit diagnostic options can disable either preparation with0. Three native
 targets built and ordinary/protected no-game harnesses passed, including option,
-world identity, failure and re-entry cases. Live default host preparation,
-absent-package behavior and actual mission transitions are not yet verified.
+world identity, failure and re-entry cases. One live default host preparation
+is recorded above; absent-package behavior and actual mission transitions are
+not yet verified.
 
 The existing focus getter policy is now admitted during a pending, unconsumed
 ordinary guest join in its standalone world. It remains subject to the exact
@@ -30,8 +43,9 @@ three guest preparation options did not dispatch join or package preparation:
 the guest remained in a standalone PlayersOnly state and sampled video was
 black. The native focus-owner flag was not captured, so focus loss is a lead,
 not the established pause cause. Both runs cleaned up without native exceptions
-or profile/TOC changes. Default guest preparation remains live-unverified;
-earlier positive runs set the options explicitly. The earlier host morph-package
+or profile/TOC changes. A later live default guest preparation dispatched but
+did not reliably resolve the archetype, as described above; earlier positive
+runs set the options explicitly. The earlier host morph-package
 path also required opt-in; its new default policy is described above.
 
 The latest appearance bookkeeping binds its attempt to the admitted player and

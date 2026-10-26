@@ -1,5 +1,10 @@
 # Background co-op focus
 
+In an ordinary startup run with the extension enabled, the guest connected and
+the policy installed, but no focus-owned pause occurred in 71 sampled startup
+states. This does not demonstrate that the extension recovers an actual focus
+pause, nor identify the cause of the earlier black-screen stalls.
+
 Ordinary entry now also admits the existing getter policy while a configured
 guest join is requested but not yet attempted or cancelled. This covers the
 standalone startup world only; the existing exact caller/ABI, current-world,
