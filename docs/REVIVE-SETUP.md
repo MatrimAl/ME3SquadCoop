@@ -1,5 +1,9 @@
 # Coordinated revive preparation and retirement
 
+The [local world service](REVIVE-SERVICE.md) now retains this object and uses
+deferred preparation plus separate activation for the future native bridge.
+It is compiled but no runtime spawns or invokes it yet.
+
 A separate [script DLC candidate](SCRIPT-DLC-CANDIDATE.md) now prepares config/
 Mount/TOC around the compiled classes; it remains uninstalled and does not
 establish shared loading or invoke this coordinator.
@@ -17,7 +21,10 @@ animation lease. Otherwise it registers the supplied set through that lease.
 It then binds the authored SFXSquadCoop_ReviveAction through the native
 instancing path. Its new instance starts with bAdmissionClosed=true, so native
 CanDo calls during partial preparation refuse the authored action. Only after
-the final context/animation/binding checks does OpenAdmission enable it.
+the final context/animation/binding checks does OpenAdmission enable it, unless
+optional bDeferAdmission is requested. That mode leaves admission closed until
+explicit Activate. Prepared checks resources without gate state; Ready also
+checks the gate. The service uses deferred mode for future peer coordination.
 This coordinator does not select the existing basegame revive
 class, whose lifecycle differs from the authored target-state bookkeeping.
 

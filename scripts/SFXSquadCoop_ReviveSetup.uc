@@ -17,13 +17,23 @@ function bool HasPendingWork()
         || (Animation != None && (Animation.bPending || Animation.bMutating));
 }
 
-function bool Ready()
+function bool Prepared()
 {
     return bReady && !bBusy && !bPreparing && !bRetiring && Binding != None
-        && Binding.AdmissionOpen() && Binding.OrdinaryWorld()
+        && Binding.ValidBinding() && Binding.OrdinaryWorld()
         && (Animation == None || (Animation.IsRegistered()
             && Animation.Pawn == Binding.ControlledPawn && Animation.Mesh == Binding.CapturedMesh
             && Animation.ExpectedAnimation == Binding.CapturedAnimation));
+}
+
+function bool Ready()
+{
+    return Prepared() && Binding.AdmissionOpen();
+}
+
+function bool Activate()
+{
+    return Prepared() && Binding.OpenAdmission() && Ready();
 }
 
 // bBusy remains held by the caller across native registration/instancing.
@@ -68,7 +78,7 @@ function bool FailPreparation(name Reason)
 // Return value is local preparation, not network agreement or revival proof.
 // False may leave HasPendingWork true; retain and poll Retire, do not discard.
 function bool Prepare(SFXPawn_PlayerParty Candidate, SFXPlayerController Admission,
-    AnimSet OptionalLoadedSet, bool bSimulatedPresentation)
+    AnimSet OptionalLoadedSet, bool bSimulatedPresentation, optional bool bDeferAdmission)
 {
     if (HasPendingWork())
         return false;
@@ -98,7 +108,7 @@ function bool Prepare(SFXPawn_PlayerParty Candidate, SFXPlayerController Admissi
         || (Animation != None && (!Animation.IsRegistered()
             || Animation.ExpectedAnimation != Binding.CapturedAnimation)))
         return FailPreparation('PreparedContextChanged');
-    if (!Binding.OpenAdmission())
+    if (!bDeferAdmission && !Binding.OpenAdmission())
         return FailPreparation('AdmissionOpenRefused');
     bPreparing = false;
     bReady = true;

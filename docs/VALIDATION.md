@@ -1,5 +1,13 @@
 # Validation status
 
+A local world-service Actor/factory now holds coordinated revive setup for
+one pawn/token lifetime. Service preparation defers admission; separate
+activation is reserved for future peer agreement. Matching-token retirement
+retains pending cleanup, with explicit destruction only after completion.
+Seven classes compiled without errors/warnings and unchanged tracked inputs.
+No native factory invocation, GC/rooting, world/peer lifecycle, game or tests
+were observed. The runtime bridge remains unfinished. See [service limits](REVIVE-SERVICE.md).
+
 Four exact native animation entries decompiled with nonempty outputs and
 unchanged supported source identity. Registration/thunk assembly establishes
 Add/Rmv/Register targets; a direct removal call and chained unwind metadata

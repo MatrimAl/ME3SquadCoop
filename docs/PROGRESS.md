@@ -1,5 +1,18 @@
 # Progress
 
+## 2026-10-26: add local actor ownership and deferred revive activation
+
+The service/factory candidate provides a normal Actor.Spawn entry and retains
+Setup as a reflected reference for one pawn/token lifetime, rather than
+depending solely on a future native raw UObject pointer. It has no autonomous
+Tick/network/input behavior. The service prepares with admission closed and
+exposes separate activation/status/retirement for a future peer-aware bridge.
+
+Seven classes compiled without errors/warnings and unchanged tracked inputs.
+This is not live spawning, GC/rooting or session evidence. Loaded class/function/
+ABI resolution, native invocation, peer agreement and pre-handoff retirement
+remain unfinished. No game or tests ran. See [service contract](REVIVE-SERVICE.md).
+
 ## 2026-10-26: resolve native temporary animation removal path
 
 Registration and thunk instruction evidence selected AddAnimSet0xa87140,

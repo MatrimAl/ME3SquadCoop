@@ -43,7 +43,8 @@ already supplied local Legendary Explorer6.5 assembly. PowerShell source syntax
 was parsed successfully. The tool has now initialized dependencies, compiled
 the authored `SFXSquadCoop_ReviveContext`, `SFXSquadCoop_ReviveAction` and
 `SFXSquadCoop_ReviveBinding`, `SFXSquadCoop_ReviveAnimation` and
-`SFXSquadCoop_ReviveSetup` classes together,
+`SFXSquadCoop_ReviveSetup`, `SFXSquadCoop_ReviveService` and
+`SFXSquadCoop_ReviveFactory` classes together,
 in that order, without compiler
 errors/warnings and saved one private LE3 package.
 Compilation supplies the source filename's
@@ -51,7 +52,7 @@ class name explicitly through `intendedClassName`; a new export cannot use an
 empty intended name. The receipt confirmed unchanged tracked inputs.
 
 No package reload, fixture, game, install or mount was executed. This establishes
-five-class compilation/save, not universal tool behavior, engine acceptance or
+seven-class compilation/save, not universal tool behavior, engine acceptance or
 a working full revive feature. See the
 [revive context component](REVIVE-CONTEXT.md) and
 [authored action candidate](REVIVE-ACTION.md) and
