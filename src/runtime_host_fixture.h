@@ -112,6 +112,18 @@ static int runtime_host_startup_selftest(void) {
     memcpy((void*)(o[15]+0x8ac),&url,sizeof url);
     Me3RuntimeConfig saved=g_runtime_config;
     int ok=runtime_config_parse(&g_runtime_config,L"1",L"host",L"26.1.2.3",NULL,L"17779")==ME3_CONFIG_READY;
+    /* Exercise actual loader-group reads with a live fixture object, empty
+     * group, wrong group and non-live object. No native asset loading. */
+    unsigned char loader[0x80]={0},entry[32]={0},request[40]={0};uint32_t group[2]={0x123,0},wrong[2]={0x124,0};
+    GameArray package_entries={(uintptr_t)entry,1,1},requests={(uintptr_t)request,1,1};
+    memcpy(loader+0x68,&package_entries,sizeof package_entries);memcpy(entry,&requests,sizeof requests);
+    memcpy(entry+24,group,8);memcpy(request+32,&o[4],8);
+    ok=ok&&remote_appearance_group_assets_live(base,(uintptr_t)loader,group)&&
+       !remote_appearance_group_assets_live(base,(uintptr_t)loader,wrong);
+    requests.count=0;memcpy(entry,&requests,sizeof requests);
+    ok=ok&&!remote_appearance_group_assets_live(base,(uintptr_t)loader,group);
+    requests.count=1;memcpy(entry,&requests,sizeof requests);memset(request+32,0,8);
+    ok=ok&&!remote_appearance_group_assets_live(base,(uintptr_t)loader,group);
     const RuntimeHostNativeCalls calls={runtime_host_fixture_copy,runtime_host_fixture_destroy,
         runtime_host_fixture_listen,runtime_host_fixture_initialize,runtime_host_fixture_error_free};
     SessionContext context=session_context(o[15]);CombatContextChain chain;

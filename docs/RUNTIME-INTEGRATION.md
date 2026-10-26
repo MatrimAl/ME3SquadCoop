@@ -1,5 +1,14 @@
 # Runtime integration status
 
+The guarded guest appearance path now retains its original asset-group name
+and rechecks it if loading was incomplete; it does not repeat
+`UpdateAppearance` for the same player and world. Before `ApplyAppearance`,
+it requires the same group, a nonempty set of live asset references, and the
+existing player, world, mesh and channel admission checks. Synthetic fixtures
+exercise group identity and reject empty or invalid references. The delayed
+loading path has not yet been validated in a live game; this does not address
+the separate case where the guest never receives the Shepard actor.
+
 In one ordinary pair from `f9252b6`, both peers connected and twelve paired
 snapshots showed matching, stable host/guest Shepard archetype paths and class
 paths. The guest's skeletal-mesh asset was null in the first six snapshots;
