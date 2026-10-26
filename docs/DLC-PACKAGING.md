@@ -235,3 +235,18 @@ supports checking the TLK's language metadata and references together; it does
 not prove that an arbitrary TLK file alone is sufficient or that this exact
 branch was captured at runtime. The new metadata candidate remains untested
 in the engine.
+
+
+## Prepared English acceptance experiment
+
+The private ordinary-pair experiment has a distinct four-file English variant.
+Preparation validates the selected receipt through the semantic verifier before
+any temporary installation. It permits only the declared TLK-reference changes
+to Mount, records the TLK/config/TOC/Mount hashes and verifier fingerprint, and
+uses exclusive file creation with exact-content cleanup for all four files.
+A generic Mount-only runner must not be reused for this candidate: its old
+zero-TLK contract would reject the intended metadata or omit cleanup ownership.
+Only parser/help preparation ran; no game launched and no file was installed.
+The production archive/installer allowlist remains unchanged pending actual
+engine acceptance. A future experiment must distinguish a changed visible
+warning from complete acceptance and from successful native guest connection.
