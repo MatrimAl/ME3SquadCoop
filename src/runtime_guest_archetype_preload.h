@@ -1,12 +1,13 @@
 #ifndef ME3_RUNTIME_GUEST_ARCHETYPE_PRELOAD_H
 #define ME3_RUNTIME_GUEST_ARCHETYPE_PRELOAD_H
-/* Default-off candidate for the observed missing BioChar_Player net object.
+/* Ordinary guest preparation for the observed missing BioChar_Player net object.
  * Use the same stock API as host morph loading, before native guest travel.
  * No package-map/cache/actor/role writes or synthetic input. */
 static int runtime_guest_archetype_attempted,runtime_guest_archetype_dispatched;
 static int runtime_guest_archetype_preload(uintptr_t base,SessionContext context) {
     wchar_t flag[2]={0};
-    if(GetEnvironmentVariableW(L"ME3_SQUAD_COOP_GUEST_ARCHETYPE_PRELOAD",flag,2)!=1||flag[0]!=L'1')return 1;
+    DWORD flag_size=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_GUEST_ARCHETYPE_PRELOAD",flag,2);
+    if(flag_size&&!(flag_size==1&&flag[0]==L'1'))return 1;
     if(runtime_guest_archetype_attempted)return runtime_guest_archetype_dispatched;
     uintptr_t game=read_ptr(context.world+0x6b0),fn=function_named(base,"SFXGame","LoadPackage");
     unsigned char mode=255;

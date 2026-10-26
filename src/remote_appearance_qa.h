@@ -1,6 +1,6 @@
 #ifndef ME3_REMOTE_APPEARANCE_QA_H
 #define ME3_REMOTE_APPEARANCE_QA_H
-/* Default-off scoped experiment, not a general appearance synchronizer.
+/* Scoped ordinary presentation repair; protected entry still requires opt-in.
  * The owned remote player had a null mesh asset despite a valid channel.
  * The normal zero-argument UpdateAppearance wrapper blocks for asset load.
  * It also validates IDs and updates personalization effects. Never call it
@@ -13,6 +13,13 @@ typedef struct RemoteAppearanceAttempt {
 static RemoteAppearanceAttempt remote_appearance_attempt;
 static int remote_appearance_call_active;
 static DWORD remote_appearance_scan_at;
+static int remote_appearance_option(const wchar_t *name) {
+    wchar_t text[8]={0};DWORD count=GetEnvironmentVariableW(name,text,8);
+#ifdef ME3_REMOTE_APPEARANCE_ORDINARY
+    if(!count)return 1;
+#endif
+    return count==1&&text[0]==L'1';
+}
 static int remote_appearance_attempt_matches(const RemoteAppearanceAttempt *attempt,
         const GuestCameraStamp *pawn,const GuestCameraStamp *world) {
     return attempt->valid&&guest_camera_stamp_core_equal(&attempt->pawn,pawn)&&
@@ -28,7 +35,7 @@ static int remote_appearance_case(int enabled,int guest,int ordinary,int distinc
 static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t pc,uintptr_t local,
         uintptr_t info,int ordinary,int enabled,DWORD now) {
     static int loaded,opted;
-    if(!loaded){wchar_t text[8]={0};loaded=1;opted=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_REMOTE_APPEARANCE_QA",text,8)==1&&text[0]==L'1';}
+    if(!loaded){loaded=1;opted=remote_appearance_option(L"ME3_SQUAD_COOP_REMOTE_APPEARANCE_QA");}
     if(!opted||!enabled||!ordinary||remote_appearance_call_active||
 #ifndef ME3_REMOTE_APPEARANCE_ORDINARY
        !has_marker(root)||test_action!=5||
@@ -82,8 +89,7 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
     ((ProcessEvent)pe)((void*)target,(void*)fn,NULL,NULL);
     int same=guest_camera_stamp_matches(base,&pawn_stamp,1)&&guest_camera_stamp_matches(base,&world_stamp,1);
     uintptr_t loader=narrative_probe_object(base,engine,"SFXEngine")?read_ptr(engine+0xd90):0;
-    wchar_t apply_flag[8]={0};
-    if(same&&GetEnvironmentVariableW(L"ME3_SQUAD_COOP_REMOTE_APPEARANCE_APPLY_QA",apply_flag,8)==1&&apply_flag[0]==L'1'&&
+    if(same&&remote_appearance_option(L"ME3_SQUAD_COOP_REMOTE_APPEARANCE_APPLY_QA")&&
        read_ptr(read_ptr(target)+0x248)==base+0x70a250&&
        narrative_probe_object(base,loader,"SFXAsyncAssetLoader")&&read_ptr(engine+0xd90)==loader){
         /* Actor callspace70a250 returns skip for role<=1 without flags500.
@@ -118,7 +124,22 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
         same?"true":"false",is_live(base,after_asset)?"true":"false",now);line(row);
     remote_appearance_call_active=0;
 }
+static int remote_appearance_option_selftest(void) {
+    wchar_t name[96];_snwprintf(name,96,L"ME3_SQUAD_COOP_APPEARANCE_OPTION_%lu",GetCurrentProcessId());
+    SetLastError(0);
+    if(GetEnvironmentVariableW(name,NULL,0)||GetLastError()!=ERROR_ENVVAR_NOT_FOUND)return 0;
+#ifdef ME3_REMOTE_APPEARANCE_ORDINARY
+    int ok=remote_appearance_option(name)==1;
+#else
+    int ok=remote_appearance_option(name)==0;
+#endif
+    ok=SetEnvironmentVariableW(name,L"0")&&ok&&!remote_appearance_option(name);
+    ok=SetEnvironmentVariableW(name,L"1")&&ok&&remote_appearance_option(name);
+    ok=SetEnvironmentVariableW(name,L"invalid")&&ok&&!remote_appearance_option(name);
+    return SetEnvironmentVariableW(name,NULL)&&ok;
+}
 static int remote_appearance_case_selftest(void) {
+    if(!remote_appearance_option_selftest())return 0;
     int admitted[]={1,1,1,1,1,1,1,1,0,0,0};
     if(!remote_appearance_case(1,1,1,1,1,1,1,1,0,0,0))return 0;
     for(unsigned i=0;i<11;++i){int changed[11];memcpy(changed,admitted,sizeof changed);changed[i]=i<8?0:1;

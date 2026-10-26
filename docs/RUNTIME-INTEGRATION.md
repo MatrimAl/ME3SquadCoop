@@ -1,5 +1,13 @@
 # Runtime integration status
 
+Ordinary guest package/appearance preparation is now enabled by default inside
+the existing configured startup/session gates. The legacy diagnostic options
+can explicitly disable each path with0; protected appearance entry still
+requires1. Three native targets built, and ordinary/protected no-game harnesses
+passed actual unset/0/1/invalid environment-option cases. A live run without the
+three guest preparation options is still required; earlier positive runs set
+them explicitly. Host morph-package preparation remains a separate opt-in.
+
 The latest appearance bookkeeping binds its attempt to the admitted player and
 WorldInfo identities rather than the whole process. Matching identities retain
 their one-attempt limit through scenes or transient channel loss. A different
@@ -24,15 +32,17 @@ A decoded video frame contains a second nearby helmeted figure, but its visual
 identity has not been independently attributed. This is model initialization
 evidence, not full rendered appearance, customization or campaign validation.
 
-The implementation remains default-off and scoped:
+The ordinary guest implementation is automatic and remains scoped:
 
-- `ME3_SQUAD_COOP_GUEST_ARCHETYPE_PRELOAD=1` calls the stock package API once
+- Guest archetype preparation calls the stock package API once
   after ordinary guest readiness and before travel. It reuses the host loader's
   reflected parameter contract, additionally pins native entry RVA0xb6cfa0,
-  and refreshes world/player readiness after the call.
-- The existing `ME3_SQUAD_COOP_REMOTE_APPEARANCE_QA=1` and
-  `ME3_SQUAD_COOP_REMOTE_APPEARANCE_APPLY_QA=1` options admit the old appearance
-  path in ordinary guest Tick. It runs last with fresh connection/local context.
+  and refreshes world/player readiness after the call. Setting
+  `ME3_SQUAD_COOP_GUEST_ARCHETYPE_PRELOAD=0` disables it for diagnosis.
+- The old appearance path runs in ordinary guest Tick unless either existing
+  `ME3_SQUAD_COOP_REMOTE_APPEARANCE_QA` or
+  `ME3_SQUAD_COOP_REMOTE_APPEARANCE_APPLY_QA` option disables its respective
+  stage with0. It runs last with fresh connection/local context.
   Default male IDs, absent mesh, simulated role, a unique current channel and
   loaded assets remain required. Protected entry retains its marker/action gates.
 - Neither path writes package maps, cached objects, roles or appearance IDs.
