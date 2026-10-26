@@ -19,6 +19,7 @@ class RuntimeSessionPlan:
     input_bootstrap: bool = False
     native_power_hotkeys: bool = False
     native_power_icons: bool = False
+    local_squad_set: bool = False
 
     def __post_init__(self):
         if self.role not in ("host", "guest"):
@@ -35,6 +36,8 @@ class RuntimeSessionPlan:
             raise ValueError("ready channel must be a boolean")
         if type(self.input_bootstrap) is not bool or (self.input_bootstrap and self.role != "guest"):
             raise ValueError("input bootstrap requires a guest plan and a boolean option")
+        if type(self.local_squad_set) is not bool or (self.local_squad_set and self.role != "guest"):
+            raise ValueError("local squad initialization requires a guest plan and a boolean option")
         if type(self.native_power_hotkeys) is not bool or (self.native_power_hotkeys and self.role != "guest"):
             raise ValueError("native power hotkeys require a guest plan and a boolean option")
         if type(self.native_power_icons) is not bool or (self.native_power_icons and not self.native_power_hotkeys):
@@ -80,6 +83,8 @@ class RuntimeSessionPlan:
             values["ME3_SQUAD_COOP_READY_CHANNEL"] = "1"
         if self.input_bootstrap:
             values["ME3_SQUAD_COOP_INPUT_BOOTSTRAP"] = "1"
+        if self.local_squad_set:
+            values["ME3_SQUAD_COOP_LOCAL_SQUAD_SET"] = "1"
         if self.native_power_hotkeys:
             values["ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS"] = "1"
         if self.native_power_icons:

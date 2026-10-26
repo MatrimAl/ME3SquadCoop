@@ -36,6 +36,8 @@ for other calls; its temporary scope allows at most one matching skip result.
 It is enabled only with `ME3_SQUAD_COOP_LOCAL_SQUAD_SET=1` and is not a
 default-on or gameplay release. Its local fixture covers filtering, original
 forwarding, one-shot behavior and other-thread isolation.
+The guest session planner exposes this opt-in as `--local-squad-set`; host
+plans reject it. Generating a plan does not launch the game or validate play.
 
 In one ordinary same-PC run from `35ecadb`, the native skip was adapted and
 SetPlayerPawn produced a registered guest squad context with a positive combat
