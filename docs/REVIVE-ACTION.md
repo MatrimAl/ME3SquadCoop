@@ -21,7 +21,10 @@ existing target usage and captures/pauses its existing native death timer
 before starting the inherited animation
 action. An absent timer is not created; an already paused timer is not owned.
 The candidate names CB_MP_Revive but supplies
-no animation asset. It requires one animation name and a successful native
+no animation asset. Two selected LEMP human-player carriers now have a
+serialized mesh/set/sequence chain for that name; Ashley's effective animation
+lookup remains unverified. See [asset and basegame class evidence](REVIVE-ANIMATION.md).
+It requires one animation name and a successful native
 GetAnimLengthAndPos query with a positive finite length after inherited start.
 That query is a refusal condition, not proof that the required animation is
 available or visibly playing on either peer in a campaign mission.
@@ -67,7 +70,7 @@ external prerequisites for a future scoped installer.
 | Requirement | Current boundary |
 | --- | --- |
 | Shared class availability and slot5 assignment | Neither peer loads or assigns this class yet; no per-mission edits are made |
-| Animation availability | Symbolic name only; campaign assets and playback are unverified |
+| Animation availability | Located in two human-player carrier mesh/set chains; no scoped Ashley loading/assignment or playback evidence |
 | Native target usage | Captured module/callback/field/lens baseline and scoped disable/restore; actual engine visibility, overlap and client presentation remain unverified |
 | Downed death timer | Captured native binding/fields and conditional pause/resume; native timer/recovery behavior and identical replacement remain unverified |
 | Cleanup after lost context | Pending metadata is retained; no foreign-context flag clearing or completed recovery |
@@ -87,7 +90,7 @@ native end-state transition order or cleanup after travel/control changes.
 
 Both authored classes compiled with zero errors/warnings and unchanged tracked
 input hashes. The saved private package SHA-256 is
-`be9c4e42241b2380df95b0b6e327429fad53a43dbb596ee9c098ba40e065b158`.
+`d5098e166210004a03187a17b04df28829d86bfe70f953f34d2925a8644a2e7d`.
 LEC accepts the external root-motion enums as
 ERootMotionMode.RMM_Ignore and ERootMotionRotationMode.RMRM_Ignore; the body
 stance animation names are an array. This is compilation/save evidence only.

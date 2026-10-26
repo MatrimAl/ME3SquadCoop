@@ -1,5 +1,13 @@
 # Validation status
 
+Offline reads located CB_MP_Revive and its mesh/dynamic-set links in two
+selected human-player packages, and a basegame revive Class export in
+BioP_Char. These do not establish runtime loading, Ashley playback or slot5
+assignment. The authored action now explicitly requests action replication,
+permits movement input and uses0.4 blends. Both classes compiled without
+errors/warnings and with unchanged tracked inputs. No assets were copied,
+game or tests run. See [animation/class boundaries](REVIVE-ANIMATION.md).
+
 The revive candidate now captures its existing use-module/callback/field/lens
 baseline and scopes targetability disable/restore without rebinding the
 callback, changing range/tip or writing the selection save variable. Recovery

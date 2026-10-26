@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-26: locate revive animation carriers and basegame class
+
+Selected offline reads found CB_MP_Revive in the female and male human soldier
+player packages, each linked through its gameplay mesh's HMM_DG_Deaths dynamic
+set. The serialized sequence is5.3 seconds/159 frames; this does not replace
+native fTimeToRevive. Ten distinct carriers supplied1450 inspected sequence
+exports; the bounded negative scans are not exhaustive game coverage.
+
+BioP_Char also supplies a local SFXCustomAction_Revive class/default object,
+narrowing an existing-class integration alternative before a new shared class
+package is assumed necessary. Neither serialized presence nor the two MP
+mesh chains prove loaded class resolution, Ashley animation lookup or action5
+availability. No assets, archetypes, timeline or override data were copied.
+The authored action now explicitly requests replication, permits movement
+input and sets0.4 blends; both classes compiled with zero errors/warnings and
+unchanged tracked inputs. No game or tests ran. See
+[animation and class evidence](REVIVE-ANIMATION.md).
+
 ## 2026-10-26: preserve native use callbacks during revive
 
 The authored context now captures the existing target use module's callback,

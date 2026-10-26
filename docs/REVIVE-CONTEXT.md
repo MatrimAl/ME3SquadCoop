@@ -158,8 +158,8 @@ The authored context and action compiled together with zero compiler errors/
 warnings and saved to a fresh private package using the build command. The receipt status was
 `compiled-not-installed`; tracked tool/Oodle/Core/Engine/SFXGame/source hashes
 were unchanged. The saved package digest was
-`be9c4e42241b2380df95b0b6e327429fad53a43dbb596ee9c098ba40e065b158`
-for the scoped usage/lens-state revision.
+`d5098e166210004a03187a17b04df28829d86bfe70f953f34d2925a8644a2e7d`
+for the action's explicit replication/movement/blend default revision.
 Failed earlier compiler outputs remain separate private directories and are
 not candidates. No native-source change required rebuilding the ASIs.
 
