@@ -1,6 +1,22 @@
 # Existing native guest squad context
 
-Status: implemented candidate; live verification pending.
+Status: implemented candidate; live initialization did not verify in one
+ordinary pair. In that run, method dispatch returned, admission and identity
+checks passed, but `CachedPlayerPawn` remained different from the owned
+Ashley; the combat getter was not reached. A later read-only observation in
+the same session found the guest's current `BioPlayerSquad` at role1 with the
+native Actor callspace target at RVA `0x70a250`; both player caches were empty.
+Source-bound native analysis shows the script dispatcher consults that
+callspace, whose role1 path can reject a function lacking flags `0x500`.
+The pinned `SetPlayerPawn` flags are `0x20802`. This is a specific candidate
+explanation of the no-op, not a captured callspace return or a proven fix.
+Ordinary use of the current initializer must not be described as verified.
+
+The adapter now logs each reached post-dispatch verification independently;
+`-1` indicates an earlier failure prevented a check. The authored-memory
+fixture checks dispatch failure, missing cached-player write and false getter
+separately. It uses a stand-in for the native dispatcher and cannot reproduce
+the game's callspace decision.
 
 The connected arena run retained a native BioPlayerSquad on the guest with
 CachedPlayerPawn null and a false native IsCombatEnabled result. The previous
