@@ -1,5 +1,18 @@
 # Runtime integration status
 
+Read-only follow-up ruled out a changed private morph file: its SHA-256 matches
+both the original source and saved independent-copy baseline. The base
+GuidCache export also contains the disk/guest GUID for this exact package,
+rather than the different resident host GUID. The discrepancy is therefore in
+the observed runtime package state; its creation/loading cause is unresolved.
+Two selected native map/cache functions exported successfully from the retained
+unchanged database. The selected SFXGame.LoadPackage function is a public static
+final native declaration taking a string; its script declaration is not the
+native implementation or evidence that calling it fully loads an existing
+placeholder. No new game run or metadata correction was performed for this
+follow-up. Keep package validation enabled while establishing the normal load
+path before considering a targeted change.
+
 The first completed event-observed ordinary pair from `cc1e555` captured a
 native kind4 Connection Lost event naming a version mismatch for
 `BIOG_HMF_HED_PROMorph_R`. The package GUID in the event matches the sole found
