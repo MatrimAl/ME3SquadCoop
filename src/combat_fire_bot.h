@@ -19,9 +19,9 @@ typedef struct CombatFirePulse {
     unsigned long token,attempted_token;unsigned attempts;
     DWORD stable_at,gate_at,pressed_at,report_at,release_at;
     int active,positive_getter,ticks,release_attempts;
-    GuestCameraStamp pc,pawn,world,mode,weapon;
+    GuestCameraStamp pc,pawn,world,mode,weapon,squad;
     uintptr_t channel;
-    int channel_index;
+    int channel_index,existing_context;
 } CombatFirePulse;
 static CombatFireMethods combat_fire_methods;
 static CombatFirePulse combat_fire_pulse;
@@ -231,6 +231,7 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
     uintptr_t mode=0,weapon=0;const char *reason=NULL;
     int eligible=combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&context,&reason);
     int same=p->token&&p->token==context.token&&p->pc.pointer==pc&&p->pawn.pointer==pawn&&p->world.pointer==world&&
+        p->squad.pointer==context.squad&&p->existing_context==context.existing&&guest_camera_stamp_matches(base,&p->squad,0)&&
         p->mode.pointer==mode&&p->weapon.pointer==weapon&&guest_camera_stamp_matches(base,&p->pc,0)&&
         guest_camera_stamp_matches(base,&p->pawn,0)&&guest_camera_stamp_matches(base,&p->mode,0)&&
         guest_camera_stamp_matches(base,&p->weapon,0)&&context.channel==p->channel&&context.channel_index==p->channel_index;
@@ -251,10 +252,10 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
         unsigned long attempted=p->attempted_token;unsigned attempts=p->attempts;
         DWORD report=p->report_at,released=p->release_at;memset(p,0,sizeof *p);
         p->attempts=attempts;p->release_at=released;
-        p->attempted_token=attempted;p->report_at=report;p->token=context.token;p->channel=context.channel;p->channel_index=context.channel_index;
+        p->attempted_token=attempted;p->report_at=report;p->token=context.token;p->channel=context.channel;p->channel_index=context.channel_index;p->existing_context=context.existing;
         if(!guest_camera_stamp_read(base,pc,&p->pc,1)||!guest_camera_stamp_read(base,pawn,&p->pawn,1)||
            !guest_camera_stamp_read(base,world,&p->world,1)||!guest_camera_stamp_read(base,mode,&p->mode,1)||
-           !guest_camera_stamp_read(base,weapon,&p->weapon,1))return;
+           !guest_camera_stamp_read(base,weapon,&p->weapon,1)||!guest_camera_stamp_read(base,context.squad,&p->squad,1))return;
         p->stable_at=now;
     }
     unsigned char before=255;
@@ -277,7 +278,8 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
     ++p->attempts;p->attempted_token=p->token; /* Default one; explicit cancellation QA permits one re-press. */
     if(!(context.existing?guest_existing_context_gate(base,pc):guest_player_context_gate(base,"fire-bot-pre-dispatch",now)==1)||
        !combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&context,&reason)||context.token!=p->token||
-       context.channel!=p->channel||context.channel_index!=p->channel_index||
+       context.channel!=p->channel||context.channel_index!=p->channel_index||context.squad!=p->squad.pointer||
+       context.existing!=p->existing_context||!guest_camera_stamp_matches(base,&p->squad,1)||
        mode!=p->mode.pointer||weapon!=p->weapon.pointer||!guest_camera_stamp_matches(base,&p->pc,1)||
        !guest_camera_stamp_matches(base,&p->pawn,1)||!guest_camera_stamp_matches(base,&p->mode,1)||
        !guest_camera_stamp_matches(base,&p->weapon,1)||!read_at(pc+0x480,&before,1)||before)return;
