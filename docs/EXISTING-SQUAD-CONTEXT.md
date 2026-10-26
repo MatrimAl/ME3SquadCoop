@@ -1,5 +1,16 @@
 # Existing native guest squad context
 
+In follow-up same-PC pair `ordinary-pair-c5fbb1ba4d`, the guest's Ashley
+weapon pointer was initially empty and then resolved to a live SFX weapon;
+both peers had valid pawn/weapon ownership and inventory links. The private
+fire bot dispatched the game's FireWeapon and StopFiringWeapon, with the
+input byte changing 0→1→0. Although its nominal timeout is 250ms, the next
+observed bot tick was about 2156ms later and no held gameplay tick was
+recorded. In 346 paired snapshots both sides stayed at used=0, spare=210.
+Thus this automated pulse did not demonstrate a shot; it does not contradict
+the earlier user-assisted firing observation. No enemy damage was measured.
+All observers exited successfully and sandbox/profile cleanup was clean.
+
 An explicitly compiled private ordinary-entry fire-QA binary from `e85e704`
 was used in one same-PC pair. The native existing-squad context registered,
 but the test bot repeatedly reported `missing-live-weapon` on the guest and
