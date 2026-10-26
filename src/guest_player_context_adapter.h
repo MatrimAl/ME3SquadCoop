@@ -237,6 +237,9 @@ static int guest_player_context_dispatch(uintptr_t base,uintptr_t actor,const Gu
     if(pe!=base+0x40d450)return 0;
     ((ProcessEvent)pe)((void*)actor,(void*)method->function.pointer,parms,NULL);return 1;
 }
+#ifdef ME3_RUNTIME_LOCAL_SQUAD_SET
+#include "runtime_local_squad_set.h"
+#endif
 /* Optional diagnostic of the exact non-RPC SetPlayerPawn callspace on the
  * current game thread. Its pinned flags do not enter either RPC branch in
  * this build. The separate preflight result is not the later dispatch's

@@ -61,7 +61,11 @@ static int guest_existing_context_cleanup(uintptr_t base,const char *reason,DWOR
             }
             if(l->cleanup_calls<8&&(!l->cleanup_at||now-l->cleanup_at>=1000)) {
                 l->cleanup_at=now;++l->cleanup_calls;uintptr_t none=0;
+#ifdef ME3_RUNTIME_LOCAL_SQUAD_SET
+                runtime_local_squad_set(base,squad,&none);
+#else
                 guest_player_context_dispatch(base,squad,&guest_player_context_methods.set_pawn,&none);
+#endif
             }
             if(read_at(squad+0x2a8,&cached,8)&&!cached&&read_at(squad+0x2cc,&current,8)&&!current) {
                 l->active=0;guest_existing_context_log("released",reason,now);return 1;
@@ -131,7 +135,11 @@ static void guest_existing_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t p
 #ifndef ME3_EXISTING_CONTEXT_FIXTURE
         guest_player_context_callspace_preflight(base,squad,&target,now);
 #endif
+#ifdef ME3_RUNTIME_LOCAL_SQUAD_SET
+        dispatched=runtime_local_squad_set(base,squad,&target);
+#else
         dispatched=guest_player_context_dispatch(base,squad,&guest_player_context_methods.set_pawn,&target);
+#endif
     }
     /* Preserve the original short-circuit order, but record the first failed
      * condition. -1 means the check was not reached, not a false result. */

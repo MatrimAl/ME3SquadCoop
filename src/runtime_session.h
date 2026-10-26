@@ -15,7 +15,9 @@ static int native_session_role(void) {
 #include "native_state_reader.h"
 #include "squad_pawn_readiness.h"
 #include "guest_camera_adapter.h"
+#define ME3_RUNTIME_LOCAL_SQUAD_SET
 #include "guest_player_context_adapter.h"
+#undef ME3_RUNTIME_LOCAL_SQUAD_SET
 #include "guest_power_order_contract.h"
 #include "guest_collision_restore.h"
 #include "guest_cinematic_registration_adapter.h"
