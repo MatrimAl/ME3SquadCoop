@@ -204,7 +204,11 @@ static int combat_fire_context(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintpt
 static int combat_fire_conditions(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,int ordinary,
                                   int enabled,uintptr_t *mode_out,uintptr_t *weapon_out,CombatFireContext *context,const char **reason) {
     *reason="eligible";memset(context,0,sizeof *context);
+#ifdef ME3_ORDINARY_FIRE_QA
+    if(!enabled||!ordinary_fire_qa_allowed()){*reason="disabled";return 0;}
+#else
     if(!enabled||!progress_enabled||!has_marker(root)||test_action!=5||strcmp(test_role,"client")){*reason="disabled";return 0;}
+#endif
     NetworkActorIdentityEntry channel={0};CombatContextChain chain;
     if(!ordinary||!guest_player_context_conditions(base,pc,pawn,world,ordinary,enabled,1,&channel,&chain)){
         *reason=!ordinary?"scene":guest_player_context_reason;return 0;}
@@ -241,7 +245,11 @@ static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uint
     }
     if(!eligible){
         p->stable_at=0;p->positive_getter=0;
-        if(enabled&&progress_enabled&&test_action==5&&guest_player_context_registered_for(pc,pawn)&&(!p->report_at||now-p->report_at>=5000)){
+        if(enabled&&
+#ifndef ME3_ORDINARY_FIRE_QA
+           progress_enabled&&test_action==5&&
+#endif
+           guest_player_context_registered_for(pc,pawn)&&(!p->report_at||now-p->report_at>=5000)){
             p->report_at=now;guest_camera_stamp_read(base,pc,&p->pc,1);guest_camera_stamp_read(base,pawn,&p->pawn,1);
             memset(&p->weapon,0,sizeof p->weapon);if(weapon)guest_camera_stamp_read(base,weapon,&p->weapon,1);p->token=guest_player_context_registration_token();
             combat_fire_log(base,"eligibility",reason,now,0,0,0,0,0);}

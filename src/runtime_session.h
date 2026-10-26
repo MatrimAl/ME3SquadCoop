@@ -84,6 +84,16 @@ static int runtime_session_scope(uintptr_t base,uintptr_t engine) {
 #include "runtime_input_bootstrap.h"
 #include "runtime_command_pause.h"
 #include "runtime_revive_prepare.h"
+#ifdef ME3_ORDINARY_FIRE_QA
+/* Compiled only into the private lab candidate, never normal player ASIs. */
+static int ordinary_fire_qa_allowed(void) {
+    wchar_t enabled[4]={0},marker[MAX_PATH];
+    if(g_runtime_config.role!=ME3_ROLE_GUEST||GetEnvironmentVariableW(L"ME3_SQUAD_COOP_ORDINARY_FIRE_QA",enabled,4)!=1||enabled[0]!=L'1')return 0;
+    int n=_snwprintf(marker,MAX_PATH,L"%ls\\.me3-coop-sandbox.json",g_game_root);
+    return n>0&&n<MAX_PATH&&GetFileAttributesW(marker)!=INVALID_FILE_ATTRIBUTES;
+}
+#include "combat_fire_bot.h"
+#endif
 #define ME3_REMOTE_APPEARANCE_ORDINARY
 #include "remote_appearance_qa.h"
 #undef ME3_REMOTE_APPEARANCE_ORDINARY
@@ -126,6 +136,9 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
      * only an actual session disable/scope loss retires that baseline. */
     guest_collision_adapt(base,c.pc,c.pawn,c.world,ordinary,
         runtime_control_enabled&&runtime_scope_ready,now);
+#ifdef ME3_ORDINARY_FIRE_QA
+    combat_fire_bot_tick(base,c.pc,c.pawn,c.world,ordinary,enabled,after,now);
+#endif
     if(!after)runtime_input_bootstrap_tick(base,engine,now);
     if(!after)runtime_power_wheel_context_tick(base,engine);
     if(!after)runtime_power_icons_tick(base,engine,ordinary);
