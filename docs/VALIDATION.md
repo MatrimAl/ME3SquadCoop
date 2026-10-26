@@ -632,3 +632,34 @@ same total bound. This is a default-off diagnostic change, not a firing fix.
 All three native targets built, the current-source fingerprint passed, and
 the native fire RPC forwarding/budget self-test passed without starting the
 game. No new gameplay test was run for this change.
+
+
+## Repeated aimed-fire observation with geometry
+
+A subsequent protected pair using the paired command-trace budget completed
+with two Ashley ownership epochs and a scene release/reacquisition. Five
+selected weapon dispatches again bracketed valid host health decreases, this
+time with input actor class SFXPawn_Trooper and valid supplied impact geometry.
+All five retained paired health/module identity and source scope, returned
+from the original dispatch, and reported no nested ProcessEvent calls. This
+repeats the scoped observation; it still does not independently establish
+hostility, exclude synchronous delegates or prove guest health replication.
+
+After the two-second aimed shot, nine samples per side over eight seconds
+showed stable used counters: host26 and guest27, both spare210. The host
+ServerStopFire returned. Consumption cessation and ammunition agreement are
+therefore separate results: this episode stopped consuming but retained a
+one-round disagreement. The unchanged four-pulse evaluator again verified
+only its final pulse and rejected the aggregate gate. No ammunition repair
+was enabled. Repeated StartFire entries also spent command trace space;
+separating frame budgets alone does not guarantee a late guest stop entry.
+
+Sustained shared movement still failed: candidate intervals were rejected for
+vertical range or insufficient host motion, and a downward-velocity sample
+exceeded the walking bound. This is not a full campaign pass. Selected host
+and guest video frames were decoded and inspected; full continuous review and
+native/video clock alignment remain unproven. The runner retained original
+file locks until cleanup, reported original profiles unchanged, zero native
+exceptions, no observer/cleanup errors and no remaining game process. Its
+memory helper exited1 during shutdown; complete helper termination sampling
+is not claimed. Both window encoders exited0 and their segments were retained.
