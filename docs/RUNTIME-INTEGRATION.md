@@ -1,5 +1,16 @@
 # Runtime integration status
 
+Additional exact-build native exports clarify the asset-loader candidate. The
+request copier makes a separate path string and copies the remaining fields,
+including its object reference. The group-ready method returns true when a
+matching group exists and every reference in its matching records is non-null;
+a matching record with zero assets can also satisfy it. Therefore a ready bit
+alone must not admit gameplay: the candidate must prove the particular asset's
+live identity, expected class/path and retained ownership across travel. These
+are static observations; no loader-based retention has been implemented or
+tested. Both exports completed using the retained native project, whose files
+remained byte-identical.
+
 Follow-up read-only evidence from `f80fc88` shows the existing guest engine and
 SFXAsyncAssetLoader with matching object identities in standalone and connected
 samples; the four observed loader method entry RVAs and code bytes also matched.
