@@ -1,8 +1,9 @@
 # Coordinated revive preparation and retirement
 
 The [local world service](REVIVE-SERVICE.md) now retains this object and uses
-deferred preparation plus separate activation for the future native bridge.
-It is compiled but no runtime spawns or invokes it yet.
+deferred preparation plus separate activation. The default-off
+[native preparation candidate](REVIVE-NATIVE-BRIDGE.md) now contains factory
+invocation and service polling; actual dispatch has not been observed.
 
 Retirement now clears the completed Binding reference before waiting on
 animation removal. HandoffReady is separate from retirement completion: it
@@ -17,8 +18,8 @@ Mount/TOC around the compiled classes; it remains uninstalled and does not
 establish shared loading or invoke this coordinator.
 
 `scripts/SFXSquadCoop_ReviveSetup.uc` joins the existing authored binding and
-optional animation lease into one local lifecycle. It is compiled, not loaded
-or called by runtime code. The owner runtime must retain the object across
+optional animation lease into one local lifecycle. Loading and actual runtime
+invocation remain unobserved. The owner runtime must retain the object across
 updates, establish admitted per-peer pawn/session identity, supply an already
 loaded animation set when needed, and retire before relinquishing control.
 

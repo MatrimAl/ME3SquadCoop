@@ -44,6 +44,20 @@ function bool SameScope(int Token)
         && WorldInfo == class'WorldInfo'.static.GetWorldInfo();
 }
 
+// Spawn callbacks can invalidate Initialize's preflight before it captures
+// the token. Preserve a destroyable lifetime for that unused actor without
+// touching a pawn, creating Setup or pretending preparation succeeded.
+function bool RetireUninitialized(int Token)
+{
+    if (bBusy || bInitialized || Setup != None || bDeleteMe || Token <= 0)
+        return false;
+    ScopeToken = Token;
+    bInitialized = true;
+    bRetiring = true;
+    bRetired = true;
+    return true;
+}
+
 // Runtime may call only after its real peer-readiness agreement. A token
 // selects a local lifetime; it is not authentication or that agreement.
 function bool Activate(int Token)

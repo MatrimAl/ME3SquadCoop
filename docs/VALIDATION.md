@@ -1,5 +1,17 @@
 # Validation status
 
+A default-off ordinary-guest revive preparation bridge now contains exact
+loaded identity resolution, reflected parameter validation/packing, one factory
+attempt per admitted context and retained status/retirement polling. It never
+activates admission or loads assets. Script spawn-preflight failures now retain
+a retired token for normal unused-actor destruction. Three native targets built
+and seven classes compiled without errors/warnings with unchanged tracked
+inputs. Initial sandbox native builds failed with Zig Unexpected errors,
+including unchanged MinGW sources in a fresh-cache diagnostic attempt; the
+normal-user build succeeded. No game, fixture, deployment or actual ABI/service
+invocation was observed. Peer agreement and production handoff ordering remain
+unfinished. See [native bridge limits](REVIVE-NATIVE-BRIDGE.md).
+
 Revive retirement now separates the pre-control-handoff boundary from final
 native animation removal. Setup drops a released action binding before
 waiting; the service exposes matching-token RetireForHandoff. A pending

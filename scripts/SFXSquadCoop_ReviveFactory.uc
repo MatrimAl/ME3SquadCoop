@@ -16,6 +16,10 @@ static function Actor CreateFor(SFXPawn_PlayerParty Candidate,
         return None;
     Service = Candidate.Spawn(class'SFXSquadCoop_ReviveService', Admission);
     if (Service != None)
+    {
         Service.Initialize(Candidate, Admission, LoadedSet, Token, bSimulatedPresentation);
+        if (!Service.bInitialized)
+            Service.RetireUninitialized(Token);
+    }
     return Service;
 }

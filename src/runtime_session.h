@@ -77,12 +77,28 @@ static int runtime_session_scope(uintptr_t base,uintptr_t engine) {
 #include "runtime_native_quickslot.h"
 #include "runtime_input_bootstrap.h"
 #include "runtime_command_pause.h"
+#include "runtime_revive_prepare.h"
 static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     SessionContext c=session_context(engine);
     uint32_t world_flags=0;
     int unpaused=c.world&&read_at(c.world+0x7c0,&world_flags,4)&&!(world_flags&0x400);
     int enabled=runtime_control_enabled&&runtime_scope_ready&&unpaused;
     int ordinary=enabled&&!session_engine_blocked(c);
+    /* Poll the preparation-only service before any adapter may release the
+     * local context. No bridge path opens action admission. */
+    if(!after) {
+        unsigned before=runtime_revive_dispatch_generation;
+        runtime_revive_prepare_tick(base,engine,c,ordinary,now);
+        if(before!=runtime_revive_dispatch_generation) {
+            /* Spawn/Status/retirement can re-enter native code. Refresh the
+             * whole transport/world gate, not just the controller pointer. */
+            runtime_scope_ready=runtime_session_scope(base,engine);
+            c=session_context(engine);world_flags=0;
+            unpaused=c.world&&read_at(c.world+0x7c0,&world_flags,4)&&!(world_flags&0x400);
+            enabled=runtime_control_enabled&&runtime_scope_ready&&unpaused;
+            ordinary=enabled&&!session_engine_blocked(c);
+        }
+    }
     /* Resolve channels at a bounded cadence, rather than scanning every Tick.
      * Adapters independently validate their cached reciprocal identities. */
     static DWORD last_channels;

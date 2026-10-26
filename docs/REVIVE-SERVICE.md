@@ -2,7 +2,9 @@
 
 The authored SFXSquadCoop_ReviveService Actor holds Setup as a reflected
 reference. SFXSquadCoop_ReviveFactory.CreateFor supplies a script factory for
-the future native bridge. Neither is invoked by runtime code yet. Normal
+the [native preparation candidate](REVIVE-NATIVE-BRIDGE.md). Its explicit,
+default-off guest path can call this factory and poll/retire the service;
+actual runtime dispatch has not been observed. Normal
 Actor.Spawn is intended to give this local state a world-owned lifetime;
 actual spawning, GC/rooting, destruction and travel remain unverified.
 
@@ -58,8 +60,11 @@ No existing game class/package was changed.
 Seven classes compiled without errors/warnings and with unchanged tracked
 inputs, in order: context, action, binding, animation, setup, service, factory.
 Package SHA-256:
-`8c8c4f5a5bb75fed211bc8fc7ebbf684286090160e9bd13ba59fb280cec457f0`.
-Earlier failed compiler directories remain unusable. Loaded class/default/
-function resolution, reflected native-call ABI, actual factory invocation,
-per-peer admission and retirement hooks remain unfinished. No game, fixture,
-install, mount, service invocation or behavioral tests ran.
+`45cb77bdf2ef592c8eb97ac088535e56559c5899d69f6c50c3fe6afbea873661`.
+Earlier failed compiler directories remain unusable. The native candidate
+implements loaded class/default/function resolution and reflected argument
+packing, but actual ABI acceptance/factory invocation remain unobserved.
+Per-peer admission and production retirement ordering are unfinished. No game,
+fixture, install, mount, service invocation or behavioral tests ran for this
+revision. Uninitialized spawned actors now retain a retired token through
+RetireUninitialized, permitting normal destruction without creating Setup.
