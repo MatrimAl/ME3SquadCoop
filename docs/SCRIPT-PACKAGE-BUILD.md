@@ -41,19 +41,22 @@ private paths and must stay outside Git.
 The required constructor/method/error-report signatures were read from the
 already supplied local Legendary Explorer6.5 assembly. PowerShell source syntax
 was parsed successfully. The tool has now initialized dependencies, compiled
-the authored `SFXSquadCoop_ReviveContext` class without compiler errors/warnings
-and saved one private LE3 package. Compilation supplies the source filename's
+the authored `SFXSquadCoop_ReviveContext` and `SFXSquadCoop_ReviveAction` classes
+together without compiler errors/warnings and saved one private LE3 package.
+Compilation supplies the source filename's
 class name explicitly through `intendedClassName`; a new export cannot use an
 empty intended name. The receipt confirmed unchanged tracked inputs.
 
 No package reload, fixture, game, install or mount was executed. This establishes
-one class compilation/save, not universal tool behavior, engine acceptance or
-a compiled full revive action. See the
-[revive context component](REVIVE-CONTEXT.md).
+two-class compilation/save, not universal tool behavior, engine acceptance or
+a working full revive feature. See the
+[revive context component](REVIVE-CONTEXT.md) and
+[authored action candidate](REVIVE-ACTION.md).
 
-The first authored action must still supply the normal animation, target,
-authority, controller context, timer ownership, cancellation and replication
-contracts identified in [interaction research](GUEST-INTERACTION-RESEARCH.md).
+The authored action candidate supplies context, duration polling, cancellation
+and a replicated-target path. Animation availability, native target-usage and
+death-timer ownership/cleanup, and end-to-end native action behavior remain
+unfinished as identified in [interaction research](GUEST-INTERACTION-RESEARCH.md).
 Compilation alone will not establish those behaviors. A shared package can
 avoid per-mission edits only once class availability and scoped assignment on
 both peers are implemented and verified.

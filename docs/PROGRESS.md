@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-26: compile authored revive action driver
+
+The new SingleAnim action5 candidate binds the authored context to start,
+per-update native-world duration/cancellation, authority-only native Revive,
+separate recovery observation and native end/interrupt requests. It includes
+a replicated-target path and refuses an unsuccessful animation query rather
+than substituting direct health writes. Attempt serials and a stop guard avoid
+continuing an older native callback stack into a later accepted attempt.
+Failed scoped reservation releases remain visible and block a fresh capture.
+
+Both authored classes compiled together with zero errors/warnings and unchanged
+tracked inputs. The class remains uninstalled and unassigned. Native target
+usage/death-timer leases, animation availability, pending cleanup, native
+end/stop ordering and replicated gameplay remain unfinished. No game, fixture,
+package reload or tests ran; no native-source rebuild was needed. See the
+[action flow and integration boundary](REVIVE-ACTION.md).
+
 ## 2026-10-26: scope authority-side revive target reservations
 
 The authored context now acquires bBeingRevived only for its own current

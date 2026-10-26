@@ -1,5 +1,14 @@
 # Validation status
 
+The authored revive action and context compiled together with zero errors/
+warnings and unchanged tracked inputs. The candidate polls native-world
+duration, dispatches native revival on authority, separates dispatch/recovery
+and retains failed reservation cleanup explicitly. Returning native callbacks
+are guarded against a later attempt. No class is loaded/assigned or activated;
+native use/death-timer cleanup, animation availability and engine end/stop/
+replication behavior remain unfinished. No game or tests ran. See
+[action candidate limits](REVIVE-ACTION.md).
+
 The authored revive context's authority-side target reservation and current
 native-world identity check compiled without errors/warnings. Duration and
 dispatch now require its own reservation record. Release refuses changed

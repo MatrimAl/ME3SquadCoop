@@ -1,7 +1,7 @@
 # Authored campaign revive context
 
 `scripts/SFXSquadCoop_ReviveContext.uc` is an owner-authored shared component
-for the pending campaign revive action. It compiles against existing LE3 game
+for the [authored campaign revive action candidate](REVIVE-ACTION.md). It compiles against existing LE3 game
 types, without copying the retained LEMP class or assets. It is not installed,
 constructed by the runtime, assigned to action5 or called by a gameplay hook.
 
@@ -65,11 +65,13 @@ separate and requires the same actors/world/control context, authority and a
 target whose native dead/downed/state predicates have cleared. It does not
 prove sustained movement, correct camera, collision or equipment after revival.
 
-The future owning action must still provide animation, per-update progress
-polling, movement/damage cancellation, reservation release ordering, native
-usage-module baseline/cleanup, death-timer baseline/cleanup and replicated-target
-handling. This component's reservation bookkeeping alone is not sufficient
-for activation or proof that stop/recovery cleanup completes.
+The authored action candidate now supplies animation-start/query handling,
+per-update progress polling, native movement checks, a replicated-target path
+and pre-end/pre-stop release attempts. Refused releases remain explicitly
+pending. Native usage-module/death-timer baselines and cleanup, damage/native
+interruptions, animation availability and surrounding native end/stop ordering
+remain incomplete. This component's reservation bookkeeping alone is not
+sufficient for activation or proof that stop/recovery cleanup completes.
 Host story/session admission remains an external prerequisite; these checks
 do not authorize interaction during conversations or acquire guest control.
 
