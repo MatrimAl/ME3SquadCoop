@@ -237,6 +237,20 @@ static int guest_player_context_dispatch(uintptr_t base,uintptr_t actor,const Gu
     if(pe!=base+0x40d450)return 0;
     ((ProcessEvent)pe)((void*)actor,(void*)method->function.pointer,parms,NULL);return 1;
 }
+/* Optional diagnostic of the exact non-RPC SetPlayerPawn callspace on the
+ * current game thread. Its pinned flags do not enter either RPC branch in
+ * this build. The separate preflight result is not the later dispatch's
+ * captured result, and never changes the dispatch or actor state. */
+static void guest_player_context_callspace_preflight(uintptr_t base,uintptr_t actor,void *parms,DWORD now) {
+    wchar_t opt[4]={0};uint32_t flags=0;unsigned char role=255;uintptr_t method=guest_player_context_methods.set_pawn.function.pointer;
+    if(GetEnvironmentVariableW(L"ME3_SQUAD_COOP_CONTEXT_CALLSPACE_TRACE",opt,4)!=1||opt[0]!=L'1'||
+       !guest_player_context_methods_valid(base,1)||!guest_camera_actor_live(base,actor)||
+       !read_at(actor+0x26a,&role,1)||role!=1||!read_at(method+0xe0,&flags,4)||flags!=0x20802||
+       read_ptr(read_ptr(actor)+0x248)!=base+0x70a250)return;
+    typedef int (*Callspace)(void*,void*,void*,void*);
+    int result=((Callspace)(base+0x70a250))((void*)actor,(void*)method,parms,NULL);
+    char row[280];snprintf(row,sizeof row,"{\"guest_existing_context\":\"callspace-preflight\",\"role\":%u,\"function_flags\":%u,\"result\":%d,\"separate_preflight\":true,\"original_dispatch_unchanged\":true,\"monotonic_ms\":%lu}\r\n",(unsigned)role,flags,result,now);line(row);
+}
 static int guest_player_context_channel(uintptr_t base,uintptr_t pawn,NetworkActorIdentityEntry *out) {
     memset(out,0,sizeof *out);
     if(!network_actor_layout_matches(base))return 0;

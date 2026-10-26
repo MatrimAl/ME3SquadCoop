@@ -1,6 +1,7 @@
 /* Actual existing-context lease and CAS cleanup on authored memory. Object
  * lookup, native ownership checks and SetPlayerPawn are explicit stand-ins.
  * This fixture cannot establish compatibility with the game engine. */
+#define ME3_EXISTING_CONTEXT_FIXTURE
 #define UNICODE
 #define _UNICODE
 #include <windows.h>

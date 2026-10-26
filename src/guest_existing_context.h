@@ -128,6 +128,9 @@ static void guest_existing_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t p
     l->active=1;uintptr_t target=pawn;int dispatched=1;
     if(!native_ready) {
         l->cache_writes_owned=1;
+#ifndef ME3_EXISTING_CONTEXT_FIXTURE
+        guest_player_context_callspace_preflight(base,squad,&target,now);
+#endif
         dispatched=guest_player_context_dispatch(base,squad,&guest_player_context_methods.set_pawn,&target);
     }
     /* Preserve the original short-circuit order, but record the first failed
