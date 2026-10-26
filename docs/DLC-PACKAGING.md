@@ -1,5 +1,31 @@
 # Native activation DLC packaging
 
+## Latest English candidate result
+
+An ordinary-entry pair from revision `67d87b4` dispatched guest join after five
+readiness samples spanning1000ms, at world time68.211. The native viewport
+reported Connecting, then a decoded PID-bound guest frame showed the corrupt
+downloadable-content dialog naming this mod. The external observer recorded
+EntryMenu, with no observed native connection interval. The four-file English
+candidate therefore failed engine acceptance; its successful offline verifier
+does not establish a valid runtime package. The exact internal rejection branch
+was not observed.
+
+Both window recorders exited0, and inspected20s frames show the Mars cinematic.
+The guest80s frame contains the rejection. Cleanup preserved the original
+profile, removed temporary authored files, left no game processes, recorded no
+native exceptions and reported no cleanup errors.
+
+A separate private offline comparison candidate now uses the retained official
+ME3Tweaks starter config template (Git blob
+`171989e363c5d3f28e7e32e680b50b5b7774f1d9`). The template contains eight config
+assets, whereas the preceding minimal candidate contains only BioEngine. Only
+the starter's mod-name placeholder is replaced, with all eight assets checked
+on compiled readback. Mount and English TLK are unchanged and the TOC is
+regenerated. This difference is a lead, not a proven cause or fix. The candidate
+has not been installed, accepted by the production verifier or run in-game.
+The existing distribution and installer allowlists remain unchanged.
+
 A separate [authored-script candidate](SCRIPT-DLC-CANDIDATE.md) now stages the
 revive package, minimal startup config and generated/read-back TOC privately.
 It is not installed or engine-validated and does not change the asset-free

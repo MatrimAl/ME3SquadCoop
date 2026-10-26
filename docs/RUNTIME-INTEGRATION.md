@@ -1,6 +1,6 @@
 # Runtime integration status
 
-The latest ordinary English-DLC candidate pair opened a native host listener,
+An earlier ordinary English-DLC candidate pair opened a native host listener,
 but the guest never dispatched its join request: its story/player readiness
 predicate remained blocked. A corrected full-size guest recording was black;
 the earlier recording captured the tiny initial window. These observations
@@ -12,7 +12,12 @@ Join-wait logging now reports the specific failed story, pawn, squad, identity
 or world-clock predicate and its monotonic time. Admission conditions and the
 stable-player observation window are unchanged. Three native targets built
 and the ordinary runtime fixture passed, including exact rejection-reason
-checks; this diagnostic revision still needs a live ordinary-entry run.
+checks. Its subsequent live ordinary-entry run dispatched guest join after five
+samples/1000ms, then showed a named corrupt-DLC dialog and returned to EntryMenu.
+No native connection interval was observed. The initial player-pawn wait and
+later stable-player window were logged; earlier cinematic gates still return
+before that diagnostic site, so the trace is not a complete history of every
+readiness condition. See [the package result](DLC-PACKAGING.md).
 
 There is no verified shareable gameplay runtime yet. Native filename and archive
 validation do not establish playable co-op.
