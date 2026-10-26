@@ -30,7 +30,7 @@ These observations come from bounded tests with real game processes on one Windo
 | --- | --- | --- |
 | Native connection | Host and guest connected through LE3's UE3 networking | Cross-PC play untested |
 | Ordinary host startup | Separate runtime opened a native listener in the current Mars world; Windows confirmed the requested local Radmin interface and port | Ordinary guest connection and control still need validation |
-| Squad control | Guest Ashley possession and short replicated movement | Sustained mission progression unverified |
+| Squad control | Guest Ashley possession; one protected run admitted a21-second shared walking interval and retained133 seconds of control in one epoch | Route-wide synchronization and mission progression unverified |
 | Player context | Guest-local squad context initialization and cleanup | Equipment readiness still inconsistent |
 | Cameras | Shoulder-camera adaptation and actual intro Matinee camera motion/cleanup | Full conversations unverified |
 | Session lifecycle | Synthetic scene release/reacquire and ordinary disconnect restored native AI | Synthetic scene gates are not real dialogue tests |

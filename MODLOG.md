@@ -18,5 +18,14 @@ the selected Engine/empty-SFX path. Guest method execution/state override still
 requires a dedicated observation; no forced activation was added. See the
 indexed activation section of the inventory research notes for evidence limits.
 
+The first protected activation-observer pair completed from a9ff7be. Guest
+observer installed but captured no paired selected override entry. A bounded
+21.047-second shared walking interval passed; epoch2 control lasted133.469s.
+Nine reconciliation exchanges included one6-to5 correction;14 selected host
+Trooper health decreases were observed. This does not close ordinary entry,
+route-wide agreement, disconnect restoration or complete campaign playability.
+Private corrected evidence revision2 retains all source hashes and explicitly
+supersedes an initial summary whose equipment-row filter was incomplete.
+
 Detailed evidence and limitations live in [ammunition replication](docs/AMMO-REPLICATION.md),
 [runtime integration](docs/RUNTIME-INTEGRATION.md) and [validation](docs/VALIDATION.md).

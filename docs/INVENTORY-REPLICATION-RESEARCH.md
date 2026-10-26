@@ -414,3 +414,42 @@ rejected double forwarding, another thread and an old scope generation. The
 private protected pair runner's existing isolation/capture/cleanup self-tests
 passed with the observer opt-in prepared. Those fixture results precede any
 new live observation and are not a gameplay verdict.
+
+### First protected activation-observer run
+
+A protected same-PC Mars pair from source `a9ff7be` installed the guest observer.
+Two host ownership epochs recorded slot223 targeting the empty SFXWeapon
+override and attempted the normal ClientGivenTo handoff. No paired selected
+guest override entries were captured. This does not establish that the function
+never ran or that the empty override caused a live activation failure: initial
+calls may precede installation, scope eligibility may exclude a call and VM
+dispatch paths may bypass UFunction.Func. The next discriminator remains native
+RPC send/receive and selected execution coverage, not a forced superclass call.
+
+This run independently provided a qualifying walking interval: 22 aligned
+samples spanning21.047s, host displacement1823 units, authoritative Ashley1283,
+guest1467, direction cosine0.897. The unchanged evaluator admitted this bounded
+interval with host-authoritative membership. Route-wide maximum separation was
+about54547 units and maximum replica error7275; accepting the interval is not
+proof the whole route remained synchronized, ground contact or mission travel.
+The session evaluator retained133.469s of control in epoch2 and scene
+release/reacquisition, but disconnect restoration did not pass.
+
+Four-stage reconciliation completed9 exchanges. One changed guest consumed
+count6 to host5 with reserve180 (328ms guest-local roundtrip); the rest already
+matched. The native selected-weapon damage observer recorded14 valid paired
+health decreases on SFXPawn_Trooper. This does not independently establish
+hostility attribution, guest health replication or complete combat. Only one
+of four short fire/release pulses passed its existing stop/agreement gate; the
+other pulses lacked sufficient paired post-release coverage. Full campaign,
+real dialogue, powers, revive and two-PC play remain unverified.
+
+Host/guest window recordings completed with encoder exit0; selected frames from
+each were decoded and visually inspected. Recordings began after game startup,
+contain no audio and do not establish complete event history or exact log/video
+clock alignment. Original8210-file locks remained through cleanup, original
+profiles stayed unchanged, native exceptions/cleanup errors were zero and no
+game processes remained. The memory helper exited1 during cleanup, so not all
+helpers completed successfully. The overall runner verdict remained1 because
+broader lifecycle/connection requirements did not pass. Raw logs, recordings,
+source digests and corrected feature-review revision2 stay private.
