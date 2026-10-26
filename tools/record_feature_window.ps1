@@ -66,7 +66,12 @@ try {
   $null=[ME3FeatureWindow]::GetWindowThreadProcessId($recordHwnd,[ref]$recordOwner)
   $recordGame.Refresh()
   if((Test-Path -LiteralPath (Join-Path $recordOutput 'STOP')) -or $recordGame.HasExited -or $recordOwner -ne $GameProcessId){
-   $recordProcess.StandardInput.WriteLine('q')
+   try {$recordProcess.StandardInput.WriteLine('q')} catch {
+    # The encoder can exit between WaitForExit and this write when its game
+    # window disappears. Preserve other write failures while accepting that
+    # observed terminal state and collecting its actual exit code below.
+    if(!$recordProcess.HasExited){throw}
+   }
    if(!$recordProcess.WaitForExit(20000)){$recordProcess.Kill();$recordProcess.WaitForExit()}
    break
   }

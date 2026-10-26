@@ -479,3 +479,42 @@ mutants passed/rejected respectively: double forwarding, wrong slot and a
 numbered name. All46 handler pin bytes were compared with the exact supported
 PE. This is offline forwarding/selection evidence; the first earlier live run
 did not include this opcode observer and cannot validate its runtime behavior.
+
+### Early observer live result
+
+A second protected pair from `afe068c` installed the opcode observer before
+equipment readiness. It captured two paired named calls with parent
+Engine.Weapon.ClientGivenTo, slot223 and class-table target
+SFXGame.SFXWeapon.ClientWeaponSet. Both occurred within the current native
+receive stack whose channel actor matched the observed weapon. Captured
+identities stayed stable and the unchanged original handler advanced its own
+frame.Code by22 bytes. Weapon state was Active before and after both calls.
+This directly establishes arrival and the named-call stage for these two
+handoffs. It does not independently prove which state override executed. The
+later UFunction.Func observer still captured no matching entries, demonstrating
+why its missing rows alone could not establish lack of delivery.
+
+No forced Engine superclass call or activation/state mutation was added. These
+two successful-delivery/Active observations weaken missing activation as the
+explanation for this run; they do not exclude every earlier readiness failure.
+Normal entry/package acceptance and repeated movement remain practical blockers.
+
+The session evaluator retained188.688s of control in epoch2 and passed scene
+release/reacquisition plus native disconnect/AI restoration. The walking
+evaluator rejected the run for a guest downward-velocity sample, despite a
+35.047-second ready interval; this is not evidence of falling out of world.
+Reconciliation completed31 exchanges, including one actual correction. The
+host trace retained139 paired health decreases, which are not independently
+attributed to one guest input pulse or complete combat. One of four short
+fire-stop pulses passed, leaving broader stopping repeatability unverified.
+
+Original profiles stayed unchanged, original8210-file locks remained through
+cleanup, native exceptions and cleanup errors were zero, and no game processes
+remained. The runner returned0 for its own protection checks, not full campaign
+acceptance. The memory helper exited1; the UI helper timed out, so helper-wide
+success is not claimed. Both window recordings contain retained segments. Host
+encoder exit0 was recorded; guest recorder hit a closing-stdin race at shutdown,
+so its receipt does not establish the encoder exit status. A selected guest
+frame was decoded/inspected. The recorder now accepts an already-observed
+encoder exit during that stop-write race, while preserving failures if it is
+still alive. No additional game run verified that small recorder correction.

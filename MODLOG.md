@@ -27,5 +27,14 @@ route-wide agreement, disconnect restoration or complete campaign playability.
 Private corrected evidence revision2 retains all source hashes and explicitly
 supersedes an initial summary whose equipment-row filter was incomplete.
 
+The early opcode observer run from afe068c captured two ClientGivenTo-parent
+named calls within the weapon's incoming native receive context, both Active
+before/after. Session lifecycle including disconnect/AI restoration passed,
+with188.688s of epoch2 control; walking failed the downward-velocity bound.
+Do not force superclass activation based on the former no-entry observation.
+Normal package acceptance and movement repeatability are higher-value next
+work. Guest recorder shutdown exposed a closed-stdin race; terminal-state-aware
+stop handling now preserves live failures without discarding exit metadata.
+
 Detailed evidence and limitations live in [ammunition replication](docs/AMMO-REPLICATION.md),
 [runtime integration](docs/RUNTIME-INTEGRATION.md) and [validation](docs/VALIDATION.md).
