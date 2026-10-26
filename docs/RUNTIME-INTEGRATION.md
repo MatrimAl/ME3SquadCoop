@@ -1,5 +1,19 @@
 # Runtime integration status
 
+The remote appearance adapter now retains an admitted loading request across
+transient completion-ABI/readiness failures and across an `ApplyAppearance`
+return that still has no live mesh asset. It captures the original group and
+the IDs normalized by the stock request before completion discovery; retries
+require those exact IDs, pawn/world identities and group again. Later changed
+appearance metadata cannot reuse that request. A live mesh asset, rather than
+call dispatch alone, ends its pending state. The initial default-male admission
+restriction remains; this does not create an absent replicated player actor or
+establish rendered visibility. All four native outputs rebuilt and ordinary
+runtime/probe harnesses passed without a game launch. The first sandbox build
+failed with Zig `Unexpected`; normal-user compilation succeeded. The probe's
+low-integrity child first exited 2 in the sandbox, then passed in the normal
+user environment. These checks establish code/fixture behavior, not gameplay.
+
 For LE3 2.0.0.48602, the SDK identifies the unequal final sampled appearance
 integer as the transient `OverrideHelmetID` (0x1514). Selected package script
 shows `FindOverrideHelmet` derives a breather-capable choice; its code alone

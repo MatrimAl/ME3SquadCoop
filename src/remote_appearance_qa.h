@@ -7,7 +7,8 @@
  * on the host, local pawn, a scene, or a customized/pending appearance.
  * No raw mesh, appearance-ID, actor flag or profile writes here. */
 typedef struct RemoteAppearanceAttempt {
-    int valid,apply_pending;
+    int valid,apply_pending,metadata_valid;
+    int appearance_ids[15];
     GuestCameraStamp pawn,world;
     uint32_t group[2];
 } RemoteAppearanceAttempt;
@@ -27,6 +28,11 @@ static int remote_appearance_attempt_matches(const RemoteAppearanceAttempt *atte
         guest_camera_stamp_core_equal(&attempt->world,world)&&
         !strcmp(attempt->pawn.full_name,pawn->full_name)&&
         !strcmp(attempt->world.full_name,world->full_name);
+}
+/* A stock request may normalize IDs. A retry must match the metadata captured
+ * after that request, not the pre-request defaults or a later customization. */
+static int remote_appearance_metadata_matches(const RemoteAppearanceAttempt *attempt,const int ids[15]) {
+    return attempt->metadata_valid&&!memcmp(attempt->appearance_ids,ids,sizeof attempt->appearance_ids);
 }
 static int remote_appearance_group_matches(const RemoteAppearanceAttempt *attempt,const uint32_t group[2],int retry) {
     return (group[0]||group[1])&&(!retry||(attempt->apply_pending&&!memcmp(attempt->group,group,8)));
@@ -86,7 +92,7 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
            is_kind_of(base,p,"SFXPawn_Player")&&network_actor_channel_id(base,p)>=0){target=p;++found;}}
     HeapFree(GetProcessHeap(),0,objects);if(found!=1)return;
     uintptr_t mesh=read_ptr(target+0x3f4),asset=read_ptr(mesh+0x258);unsigned char role=255;
-    if(asset&&remote_appearance_attempt.valid&&remote_appearance_attempt.pawn.pointer==target&&
+    if(is_live(base,asset)&&remote_appearance_attempt.valid&&remote_appearance_attempt.pawn.pointer==target&&
        remote_appearance_attempt.world.pointer==info&&guest_camera_stamp_matches(base,&remote_appearance_attempt.pawn,1)&&
        guest_camera_stamp_matches(base,&remote_appearance_attempt.world,1))remote_appearance_attempt.apply_pending=0;
     uint32_t flags=0,sex=0;int ids[15],defaults=1;
@@ -94,6 +100,11 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
        !read_at(target+0x26a,&role,1)||!read_at(target+0x1560,&flags,4)||
        !read_at(target+0x578,&sex,4)||!read_at(target+0x14dc,ids,sizeof ids))return;
     for(int i=0;i<15;++i)if(ids[i]!=(i==1||i==14?-1:0))defaults=0;
+    int continuing=remote_appearance_attempt.valid&&remote_appearance_attempt.apply_pending&&
+        remote_appearance_attempt.pawn.pointer==target&&remote_appearance_attempt.world.pointer==info&&
+        guest_camera_stamp_matches(base,&remote_appearance_attempt.pawn,1)&&
+        guest_camera_stamp_matches(base,&remote_appearance_attempt.world,1);
+    if(continuing)defaults=remote_appearance_metadata_matches(&remote_appearance_attempt,ids);
     if(!remote_appearance_case(1,net==3,ordinary,target!=local,network_actor_channel_id(base,target)>=0,
         role,asset==0,defaults,(flags&0x1880)!=0,(sex&0x20)!=0,read_ptr(target+0xb40)!=0))return;
     GuestCameraStamp pawn_stamp,mesh_stamp,world_stamp,fn_stamp;
@@ -114,6 +125,7 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
      * asset group may subsequently be polled, with all admission gates rerun. */
     if(!retry){
         remote_appearance_attempt.valid=1;remote_appearance_attempt.apply_pending=0;
+        remote_appearance_attempt.metadata_valid=0;
         remote_appearance_attempt.pawn=pawn_stamp;remote_appearance_attempt.world=world_stamp;
         memset(remote_appearance_attempt.group,0,sizeof remote_appearance_attempt.group);
     }
@@ -123,6 +135,17 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
         ((ProcessEvent)pe)((void*)target,(void*)fn,NULL,NULL);
     }
     int same=guest_camera_stamp_matches(base,&pawn_stamp,1)&&guest_camera_stamp_matches(base,&world_stamp,1);
+    /* Capture the request before optional completion ABI discovery. Missing
+     * methods or a not-yet-ready group must not mark this request complete. */
+    if(!retry&&same&&guest_camera_stamp_matches(base,&mesh_stamp,1)&&read_ptr(target+0x3f4)==mesh){
+        uint32_t group[2]={0};
+        if(read_at(target+0x148c,group,8)&&(group[0]||group[1])&&
+           read_at(target+0x14dc,remote_appearance_attempt.appearance_ids,sizeof remote_appearance_attempt.appearance_ids)){
+            memcpy(remote_appearance_attempt.group,group,8);
+            remote_appearance_attempt.metadata_valid=1;
+            remote_appearance_attempt.apply_pending=1;
+        }
+    }
     uintptr_t loader=narrative_probe_object(base,engine,"SFXEngine")?read_ptr(engine+0xd90):0;
     if(same&&remote_appearance_option(L"ME3_SQUAD_COOP_REMOTE_APPEARANCE_APPLY_QA")&&
        read_ptr(read_ptr(target)+0x248)==base+0x70a250&&
@@ -143,25 +166,28 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
         struct {uint32_t group[2],result;} loaded_group={{0},0};
         _Static_assert(sizeof loaded_group==12,"IsAsyncGroupLoaded parameter ABI");
         if(abi&&read_at(target+0x148c,loaded_group.group,8)&&
-           remote_appearance_group_matches(&remote_appearance_attempt,loaded_group.group,retry)){
-            if(!retry){memcpy(remote_appearance_attempt.group,loaded_group.group,8);remote_appearance_attempt.apply_pending=1;}
+           remote_appearance_group_matches(&remote_appearance_attempt,loaded_group.group,1)){
             ((ProcessEvent)loader_pe)((void*)loader,(void*)ready,&loaded_group,NULL);
-            uint32_t current_group[2]={0};
+            uint32_t current_group[2]={0};int current_ids[15];
             if(loaded_group.result==1&&read_ptr(engine+0xd90)==loader&&guest_camera_stamp_matches(base,&pawn_stamp,1)&&guest_camera_stamp_matches(base,&world_stamp,1)&&
                guest_camera_stamp_matches(base,&mesh_stamp,1)&&read_ptr(target+0x3f4)==mesh&&!read_ptr(mesh+0x258)&&
                guest_camera_stamp_matches(base,&apply_stamp,1)&&guest_camera_stamp_matches(base,&ready_stamp,1)&&
                read_at(target+0x148c,current_group,8)&&!memcmp(current_group,loaded_group.group,8)&&
+               read_at(target+0x14dc,current_ids,sizeof current_ids)&&
+               remote_appearance_metadata_matches(&remote_appearance_attempt,current_ids)&&
                remote_appearance_group_assets_live(base,loader,loaded_group.group)&&
                network_actor_channel_id(base,target)>=0){
-                remote_appearance_attempt.apply_pending=0;
                 line("{\"remote_appearance_qa\":\"calling-loaded-ApplyAppearance\",\"group_loaded\":true,\"role_written\":false}\r\n");
                 ((ProcessEvent)pe)((void*)target,(void*)apply,NULL,NULL);
                 same=guest_camera_stamp_matches(base,&pawn_stamp,1)&&guest_camera_stamp_matches(base,&world_stamp,1);
             }else line("{\"remote_appearance_qa\":\"apply-not-admitted\",\"reason\":\"group-not-loaded-or-identity-changed\"}\r\n");
-        }else {remote_appearance_attempt.apply_pending=0;line("{\"remote_appearance_qa\":\"apply-not-admitted\",\"reason\":\"loaded-group-ABI-or-identity\"}\r\n");}
+        }else {line("{\"remote_appearance_qa\":\"apply-not-admitted\",\"reason\":\"loaded-group-ABI-or-identity\"}\r\n");}
     }
     uintptr_t after_mesh=same?read_ptr(target+0x3f4):0;
     uintptr_t after_asset=narrative_probe_object(base,after_mesh,"SkeletalMeshComponent")?read_ptr(after_mesh+0x258):0;
+    /* Dispatch success alone does not establish model creation. Retain the
+     * original group for a later attempt when ApplyAppearance produced none. */
+    if(same&&is_live(base,after_asset))remote_appearance_attempt.apply_pending=0;
     char row[500];snprintf(row,sizeof row,
         "{\"remote_appearance_qa\":\"returned\",\"same_pawn_world\":%s,\"asset_live\":%s,\"full_host_appearance_verified\":false,\"monotonic_ms\":%lu}\r\n",
         same?"true":"false",is_live(base,after_asset)?"true":"false",now);line(row);
@@ -198,6 +224,12 @@ static int remote_appearance_case_selftest(void) {
     if(remote_appearance_attempt_matches(&attempt,&pawn,&changed))return 0;
     changed=pawn;strcpy(changed.full_name,"OtherWorld.Player");
     if(remote_appearance_attempt_matches(&attempt,&changed,&world))return 0;
+    int ids[15]={0};
+    if(remote_appearance_metadata_matches(&attempt,ids))return 0;
+    attempt.metadata_valid=1;ids[14]=2;
+    memcpy(attempt.appearance_ids,ids,sizeof ids);
+    if(!remote_appearance_metadata_matches(&attempt,ids))return 0;
+    ids[0]=1;if(remote_appearance_metadata_matches(&attempt,ids))return 0;
     uint32_t group[2]={123,0},other[2]={124,0},empty[2]={0,0};
     if(!remote_appearance_group_matches(&attempt,group,0)||remote_appearance_group_matches(&attempt,empty,0)||
        remote_appearance_group_matches(&attempt,group,1))return 0;
