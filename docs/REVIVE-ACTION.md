@@ -16,8 +16,9 @@ ordinary-world and conversation checks. Simulated presentation does not acquire
 the authority-side target reservation or dispatch resurrection.
 
 Start requires this exact action instance in current slot5. Authority captures
-the target, acquires its scoped bBeingRevived reservation and captures/pauses
-its existing native death timer before starting the inherited animation
+the target, acquires its scoped bBeingRevived reservation, captures/disables
+existing target usage and captures/pauses its existing native death timer
+before starting the inherited animation
 action. An absent timer is not created; an already paused timer is not owned.
 The candidate names CB_MP_Revive but supplies
 no animation asset. It requires one animation name and a successful native
@@ -49,7 +50,7 @@ source-level intent; compilation does not demonstrate native callback ordering.
 
 Finish requests target-state release before native end/interrupt. Stop attempts
 cancellation/release before inherited cleanup. Timer-pause cleanup precedes
-reservation release. A refused release sets
+usage/lens-state cleanup, then reservation release. A refused release sets
 bTargetCleanupPending and blocks a fresh capture instead of discarding
 ownership metadata. It does not clear a target after losing action/control
 identity. Pending cleanup remains unresolved and may retain a target flag;
@@ -67,7 +68,7 @@ external prerequisites for a future scoped installer.
 | --- | --- |
 | Shared class availability and slot5 assignment | Neither peer loads or assigns this class yet; no per-mission edits are made |
 | Animation availability | Symbolic name only; campaign assets and playback are unverified |
-| Native target usage | No usage-module baseline/disable/restore lease yet |
+| Native target usage | Captured module/callback/field/lens baseline and scoped disable/restore; actual engine visibility, overlap and client presentation remain unverified |
 | Downed death timer | Captured native binding/fields and conditional pause/resume; native timer/recovery behavior and identical replacement remain unverified |
 | Cleanup after lost context | Pending metadata is retained; no foreign-context flag clearing or completed recovery |
 | HUD and interruption coverage | No countdown HUD integration; damage and all native interruption paths remain unverified |
@@ -86,7 +87,7 @@ native end-state transition order or cleanup after travel/control changes.
 
 Both authored classes compiled with zero errors/warnings and unchanged tracked
 input hashes. The saved private package SHA-256 is
-`2f438318f453097ca4360db62485a575bfa128269ae21f7466a4baadcdbd7cf2`.
+`be9c4e42241b2380df95b0b6e327429fad53a43dbb596ee9c098ba40e065b158`.
 LEC accepts the external root-motion enums as
 ERootMotionMode.RMM_Ignore and ERootMotionRotationMode.RMRM_Ignore; the body
 stance animation names are an array. This is compilation/save evidence only.

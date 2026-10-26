@@ -28,8 +28,8 @@ this captured reservation; another action's existing true flag is insufficient.
 Client presentation must follow native action replication rather than acquire
 this authority-side reservation or start its own authoritative duration.
 
-ReleaseTargetState handles this action's timer pause before its reservation.
-ReleaseReservation refuses while a timer pause remains owned and clears only
+ReleaseTargetState handles this action's timer pause, then its usage changes,
+then its reservation. ReleaseReservation refuses while either remains owned and clears only
 within the same current action/context and
 authority. If the flag was already cleared while that context remains valid,
 it drops its own record without another target write. If context/ownership
@@ -43,6 +43,41 @@ The flag has no owner/generation field. This component cannot detect an
 external clear-and-reassert cycle entirely between observations. It is not a
 global lock against arbitrary mods or native writes. Current-action/target
 identity limits clearing; live stop/callback ordering still needs evidence.
+
+## Temporary target usage
+
+AcquireUsageDisable follows reservation acquisition before the timer/animation
+work. It selects the existing SFXSimpleUseModule through GetModule with an
+explicit class argument. A missing module is recorded without creating one.
+Its baseline includes the delegate, range, tip, targetability, combat/old
+selection flags, deactivation and lens-flare identity/hidden state. A module
+already not targetable is preserved without owning a change.
+
+For an enabled module it records ownership before SetTargetable(false, false).
+The second argument prevents the wrapper's selection-save-variable write.
+Unlike EnableUsage(false), this leaves the use callback, tip and range intact.
+It checks the disabled flag and, when present, the hidden lens flare. Duration
+requires a captured usage baseline and continuing checks that expected state.
+The action does not use DisableSelection/RestoreSelection, which share old
+selection fields with other game flows.
+
+Cleanup requires the same current module/action/control/world and authority.
+On an interrupted, still-downed target with unchanged metadata, it restores
+targetability through SetTargetable and the original lens hidden state through
+SetHidden when needed. The lens may originally have been hidden despite being
+targetable; simply enabling the module would not restore that baseline. The
+restore-start record survives a partial restoration and is not discarded.
+
+If the exact baseline was already restored externally, cleanup needs no write.
+After dispatched and observed native recovery, a still-disabled module is
+left to the recovered pawn's native state without restoring its old downed
+callback. A missing/replaced module, changed callback/fields or lost context
+retains pending cleanup. No delegate, range, tip or selection-save value is
+written by this component. The Boolean targetability and hidden flags have no
+ownership generation; same-value writes or equivalent replacement between
+observations cannot be detected. Engine visibility, overlapping selection
+changes and client presentation remain unverified. The current mutation path
+is authority-only; it does not prove all peers hide the interaction prompt.
 
 ## Native death-timer pause
 
@@ -101,9 +136,9 @@ prove sustained movement, correct camera, collision or equipment after revival.
 The authored action candidate now supplies animation-start/query handling,
 per-update progress polling, native movement checks, a replicated-target path
 and pre-end/pre-stop release attempts. Refused releases remain explicitly
-pending. A scoped native death-timer pause is now included, but native timer
-semantics, recovery removal and pending cleanup remain unverified. Native
-usage-module baselines/cleanup, damage/native interruptions, animation
+pending. Scoped native death-timer and usage changes are now included, but
+actual timer/selection behavior, recovery removal and pending cleanup remain
+unverified. Damage/native interruptions, client presentation, animation
 availability and surrounding native end/stop ordering remain incomplete.
 This component's target-state bookkeeping alone is not
 sufficient for activation or proof that stop/recovery cleanup completes.
@@ -123,8 +158,8 @@ The authored context and action compiled together with zero compiler errors/
 warnings and saved to a fresh private package using the build command. The receipt status was
 `compiled-not-installed`; tracked tool/Oodle/Core/Engine/SFXGame/source hashes
 were unchanged. The saved package digest was
-`2f438318f453097ca4360db62485a575bfa128269ae21f7466a4baadcdbd7cf2`
-for the native timer-pause revision.
+`be9c4e42241b2380df95b0b6e327429fad53a43dbb596ee9c098ba40e065b158`
+for the scoped usage/lens-state revision.
 Failed earlier compiler outputs remain separate private directories and are
 not candidates. No native-source change required rebuilding the ASIs.
 

@@ -1,5 +1,15 @@
 # Validation status
 
+The revive candidate now captures its existing use-module/callback/field/lens
+baseline and scopes targetability disable/restore without rebinding the
+callback, changing range/tip or writing the selection save variable. Recovery
+keeps native disabled usage; interruptions restore only matching downed state.
+Three selected selection scripts decoded with matching lengths and three
+aligned explicit branches. Both authored classes compiled without errors/
+warnings and with unchanged tracked inputs. Actual visibility, overlapping
+selection writes, client prompts and cleanup remain unverified. No game or
+tests ran. See [usage accounting](REVIVE-CONTEXT.md).
+
 The revive candidate now captures the native PermaDeath timer binding/fields
 and conditionally pauses/resumes only its own changed pause. Absent timers are
 not created and preexisting pauses are not owned. Changed/duplicate bindings,

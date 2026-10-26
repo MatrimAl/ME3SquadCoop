@@ -139,3 +139,25 @@ satisfy it. No LEMP assets were copied into a distributable package, no multipla
 flag was forced, and no direct health/resurrection or action-array write was
 added. All inspected package/config inputs retained their hashes. No game or
 behavioral test ran; campaign revival remains incomplete.
+
+## Targetability wrapper and shared selection state
+
+A focused read decoded SetTargetable, DisableSelection and RestoreSelection
+from the supported SFXGame package. All three matched serialized/VM lengths
+with three aligned explicit branch destinations and unchanged package/Oodle
+hashes. SetTargetable writes m_bTargetable, calls SetHidden on a nonnull lens
+flare and only writes TargetSaveBool when bSetTargetSave is true. The native
+SetHidden body's detailed effects were not covered by these script exports.
+
+DisableSelection instead records combat/ordinary targetability in shared old
+fields and clears both flags. RestoreSelection copies those old fields back
+and clears them. Those methods do not establish a private revive ownership
+token, so the authored action does not borrow their shared old-state storage.
+
+The candidate now uses SetTargetable(false, false) while retaining its own
+module/callback/range/tip/selection/lens baseline. Cleanup preserves native
+post-recovery disabled use and conditionally restores a still-downed target's
+unchanged baseline. It does not rebind the use delegate or force EnableUsage.
+This is authority-side authored state accounting, not observed client prompt
+suppression, exclusive ownership or completed engine cleanup. See
+[usage contract and limits](REVIVE-CONTEXT.md).

@@ -20,11 +20,26 @@ var bool bDeathTimerCaptured;
 var bool bDeathTimerPresent;
 var bool bDeathTimerPausedByUs;
 var TimerData DeathTimerBaseline;
+var bool bUsageCaptured;
+var bool bUsagePresent;
+var bool bUsageChanged;
+var bool bUsageRestoreStarted;
+var SFXSimpleUseModule UsageModule;
+var SFXSelectionLensFlareComponent UsageLens;
+var delegate<SFXSimpleUseModule.OnUsed> UsageDelegateBaseline;
+var float UsageRangeBaseline;
+var byte UsageTipBaseline;
+var bool bUsageTargetableBaseline;
+var bool bUsageCombatBaseline;
+var bool bUsageOldTargetableBaseline;
+var bool bUsageOldCombatBaseline;
+var bool bUsageDeactivatedBaseline;
+var bool bUsageLensHiddenBaseline;
 
 function bool Reset()
 {
     // Never discard a still-owned target just to accept a new action.
-    if (bReservationOwned || bDeathTimerPausedByUs)
+    if (bReservationOwned || bDeathTimerPausedByUs || bUsageChanged)
         return false;
     bCaptured = false;
     bDispatched = false;
@@ -35,6 +50,12 @@ function bool Reset()
     bReservationAttempted = false;
     bDeathTimerCaptured = false;
     bDeathTimerPresent = false;
+    bUsageCaptured = false;
+    bUsagePresent = false;
+    bUsageRestoreStarted = false;
+    UsageModule = None;
+    UsageLens = None;
+    UsageDelegateBaseline = None;
     Action = None;
     Reviver = None;
     Target = None;
@@ -124,7 +145,122 @@ function bool CanContinue()
 {
     return !bCancelled && OwnsCurrentAction() && EligibleTarget() && !Reviver.IsFiring()
         && (!bReservationAttempted || OwnsReservation())
-        && (!bDeathTimerCaptured || DeathTimerMatches(bDeathTimerPausedByUs || DeathTimerBaseline.bPaused));
+        && (!bDeathTimerCaptured || DeathTimerMatches(bDeathTimerPausedByUs || DeathTimerBaseline.bPaused))
+        && (!bUsageCaptured || UsageStateMatches());
+}
+
+function bool SameUsageModule()
+{
+    return bUsageCaptured && OwnsCurrentAction()
+        && SFXSimpleUseModule(Target.GetModule(class'SFXSimpleUseModule')) == UsageModule;
+}
+
+function bool UsageMetadataMatches()
+{
+    return SameUsageModule() && bUsagePresent && UsageModule != None
+        && UsageModule.OnUsed == UsageDelegateBaseline
+        && UsageModule.fUseRange == UsageRangeBaseline
+        && UsageModule.m_TargetTipText == UsageTipBaseline
+        && UsageModule.m_bCombatTargetable == bUsageCombatBaseline
+        && UsageModule.OldTargeTable == bUsageOldTargetableBaseline
+        && UsageModule.OldCombatTargetable == bUsageOldCombatBaseline
+        && UsageModule.bDeactivated == bUsageDeactivatedBaseline
+        && UsageModule.LensFlareComp == UsageLens;
+}
+
+function bool UsageBaselineRestored()
+{
+    return UsageMetadataMatches() && UsageModule.m_bTargetable == bUsageTargetableBaseline
+        && (UsageLens == None || UsageLens.HiddenGame == bUsageLensHiddenBaseline);
+}
+
+function bool UsageStateMatches()
+{
+    if (!SameUsageModule())
+        return false;
+    if (!bUsagePresent)
+        return UsageModule == None;
+    if (!bUsageChanged)
+        return UsageBaselineRestored();
+    return !bUsageRestoreStarted && UsageMetadataMatches() && !UsageModule.m_bTargetable
+        && (UsageLens == None || UsageLens.HiddenGame);
+}
+
+function bool AcquireUsageDisable()
+{
+    if (bUsageCaptured || bUsageChanged || !CanContinue() || !OwnsReservation())
+        return false;
+    UsageModule = SFXSimpleUseModule(Target.GetModule(class'SFXSimpleUseModule'));
+    bUsageCaptured = true;
+    bUsagePresent = UsageModule != None;
+    if (!bUsagePresent)
+        return SameUsageModule();
+    UsageDelegateBaseline = UsageModule.OnUsed;
+    UsageRangeBaseline = UsageModule.fUseRange;
+    UsageTipBaseline = UsageModule.m_TargetTipText;
+    bUsageTargetableBaseline = UsageModule.m_bTargetable;
+    bUsageCombatBaseline = UsageModule.m_bCombatTargetable;
+    bUsageOldTargetableBaseline = UsageModule.OldTargeTable;
+    bUsageOldCombatBaseline = UsageModule.OldCombatTargetable;
+    bUsageDeactivatedBaseline = UsageModule.bDeactivated;
+    UsageLens = UsageModule.LensFlareComp;
+    if (UsageLens != None)
+        bUsageLensHiddenBaseline = UsageLens.HiddenGame;
+    if (UsageRangeBaseline - UsageRangeBaseline != 0.0 || !UsageMetadataMatches())
+        return false;
+    if (!bUsageTargetableBaseline)
+        return UsageStateMatches();
+    bUsageChanged = true;
+    // Preserve the callback, tip, range and selection save variable. This
+    // native path also hides its lens flare; that state is owned separately.
+    UsageModule.SetTargetable(false, false);
+    return OwnsReservation() && UsageStateMatches();
+}
+
+function bool ReleaseUsageDisable()
+{
+    if (!bUsageChanged)
+        return true;
+    if (!SameUsageModule() || UsageModule == None
+        || int(Reviver.Role) != 3 || int(Target.Role) != 3)
+        return false;
+    // Downed.EndState owns the recovered pawn's disabled usage. Preserve that
+    // state without restoring a downed interaction or its old delegate.
+    if (RecoveryObserved() && !UsageModule.m_bTargetable)
+    {
+        bUsageChanged = false;
+        return true;
+    }
+    if (!UsageMetadataMatches())
+        return false;
+    if (UsageBaselineRestored())
+    {
+        bUsageChanged = false;
+        return true;
+    }
+    if (!Target.bIsDowned || Target.bIsDead || !Target.IsInState('Downed'))
+        return false;
+    if (!bUsageRestoreStarted)
+    {
+        if (UsageModule.m_bTargetable || (UsageLens != None && !UsageLens.HiddenGame))
+            return false;
+        bUsageRestoreStarted = true;
+        UsageModule.SetTargetable(bUsageTargetableBaseline, false);
+    }
+    if (!UsageMetadataMatches() || UsageModule.m_bTargetable != bUsageTargetableBaseline)
+        return false;
+    if (UsageLens != None && UsageLens.HiddenGame != bUsageLensHiddenBaseline)
+    {
+        // SetTargetable sets HiddenGame to !targetable, which need not equal
+        // the original hidden state. Do not overwrite an unexpected value.
+        if (UsageLens.HiddenGame != !bUsageTargetableBaseline)
+            return false;
+        UsageLens.SetHidden(bUsageLensHiddenBaseline);
+    }
+    if (!UsageBaselineRestored())
+        return false;
+    bUsageChanged = false;
+    return true;
 }
 
 // Native timer binding is the actor plus function name, not its array index.
@@ -229,6 +365,8 @@ function bool ReleaseTargetState()
 {
     if (!ReleaseDeathTimerPause())
         return false;
+    if (!ReleaseUsageDisable())
+        return false;
     return ReleaseReservation();
 }
 
@@ -252,7 +390,7 @@ function bool AcquireReservation()
 
 function bool ReleaseReservation()
 {
-    if (bDeathTimerPausedByUs)
+    if (bDeathTimerPausedByUs || bUsageChanged)
         return false;
     if (!bReservationOwned)
         return true;
@@ -271,7 +409,7 @@ function bool BeginDuration()
     local float Duration;
     local float Now;
 
-    if (bDurationStarted || bCancelled || bDispatched || !bDeathTimerCaptured || !CanContinue()
+    if (bDurationStarted || bCancelled || bDispatched || !bDeathTimerCaptured || !bUsageCaptured || !CanContinue()
         || !OwnsReservation())
         return false;
     Duration = Reviver.fTimeToRevive;

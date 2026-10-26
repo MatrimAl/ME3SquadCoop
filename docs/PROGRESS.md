@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-10-26: preserve native use callbacks during revive
+
+The authored context now captures the existing target use module's callback,
+range, tip, selection/deactivation flags and lens identity/hidden state. It
+temporarily disables targetability via SetTargetable(false, false), preserving
+the callback and selection save variable. An already disabled or absent module
+is not enabled or created. The candidate does not borrow the game's shared
+DisableSelection/RestoreSelection old-state fields.
+
+Interrupted downed attempts conditionally restore targetability and the exact
+lens hidden baseline; observed native recovery retains its disabled-use state.
+Changed metadata/control/module or partial restoration stays pending and blocks
+a fresh capture. Timer cleanup precedes usage cleanup and reservation release.
+Three selection scripts decoded completely with three aligned branch targets;
+both authored classes compiled with zero errors/warnings and unchanged tracked
+inputs. No game or tests ran. Visibility, overlapping state changes, client
+prompts, native stop/recovery cleanup and class activation remain unverified.
+See [usage contract](REVIVE-CONTEXT.md).
+
 ## 2026-10-26: capture and scope native revive death-timer pauses
 
 The authored context now captures the target's explicit PermaDeath timer

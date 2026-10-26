@@ -1,5 +1,5 @@
-// Candidate action5 driver. Package mounting, shared class assignment and
-// native target-usage leases are not yet integrated; timer cleanup is scoped.
+// Candidate action5 driver. Package mounting/shared class assignment are not
+// integrated; usage/timer cleanup retains unresolved state without guessing.
 class SFXSquadCoop_ReviveAction extends SFXCustomAction_SingleAnim;
 
 var SFXSquadCoop_ReviveContext Context;
@@ -64,7 +64,8 @@ function StartCustomAction()
         if (Context == None)
             Context = new(Self) class'SFXSquadCoop_ReviveContext';
         if (Context == None || !Context.Capture(Self, BioPawn(m_oPawn.SyncPawn))
-            || !Context.AcquireReservation() || !Context.AcquireDeathTimerPause())
+            || !Context.AcquireReservation() || !Context.AcquireUsageDisable()
+            || !Context.AcquireDeathTimerPause())
         {
             ReleaseContext(true);
             InterruptThisCustomAction();
