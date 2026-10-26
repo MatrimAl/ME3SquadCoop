@@ -122,6 +122,7 @@ static void position_receive_finish(uintptr_t channel,PositionReceiveSnapshot be
 
 #include "inventory_decode_trace.h"
 #include "initial_object_trace.h"
+#include "native_actor_receive_pins.h"
 
 static void initial_actor_received_bunch(void *self, void *bunch) {
     /* Invariant: the original is assigned before the only CAS that publishes
@@ -147,6 +148,7 @@ static void initial_actor_received_bunch(void *self, void *bunch) {
     PositionReceiveSnapshot position_before=position_receive_snapshot(channel);
     InventoryDecodeFrame inventory_frame;inventory_decode_begin(&inventory_frame,channel,position_before);
     AmmoWireReceive wire_frame;ammo_wire_receive_begin(&wire_frame,channel);
+    NativeRpcReceiveFrame rpc_frame;native_rpc_receive_begin(&rpc_frame,initial_actor_trace_thread,channel);
     int object_same_thread=GetCurrentThreadId()==initial_actor_trace_thread;
     InitialObjectFrame object_frame={0};
     if(object_same_thread){
@@ -157,6 +159,7 @@ static void initial_actor_received_bunch(void *self, void *bunch) {
     SetLastError(error_before);
     forward(self, bunch); /* Always exactly one original call, unchanged args. */
     DWORD error_after = GetLastError();
+    native_rpc_receive_end(&rpc_frame);
     if(object_same_thread&&initial_object_frame==&object_frame)initial_object_frame=object_frame.previous;
     ammo_wire_receive_end(&wire_frame);
     inventory_decode_end(&inventory_frame);
@@ -200,19 +203,9 @@ static int initial_actor_trace_install(uintptr_t base) {
     if (!has_marker(root)) return 0;
     if (initial_actor_trace_attempted) return 0;
     initial_actor_trace_attempted = 1;
-    static const unsigned char prologue[32] = {
-        0x48,0x89,0x54,0x24,0x10,0x48,0x89,0x4c,0x24,0x08,0x55,0x53,0x56,0x57,0x41,0x54,
-        0x41,0x55,0x41,0x56,0x41,0x57,0x48,0x8d,0xac,0x24,0x58,0xff,0xff,0xff,0x48,0x81};
-    static const unsigned char dispatcher[15] = {
-        0xf6,0x41,0x68,0x02,0x75,0x09,0x48,0x8b,0x01,0xff,0x90,0xd0,0x02,0x00,0x00};
-    static const unsigned char initial_check[13] = {
-        0x44,0x38,0xa2,0xc4,0x00,0x00,0x00,0x0f,0x84,0xbb,0x13,0x00,0x00};
-    unsigned char bytes[32]; uintptr_t slot = base + 0x11a2150 + 0x2d0;
+    uintptr_t slot = base + 0x11a2150 + 0x2d0;
     uintptr_t expected = base + 0x488700;
-    if (!supported_image(base) || read_ptr(slot) != expected ||
-        !read_at(expected, bytes, sizeof prologue) || memcmp(bytes, prologue, sizeof prologue) ||
-        !read_at(base + 0x48bb6f, bytes, sizeof dispatcher) || memcmp(bytes, dispatcher, sizeof dispatcher) ||
-        !read_at(base + 0x488754, bytes, sizeof initial_check) || memcmp(bytes, initial_check, sizeof initial_check)) {
+    if (!supported_image(base) || read_ptr(slot) != expected || !native_actor_receive_pins(base)) {
         line("{\"initial_actor_trace\":\"not-installed\",\"reason\":\"exact-native-pins\"}\r\n"); return 0;
     }
     DWORD protection;

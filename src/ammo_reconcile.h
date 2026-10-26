@@ -1,6 +1,7 @@
 #ifndef ME3_AMMO_RECONCILE_H
 #define ME3_AMMO_RECONCILE_H
 #include "ammo_reconcile_state.h"
+#include "native_rpc_receive_context.h"
 /* Research-only control messages over existing owner-PC native RPCs. Both
  * participants must opt in. Reserved messages are consumed before chat/UI.
  * Ordinary messages and outbound dispatch retain the original script entry.
@@ -42,7 +43,7 @@ static int ammo_rpc_method_valid(int k) {
         read_at(fn+0xe4,&index,2)&&!index&&read_at(fn+0xea,&params,1)&&params==1;
 }
 static int ammo_rpc_source(uintptr_t self,uintptr_t frame,int k) {
-    AmmoWireReceive *r=ammo_wire_receive;NetworkActorScope world;NetworkActorIdentityEntry channel={0};
+    NativeRpcReceiveFrame *r=native_rpc_receive_current(ammo_wire_thread);NetworkActorScope world;NetworkActorIdentityEntry channel={0};
     if(!r||!r->channel||GetCurrentThreadId()!=ammo_wire_thread||
        (test_action==6?k!=0:k!=1)||!is_kind_of(ammo_rpc_base,self,"PlayerController")||
        read_ptr(frame+0x18)!=ammo_rpc_methods[k].function.pointer||read_ptr(frame+0x20)!=self||

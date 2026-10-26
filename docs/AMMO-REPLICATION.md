@@ -275,3 +275,23 @@ mutants were rejected: omitting the equipped-weapon link, omitting the host
 controller connection check, and omitting the captured package-map stamp.
 The fixtures modify only their allocated test memory. No game ran; there is
 no new live movement, weapon-switch or ordinary-connection result.
+
+## Shared incoming native receive context
+
+The protected reconciliation source check now reads a separate native receive
+frame instead of depending on ammunition serializer telemetry. Its channel,
+controller, RPC-node and ownership checks remain mandatory. The ordinary runtime
+has a forwarding-only ReceivedBunch wrapper under the existing default-off
+`ME3_SQUAD_COOP_AMMO_RECONCILE=1` opt-in. It installs only within an enabled,
+validated native session, after exact image/dispatch/prologue/slot checks. It
+does not consume messages, change incoming data or apply counters; ordinary
+reconciliation transport is still unfinished. Disabling leaves the original
+forwarding call resident and shadows the current frame with a null source.
+
+The shared stack preserves nested channels and refuses another thread's frame.
+All three targets built. The complete ordinary runtime fixture passed, including
+the actual new wrapper's exactly-once forwarding, unchanged arguments, nested
+frame restoration, disabled-source shadowing and original LastError behavior.
+Three compiled context mutants were rejected: foreign-thread inheritance,
+null-channel inheritance and loss of the outer frame. No game ran and no real
+packet, source authentication or gameplay correction was demonstrated here.

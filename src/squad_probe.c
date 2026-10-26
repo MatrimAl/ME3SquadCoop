@@ -445,6 +445,7 @@ static int native_session_role(void) {return test_action;}
 #include "guest_hit_trace.h"
 #include "guest_hit_trace_selftest.h"
 #include "initial_actor_trace.h"
+#include "native_rpc_receive_selftest.h"
 #include "remote_appearance_qa.h"
 #define ME3_PROTECTED_GUEST_TEAM_QA 1
 static void guest_team_qa_release(uintptr_t base,DWORD now);
@@ -775,6 +776,7 @@ __declspec(dllexport) int SquadCombatActionSelfTest(void) { return combat_action
 __declspec(dllexport) int SquadAmmoTraceSelfTest(void) { return ammo_trace_selftest(); }
 __declspec(dllexport) int SquadFunctionLookupSelfTest(void) { return function_lookup_selftest(); }
 __declspec(dllexport) int SquadNetworkActorSelfTest(void) { return network_actor_identity_selftest(); }
+__declspec(dllexport) int SquadRpcReceiveContextSelfTest(void) { return native_rpc_receive_context_selftest(); }
 __declspec(dllexport) int SquadAmmoWireSelfTest(void) { return ammo_wire_selftest(); }
 __declspec(dllexport) int SquadAmmoReconcileSelfTest(void) { return ammo_rpc_selftest(); }
 __declspec(dllexport) int SquadFireRpcTraceSelfTest(void) { return fire_rpc_selftest(); }

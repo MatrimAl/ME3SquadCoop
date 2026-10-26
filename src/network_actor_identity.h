@@ -14,8 +14,8 @@ typedef struct NetworkActorIdentityEntry {
 
 static NetworkActorIdentityEntry network_actor_identity_cache[4];
 static unsigned int network_actor_identity_next = 0;
-/* Exact opt-in observer installed by initial_actor_trace.h after validating
- * the original function. This admits only our forwarding trace, never an
+/* Exact opt-in observer installed by the protected trace or ordinary receive
+ * context after validating the original function. This admits our forwarder, never an
  * arbitrary replacement or an altered engine/package validation routine. */
 static uintptr_t network_actor_received_bunch_observer = 0;
 static int network_actor_received_handler_matches(uintptr_t base) {
