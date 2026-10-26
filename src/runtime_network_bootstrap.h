@@ -106,6 +106,7 @@ static int runtime_auto_rejoin_target_valid(const CombatContextChain *chain) {
         chain->world==runtime_auto_rejoin_target.pointer&&session_handle_matches(runtime_auto_rejoin_target));
 }
 #include "runtime_host_bootstrap.h"
+#include "runtime_host_package_preload.h"
 #include "runtime_join_readiness.h"
 #include "runtime_join_diagnostics.h"
 #include "runtime_join_progress.h"
@@ -198,6 +199,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
     }
     if(host) {
         if(!runtime_host_story_idle(base,c))return;
+        if(!runtime_host_package_preload(base,c))return;
         if(runtime_relisten_armed&&(!runtime_relisten_target_valid(base,&before)||
            !runtime_relisten_previous_gone(base)||!runtime_rejoin_cleanup_idle()||runtime_host_capacity.active)) {
             InterlockedExchange(&runtime_listen_requested,0);InterlockedExchange(&runtime_listen_attempted,1);

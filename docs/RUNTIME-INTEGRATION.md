@@ -1,5 +1,20 @@
 # Runtime integration status
 
+A focused default-off host candidate (`ME3_SQUAD_COOP_HOST_PACKAGE_PRELOAD=1`)
+now calls the shipped public static SFXGame.LoadPackage once for the observed
+morph package before Listen. It requires an idle standalone host, current game
+actor, exact reflected function flags/index/parameter layout and the sole
+PackageName string property. The engine-owned native entry must be within the
+supported executable. The before/after resident GUIDs and native entry RVA are
+logged; dispatch alone is not loading success. No GUID, file, package-map or
+validation flag is written by the candidate. Player/world context is refreshed
+on the following Tick before ordinary startup continues. The function pointer
+is captured before invocation for logging, rather than read from an old
+function object after loading. This is a targeted experiment, not a general
+dependency-preload policy. Three native targets built and the ordinary runtime
+harness passed with the option disabled; actual invocation/ABI admission and
+its effect on the mismatch remain to be tested in-game.
+
 Read-only follow-up ruled out a changed private morph file: its SHA-256 matches
 both the original source and saved independent-copy baseline. The base
 GuidCache export also contains the disk/guest GUID for this exact package,
