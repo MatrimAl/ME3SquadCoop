@@ -220,11 +220,11 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
     RuntimeJoinSample ready={0};
     int player_ready=runtime_join_context_sample(base,c,&before,&ready);
     if(!runtime_join_readiness_observe(&runtime_join_readiness,player_ready?&ready:NULL,now)) {
-        static int last_ready=-1;
-        if(last_ready!=player_ready) {
-            last_ready=player_ready;
-            line(player_ready?"{\"runtime_network\":\"join-wait\",\"reason\":\"stable-ordinary-player-window\"}\r\n":
-                "{\"runtime_network\":\"join-wait\",\"reason\":\"ordinary-player-story-context\"}\r\n");
+        static const char *last_ready_reason;
+        const char *reason=player_ready?"stable-ordinary-player-window":runtime_join_context_last_reason;
+        if(!last_ready_reason||strcmp(last_ready_reason,reason)) {
+            last_ready_reason=reason;
+            char row[300];snprintf(row,sizeof row,"{\"runtime_network\":\"join-wait\",\"reason\":\"%s\",\"join_dispatched\":false,\"monotonic_ms\":%lu}\r\n",reason,now);line(row);
         }
         return;
     }

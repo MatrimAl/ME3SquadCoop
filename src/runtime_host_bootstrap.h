@@ -222,19 +222,30 @@ static int runtime_host_master_prepare(uintptr_t base,uintptr_t world,uintptr_t 
         read_at(map+0x68,&entries_after,sizeof entries_after)&&!memcmp(&entries,&entries_after,sizeof entries)&&
         read_at(base+0x17f4b10,&registered_after,sizeof registered_after)&&!memcmp(&registered,&registered_after,sizeof registered);
 }
-static int runtime_host_story_idle(uintptr_t base,SessionContext c) {
+static const char *runtime_host_story_idle_reason(uintptr_t base,SessionContext c) {
     uint32_t flags=0,world_flags=0,activating=0;uintptr_t pauser=1,conversation=0;
-    if(session_engine_blocked(c)||!session_actor_live(base,c.pawn)||!is_kind_of(base,c.pawn,"SFXPawn_Player")||
-       read_ptr(c.pawn+0x374)!=c.pc||!read_at(c.pc+0x77c,&flags,4)||(flags&0x20000)||
-       !read_at(c.world+0x7c0,&world_flags,4)||(world_flags&0xc00)||
-       !read_at(c.world+0x670,&pauser,8)||pauser||!read_at(c.world+0x948,&conversation,8))return 0;
+    const char *blocked=session_engine_block_reason(c);if(blocked)return blocked;
+    if(!session_actor_live(base,c.pawn)||!is_kind_of(base,c.pawn,"SFXPawn_Player"))return "story-player-pawn";
+    if(read_ptr(c.pawn+0x374)!=c.pc)return "story-controller-reciprocity";
+    if(!read_at(c.pc+0x77c,&flags,4))return "controller-flags-unreadable";
+    if(flags&0x20000)return "controller-cinematic-mode";
+    if(!read_at(c.world+0x7c0,&world_flags,4))return "world-flags-unreadable";
+    if(world_flags&0xc00)return "world-players-only-state";
+    if(!read_at(c.world+0x670,&pauser,8))return "pauser-unreadable";
+    if(pauser)return "engine-paused";
+    if(!read_at(c.world+0x948,&conversation,8))return "conversation-slot-unreadable";
     if(conversation) {
         GameArray active={0};
         if(!is_live(base,conversation)||!is_kind_of(base,conversation,"BioConversationManager")||
-           !read_at(conversation+0xc8,&active,sizeof active)||active.count||active.max<0||active.max>4096||
-           !read_at(conversation+0xe8,&activating,4)||(activating&1))return 0;
+           !read_at(conversation+0xc8,&active,sizeof active))return "conversation-array-unreadable";
+        if(active.count||active.max<0||active.max>4096)return "conversation-array-not-idle";
+        if(!read_at(conversation+0xe8,&activating,4))return "conversation-flags-unreadable";
+        if(activating&1)return "conversation-activating";
     }
-    return 1;
+    return NULL;
+}
+static int runtime_host_story_idle(uintptr_t base,SessionContext c) {
+    return runtime_host_story_idle_reason(base,c)==NULL;
 }
 static int runtime_host_driver_class(uintptr_t base) {
     uintptr_t klass=((RuntimeHostDriverClass)(base+0x98c550))();char name[96];

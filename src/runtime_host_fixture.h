@@ -122,8 +122,13 @@ static int runtime_host_startup_selftest(void) {
     runtime_fixture_ptr(o[4]+0x198,o[2]);combat_context_read_chain(base,&chain);
     RuntimeJoinSample join_sample={0};
     ok=ok&&runtime_join_context_sample(base,context,&chain,&join_sample);
+    ok=ok&&!strcmp(runtime_join_context_last_reason,"ready");
+    SessionContext scene_context=context;scene_context.mode=1;
+    ok=ok&&!runtime_join_context_sample(base,scene_context,&chain,&join_sample)&&
+        !strcmp(runtime_join_context_last_reason,"nonordinary-mode");
     SessionContext wrong_manager=context;wrong_manager.manager=o[5];
-    ok=ok&&!runtime_join_context_sample(base,wrong_manager,&chain,&join_sample);
+    ok=ok&&!runtime_join_context_sample(base,wrong_manager,&chain,&join_sample)&&
+        !strcmp(runtime_join_context_last_reason,"story-mode-manager");
     runtime_fixture_ptr(o[4]+0x374,0);ok=ok&&!runtime_join_context_sample(base,context,&chain,&join_sample);
     runtime_fixture_ptr(o[4]+0x374,o[3]);runtime_fixture_ptr(o[5]+0x2cc,0);
     ok=ok&&!runtime_join_context_sample(base,context,&chain,&join_sample);

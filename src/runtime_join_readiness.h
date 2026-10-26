@@ -13,6 +13,7 @@ typedef struct RuntimeJoinReadiness {
     unsigned samples;
 } RuntimeJoinReadiness;
 static RuntimeJoinReadiness runtime_join_readiness;
+static const char *runtime_join_context_last_reason="not-sampled";
 static int runtime_join_sample_same(const RuntimeJoinSample *a,const RuntimeJoinSample *b) {
     for(unsigned i=0;i<6;++i) {
         SessionHandle x=a->objects[i],y=b->objects[i];
@@ -37,18 +38,28 @@ static int runtime_join_readiness_observe(RuntimeJoinReadiness *state,
 }
 static int runtime_join_context_sample(uintptr_t base,SessionContext c,
     const CombatContextChain *chain,RuntimeJoinSample *sample) {
-    if(!chain->info_valid||c.world!=chain->info||!runtime_host_story_idle(base,c)||
-       read_ptr(c.pc+0x3bc)!=c.pawn||read_ptr(c.pawn+0x198)!=c.world||
-       !is_live(base,c.manager)||!is_kind_of(base,c.manager,"SFXGameModeManager")||
-       !is_live(base,c.squad)||!is_kind_of(base,c.squad,"BioBaseSquad")||
-       read_ptr(c.squad+0x2cc)!=c.pawn)return 0;
+    runtime_join_context_last_reason="native-world-context";
+    if(!chain->info_valid||c.world!=chain->info)return 0;
+    const char *story_reason=runtime_host_story_idle_reason(base,c);
+    if(story_reason){runtime_join_context_last_reason=story_reason;return 0;}
+    runtime_join_context_last_reason="story-pawn-links";
+    if(read_ptr(c.pc+0x3bc)!=c.pawn||read_ptr(c.pawn+0x198)!=c.world)return 0;
+    runtime_join_context_last_reason="story-mode-manager";
+    if(!is_live(base,c.manager)||!is_kind_of(base,c.manager,"SFXGameModeManager"))return 0;
+    runtime_join_context_last_reason="story-squad";
+    if(!is_live(base,c.squad)||!is_kind_of(base,c.squad,"BioBaseSquad"))return 0;
+    runtime_join_context_last_reason="story-squad-player-slot";
+    if(read_ptr(c.squad+0x2cc)!=c.pawn)return 0;
     uintptr_t pointers[]={chain->world,c.world,c.pc,c.pawn,c.manager,c.squad};
     memset(sample,0,sizeof *sample);
+    runtime_join_context_last_reason="story-object-identity";
     for(unsigned i=0;i<6;++i) {
         sample->objects[i]=session_capture_handle(pointers[i]);
         if(!session_handle_matches(sample->objects[i]))return 0;
     }
-    return read_at(c.world+0x74c,&sample->world_time,4)&&isfinite(sample->world_time)&&sample->world_time>=0;
+    runtime_join_context_last_reason="world-time-unreadable-or-invalid";
+    if(!read_at(c.world+0x74c,&sample->world_time,4)||!isfinite(sample->world_time)||sample->world_time<0)return 0;
+    runtime_join_context_last_reason="ready";return 1;
 }
 static int runtime_join_readiness_selftest(void) {
     RuntimeJoinReadiness state={0};RuntimeJoinSample sample={0};

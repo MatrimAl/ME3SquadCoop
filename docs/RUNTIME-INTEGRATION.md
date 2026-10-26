@@ -1,5 +1,19 @@
 # Runtime integration status
 
+The latest ordinary English-DLC candidate pair opened a native host listener,
+but the guest never dispatched its join request: its story/player readiness
+predicate remained blocked. A corrected full-size guest recording was black;
+the earlier recording captured the tiny initial window. These observations
+do not establish English DLC acceptance or a native connection. Cleanup left
+no game processes, preserved the original profile, and removed the temporary
+authored ASI and DLC without cleanup errors.
+
+Join-wait logging now reports the specific failed story, pawn, squad, identity
+or world-clock predicate and its monotonic time. Admission conditions and the
+stable-player observation window are unchanged. Three native targets built
+and the ordinary runtime fixture passed, including exact rejection-reason
+checks; this diagnostic revision still needs a live ordinary-entry run.
+
 There is no verified shareable gameplay runtime yet. Native filename and archive
 validation do not establish playable co-op.
 
