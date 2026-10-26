@@ -36,6 +36,28 @@ static DWORD runtime_relisten_started;
 static int runtime_relisten_armed;
 static DWORD runtime_join_last_check;
 static volatile LONG runtime_cancel_start_requested;
+static int runtime_guest_startup_focus_pending(void) {
+    return runtime_control_enabled&&g_runtime_config.role==ME3_ROLE_GUEST&&
+        InterlockedCompareExchange(&runtime_join_requested,0,0)&&
+        !InterlockedCompareExchange(&runtime_join_attempted,0,0)&&
+        !InterlockedCompareExchange(&runtime_cancel_start_requested,0,0);
+}
+#ifdef ME3_RUNTIME_FIXTURE
+static int runtime_guest_startup_focus_selftest(void) {
+    Me3RuntimeRole role=g_runtime_config.role;int enabled=runtime_control_enabled;
+    LONG requested=runtime_join_requested,attempted=runtime_join_attempted,cancel=runtime_cancel_start_requested;
+    g_runtime_config.role=ME3_ROLE_GUEST;runtime_control_enabled=1;
+    runtime_join_requested=1;runtime_join_attempted=runtime_cancel_start_requested=0;
+    int ok=runtime_guest_startup_focus_pending();
+    runtime_join_attempted=1;ok=ok&&!runtime_guest_startup_focus_pending();runtime_join_attempted=0;
+    runtime_cancel_start_requested=1;ok=ok&&!runtime_guest_startup_focus_pending();runtime_cancel_start_requested=0;
+    runtime_join_requested=0;ok=ok&&!runtime_guest_startup_focus_pending();runtime_join_requested=1;
+    runtime_control_enabled=0;ok=ok&&!runtime_guest_startup_focus_pending();runtime_control_enabled=1;
+    g_runtime_config.role=ME3_ROLE_HOST;ok=ok&&!runtime_guest_startup_focus_pending();
+    g_runtime_config.role=role;runtime_control_enabled=enabled;runtime_join_requested=requested;
+    runtime_join_attempted=attempted;runtime_cancel_start_requested=cancel;return ok;
+}
+#endif
 static int runtime_request_cancel_start(void) {
     if(g_config_status!=ME3_CONFIG_READY||
        (g_runtime_config.role!=ME3_ROLE_HOST&&g_runtime_config.role!=ME3_ROLE_GUEST))return 0;

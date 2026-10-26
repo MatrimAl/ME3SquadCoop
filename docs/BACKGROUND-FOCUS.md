@@ -1,5 +1,15 @@
 # Background co-op focus
 
+Ordinary entry now also admits the existing getter policy while a configured
+guest join is requested but not yet attempted or cancelled. This covers the
+standalone startup world only; the existing exact caller/ABI, current-world,
+local-player, mode0 and focus-pause ownership guards remain. It grants no
+movement/possession permission and writes no world pause flags. Connected-world
+membership checks and the protected prewarm policy are unchanged. Three native
+targets built; ordinary and protected no-game harnesses passed, including
+disabled, host, cancelled, consumed and absent-intent rejection cases. No game
+was run for this extension, so startup recovery remains unverified.
+
 ## Observed blocker
 
 The supported LE3 build has a custom focus check in `BioWorldInfo.Tick`.
@@ -27,8 +37,9 @@ focus correction worked.
 ## Candidate policy
 
 The candidate adapts only HasFocus results requested by the two verified Tick call sites in a
-current, connected co-op world during ordinary gameplay. It forwards the actual
-native getter once. Other callers, disconnected worlds, menus and cinematic modes keep normal
+current, connected co-op world during ordinary gameplay, or the specifically
+admitted pending guest startup described above. It forwards the actual native
+getter once. Other callers, unrelated disconnected worlds, menus and cinematic modes keep normal
 behavior. Mode-0 dialogue does not suppress this focus policy: its world Tick
 must advance. The separate session gate still releases guest control to AI
 during conversations, and intentional pauses without focus ownership remain

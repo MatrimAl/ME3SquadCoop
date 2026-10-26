@@ -115,6 +115,10 @@ static int background_focus_context(uintptr_t self,uintptr_t frame,int expected_
     if(!read_at(world+0x120,&driver,8)||!read_at(self+0x7c8,&net,1))return background_focus_fail("native-driver");
 #ifdef ME3_PROTECTED_ARENA_FOCUS_QA
     prewarm=arena_focus_prewarm_opted(b,s->engine,self,net);
+#elif defined(ME3_ORDINARY_STARTUP_FOCUS)
+    /* Only a configured, unconsumed guest join intent admits standalone
+     * prewarm. The identity, mode and pause-ownership checks above still apply. */
+    prewarm=net==0&&runtime_guest_startup_focus_pending();
 #endif
     uintptr_t connection=0,remote=0;GameArray peers={0};
     if(prewarm&&net==0&&!driver)prewarm_kind=1;
@@ -150,7 +154,11 @@ static int background_focus_context(uintptr_t self,uintptr_t frame,int expected_
         scope->handles[i]=session_capture_handle(objects[i]);scope->klass[i]=read_ptr(objects[i]+0x50);
         if(!scope->handles[i].pointer||!scope->klass[i]||!session_handle_matches(scope->handles[i]))return background_focus_fail("context-identity");
     }
+#ifdef ME3_ORDINARY_STARTUP_FOCUS
+    background_focus_reason=prewarm_kind?"verified-ordinary-startup-tick":"verified-tick-context";
+#else
     background_focus_reason=prewarm_kind?"verified-protected-prewarm-tick":"verified-tick-context";
+#endif
     return 1;
 }
 static void background_focus_exec(void *self,void *frame,void *result) {

@@ -1,12 +1,26 @@
 # Runtime integration status
 
+The existing focus getter policy is now admitted during a pending, unconsumed
+ordinary guest join in its standalone world. It remains subject to the exact
+Tick caller, native ABI, current local world/player, mode0 and pause-ownership
+checks. Cancelled/consumed requests, host roles and disabled control do not open
+this startup scope. Native return adaptation still lets the stock Tick manage
+its own focus pause; the mod does not clear PlayersOnly or pause-owner flags.
+Three native targets built and ordinary/protected no-game harnesses passed.
+No game ran for this extension; it is not a verified fix for the startup stalls.
+
 Ordinary guest package/appearance preparation is now enabled by default inside
 the existing configured startup/session gates. The legacy diagnostic options
 can explicitly disable each path with0; protected appearance entry still
 requires1. Three native targets built, and ordinary/protected no-game harnesses
-passed actual unset/0/1/invalid environment-option cases. A live run without the
-three guest preparation options is still required; earlier positive runs set
-them explicitly. Host morph-package preparation remains a separate opt-in.
+passed actual unset/0/1/invalid environment-option cases. Two runs without the
+three guest preparation options did not dispatch join or package preparation:
+the guest remained in a standalone PlayersOnly state and sampled video was
+black. The native focus-owner flag was not captured, so focus loss is a lead,
+not the established pause cause. Both runs cleaned up without native exceptions
+or profile/TOC changes. Default guest preparation remains live-unverified;
+earlier positive runs set the options explicitly. Host morph-package preparation
+remains a separate opt-in.
 
 The latest appearance bookkeeping binds its attempt to the admitted player and
 WorldInfo identities rather than the whole process. Matching identities retain
