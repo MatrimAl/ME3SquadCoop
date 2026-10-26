@@ -1,5 +1,17 @@
 # Runtime integration status
 
+An ordinary same-PC pair from `c16b2d2` connected with an owned Shepard
+channel and matching host/guest archetype and class paths. In six read-only
+samples, the guest replica's skeletal-mesh reference was null in the first
+three and live in the last three; the guarded `UpdateAppearance` and
+`ApplyAppearance` calls returned a live asset between them. The host's last
+appearance ID was 2 while the guest's was -1, so full appearance equivalence
+is not established. No delayed-group retry was observed, and these data do
+not prove rendered visibility or campaign gameplay. The first visibility
+observer encountered a partially written owner-identity file; a restarted
+observer captured the six samples. Cleanup restored the sandbox TOC, left no
+game processes, and reported no native exceptions or cleanup errors.
+
 The guarded guest appearance path now retains its original asset-group name
 and rechecks it if loading was incomplete; it does not repeat
 `UpdateAppearance` for the same player and world. Before `ApplyAppearance`,
