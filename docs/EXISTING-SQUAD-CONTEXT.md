@@ -18,6 +18,16 @@ The guest process ended at its test deadline: in-game lease cleanup on an
 ordinary disconnect was not observed. No movement, firing, powers, mission
 travel or two-PC gameplay was verified by this run.
 
+A further same-PC run from `ed0a665` enabled the guest's local control panel.
+After acquisition, a disable request was acknowledged while still connected;
+the local SetPlayerPawn cleanup dispatched and both squad player caches were
+observed null, while Ashley retained her original squad link. The guest's
+normal disconnect and mission travel remain unverified. The first observer
+failed because Python requested unexported kernel32 interlocked symbols;
+a separate local atomic helper enabled the successful retry. Thus the
+coordinator's first-observer exit was nonzero even though the runner and
+retry completed and sandbox/profile cleanup was clean.
+
 Status: implemented candidate; live initialization did not verify in one
 ordinary pair. In that run, method dispatch returned, admission and identity
 checks passed, but `CachedPlayerPawn` remained different from the owned

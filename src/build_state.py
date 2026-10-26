@@ -9,7 +9,8 @@ def fingerprint(root):
     paths = [root / "build.py", *sorted((root / "src").glob("*.c")),
              *sorted((root / "src").glob("*.h"))]
     paths += [root / "local/build/ME3SquadCoopProbe.asi", root / "local/build/ME3SquadCoop.asi",
-              root / "local/build/sandbox_launch.exe", root / "local/build/MinHook-LICENSE.txt"]
+              root / "local/build/sandbox_launch.exe", root / "local/build/ME3PanelAtomic.dll",
+              root / "local/build/MinHook-LICENSE.txt"]
     paths += sorted(path for path in (root / "third_party/minhook").rglob("*") if path.is_file())
     return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
 

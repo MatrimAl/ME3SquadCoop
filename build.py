@@ -31,6 +31,7 @@ def main():
               ("buffer.c", "hook.c", "trampoline.c", "hde/hde64.c")],
             "-shared", "-lbcrypt", "-luser32", "-lws2_32"]),
         ("sandbox_launch.c", "sandbox_launch.exe", ["-municode", "-ladvapi32"]),
+        ("panel_atomic.c", "ME3PanelAtomic.dll", ["-shared"]),
     ]:
         command = [str(compiler), "cc", "-target", "x86_64-windows-gnu", "-std=c17", "-O2", "-Wall",
                    str(ROOT / "src" / source), "-o", str(output / filename), *extra]

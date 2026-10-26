@@ -1,8 +1,12 @@
 # Local session control panel candidate
 
-Status: native code compiled and Python syntax parsed. No panel, IPC integration,
-game or power order has been run for this change. The panel does not establish
-a verified player installation or playable campaign.
+Status: one private same-PC test exercised a panel disable command and native
+guest squad cleanup using a separate local atomic helper. The shipped panel
+client originally failed because kernel32 did not export the requested
+interlocked functions. The client now uses the separately built
+`local/build/ME3PanelAtomic.dll`; its atomic reservation and process identity
+checks passed locally. The final client/helper combination has not yet been
+tested in a live game, and this does not establish a playable campaign.
 
 The separate Windows/Tk panel gives an already running ordinary runtime a
 manual control surface: Host/Listen, Join, Retry join, Listen in new mission, enable/disable and a
@@ -28,7 +32,8 @@ protected validation resumes, the selected already owned game PID can be
 supplied with `python tools/session_panel.py --pid <PID>`. A missing mapping
 is an error, not a reason to launch or attach to some other game automatically.
 
-The panel requires a local Python installation with Tkinter and Windows ctypes.
+The panel requires a local Python installation with Tkinter and Windows ctypes,
+plus the atomic helper produced by `build.py` in `local/build`.
 No new dependencies are installed by the tool. Closing the panel closes its
 mapping/query handles and leaves the game running. Disable requests normal
 adapter cleanup; it does not unload the native DLL. Enable does not reinstall

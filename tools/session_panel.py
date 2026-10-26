@@ -2,7 +2,7 @@
 import argparse
 import ctypes as C
 from ctypes import wintypes as W
-from pathlib import PureWindowsPath
+from pathlib import Path, PureWindowsPath
 import tkinter as tk
 from tkinter import ttk
 
@@ -31,6 +31,11 @@ class Session:
             raise ValueError("Invalid PID")
         self.pid, self.process, self.mapping, self.view = pid, None, None, None
         self.kernel = C.WinDLL("kernel32", use_last_error=True)
+        self.interlocked = C.WinDLL(str(Path(__file__).resolve().parents[1] / "local/build/ME3PanelAtomic.dll"))
+        self.interlocked.PanelCompareExchange.argtypes = [C.POINTER(C.c_int32), C.c_int32, C.c_int32]
+        self.interlocked.PanelCompareExchange.restype = C.c_int32
+        self.interlocked.PanelExchange.argtypes = [C.POINTER(C.c_int32), C.c_int32]
+        self.interlocked.PanelExchange.restype = C.c_int32
         specifications = {
             "OpenProcess": ([W.DWORD, W.BOOL, W.DWORD], W.HANDLE),
             "OpenFileMappingW": ([W.DWORD, W.BOOL, W.LPCWSTR], W.HANDLE),
@@ -40,8 +45,6 @@ class Session:
             "WaitForSingleObject": ([W.HANDLE, W.DWORD], W.DWORD),
             "GetProcessTimes": ([W.HANDLE] + [C.POINTER(W.FILETIME)] * 4, W.BOOL),
             "QueryFullProcessImageNameW": ([W.HANDLE, W.DWORD, W.LPWSTR, C.POINTER(W.DWORD)], W.BOOL),
-            "InterlockedCompareExchange": ([C.POINTER(C.c_int32), C.c_int32, C.c_int32], C.c_int32),
-            "InterlockedExchange": ([C.POINTER(C.c_int32), C.c_int32], C.c_int32),
             "GetTickCount": ([], W.DWORD),
         }
         for name, (args, result) in specifications.items():
@@ -81,11 +84,11 @@ class Session:
             raise RuntimeError("Selected game process ended")
         sequence = self.atomic(Frame.sequence.offset)
         for _ in range(4):
-            before = self.kernel.InterlockedCompareExchange(sequence, 0, 0)
+            before = self.interlocked.PanelCompareExchange(sequence, 0, 0)
             if before & 1:
                 continue
             frame = Frame.from_buffer_copy(C.string_at(self.view, C.sizeof(Frame)))
-            after = self.kernel.InterlockedCompareExchange(sequence, 0, 0)
+            after = self.interlocked.PanelCompareExchange(sequence, 0, 0)
             if before != after or after & 1:
                 continue
             if (frame.magic, frame.version, frame.bytes, frame.pid, frame.created) != (
@@ -110,7 +113,7 @@ class Session:
         if code == 4 and (not scope or scope != frame.power_scope or not 0 <= index < frame.power_count):
             raise ValueError("Power selection expired")
         mailbox = self.atomic(Memory.command.offset)
-        if self.kernel.InterlockedCompareExchange(mailbox, -1, 0) != 0:
+        if self.interlocked.PanelCompareExchange(mailbox, -1, 0) != 0:
             raise RuntimeError("A command is pending")
         try:
             # The native consumer ignores -1 until the complete payload is committed.
@@ -124,10 +127,10 @@ class Session:
             if self.kernel.WaitForSingleObject(self.process, 0) != 258:
                 raise RuntimeError("Selected game process ended")
             C.c_uint32.from_address(self.view + Memory.sent_at.offset).value = self.kernel.GetTickCount()
-            self.kernel.InterlockedExchange(mailbox, code)
+            self.interlocked.PanelExchange(mailbox, code)
             return message_id
         except BaseException:
-            self.kernel.InterlockedExchange(mailbox, 0)
+            self.interlocked.PanelExchange(mailbox, 0)
             raise
 
     def close(self):
