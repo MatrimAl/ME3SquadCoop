@@ -1,5 +1,19 @@
 # Runtime integration status
 
+The ordinary initial-object observer run from `cb5960b` captured a readable
+null output from the first native reference decoder for channel9, followed by
+native receive changing flags1 to9 while Actor/Class remained null. Six
+separate paired channel snapshots identify that channel as current host
+Shepard's counterpart. This reproduces the earlier `d14faf7` decode-failure
+stage; it precedes the formed-player/null-mesh condition handled by the
+historical appearance experiment. Reference tag/index remain unavailable in
+this integration, so the underlying unresolved reference is still unknown.
+The old appearance path cannot act on a null Actor and has not been blindly
+enabled or replaced. Normal guest movement/camera remain owner-reported working.
+Native connection remained until the guest deadline, and terminal cleanup
+preserved original profiles, restored the sandbox base TOC byte-identical,
+removed temporary authored files and left no games/native exceptions/errors.
+
 The owner reported normal guest WASD movement and mouse camera working in the
 successful ordinary pair, but could not see host Shepard. Treat that as owner
 input evidence, not independently measured movement/combat. No input bootstrap
