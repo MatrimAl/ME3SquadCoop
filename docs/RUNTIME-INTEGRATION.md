@@ -1,5 +1,23 @@
 # Runtime integration status
 
+Follow-up read-only evidence from `f80fc88` shows the existing guest engine and
+SFXAsyncAssetLoader with matching object identities in standalone and connected
+samples; the four observed loader method entry RVAs and code bytes also matched.
+In this same pair Shepard's initial archetype reference returned null and six
+later guest channel snapshots lacked the actor. Another pair tracked the
+standalone player archetype and package until the native join request, then
+found their original object identities no longer live before a new archetype
+resolved. This indicates pre-travel object identity cannot be assumed to survive;
+it does not identify the unload mechanism or prove the failure branch.
+
+The shipped async asset loader is a possible retention path: its reflected
+request contains an asset path, class, alternate cooked package name and object
+reference, and selected native functions copy requests and expose or clear group
+contents. A stock script uses that group API and later clears its group. Whether
+an admitted group retains the correct dynamic player archetype through travel,
+how it is cleaned up, and whether its class/path agree with the host remain
+unverified. No new loader call or retention behavior is implemented here.
+
 A same-PC run from `284b314` left all four package/appearance preparation
 options unset. The host's stock preload dispatched, changed the observed morph
 GUID to the disk/cache GUID and opened the listener. The guest's stock
