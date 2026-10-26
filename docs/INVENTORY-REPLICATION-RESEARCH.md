@@ -453,3 +453,29 @@ game processes remained. The memory helper exited1 during cleanup, so not all
 helpers completed successfully. The overall runner verdict remained1 because
 broader lifecycle/connection requirements did not pass. Raw logs, recordings,
 source digests and corrected feature-review revision2 stay private.
+
+## Early named-call coverage
+
+The protected activation opt-in now also installs an opcode0x65 forwarder at
+the first admitted guest Tick, before equipment/channel readiness. Exact image,
+handler bytes at RVA0xe9e20 and the original opcode-table entry at RVA0x17f4ed8
+are checked before its atomic lease. Only the native pointer changes; the
+original handler still consumes its own name/slot and arguments unchanged.
+The observer does not invoke the native lookup helper or select another target.
+
+Logging is limited to ClientWeaponSet, name number0 and slot223, on the admitted
+game thread for the current locally possessed Ashley's equipped/instigated
+weapon in the current native world. Inventory readiness and a weapon actor
+channel are deliberately not required. Calls with missing local ownership or
+before the first Tick remain outside coverage. Marker/object discovery occurs
+only after the narrow name/slot filter, not for unrelated NamedFunction calls.
+Paired rows preserve parent function, class-table target, inventory, state,
+scope-stability readback and actual current native receive context. A class-table
+target is still not proof of the selected state override. A receive-context
+match is an observation of that callback stack, not general packet delivery.
+
+All three targets built. The actual early forwarder fixture and three compiled
+mutants passed/rejected respectively: double forwarding, wrong slot and a
+numbered name. All46 handler pin bytes were compared with the exact supported
+PE. This is offline forwarding/selection evidence; the first earlier live run
+did not include this opcode observer and cannot validate its runtime behavior.
