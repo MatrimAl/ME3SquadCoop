@@ -129,3 +129,22 @@ acceptance remains false. This candidate isolates the missing root TOC from
 other packaging changes. It has not been promoted into the existing archive
 or receipt-installer allowlist. A protected engine acceptance observation is
 required before treating this as the corrupt-DLC repair.
+
+
+## TOC-only engine result
+
+A protected ordinary pair installed the exact unchanged108-byte Mount plus
+its generated76-byte DLC-root TOC. Independent byte parsing also checked the
+TOC magic, bucket/entry bounds, Mount path and size. Guest video nevertheless
+reproduced the corrupt-content warning naming DLC_MOD_ME3SquadCoop after the
+ordinary join request. No native connection interval was observed. The missing
+TOC alone is therefore insufficient to explain or repair this candidate's
+rejection. The exact engine rejection branch remains unknown; coalesced/TLK
+requirements remain hypotheses, not justification for arbitrary added files.
+The candidate remains unaccepted and is not promoted to distribution.
+
+The test removed the temporary ASI, Mount and TOC, restored the probe gate,
+recorded original profiles unchanged and no native exception, and left no
+game process. Both window encoders exited0. This result does not invalidate
+the TOC format readback; it separates structural consistency from actual
+engine acceptance.
