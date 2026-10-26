@@ -61,7 +61,7 @@ static void *initial_object_forward(void *archive,void *output,uintptr_t caller)
         snprintf(row,sizeof row,"{\"initial_object_trace\":\"reference-inputs\",\"receive_event\":%u,\"channel_index\":%d,\"tag_known\":%s,\"tag\":%u,\"index_known\":%s,\"index\":%u,\"scalar_hooks_installed\":%s,\"output_null\":%s,\"payload_modified\":false,\"monotonic_ms\":%lu}\r\n",
             f->event,f->index,f->tag_known?"true":"false",f->tag,f->index_known?"true":"false",f->index_value,
 #ifdef ME3_INITIAL_OBJECT_ORDINARY
-            "false",
+            runtime_initial_reference_installed?"true":"false",
 #else
             inventory_reference_installed?"true":"false",
 #endif

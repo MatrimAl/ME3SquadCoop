@@ -9,6 +9,7 @@ static RuntimeRpcReceive runtime_rpc_receive_original;
 static uintptr_t runtime_rpc_receive_base;
 static DWORD runtime_rpc_receive_thread;
 static int runtime_rpc_receive_attempted,runtime_rpc_receive_installed;
+static int runtime_initial_reference_installed;
 #define ME3_INITIAL_OBJECT_ORDINARY
 #define initial_actor_trace_base runtime_rpc_receive_base
 #define initial_actor_trace_thread runtime_rpc_receive_thread
@@ -18,6 +19,7 @@ static int runtime_rpc_receive_attempted,runtime_rpc_receive_installed;
 #undef initial_actor_trace_thread
 #undef initial_actor_trace_installed
 #undef ME3_INITIAL_OBJECT_ORDINARY
+#include "runtime_initial_reference.h"
 static unsigned runtime_initial_receive_events;
 static void runtime_rpc_receive(void *self,void *bunch) {
     DWORD error=GetLastError();NativeRpcReceiveFrame frame;
@@ -68,7 +70,7 @@ static void runtime_rpc_receive_prepare(uintptr_t base) {
     if(opted<0){wchar_t value[8]={0};opted=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_AMMO_RECONCILE",value,8)==1&&value[0]==L'1';}
     if((opted&&runtime_control_enabled&&runtime_scope_ready)||
        (g_runtime_config.role==ME3_ROLE_GUEST&&initial_object_opted()&&runtime_control_enabled)) {
-        if(runtime_rpc_receive_install(base))initial_object_install(base);
+        if(runtime_rpc_receive_install(base)){initial_object_install(base);runtime_initial_reference_install(base);}
     }
 }
 #endif

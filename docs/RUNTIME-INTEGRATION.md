@@ -1,5 +1,17 @@
 # Runtime integration status
 
+The same initial-object opt-in now additionally observes the existing native
+one-bit reference tag and bounded index outputs. Exact scalar ABIs, two-slot
+installation pins and rollback policy are reused from the protected inventory
+reference observer; the ordinary adapter scopes them only to the already
+active initial-object decode and exact native caller addresses. It never reads
+or replays packet bits. Original arguments and outputs are forwarded once,
+with LastError preserved after observation; unrelated calls only forward.
+Three native targets built and the ordinary harness passed, including actual
+tag/index forwarding, caller filtering and output/error-state checks. Live
+tag/index results are pending. This does not enable appearance initialization
+or repair a null actor.
+
 The ordinary initial-object observer run from `cb5960b` captured a readable
 null output from the first native reference decoder for channel9, followed by
 native receive changing flags1 to9 while Actor/Class remained null. Six
