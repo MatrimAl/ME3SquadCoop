@@ -62,6 +62,15 @@ probe duration/packet timestamps before reviewing a take.
 
 ## Observation and readiness
 
+An owner-authorized protected Mars pair now has separate host/guest window
+recordings, joined copies, selected decoded frames and a private evidence
+review. The movement and weapon case manifests reference the same run;
+both remain partially reviewed, not passed. That run used native QA movement
+and firing controls, without computer-use input; it is not manual-play
+acceptance. The other four cases remain unstarted. See [validation](VALIDATION.md)
+for observed behavior and evaluator limits. The preparation-only description
+below records the tooling's original validation, before this actual run.
+
 During an actual authorized run, Codex can inspect snapshots or closed video
 segments at intervals and compare them to telemetry. This is intermittent
 observation, not uninterrupted model vision. Written observations should cite

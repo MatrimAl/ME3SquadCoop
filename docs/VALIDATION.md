@@ -1,5 +1,26 @@
 # Validation status
 
+A protected same-PC Mars pair was run from source revision `d0e0009` with
+separate window-only host/guest recordings. Selected frames decoded and were
+visually inspected; joined recordings probe as 960x540 H.264 at 30 fps, lasting
+about 371/245 seconds. Ownership was acquired, and one of four short firing
+pulses had paired stable post-release ammunition. The other pulses lacked
+sufficient post-release coverage; enemy damage remains unverified. The walking
+evaluator did not establish shared progression: route-wide vertical range and
+a stationary host phase rejected candidate intervals, with one falling sample
+also observed. This does not establish falling out of world. The original
+profile stayed unchanged, 8210 original files were locked through cleanup,
+no native exceptions were recorded, and no game processes remained. Powers,
+cover, Shift behavior, revive and real mission travel were not validated.
+Video/native clock alignment remains unproven. See [recording scope](FEATURE-REVIEW.md).
+
+The broad AGY research map was reviewed against existing retained analysis,
+SDK fields and authored sources. Useful lookup/instancing references were
+retained, while blanket completion, causal inventory repairs, raw stance-bit
+clearing, movement-shadow reseeding and guaranteed DLC acceptance claims were
+not accepted. No worker-proposed runtime repair was applied. See
+[research review boundaries](RESEARCH-REVIEW.md).
+
 A local world-service Actor/factory now holds coordinated revive setup for
 one pawn/token lifetime. Service preparation defers admission; separate
 activation is reserved for future peer agreement. Matching-token retirement
@@ -81,7 +102,7 @@ and playback remain unverified. No runtime call, game or tests ran. See
 An owner-run inventory worker produced one new nonempty Ghidra decompilation
 for lookup helper0xba520. Independent retained-receipt/report/current-source
 checks confirm79 unique requested entries/78 nonempty bodies across the five
-inventory batches, with0xda350 missing. The new helper's full-key comparison
+inventory batches, with 0xda350 missing. The new helper's full-key comparison
 narrows the insertion dependency; broader ownership, channel-recycling and
 scene-null causality claims remain unverified. No repair, game or tests ran.
 See [worker review boundaries](INVENTORY-REPLICATION-RESEARCH.md).
@@ -436,7 +457,7 @@ insufficient evidence. The fixture now uses unconditional runtime `CHECK`
 failures, and the driver requires an intentionally failing canary before it
 accepts positive cases. The missing inventory-only receive event was reproduced
 as a failing case, then passed after recording inventory/weapon changes.
-The default-off case and18 opt-in wrapper cases now pass with active checks.
+The default-off case and 18 opt-in wrapper cases now pass with active checks.
 These remain authored-memory tests, not proof of gameplay or packet delivery.
 
 The full-route rerun with stationary parking disabled reached waypoint8 and
