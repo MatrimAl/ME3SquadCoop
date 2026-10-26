@@ -76,4 +76,19 @@ the observer and captured two actual drained calls, both with null hit actors
 and zero hits. Their original forwarding completed with valid source scope.
 That experiment was interrupted before its final paired report. It establishes
 dispatch coverage in the retained logs, not target damage or a completed session.
-Real target health/shield observations and damage still require verification.
+A later completed retained pair provides stronger, separate evidence. Offline
+review found 33 paired drained calls, including 28 during the two-second aimed
+fire episode. Five calls bracketed valid host target health decreases across
+two targets; every pair retained source scope, target identity and reciprocal
+damage-module identity and returned from the original dispatch. One target
+also appeared in retained narrative bindings as a Trooper. Those bindings are
+contextual identity evidence, not a hostility predicate. The five decreases
+were about 28.95 and four times 11.58 health. All five occurred with NumHits=0,
+confirming that this value cannot be used as a miss verdict here.
+
+This supersedes any implication that the completed run contained no target
+health observations. It supports scoped host health decreases during selected
+Ashley weapon processing. Synchronous delegate effects, hostility, guest-side
+health replication and repeatability remain unresolved. Do not change aim,
+damage values or hit payloads on the assumption that this run applied no
+health loss. The earlier interrupted two-call run remains a separate result.
