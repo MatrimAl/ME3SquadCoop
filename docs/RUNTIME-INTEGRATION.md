@@ -1,5 +1,25 @@
 # Runtime integration status
 
+The next default-off candidate calls the shipped `SFXGame.LoadPackage` once
+for `BioChar_Player`, after the guest's ordinary readiness window and before
+native join travel. It reuses the host loader's exact reflected parameter
+contract, additionally pins the measured native entry RVA0xb6cfa0, and refreshes
+readiness after the call. No map, cached-object, role or actor field is written.
+Three native targets built and the ordinary no-game harness passed. Live
+results for this candidate are pending; it is not a startup or visibility fix
+until the retained channel/cache observations establish its effect.
+
+A further unchanged-code pair from `1847930` reproduced the failure and
+captured the existing static map on both peers. Both maps selected entry194,
+relative index1144, with matching GUID and object-count1352. All six paired
+post-receive snapshots found the host's cached archetype at that index and a
+null guest cache entry. The guest Shepard channel remained without an Actor.
+This narrows the missing-reference case, but post-receive observations alone
+do not prove which internal resolver branch ran during initial decode.
+The first private sampler called entry+8 a linker; exact-image constructor
+RVA0xc5470 shows entry+0 is the input object's FName and entry+8 is that object
+pointer. The raw evidence is preserved and subsequent sampler labels corrected.
+
 Two completed ordinary pairs from `8f2d10e` now distinguish the intermittent
 initial-object failure. Both forwarded a static reference (tag0) with index
 577545 for the channel independently mapped to host Shepard. In the first

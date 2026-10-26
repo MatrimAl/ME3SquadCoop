@@ -107,6 +107,7 @@ static int runtime_auto_rejoin_target_valid(const CombatContextChain *chain) {
 }
 #include "runtime_host_bootstrap.h"
 #include "runtime_host_package_preload.h"
+#include "runtime_guest_archetype_preload.h"
 #include "runtime_join_readiness.h"
 #include "runtime_join_diagnostics.h"
 #include "runtime_join_progress.h"
@@ -230,6 +231,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
         }
         return;
     }
+    if(!runtime_guest_archetype_preload(base,c)){runtime_join_window_reset();return;}
     wchar_t command[64];
     if(runtime_auto_rejoin_target.pointer&&runtime_peer_ready_required&&!runtime_peer_ready)return;
     if(!runtime_join_command(&g_runtime_config,command,64)||!runtime_join_console_abi(base,c.pc)) {

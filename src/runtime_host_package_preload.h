@@ -21,7 +21,7 @@ static uintptr_t runtime_host_morph_package(uintptr_t base) {
     }
     HeapFree(GetProcessHeap(),0,objects);return found;
 }
-static int runtime_host_package_preload_abi(uintptr_t base,uintptr_t fn) {
+static int runtime_package_load_abi(uintptr_t base,uintptr_t fn) {
     uint32_t flags=0;uint16_t bytes=0,result=0,native_index=0;unsigned char count=0;
     uintptr_t native=0,property=read_ptr(fn+0x70);char name[96];
     if(!is_live(base,fn)||!is_kind_of(base,fn,"Function")||!is_live(base,property)||
@@ -40,7 +40,7 @@ static int runtime_host_package_preload(uintptr_t base,SessionContext context) {
     if(runtime_host_package_preload_attempted)return runtime_host_package_preload_dispatched;
     uintptr_t game=read_ptr(context.world+0x6b0),fn=function_named(base,"SFXGame","LoadPackage");
     if(!session_actor_live(base,game)||!is_kind_of(base,game,"SFXGame")||
-       read_ptr(game+0x198)!=context.world||!runtime_host_package_preload_abi(base,fn)) {
+       read_ptr(game+0x198)!=context.world||!runtime_package_load_abi(base,fn)) {
         static int logged;if(!logged++)line("{\"runtime_network\":\"host-package-preload-wait\",\"reason\":\"game-or-native-api-contract\"}\r\n");
         return 0;
     }
