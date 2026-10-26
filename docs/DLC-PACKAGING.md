@@ -1,5 +1,34 @@
 # Native activation DLC packaging
 
+## Starter config runtime result and file-access observation
+
+A subsequent ordinary pair from revision `2c5c36b` used the pinned eight-asset
+starter config. Guest join dispatched with five samples/1000ms at world
+time68.380; an inspected guest80s frame again showed corrupt content naming
+this mod. No native connection interval was observed. Both recording encoders
+exited0; cleanup preserved the original profile, removed temporary authored
+files and left no game processes, native exceptions or cleanup errors. Full
+starter config alone did not fix engine rejection.
+
+Four selected native functions were exported from the retained read-only
+database, with terminal success and unchanged database hashes. Their static
+path constructs the named Default config, resolves it through the native file
+manager and opens/reads its bytes before marking config-loaded. An eligible
+record whose load fails is associated with the corruption-message ID. This
+does not prove which stage failed in either live run, or establish validation
+of the coalesced contents at that stage.
+
+The protected probe now supports default-off `ME3_SQUAD_COOP_DLC_IO_TRACE=1`
+only in guards-only mode. It observes the existing CreateFileW import guard
+after unchanged forwarding, and logs at most64 records for paths inside the
+independent copy's authored DLC. Records include requested path, open result,
+access/creation values, monotonic time and LastError (meaningful on failure).
+Arguments, return handle and LastError are preserved. Native file-manager
+cache lookups, other file APIs and early events before the log opens are not
+covered; missing rows are not proof of no engine request. Three targets built
+and the no-game native probe harness passed, including actual forwarding and
+opt-in/cap checks. The observer has not yet been exercised in-game.
+
 ## Latest English candidate result
 
 An ordinary-entry pair from revision `67d87b4` dispatched guest join after five

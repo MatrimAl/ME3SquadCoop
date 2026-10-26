@@ -79,6 +79,9 @@ probe.SquadProbeEnabled.argtypes = [ctypes.c_wchar_p]
 probe.SquadProbeEnabled.restype = ctypes.c_int
 with tempfile.TemporaryDirectory(dir=ROOT / "local") as tmp:
     folder = Path(tmp)
+    probe.SquadProbeDlcIoSelfTest.argtypes=[ctypes.c_wchar_p]
+    probe.SquadProbeDlcIoSelfTest.restype=ctypes.c_int
+    assert probe.SquadProbeDlcIoSelfTest(str(folder)) == 1, "DLC IO observer changed forwarding, LastError, opt-in scope or record budget"
     assert probe.SquadProbeEnabled(str(folder)) == 0
     (folder / ".me3-coop-sandbox.json").write_text("{}")
     assert probe.SquadProbeEnabled(str(folder)) == 0

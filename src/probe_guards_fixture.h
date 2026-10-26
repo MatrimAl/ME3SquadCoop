@@ -1,5 +1,37 @@
 #ifndef ME3_PROBE_GUARDS_FIXTURE_H
 #define ME3_PROBE_GUARDS_FIXTURE_H
+static LPCWSTR probe_io_expected_path;
+static unsigned probe_io_fixture_calls,probe_io_fixture_args;
+static HANDLE probe_io_fixture_result;
+static HANDLE WINAPI probe_io_fixture_open(LPCWSTR path,DWORD access,DWORD share,LPSECURITY_ATTRIBUTES sa,
+    DWORD creation,DWORD attributes,HANDLE template_file) {
+    ++probe_io_fixture_calls;
+    probe_io_fixture_args=path==probe_io_expected_path&&access==GENERIC_READ&&share==FILE_SHARE_READ&&
+        sa==NULL&&creation==OPEN_EXISTING&&attributes==FILE_ATTRIBUTE_NORMAL&&template_file==NULL;
+    SetLastError(ERROR_FILE_NOT_FOUND);return probe_io_fixture_result;
+}
+__declspec(dllexport) int SquadProbeDlcIoSelfTest(const wchar_t *folder) {
+    if(!folder||wcslen(folder)>MAX_PATH-90)return 0;
+    wchar_t saved_root[MAX_PATH],path[MAX_PATH];wcscpy(saved_root,root);wcscpy(root,folder);
+    FileW saved_file=original_file;int saved_trace=probe_dlc_io_trace,saved_only=probe_guards_only;
+    LONG saved_rows=probe_dlc_io_rows;HANDLE saved_log=log_file;log_file=INVALID_HANDLE_VALUE;
+    probe_dlc_io_trace=1;probe_guards_only=1;probe_dlc_io_rows=0;
+    _snwprintf(path,MAX_PATH,L"%ls\\BioGame\\DLC\\dlc_mod_me3squadcoop\\CookedPCConsole\\Mount.dlc",folder);
+    int ok=probe_dlc_io_selected(path)&&!probe_dlc_io_selected(L"Z:\\outside\\DLC_MOD_ME3SquadCoop\\Mount.dlc");
+    probe_guards_only=0;ok=ok&&!probe_dlc_io_selected(path);probe_guards_only=1;
+    probe_dlc_io_trace=0;ok=ok&&!probe_dlc_io_selected(path);probe_dlc_io_trace=1;
+    original_file=probe_io_fixture_open;probe_io_expected_path=path;probe_io_fixture_calls=0;
+    for(int i=0;i<2;++i) {
+        probe_io_fixture_result=i?(HANDLE)(uintptr_t)0x1234:INVALID_HANDLE_VALUE;
+        HANDLE result=private_file(path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+        ok=ok&&result==probe_io_fixture_result&&GetLastError()==ERROR_FILE_NOT_FOUND&&
+            probe_io_fixture_args&&probe_io_fixture_calls==(unsigned)i+1;
+    }
+    probe_dlc_io_rows=64;probe_dlc_io_record(path,INVALID_HANDLE_VALUE,2,GENERIC_READ,OPEN_EXISTING);
+    ok=ok&&probe_dlc_io_rows==65;
+    wcscpy(root,saved_root);original_file=saved_file;probe_dlc_io_trace=saved_trace;
+    probe_guards_only=saved_only;probe_dlc_io_rows=saved_rows;log_file=saved_log;return ok;
+}
 /* Actual import-guard code operates only on this allocated synthetic image. */
 static HRESULT WINAPI probe_guards_fixture_folder(HWND h,int f,HANDLE t,DWORD flags,LPWSTR out) {
     (void)h;(void)f;(void)t;(void)flags;(void)out;return E_INVALIDARG;

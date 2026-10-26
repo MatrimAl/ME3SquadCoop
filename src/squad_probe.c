@@ -23,6 +23,8 @@ static wchar_t root[MAX_PATH];
 static wchar_t documents[MAX_PATH];
 static char test_role[8] = "single";
 static int probe_guards_only=0,probe_private_guards_ready=0;
+static int probe_dlc_io_trace=0;
+static volatile LONG probe_dlc_io_rows;
 typedef HANDLE (WINAPI *MutexW)(LPSECURITY_ATTRIBUTES,BOOL,LPCWSTR);
 static MutexW original_mutex = NULL;
 static volatile LONG instance_mutex_isolations = 0;
@@ -87,6 +89,33 @@ static int private_capture_path(const wchar_t *path,wchar_t *out,size_t size) {
     int n=_snwprintf(out,size,L"%ls\\ME3SquadCoopRuntime\\captures\\%ls",root,name);
     return n>0&&(size_t)n<size&&path_inside_test(out);
 }
+/* Observe only this authored DLC through the existing sandbox CreateFileW
+ * import guard. This is not coverage of the native file-manager cache or all
+ * file APIs. A missing row never proves that the engine did not request it. */
+static int probe_dlc_io_selected(const wchar_t *path) {
+    if(!probe_dlc_io_trace||!probe_guards_only||!path||!path_inside_test(path))return 0;
+    const wchar_t *component=L"DLC_MOD_ME3SquadCoop";size_t n=wcslen(component);
+    for(const wchar_t *p=path;*p;++p) {
+        if((*p==L'\\'||*p==L'/')&&!_wcsnicmp(p+1,component,n)&&
+           (p[n+1]==L'\\'||p[n+1]==L'/'))return 1;
+    }
+    return 0;
+}
+static void probe_dlc_io_record(const wchar_t *path,HANDLE result,DWORD error,DWORD access,DWORD creation) {
+    if(!probe_dlc_io_selected(path)||InterlockedIncrement(&probe_dlc_io_rows)>64)return;
+    char utf8[3*MAX_PATH]={0},escaped[6*MAX_PATH]={0},row[7*MAX_PATH];
+    int length=WideCharToMultiByte(CP_UTF8,0,path,-1,utf8,sizeof utf8,NULL,NULL);
+    if(length<=0)return;
+    size_t j=0;
+    for(int i=0;i<length-1&&j+7<sizeof escaped;++i) {
+        unsigned char c=(unsigned char)utf8[i];
+        if(c=='\\'||c=='"'){escaped[j++]='\\';escaped[j++]=(char)c;}
+        else if(c<32){j+=(size_t)snprintf(escaped+j,sizeof escaped-j,"\\u%04x",c);}
+        else escaped[j++]=(char)c;
+    }
+    snprintf(row,sizeof row,"{\"dlc_file_open\":true,\"api\":\"CreateFileW-import\",\"requested_path\":\"%s\",\"opened\":%s,\"win32_error\":%lu,\"error_valid\":%s,\"access\":%lu,\"creation\":%lu,\"monotonic_ms\":%lu,\"forwarded_unchanged\":true}\r\n",escaped,result!=INVALID_HANDLE_VALUE?"true":"false",error,result==INVALID_HANDLE_VALUE?"true":"false",access,creation,GetTickCount());
+    line(row);
+}
 static HANDLE WINAPI private_file(LPCWSTR path, DWORD access, DWORD share, LPSECURITY_ATTRIBUTES sa,
                                   DWORD creation, DWORD attributes, HANDLE template_file) {
     DWORD writes = GENERIC_WRITE | GENERIC_ALL | DELETE | WRITE_DAC | WRITE_OWNER |
@@ -101,7 +130,11 @@ static HANDLE WINAPI private_file(LPCWSTR path, DWORD access, DWORD share, LPSEC
     if (((access & writes) || creation != OPEN_EXISTING) && !path_inside_test(path)) {
         blocked_path(path); SetLastError(ERROR_ACCESS_DENIED); return INVALID_HANDLE_VALUE;
     }
-    return original_file(path, access, share, sa, creation, attributes, template_file);
+    HANDLE result=original_file(path, access, share, sa, creation, attributes, template_file);
+    if(probe_dlc_io_trace) {
+        DWORD error=GetLastError();probe_dlc_io_record(path,result,error,access,creation);SetLastError(error);
+    }
+    return result;
 }
 static BOOL WINAPI private_directory(LPCWSTR path, LPSECURITY_ATTRIBUTES sa) {
     if (!path_inside_test(path)) {
@@ -643,6 +676,7 @@ static DWORD WINAPI observe(void *unused) {
     line(header);
     if(collision_baseline_qa_opted())line("{\"collision_baseline_qa\":true,\"route_stop\":\"second-host-acquisition\",\"guest_synthetic_input\":true,\"guest_input_policy\":\"existing-two-second-pulse-after-reacquisition\",\"guest_firing\":false,\"synthetic_scene\":true,\"reacquisition\":true,\"combat_tested\":false}\r\n");
     if(probe_guards_only)line("{\"guards_only_qa\":true,\"engine_bridge_disabled\":true,\"action_plan_ignored\":true,\"private_guards_ready\":true}\r\n");
+    if(probe_dlc_io_trace)line("{\"dlc_file_open_observer\":true,\"scope\":\"sandbox-authored-dlc-CreateFileW-import-only\",\"max_rows\":64,\"native_file_cache_observed\":false}\r\n");
     AddVectoredExceptionHandler(0, exception_observer);
     int bridge_installed = 0, pe_identity_logged = 0; LONG logged_blocks = -1, logged_isolations = 0;
     for (int tick = 0; tick < 140 && has_marker(root); ++tick) {
@@ -899,6 +933,8 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved) {
     if(!probe_configure_orchestration(probe_guards_only_environment())) {
         TerminateProcess(GetCurrentProcess(),87);return TRUE;
     }
+    wchar_t dlc_io_value[2]={0};
+    probe_dlc_io_trace=probe_guards_only&&GetEnvironmentVariableW(L"ME3_SQUAD_COOP_DLC_IO_TRACE",dlc_io_value,2)==1&&dlc_io_value[0]==L'1';
     HANDLE thread = CreateThread(NULL, 0, observe, NULL, 0, NULL);
     if (thread) CloseHandle(thread);
     return TRUE;
