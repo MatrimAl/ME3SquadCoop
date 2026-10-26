@@ -1,5 +1,19 @@
 # Existing native guest squad context
 
+In private ordinary fire-QA pair `ordinary-pair-2cb818ac63` from `e8c893d`,
+pressing before the original engine Tick allowed one recorded held Tick.
+The game's FireWeapon/StopFiringWeapon calls changed the input byte 0→1→0;
+the host and guest consumed counts both advanced from 0 to 19. The initial
+reserve was 210 and the final reserve was 180 on both peers; the last 20
+paired samples stayed at 19/180. The interval between press and release was
+about 2218ms despite the nominal 250ms timeout, because the next adapter
+observation was delayed. This is one bounded native-input/host-ammo observation,
+not a validated 250ms pulse, enemy hit, manual input, or campaign completion.
+The host launcher exited 0 rather than the runner's expected deadline exit124,
+so its aggregate exit was nonzero even though no runner failure was recorded;
+all observers exited0, sandbox TOC/profile cleanup succeeded, and no game or
+native exception remained.
+
 In follow-up same-PC pair `ordinary-pair-c5fbb1ba4d`, the guest's Ashley
 weapon pointer was initially empty and then resolved to a live SFX weapon;
 both peers had valid pawn/weapon ownership and inventory links. The private
