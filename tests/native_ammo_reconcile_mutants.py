@@ -23,3 +23,11 @@ if __name__ == "__main__":
         "host-keeps-expired-request": [("now-s->received_at>5000", "0")],
         "duplicate-extends-host-deadline": [("return m->channel==s->channel?2:0;", "{s->received_at=now;return m->channel==s->channel?2:0;}")],
     }, "ammo_reconcile_host.h", "SquadAmmoReconcileSelfTest")
+
+    check_mutations(args.zig.resolve(strict=True), {
+        "guest-requests-before-settle": [("now-s->quiet_at<250", "now-s->quiet_at<249")],
+        "guest-exceeds-retry-budget": [("s->attempts<3", "s->attempts<4")],
+        "guest-retries-expired-request": [("now-s->pending.sent_at>5000", "now-s->pending.sent_at>5001")],
+        "guest-reuses-request-sequence": [("|++*sequence", "|*sequence")],
+        "guest-exceeds-request-budget": [("*sequence>=64", "*sequence>64")],
+    }, "ammo_reconcile_guest.h", "SquadAmmoReconcileSelfTest")

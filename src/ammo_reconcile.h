@@ -1,6 +1,7 @@
 #ifndef ME3_AMMO_RECONCILE_H
 #define ME3_AMMO_RECONCILE_H
 #include "ammo_reconcile_host.h"
+#include "ammo_reconcile_guest.h"
 /* Research-only control messages over existing owner-PC native RPCs. Both
  * participants must opt in. Reserved messages are consumed before chat/UI.
  * Ordinary messages and outbound dispatch retain the original script entry.
@@ -13,8 +14,7 @@ static uintptr_t ammo_rpc_base;
 static int ammo_rpc_enabled=-1,ammo_rpc_attempted,ammo_rpc_installed;
 static unsigned ammo_rpc_events,ammo_rpc_sequences;
 typedef struct AmmoRpcState {
-    unsigned long generation;int have,used,spare,dirty;DWORD quiet,wait_log,retry;
-    unsigned retries;AmmoReconcilePending pending;
+    unsigned long generation;AmmoReconcileGuest guest;
     AmmoReconcileHost host;
 } AmmoRpcState;
 static AmmoRpcState ammo_rpc_state;
@@ -24,7 +24,7 @@ static int ammo_rpc_opted(void) {
     return ammo_rpc_enabled&&progress_enabled&&(test_action==5||test_action==6);
 }
 static void ammo_rpc_mark_local_activity(AmmoRpcState *state) {
-    ammo_reconcile_cancel_pending(&state->pending);state->dirty=1;state->quiet=0;
+    ammo_reconcile_guest_activity(&state->guest);
 }
 /* Called only from an independently validated native firing entry, before its
  * unchanged original call. No record budget grants or removes cancellation. */
@@ -89,16 +89,15 @@ static int ammo_rpc_receive(uintptr_t self,uintptr_t frame) {
         return 1;
     }
     int used=0,spare=0;char state[96]={0};int idle=ammo_rpc_idle(&used,&spare,state);
-    if(!ammo_reconcile_response_allowed(&t->pending,&m,s->generation,(unsigned)s->channel.index,now,idle,used,spare)){
-        if(t->pending.active&&m.request==t->pending.request){t->pending.active=0;t->dirty=1;t->quiet=0;}
+    if(!ammo_reconcile_response_allowed(&t->guest.pending,&m,s->generation,(unsigned)s->channel.index,now,idle,used,spare)){
+        if(t->guest.pending.active&&m.request==t->guest.pending.request){ammo_rpc_mark_local_activity(t);}
         ammo_rpc_log("rejected","stale-or-not-idle-response",m.request,used,spare);return 1;
     }
     int values[2]={m.spare,m.used},after[2]={0};SIZE_T written=0;
     int changed=used!=m.used||spare!=m.spare;
     int applied=!changed||(WriteProcessMemory(GetCurrentProcess(),(void*)(s->weapon.pointer+0x3b4),values,sizeof values,&written)&&written==sizeof values);
     applied=applied&&read_at(s->weapon.pointer+0x3b4,after,sizeof after)&&after[0]==m.spare&&after[1]==m.used;
-    t->pending.active=0;
-    if(applied){t->used=m.used;t->spare=m.spare;t->dirty=0;t->quiet=0;}
+    ammo_reconcile_guest_complete(&t->guest,&m,applied);
     ammo_rpc_log(applied?(changed?"applied":"already-matched"):"apply-unverified","native-owner-pc-response",m.request,m.used,m.spare);
     return 1;
 }
@@ -145,7 +144,7 @@ static void ammo_reconcile_tick(void) {
     ammo_rpc_install();if(!ammo_rpc_installed)return;
     AmmoWireScope *s=&ammo_wire_scope;AmmoRpcState *t=&ammo_rpc_state;DWORD now=GetTickCount();
     int used=0,spare=0;char state[96]={0};int idle=ammo_rpc_idle(&used,&spare,state);
-    if(t->generation!=s->generation){memset(t,0,sizeof *t);t->generation=s->generation;t->have=1;t->used=used;t->spare=spare;}
+    if(t->generation!=s->generation){memset(t,0,sizeof *t);t->generation=s->generation;}
     if(test_action==6){
         AmmoReconcileMessage reply={0};
         if(!ammo_reconcile_host_snapshot(&t->host,idle,used,spare,(unsigned)s->channel.index,now,&reply))return;
@@ -153,33 +152,27 @@ static void ammo_reconcile_tick(void) {
         if(sent)ammo_reconcile_host_sent(&t->host,&reply);
         return;
     }
-    if(t->used!=used||t->spare!=spare){t->used=used;t->spare=spare;ammo_rpc_mark_local_activity(t);}
-    if(!idle){t->quiet=0;t->pending.active=0;return;}
-    if(t->pending.active){
-        if(now-t->pending.sent_at>5000){t->pending.active=0;t->quiet=0;return;}
-        if(now-t->retry>=1000&&t->retries<3){AmmoReconcileMessage retry={L'Q',t->pending.request,t->pending.channel,0,0};ammo_rpc_send(0,&retry);t->retry=now;++t->retries;}
-        return;
+    AmmoReconcileMessage request={0};
+    int send=ammo_reconcile_guest_poll(&t->guest,(uint32_t)s->generation,(unsigned)s->channel.index,
+        idle,used,spare,now,&ammo_rpc_sequences,&request);
+    if(!send)return;
+    int sent=ammo_rpc_send(0,&request);
+    if(send==1){
+        ammo_rpc_log(sent?"requested":"send-unverified","settled-guest-weapon",request.request,used,spare);
+        if(!sent)ammo_reconcile_cancel_pending(&t->guest.pending);
     }
-    if(!t->dirty)return;
-    if(!t->quiet){t->quiet=now;return;}
-    if(now-t->quiet<250)return;
-    if(ammo_rpc_sequences>=64)return;
-    uint64_t id=((uint64_t)s->generation<<32)|++ammo_rpc_sequences;
-    AmmoReconcileMessage request={L'Q',id,(unsigned)s->channel.index,0,0};
-    t->pending=(AmmoReconcilePending){id,s->generation,(unsigned)s->channel.index,used,spare,1,now};t->retry=now;t->retries=1;
-    int sent=ammo_rpc_send(0,&request);ammo_rpc_log(sent?"requested":"send-unverified","settled-guest-weapon",id,used,spare);
-    if(!sent)t->pending.active=0;
+
 }
 static int ammo_rpc_fixture_calls;static void ammo_rpc_fixture_forward(void *a,void *b,void *c){(void)a;(void)b;(void)c;++ammo_rpc_fixture_calls;SetLastError(123);}
 static int ammo_rpc_selftest(void) {
     AmmoRpcExec saved=ammo_rpc_original;int installed=ammo_rpc_installed;DWORD error=GetLastError();
     ammo_rpc_installed=0;ammo_rpc_original=ammo_rpc_fixture_forward;ammo_rpc_fixture_calls=0;
     ammo_rpc_exec(NULL,NULL,NULL);int ok=ammo_rpc_fixture_calls==1&&GetLastError()==123;
-    AmmoRpcState activity={0};activity.pending.active=1;activity.quiet=100;
-    activity.pending.request=77;activity.pending.generation=3;
+    AmmoRpcState activity={0};activity.guest.pending.active=1;activity.guest.quiet_started=1;activity.guest.quiet_at=100;
+    activity.guest.pending.request=77;activity.guest.pending.generation=3;
     ammo_rpc_mark_local_activity(&activity);
-    ok=ok&&!activity.pending.active&&activity.dirty&&activity.quiet==0&&
-        activity.pending.request==77&&activity.pending.generation==3;
-    ammo_rpc_original=saved;ammo_rpc_installed=installed;SetLastError(error);return ok&&ammo_reconcile_protocol_selftest()&&ammo_reconcile_host_selftest();
+    ok=ok&&!activity.guest.pending.active&&activity.guest.dirty&&!activity.guest.quiet_started&&
+        activity.guest.pending.request==77&&activity.guest.pending.generation==3;
+    ammo_rpc_original=saved;ammo_rpc_installed=installed;SetLastError(error);return ok&&ammo_reconcile_protocol_selftest()&&ammo_reconcile_host_selftest()&&ammo_reconcile_guest_selftest();
 }
 #endif

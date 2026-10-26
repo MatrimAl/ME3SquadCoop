@@ -179,3 +179,41 @@ while firing, expired requests and duplicate deadline extension. These results
 verify the authored scheduler, not game traffic or ordinary-entry ammunition
 correction. No game was launched. The previous real-fire run remains evidence
 for its then-current protected source, not a live result for this refactoring.
+
+
+## Shared guest request scheduler
+
+`ammo_reconcile_guest.h` now owns the protected guest's sampled count state,
+250ms settling interval, pending request, retransmission schedule and local
+activity cancellation. Like the host scheduler it has no engine headers,
+network receive hook, research marker, logging or test-action dependency.
+The actual adapter still performs the native source/ownership checks, counter
+write and verified readback; the shared core cannot authenticate a packet or
+write any game object. Ordinary transport integration remains unfinished.
+
+New requests use the existing generation-plus-process-sequence identity and
+64-request bound. Retransmissions retain the same ID, occur at most once per
+second, and permit three total send attempts within the original five-second
+lifetime. Counter changes and nonidle observations cancel pending replies;
+changed generation/channel also invalidates an outstanding request. Lifecycle
+owners must still discard all state when the captured scope changes, while
+preserving the process sequence to prevent request ID reuse. Successful local
+write/readback completion clears dirty state; a failed application keeps the
+need for a fresh settled request. Timer state explicitly handles native tick0.
+
+All three targets built and the actual probe reconciliation self-test passed.
+Five additional deliberately broken guest-scheduler variants were rejected:
+premature send, excess retries, expired retry, reused sequence and excess new
+requests. A standalone authored-state fixture compiled only the protocol and
+host/guest headers and completed a simulated4-to3 request/response without
+engine headers or game memory. Its applied completion models the adapter's
+readback result; it is not proof of an actual write, packet or engine correction.
+No game ran for this refactoring. The earlier live correction belongs to its
+recorded source revision and has not been repeated for these shared cores.
+
+Standalone fixture, Windows with the existing Zig compiler:
+
+```powershell
+zig cc -target x86_64-windows-gnu -std=c17 -O2 tests/native_ammo_scheduler_fixture.c -o local/ammo-scheduler-fixture.exe
+& ./local/ammo-scheduler-fixture.exe
+```
