@@ -60,7 +60,10 @@ No existing game class/package was changed.
 Seven classes compiled without errors/warnings and with unchanged tracked
 inputs, in order: context, action, binding, animation, setup, service, factory.
 Package SHA-256:
-`45cb77bdf2ef592c8eb97ac088535e56559c5899d69f6c50c3fe6afbea873661`.
+`3013011e50500da6cb5af656ab11ab2894c0adf4dba8dccf22c990ea199e4d0b`.
+This is the script-only compilation. The separate
+[owner-derived asset package](REVIVE-ASSET-PACKAGE.md) has a different digest
+and an explicit factory-default animation anchor; it remains private.
 Earlier failed compiler directories remain unusable. The native candidate
 implements loaded class/default/function resolution and reflected argument
 packing, but actual ABI acceptance/factory invocation remain unobserved.

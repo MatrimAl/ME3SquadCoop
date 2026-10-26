@@ -2,6 +2,10 @@
 // limitation. It performs no package loading or peer/session authorization.
 class SFXSquadCoop_ReviveFactory extends Object;
 
+// Filled only by the private owner-asset derivation tool. A reflected CDO
+// reference supplies a normal package dependency and GC-visible anchor.
+var AnimSet ReviveAnimation;
+
 // Keep the returned service even after failed preparation: it can retain
 // pending cleanup. Runtime must inspect Status and retire the same token.
 static function Actor CreateFor(SFXPawn_PlayerParty Candidate,
@@ -14,6 +18,8 @@ static function Actor CreateFor(SFXPawn_PlayerParty Candidate,
         || Candidate.WorldInfo != Admission.WorldInfo
         || Candidate.WorldInfo != class'WorldInfo'.static.GetWorldInfo())
         return None;
+    if (LoadedSet == None)
+        LoadedSet = default.ReviveAnimation;
     Service = Candidate.Spawn(class'SFXSquadCoop_ReviveService', Admission);
     if (Service != None)
     {

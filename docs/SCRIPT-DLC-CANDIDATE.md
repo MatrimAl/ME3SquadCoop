@@ -5,6 +5,11 @@ revive script package. It is separate from the asset-free activation container
 in [DLC packaging](DLC-PACKAGING.md). The existing installer/release allowlist
 has not been expanded for its new components; it is not a validated install.
 
+The tool also accepts the distinct
+[owner-derived asset receipt](REVIVE-ASSET-PACKAGE.md). That candidate contains
+the selected animation closure and factory-default anchor in the same PCC;
+asset/distribution flags remain explicit and the output stays private.
+
 The tool accepts a successful private compile receipt, an existing Legendary
 Explorer directory and a fresh output below repository local/. It checks
 current compile inputs, diagnostics and package digest before copying, then
@@ -21,7 +26,7 @@ unusable even if some files were written.
 
 | Path under DLC_MOD_ME3SquadCoop | Content |
 | --- | --- |
-| CookedPCConsole/ME3SquadCoopActions.pcc | Byte-identical copy of the successful five-class compilation |
+| CookedPCConsole/ME3SquadCoopActions.pcc | Byte-identical copy of the selected successful script or private asset-derivation receipt |
 | CookedPCConsole/Default_DLC_MOD_ME3SquadCoop.bin | Newly authored minimal BioEngine config compiled by existing LEC |
 | CookedPCConsole/Mount.dlc | Reviewed108-byte LE3 mount layout, research priority5100 |
 | PCConsoleTOC.bin | LEC CreateDLCTOCForDirectory output, read back through TOCBinFile |
@@ -30,7 +35,8 @@ The config adds this DLC's seekfreepcpaths and engine.startuppackages
 dlcstartuppackage (type3) / dlcstartuppackagename (type0), using the compiled
 package's unchanged filename stem. The installed LEMP config was read offline
 for property names/types, and base Coalesced for the asset header. Input hashes
-remained unchanged. No LEMP configuration payload/assets were copied.
+remained unchanged. No LEMP configuration payload was copied. Only the optional
+owner-derived variant contains the selected animation assets.
 
 Only those three properties are authored. Their presence does not prove
 sufficient startup merging/loading. No whole game config, TLKs, copied GUIDs
@@ -53,9 +59,10 @@ engine opens Mount, merges config, loads the PCC, resolves imports, retains
 classes across travel or instantiates setup. No game install/deploy, package
 loading in the game, fixture or behavioral tests ran. Existing tool assemblies
 ran locally only to compile/read authored config and generate/read TOC. Native
-ASI sources did not change.
+ASI sources did not change during the original container-preparation step.
 
 Shared startup acceptance, per-peer dependencies, runtime setup ownership and
-pre-handoff retirement remain unfinished. Revive animation assets are not
-included. The prior corrupt-DLC report remains unexplained; this candidate
+pre-handoff retirement remain unfinished. The script-only variant contains no
+animation assets; the optional private derivation does. The prior corrupt-DLC
+report remains unexplained; this candidate
 does not prove a TOC/config fix for it or alter the validated release gates.

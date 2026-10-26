@@ -33,7 +33,7 @@ FEATURES = [
      ['Down one player, approach/use, interrupt an attempt, then complete a later attempt.'],
      ['Animation and duration on both peers; one authoritative revival.',
       'Cancelled use/death-timer state restores; recovered player can move, aim and act.'],
-     ['Shared package loading and runtime invocation.', 'Scoped class/animation admission on both peers.',
+     ['Engine startup loading and actual service invocation on both peers.', 'Scoped class/animation admission on both peers.',
       'Retirement before scene/control handoff; native deferred cleanup.']),
     ('06-scenes-travel', 'native-candidate',
      ['Complete real dialogue/cinematic, then move and fight.', 'Later change mission or reload.'],
@@ -77,8 +77,16 @@ def main():
     if not receipt_path.is_relative_to(private):
         parser.error('Use a private repository compile receipt.')
     receipt = json.loads(receipt_path.read_text(encoding='utf-8-sig'))
-    if receipt.get('Status') != 'compiled-not-installed' or receipt.get('InputsUnchanged') is not True:
+    owner_assets = receipt.get('Status') == 'compiled-with-owner-assets-not-installed'
+    if receipt.get('Status') not in ('compiled-not-installed', 'compiled-with-owner-assets-not-installed') or receipt.get('InputsUnchanged') is not True:
         raise RuntimeError('Unusable script receipt')
+    if owner_assets and (receipt.get('ContainsOwnerGameAssets') is not True or
+            receipt.get('DistributionAllowed') is not False or
+            receipt.get('ScriptExecutableExportsPreserved') is not True or
+            receipt.get('FactoryAnchorInjected') is not True or
+            receipt.get('CompressedSequencePreserved') is not True or receipt.get('RelinkErrors') or
+            receipt.get('AssetContract', {}).get('AnimSet') != 'ME3SquadCoopActions.ReviveAnimSet'):
+        raise RuntimeError('Unusable private owner-asset derivation')
     for row in receipt['Classes']:
         if row.get('HasErrors') or row.get('Errors') or row.get('Warnings'):
             raise RuntimeError('Script diagnostics must be reviewed before staging')
@@ -127,6 +135,7 @@ def main():
         'ffmpeg': {'path': str(ffmpeg), 'sha256': sha(ffmpeg),
                    'capture_started': False, 'window_binding': 'required-before-recording'},
         'game_executed': False, 'tests_run': False, 'installed': False,
+        'contains_owner_game_assets': owner_assets, 'distribution_allowed': False,
         'note': 'These are review candidates. Staging is not activation, recording or gameplay evidence.'})
     print(json.dumps({'status': 'staged-not-installed', 'directory': str(output),
                       'feature_cases': len(FEATURES), 'recording_started': False}))

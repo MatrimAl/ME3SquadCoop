@@ -7,7 +7,7 @@ typedef struct {
     uint32_t bool_mask[6];
 } RuntimeReviveLayout;
 typedef struct {
-    GuestCameraStamp factory,cdo,service_class,create,status,retire,handoff,destroy;
+    GuestCameraStamp factory,cdo,service_class,create,status,retire,handoff,destroy,animset;
 } RuntimeReviveApi;
 typedef struct {
     GuestCameraStamp pc,pawn,world,service;
@@ -46,27 +46,29 @@ static int runtime_revive_path(uintptr_t base,uintptr_t object,const char *path)
  * filename, short owner name or stale cache cannot authorize a call. */
 static int runtime_revive_find_classes(uintptr_t base,RuntimeReviveApi *api) {
     static const char *names[]={"SFXSquadCoop_ReviveFactory","Default__SFXSquadCoop_ReviveFactory",
-        "SFXSquadCoop_ReviveService"};
+        "SFXSquadCoop_ReviveService","ReviveAnimSet"};
     static const char *paths[]={"ME3SquadCoopActions.SFXSquadCoop_ReviveFactory",
         "ME3SquadCoopActions.Default__SFXSquadCoop_ReviveFactory",
-        "ME3SquadCoopActions.SFXSquadCoop_ReviveService"};
-    GuestCameraStamp *outputs[]={&api->factory,&api->cdo,&api->service_class};int found[3]={0};
+        "ME3SquadCoopActions.SFXSquadCoop_ReviveService","ME3SquadCoopActions.ReviveAnimSet"};
+    GuestCameraStamp *outputs[]={&api->factory,&api->cdo,&api->service_class,&api->animset};int found[4]={0};
     GameArray objects={0};uintptr_t *snapshot=identity_object_list(base,&objects);
     if(!snapshot)return 0;
     int valid=1;
     for(int i=0;i<objects.count&&valid;++i) {
         uintptr_t object=snapshot[i];char text[96];
         object_name(base,object,text,sizeof text);
-        for(unsigned j=0;j<3;++j) {
+        for(unsigned j=0;j<4;++j) {
             if(strcmp(text,names[j]))continue;
             GuestCameraStamp stamp;
             if(guest_camera_stamp_read(base,object,&stamp,1)&&!strcmp(stamp.full_name,paths[j])) {
-                if(found[j]++){valid=0;break;}
+                if(found[j]++&&j<3){valid=0;break;}
                 *outputs[j]=stamp;
             }
         }
     }
     HeapFree(GetProcessHeap(),0,snapshot);
+    if(found[3]!=1||!runtime_revive_path(base,api->animset.klass,"Engine.BioDynamicAnimSet")||
+       !is_kind_of(base,api->animset.pointer,"AnimSet"))memset(&api->animset,0,sizeof api->animset);
     return valid&&found[0]==1&&found[1]==1&&found[2]==1;
 }
 static int runtime_revive_method(uintptr_t base,const GuestCameraStamp *owner,const char *name,
@@ -131,17 +133,21 @@ static int runtime_revive_layout(uintptr_t base,const GuestCameraStamp *fn,uintp
 }
 static int runtime_revive_resolve(uintptr_t base,RuntimeReviveApi *api) {
     static DWORD last_scan;
+    DWORD now=GetTickCount();
     if(runtime_revive_api_cached) {
         RuntimeReviveApi *saved=&runtime_revive_cached_api;
         if(guest_camera_stamp_matches(base,&saved->factory,1)&&guest_camera_stamp_matches(base,&saved->cdo,1)&&
            guest_camera_stamp_matches(base,&saved->service_class,1)&&guest_camera_stamp_matches(base,&saved->create,1)&&
            guest_camera_stamp_matches(base,&saved->status,1)&&guest_camera_stamp_matches(base,&saved->retire,1)&&
            guest_camera_stamp_matches(base,&saved->handoff,1)&&guest_camera_stamp_matches(base,&saved->destroy,1)) {
-            *api=*saved;return 1;
+            if(saved->animset.pointer&&!guest_camera_stamp_matches(base,&saved->animset,1))
+                memset(&saved->animset,0,sizeof saved->animset);
+            /* Missing animation must not prevent retiring an existing service.
+             * Discover a later-loaded asset on the normal bounded cadence. */
+            if(saved->animset.pointer||(last_scan&&now-last_scan<5000)){*api=*saved;return 1;}
         }
         runtime_revive_api_cached=0;
     }
-    DWORD now=GetTickCount();
     if(last_scan&&now-last_scan<5000)return 0;
     last_scan=now;
     memset(api,0,sizeof *api);RuntimeReviveLayout layout;
@@ -244,6 +250,10 @@ static void runtime_revive_prepare_tick(uintptr_t base,uintptr_t engine,SessionC
         if(q->last_status!=-2){q->last_status=-2;runtime_revive_note("loaded-contract-unavailable",-2);}
         return;
     }
+    if(!api.animset.pointer||!guest_camera_stamp_matches(base,&api.animset,1)) {
+        if(q->last_status!=-3){q->last_status=-3;runtime_revive_note("owned-animation-unavailable",-3);}
+        return;
+    }
     GuestCameraStamp pc,pawn,world;
     if(!guest_camera_stamp_read(base,c.pc,&pc,1)||!guest_camera_stamp_read(base,c.pawn,&pawn,1)||
        !guest_camera_stamp_read(base,c.world,&world,1)||!runtime_revive_current_world(base,engine,&world)||
@@ -251,12 +261,14 @@ static void runtime_revive_prepare_tick(uintptr_t base,uintptr_t engine,SessionC
     q->pc=pc;q->pawn=pawn;q->world=world;q->registration=registration;q->token=++runtime_revive_serial;
     q->attempted=1;q->retiring=0;q->last_status=-1;
     memcpy(params+layout.offset[0],&c.pawn,8);memcpy(params+layout.offset[1],&c.pc,8);
+    memcpy(params+layout.offset[2],&api.animset.pointer,8);
     memcpy(params+layout.offset[3],&q->token,4);
-    /* LoadedSet=None and presentation=false. No guessed asset or package load.
-     * Setup can prepare only if the mesh already resolves its animation. */
+    /* Only the exact already-loaded owner-derived set is supplied. Setup
+     * validates its unique sequence and registration; no loader is called. */
     if(!guest_player_context_registered_for(c.pc,c.pawn)||
        guest_player_context_registration_token()!=registration||
        !guest_player_context_basic_owned(base,c.pc,c.pawn,c.world)||
+       !guest_camera_stamp_matches(base,&api.animset,1)||
        !runtime_revive_dispatch(base,engine,&q->world,&api.cdo,&api.create,params))return;
     uintptr_t created=0;memcpy(&created,params+layout.offset[5],8);
     if(!created){runtime_revive_note("factory-returned-none",0);return;}

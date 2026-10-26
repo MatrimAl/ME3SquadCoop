@@ -1,5 +1,18 @@
 # Validation status
 
+A private owner-derived package now combines seven compiled script classes
+with one CB_MP_Revive animation closure and a reflected factory-default anchor.
+Ten asset exports were added without porting a pawn, mesh, world or game class.
+Saved readback preserved executable script data, original names/imports,
+compressed animation bytes, bone metadata and the one-sequence native map;
+tracked inputs stayed unchanged and relinker reports were empty. Native
+preparation now waits for and supplies that exact already-loaded set. Three
+native targets built and seven scripts compiled without errors/warnings.
+No game, installation, fixture, playback or actual runtime loading was
+observed. Skeleton/Foley compatibility and peer agreement remain unverified;
+the generated asset package is private and nonredistributable. See
+[owner-asset package](REVIVE-ASSET-PACKAGE.md).
+
 A default-off ordinary-guest revive preparation bridge now contains exact
 loaded identity resolution, reflected parameter validation/packing, one factory
 attempt per admitted context and retained status/retirement polling. It never

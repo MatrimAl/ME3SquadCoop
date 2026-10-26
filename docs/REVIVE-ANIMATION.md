@@ -1,9 +1,12 @@
 # Revive animation and class availability
 
 Offline package reads located the authored action's CB_MP_Revive animation in
-two selected installed LEMP player packages. The animation is not currently
-loaded or assigned by this mod. No animation assets were copied, installed or
-added to the public repository.
+two selected installed LEMP player packages. A new
+[private owner-derived package](REVIVE-ASSET-PACKAGE.md) now contains that one
+clip and its dependency closure, anchored to the authored factory default.
+Actual loading/assignment remains unobserved. No generated assets were
+installed or added to the public repository. The sections below retain the
+earlier investigation and its revision-specific evidence.
 
 ## Concrete asset chain
 

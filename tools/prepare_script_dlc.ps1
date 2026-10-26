@@ -19,7 +19,9 @@ while($dlcAncestor){
 $dlcReceiptPath=(Resolve-Path -LiteralPath $CompileReceipt).Path
 if(!$dlcReceiptPath.StartsWith($dlcPrivate,[StringComparison]::OrdinalIgnoreCase)){throw 'Private repository receipt required'}
 $dlcReceipt=Get-Content -LiteralPath $dlcReceiptPath -Raw|ConvertFrom-Json
-if($dlcReceipt.Status -ne 'compiled-not-installed' -or !$dlcReceipt.InputsUnchanged -or !$dlcReceipt.Classes.Count){throw 'Unusable compile receipt'}
+$dlcOwnerAssets=$dlcReceipt.Status -eq 'compiled-with-owner-assets-not-installed'
+if($dlcReceipt.Status -notin @('compiled-not-installed','compiled-with-owner-assets-not-installed') -or !$dlcReceipt.InputsUnchanged -or !$dlcReceipt.Classes.Count){throw 'Unusable package receipt'}
+if($dlcOwnerAssets -and ($dlcReceipt.ContainsOwnerGameAssets -ne $true -or $dlcReceipt.DistributionAllowed -ne $false -or !$dlcReceipt.ScriptExecutableExportsPreserved -or !$dlcReceipt.FactoryAnchorInjected -or !$dlcReceipt.CompressedSequencePreserved -or $dlcReceipt.RelinkErrors.Count -or $dlcReceipt.AssetContract.AnimSet -ne 'ME3SquadCoopActions.ReviveAnimSet')){throw 'Unusable private owner-asset derivation'}
 foreach($dlcClass in $dlcReceipt.Classes){if($dlcClass.HasErrors -or $dlcClass.Errors.Count -or $dlcClass.Warnings.Count){throw 'Unreviewed compiler diagnostics'}}
 foreach($dlcInput in $dlcReceipt.InputsAfter.PSObject.Properties){if((Get-FileHash -LiteralPath $dlcInput.Name -Algorithm SHA256).Hash -ne $dlcInput.Value){throw 'Compile input changed'}}
 $dlcPackage=(Resolve-Path -LiteralPath $dlcReceipt.Package).Path
@@ -46,7 +48,8 @@ $dlcRoot=Join-Path $dlcOutput 'DLC_MOD_ME3SquadCoop'
 $dlcCooked=Join-Path $dlcRoot 'CookedPCConsole'
 $null=New-Item -ItemType Directory -Path $dlcCooked
 $dlcStatus=[ordered]@{Status='preparing';GameExecuted=$false;TestsRun=$false;Installed=$false;EngineAccepted=$false;RuntimeInvoked=$false;
- CompileReceipt=$dlcReceiptPath;PackageSHA256=$dlcReceipt.PackageSHA256;ToolSHA256=$dlcAssemblyHash;InputsUnchanged=$false}
+ CompileReceipt=$dlcReceiptPath;PackageSHA256=$dlcReceipt.PackageSHA256;ToolSHA256=$dlcAssemblyHash;InputsUnchanged=$false;
+ ContainsOwnerGameAssets=$dlcOwnerAssets;DistributionAllowed=$false}
 try {
  $dlcCopy=Join-Path $dlcCooked ($dlcName+'.pcc')
  Copy-Item -LiteralPath $dlcPackage -Destination $dlcCopy

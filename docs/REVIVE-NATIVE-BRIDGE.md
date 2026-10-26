@@ -10,9 +10,12 @@ The candidate requires an enabled, transport-scoped ordinary guest session,
 registered reciprocal local party-pawn ownership and the current native world.
 It resolves unique full identities for the already loaded factory class,
 factory default object and service class under `ME3SquadCoopActions`. It does
-not load packages or animations. The initial call supplies LoadedSet=None and
-presentation=false: preparation can succeed only if the pawn mesh already
-resolves the required animation. Shared asset availability remains unfinished.
+not load packages or animations. It now also resolves the exact already-loaded
+`ME3SquadCoopActions.ReviveAnimSet` from the
+[private owner-derived package](REVIVE-ASSET-PACKAGE.md), checks its native
+Engine.BioDynamicAnimSet class, and supplies it with presentation=false. Missing
+animation delays preparation without blocking retirement of an existing
+service. Startup loading and shared runtime availability remain unverified.
 
 ## Reflected call boundary
 
