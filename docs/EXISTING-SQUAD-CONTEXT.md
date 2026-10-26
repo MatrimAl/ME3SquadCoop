@@ -1,5 +1,15 @@
 # Existing native guest squad context
 
+Following that startup race, `4e4fcce` requires a sampled 1.5-second empty
+squad window before creating a guest-local squad, resetting on ownership,
+eligibility, squad presence or a sampling gap over one second. In one same-PC
+run the replicated squad arrived and the existing-squad path registered it;
+the prior replacement race did not recur in that run. This is sampled evidence,
+not a guarantee that a later native squad cannot replace a created one. The
+guest-action observer could not verify foreground window activation and exited
+without sending input. The runner cleaned up successfully, but the observer's
+exit was nonzero. Movement and firing therefore remain unverified.
+
 An ordinary pair from `f5f8f74` connected but reached a different startup
 ordering: the world squad slot was empty, so the created-squad path briefly
 registered a local squad and obtained a positive combat getter. Within one
