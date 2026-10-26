@@ -8,7 +8,9 @@ distribution/installer contract described here.
 A protected test has now received an owner-reported corrupt-DLC dialog naming
 `DLC_MOD_ME3SquadCoop`. The screenshot did not capture process attribution.
 **The Mount-only activation container is not an engine-validated package and
-must not be distributed as a working install.** The completed test removed it.
+must not be distributed as a working install.** The completed test removed it. A later PID-bound guest recording reproduced
+the same named warning after ordinary join; a readiness delay did not resolve
+package acceptance.
 
 Read-only native review confirms the authored Mount versions and priority fit
 the supported reader; its complete byte layout also matches the official LE3
@@ -102,3 +104,28 @@ and receipt rollback on owned synthetic targets verify those specific contracts.
 They do not establish actual Mod Manager import, engine DLC mounting, native
 activation/disable during a real session, usable campaign co-op, or Radmin play.
 Those gates remain false in generated candidate manifests.
+
+
+## Offline TOC-only isolation candidate
+
+`tools/prepare_activation_dlc.ps1` stages an asset-free candidate containing
+only the existing Mount and a DLC-root PCConsoleTOC.bin. It uses the already
+installed LegendaryExplorerCore TOC generator and reads the result back, requiring
+exactly one CookedPCConsole\Mount.dlc entry of108bytes. A separate project
+reader/byte comparison confirmed the staged Mount is identical to
+make_activation_mount(); its versions, priority, flags and reserved bytes are
+unchanged. No startup PCC, config, TLK or owner game asset is added.
+
+```powershell
+& tools/prepare_activation_dlc.ps1 -LegendaryExplorerPath C:\Tools\LegendaryExplorer `
+  -OutputDirectory C:\ResearchRepo\local\activation-dlc\toc-candidate
+```
+
+PowerShell7 and a fresh directory below this checkout's local/ are required.
+Existing outputs and reparse ancestors are rejected. The receipt records file
+sizes/digests, tool identity and prepared-not-installed status. Failed outputs
+retain failed status. The tool never installs or launches a game; engine
+acceptance remains false. This candidate isolates the missing root TOC from
+other packaging changes. It has not been promoted into the existing archive
+or receipt-installer allowlist. A protected engine acceptance observation is
+required before treating this as the corrupt-DLC repair.
