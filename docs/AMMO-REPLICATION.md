@@ -245,3 +245,33 @@ receive-before-poll retention, pending reply invalidation, activity retention,
 new request identity after a scope change, and explicit scope loss. These are
 authored-state checks, not native callback ordering, network delivery or game
 memory evidence. No game ran, and ordinary reconciliation remains unfinished.
+
+## Shared native weapon scope
+
+`native_ammo_scope.h` now provides the read-only local ownership predicate used
+by the protected wire/reconciliation adapter. It retains reciprocal controller,
+pawn, equipped weapon, owner/instigator, current world, driver, actor channel,
+connection table and package-map checks. The host additionally requires the
+remote controller's Player connection to match the weapon channel connection.
+Role, nonzero generation/epoch and the expected native object kinds are checked.
+Captured driver, connection, actor-channel and package-map object stamps now
+supplement address/table checks; a still-live slot with a changed object name
+must not silently inherit an older scope. These stamps do not establish a
+universal engine serial number or a shared identity across two peers.
+
+The shared predicate contains no research marker, trace budget, logger or
+test-action selection. The protected wrapper still requires its existing
+research marker; scope discovery and exact reflected ammo-property validation
+remain in the protected adapter. A future ordinary caller must provide its
+own current session/ownership and game-thread admission. This extraction does
+not install ordinary hooks, authenticate incoming RPCs or authorize a write.
+
+All three native targets built. The actual probe channel/scope fixture and
+reconciliation self-test passed. Synthetic native memory checks cover broken
+reciprocal ownership, an unequipped weapon, world/connection/map changes,
+changed captured channel index, invalid generation/epoch, role mismatch and
+changed object index/name for each captured scope object. Three compiled
+mutants were rejected: omitting the equipped-weapon link, omitting the host
+controller connection check, and omitting the captured package-map stamp.
+The fixtures modify only their allocated test memory. No game ran; there is
+no new live movement, weapon-switch or ordinary-connection result.

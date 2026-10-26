@@ -438,6 +438,7 @@ static int native_session_role(void) {return test_action;}
 #include "guest_equipment_bootstrap.h"
 #include "ammo_change_trace.h"
 #include "ammo_wire_trace.h"
+#include "native_ammo_scope_selftest.h"
 #include "ammo_reconcile.h"
 #include "fire_rpc_trace.h"
 #include "native_fire_trace.h"

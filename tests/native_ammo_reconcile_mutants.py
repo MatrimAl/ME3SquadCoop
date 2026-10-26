@@ -37,3 +37,9 @@ if __name__ == "__main__":
         "scope-change-keeps-old-state": [("*s=(AmmoReconcileState){0};", "")],
         "missing-scope-admitted": [("return generation!=0;", "return 1;")],
     }, "ammo_reconcile_state.h", "SquadAmmoReconcileSelfTest")
+
+    check_mutations(args.zig.resolve(strict=True), {
+        "scope-keeps-unequipped-weapon": [("read_ptr(s->pawn.pointer+0x41c)==s->weapon.pointer&&", "")],
+        "scope-ignores-host-owner-connection": [("(!host||read_ptr(s->pc.pointer+0x67c)==ch.connection)", "1")],
+        "scope-keeps-recycled-package-map": [("guest_camera_stamp_matches(s->base,&s->package_map,0)&&", "")],
+    }, "native_ammo_scope.h", "SquadNetworkActorSelfTest")

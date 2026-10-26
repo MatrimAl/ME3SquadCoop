@@ -9,12 +9,8 @@
  * Encoding is not delivery. Decode alone is not proof of final application.
  */
 typedef int (*AmmoWireSerialize)(void*,void*,void*,void*);
-typedef struct AmmoWireScope {
-    uintptr_t base,map;unsigned long generation,epoch;
-    GuestCameraStamp pc,pawn,weapon,world,properties[2];
-    NetworkActorIdentityEntry channel;
-    int ready;
-} AmmoWireScope;
+#include "native_ammo_scope.h"
+typedef NativeAmmoScope AmmoWireScope;
 typedef struct AmmoWireReceive {
     struct AmmoWireReceive *previous;
     uintptr_t channel;
@@ -38,19 +34,7 @@ static int ammo_wire_take(void) {
     return 0;
 }
 static int ammo_wire_scope_valid(void) {
-    AmmoWireScope *s=&ammo_wire_scope;NetworkActorIdentityEntry ch={0};NetworkActorScope world;
-    return s->ready&&has_marker(root)&&guest_camera_stamp_matches(s->base,&s->pc,0)&&
-        guest_camera_stamp_matches(s->base,&s->pawn,0)&&guest_camera_stamp_matches(s->base,&s->weapon,0)&&
-        guest_camera_stamp_matches(s->base,&s->world,0)&&
-        read_ptr(s->pc.pointer+0x3bc)==s->pawn.pointer&&read_ptr(s->pawn.pointer+0x374)==s->pc.pointer&&
-        read_ptr(s->pawn.pointer+0x41c)==s->weapon.pointer&&read_ptr(s->weapon.pointer+0x180)==s->pawn.pointer&&
-        read_ptr(s->weapon.pointer+0x190)==s->pawn.pointer&&read_ptr(s->weapon.pointer+0x198)==s->world.pointer&&
-        read_ptr(s->pc.pointer+0x198)==s->world.pointer&&read_ptr(s->pawn.pointer+0x198)==s->world.pointer&&
-        network_actor_read_scope(s->base,s->weapon.pointer,&world)&&world.info==s->world.pointer&&world.driver==s->channel.driver&&
-        network_actor_channel_valid(s->base,s->weapon.pointer,s->channel.channel,s->channel.driver,&ch)&&
-        ch.connection==s->channel.connection&&ch.index==s->channel.index&&
-        read_ptr(ch.connection+0xf0)==s->map&&is_live(s->base,s->map)&&
-        (test_action!=6||read_ptr(s->pc.pointer+0x67c)==ch.connection);
+    return has_marker(root)&&native_ammo_scope_valid(&ammo_wire_scope,test_action==6);
 }
 static int ammo_wire_property(uintptr_t base,uintptr_t prop,int field,GuestCameraStamp *stamp) {
     int32_t offset=-1,dim=0,size=0;uint64_t flags=0;uint16_t rep[2]={0};
@@ -95,6 +79,10 @@ static void ammo_wire_prepare(uintptr_t base) {
     for(unsigned i=0;i<4;++i)if(network_actor_identity_cache[i].base==base&&network_actor_identity_cache[i].pawn==t->weapon.pointer)ch=network_actor_identity_cache[i];
     if(!ch.channel||!ammo_wire_properties(base,t->weapon.pointer,s->properties))return;
     uintptr_t map=read_ptr(ch.connection+0xf0);if(!is_live(base,map)||!is_kind_of(base,map,"PackageMap"))return;
+    if(!guest_camera_stamp_read(base,ch.driver,&s->driver,0)||
+       !guest_camera_stamp_read(base,ch.connection,&s->connection,0)||
+       !guest_camera_stamp_read(base,ch.channel,&s->actor_channel,0)||
+       !guest_camera_stamp_read(base,map,&s->package_map,0))return;
     s->base=base;s->pc=t->pc;s->pawn=t->pawn;s->weapon=t->weapon;s->world=t->world;s->epoch=t->epoch;
     s->map=map;s->channel=ch;++s->generation;s->ready=1;
     if(!ammo_wire_scope_valid()){s->ready=0;return;}

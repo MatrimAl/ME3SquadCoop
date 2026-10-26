@@ -2,23 +2,24 @@
 #define ME3_NETWORK_ACTOR_IDENTITY_SELFTEST_H
 /* Synthetic memory only. No game starts and no engine object is changed. */
 static int guest_player_context_channel(uintptr_t base,uintptr_t pawn,NetworkActorIdentityEntry *out);
+static int native_ammo_scope_identity_fixture(uintptr_t base,const uintptr_t *o);
 static void network_fixture_pointer(uintptr_t at,uintptr_t value) { memcpy((void*)at,&value,8); }
 static void network_fixture_array(uintptr_t at,uintptr_t data,int count,int max) {
     GameArray a={data,count,max};memcpy((void*)at,&a,sizeof a);
 }
 static int network_actor_identity_selftest(void) {
     unsigned char *image=VirtualAlloc(NULL,0x1900000,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
-    unsigned char *memory=HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,20*0x6100);
+    unsigned char *memory=HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,24*0x6100);
     if(!image||!memory){if(image)VirtualFree(image,0,MEM_RELEASE);if(memory)HeapFree(GetProcessHeap(),0,memory);return 0;}
-    uintptr_t base=(uintptr_t)image,o[20];unsigned char names[20*128]={0};
-    const char *labels[]={"FixtureWorld","FixtureLevel","FixtureInfo","FixtureDriver","FixtureConnection","FixturePawn","FixtureChannel","OtherConnection","OtherChannel","World","Level","WorldInfo","NetDriver","NetConnection","Pawn","ActorChannel","Actor","SFXWeapon_NativeBase","FixtureWeapon","WeaponChannel"};
-    const int classes[]={9,10,11,12,13,14,15,13,15,9,10,11,12,13,14,15,16,17,17,15};
-    for(int i=0;i<20;++i){o[i]=(uintptr_t)(memory+i*0x6100);uint32_t name=i*128;
+    uintptr_t base=(uintptr_t)image,o[24];unsigned char names[24*128]={0};
+    const char *labels[]={"FixtureWorld","FixtureLevel","FixtureInfo","FixtureDriver","FixtureConnection","FixturePawn","FixtureChannel","OtherConnection","OtherChannel","World","Level","WorldInfo","NetDriver","NetConnection","Pawn","ActorChannel","Actor","SFXWeapon_NativeBase","FixtureWeapon","WeaponChannel","FixturePC","FixtureMap","PlayerController","PackageMap"};
+    const int classes[]={9,10,11,12,13,14,15,13,15,9,10,11,12,13,14,15,16,17,17,15,22,23,22,23};
+    for(int i=0;i<24;++i){o[i]=(uintptr_t)(memory+i*0x6100);uint32_t name=i*128;
         memcpy((void*)(o[i]+8),&i,4);memcpy((void*)(o[i]+0x48),&name,4);strcpy((char*)names+i*128+12,labels[i]);}
-    for(int i=0;i<20;++i)network_fixture_pointer(o[i]+0x50,o[classes[i]]);
+    for(int i=0;i<24;++i)network_fixture_pointer(o[i]+0x50,o[classes[i]]);
     network_fixture_pointer(o[14]+0x60,o[16]);network_fixture_pointer(o[17]+0x60,o[16]);
     network_fixture_pointer(base+NAME_POOLS_RVA,(uintptr_t)names);
-    network_fixture_array(base+OBJECTS_RVA,(uintptr_t)o,20,20);
+    network_fixture_array(base+OBJECTS_RVA,(uintptr_t)o,24,24);
     network_fixture_pointer(base+0x18b6638,o[0]);network_fixture_pointer(o[0]+0x88,o[1]);
     uintptr_t actors[]={o[2]},connections[]={o[4],o[7]},channels[]={o[6],o[19],o[8]};
     network_fixture_array(o[1]+0x60,(uintptr_t)actors,1,1);
@@ -43,6 +44,7 @@ static int network_actor_identity_selftest(void) {
     memcpy(saved,network_actor_identity_cache,sizeof saved);unsigned int next=network_actor_identity_next;
     test_action=5;*(unsigned char*)(o[2]+0x7c8)=3;
     int ok=network_actor_channel_id(base,o[5])==7&&network_weapon_channel_id(base,o[18])==9&&network_actor_channel_id(base,o[18])<0&&network_weapon_channel_id(base,o[5])<0;
+    ok=ok&&native_ammo_scope_identity_fixture(base,o);
     /* Target enumeration may replace every discovery hint while the owned
      * pawn and reciprocal channel remain live. Context must rediscover it. */
     memset(network_actor_identity_cache,0,sizeof network_actor_identity_cache);
