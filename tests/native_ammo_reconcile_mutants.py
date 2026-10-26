@@ -31,3 +31,9 @@ if __name__ == "__main__":
         "guest-reuses-request-sequence": [("|++*sequence", "|*sequence")],
         "guest-exceeds-request-budget": [("*sequence>=64", "*sequence>64")],
     }, "ammo_reconcile_guest.h", "SquadAmmoReconcileSelfTest")
+
+    check_mutations(args.zig.resolve(strict=True), {
+        "same-scope-erases-new-request": [("if(!generation||s->generation!=generation)", "if(1)")],
+        "scope-change-keeps-old-state": [("*s=(AmmoReconcileState){0};", "")],
+        "missing-scope-admitted": [("return generation!=0;", "return 1;")],
+    }, "ammo_reconcile_state.h", "SquadAmmoReconcileSelfTest")

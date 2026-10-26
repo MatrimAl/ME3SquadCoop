@@ -1,9 +1,8 @@
 /* Standalone authored-state handshake; no engine headers, hooks or game. */
-#include "../src/ammo_reconcile_host.h"
-#include "../src/ammo_reconcile_guest.h"
+#include "../src/ammo_reconcile_state.h"
 int main(void) {
     if(!ammo_reconcile_protocol_selftest()||!ammo_reconcile_host_selftest()||
-       !ammo_reconcile_guest_selftest())return 1;
+       !ammo_reconcile_guest_selftest()||!ammo_reconcile_state_selftest())return 1;
     AmmoReconcileGuest guest={0};AmmoReconcileHost host={0};
     AmmoReconcileMessage request={0},reply={0};unsigned sequence=0;
     if(ammo_reconcile_guest_poll(&guest,7,29,1,3,210,0,&sequence,&request)||

@@ -1,7 +1,6 @@
 #ifndef ME3_AMMO_RECONCILE_H
 #define ME3_AMMO_RECONCILE_H
-#include "ammo_reconcile_host.h"
-#include "ammo_reconcile_guest.h"
+#include "ammo_reconcile_state.h"
 /* Research-only control messages over existing owner-PC native RPCs. Both
  * participants must opt in. Reserved messages are consumed before chat/UI.
  * Ordinary messages and outbound dispatch retain the original script entry.
@@ -13,10 +12,7 @@ static GuestPlayerContextMethod ammo_rpc_methods[2];
 static uintptr_t ammo_rpc_base;
 static int ammo_rpc_enabled=-1,ammo_rpc_attempted,ammo_rpc_installed;
 static unsigned ammo_rpc_events,ammo_rpc_sequences;
-typedef struct AmmoRpcState {
-    unsigned long generation;AmmoReconcileGuest guest;
-    AmmoReconcileHost host;
-} AmmoRpcState;
+typedef AmmoReconcileState AmmoRpcState;
 static AmmoRpcState ammo_rpc_state;
 static void ammo_rpc_exec(void*,void*,void*);
 static int ammo_rpc_opted(void) {
@@ -31,6 +27,7 @@ static void ammo_rpc_mark_local_activity(AmmoRpcState *state) {
 static void ammo_rpc_fire_activity(uintptr_t weapon) {
     if(!ammo_rpc_opted()||test_action!=5||GetCurrentThreadId()!=ammo_wire_thread||
        weapon!=ammo_wire_scope.weapon.pointer||!ammo_wire_scope_valid())return;
+    if(!ammo_reconcile_state_bind(&ammo_rpc_state,(uint32_t)ammo_wire_scope.generation))return;
     ammo_rpc_mark_local_activity(&ammo_rpc_state);
 }
 static void ammo_rpc_log(const char *event,const char *reason,uint64_t id,int used,int spare) {
@@ -81,6 +78,7 @@ static int ammo_rpc_receive(uintptr_t self,uintptr_t frame) {
     AmmoReconcileMessage m={0};AmmoWireScope *s=&ammo_wire_scope;AmmoRpcState *t=&ammo_rpc_state;
     if(!ammo_reconcile_parse(text,string.count,&m)||!ammo_wire_scope_valid()||self!=s->pc.pointer||
        m.channel!=(unsigned)s->channel.index){ammo_rpc_log("rejected","schema-or-current-scope",0,0,0);return 1;}
+    if(!ammo_reconcile_state_bind(t,(uint32_t)s->generation))return 1;
     DWORD now=GetTickCount();
     if(test_action==6){
         int accepted=ammo_reconcile_host_request(&t->host,&m,now);
@@ -140,11 +138,11 @@ rejected:ammo_rpc_log("not-installed","exact-method-or-native-pins",0,0,0);
 }
 static void ammo_reconcile_tick(void) {
     if(!ammo_rpc_opted())return;
-    if(!ammo_wire_scope_valid()){memset(&ammo_rpc_state,0,sizeof ammo_rpc_state);return;}
+    if(!ammo_wire_scope_valid()){ammo_reconcile_state_bind(&ammo_rpc_state,0);return;}
     ammo_rpc_install();if(!ammo_rpc_installed)return;
     AmmoWireScope *s=&ammo_wire_scope;AmmoRpcState *t=&ammo_rpc_state;DWORD now=GetTickCount();
+    if(!ammo_reconcile_state_bind(t,(uint32_t)s->generation))return;
     int used=0,spare=0;char state[96]={0};int idle=ammo_rpc_idle(&used,&spare,state);
-    if(t->generation!=s->generation){memset(t,0,sizeof *t);t->generation=s->generation;}
     if(test_action==6){
         AmmoReconcileMessage reply={0};
         if(!ammo_reconcile_host_snapshot(&t->host,idle,used,spare,(unsigned)s->channel.index,now,&reply))return;
@@ -173,6 +171,6 @@ static int ammo_rpc_selftest(void) {
     ammo_rpc_mark_local_activity(&activity);
     ok=ok&&!activity.guest.pending.active&&activity.guest.dirty&&!activity.guest.quiet_started&&
         activity.guest.pending.request==77&&activity.guest.pending.generation==3;
-    ammo_rpc_original=saved;ammo_rpc_installed=installed;SetLastError(error);return ok&&ammo_reconcile_protocol_selftest()&&ammo_reconcile_host_selftest()&&ammo_reconcile_guest_selftest();
+    ammo_rpc_original=saved;ammo_rpc_installed=installed;SetLastError(error);return ok&&ammo_reconcile_protocol_selftest()&&ammo_reconcile_host_selftest()&&ammo_reconcile_guest_selftest()&&ammo_reconcile_state_selftest();
 }
 #endif

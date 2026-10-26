@@ -217,3 +217,31 @@ Standalone fixture, Windows with the existing Zig compiler:
 zig cc -target x86_64-windows-gnu -std=c17 -O2 tests/native_ammo_scheduler_fixture.c -o local/ammo-scheduler-fixture.exe
 & ./local/ammo-scheduler-fixture.exe
 ```
+
+## Shared scope lifecycle
+
+`ammo_reconcile_state.h` now owns the disposable host/guest state and binds it
+to a caller-validated local scope generation. The protected adapter binds before
+an admitted incoming request/reply, a selected native fire activity and each
+scheduler poll. Scope loss supplies generation0 and clears both sides; a changed
+generation clears their pending requests, sampled counts and quiet windows.
+Binding the same generation preserves a request received before the next poll
+and any already recorded local activity. The process-wide request sequence stays
+outside this disposable state and is not reset.
+
+Previously, generation reset happened only in Tick. This change removes that
+ordering dependency before ordinary transport integration; it does not establish
+that an earlier live failure was caused by a receive between scope preparation
+and Tick. Native source authentication and live scope validation still precede
+incoming state admission. Local generations are not peer-synchronized weapon
+identifiers: proving that a host snapshot refers to the guest's intended weapon
+across an in-flight weapon switch remains a separate integration requirement.
+
+All three native targets built. The actual probe reconciliation self-test and
+standalone scheduler/lifecycle fixture passed. Three deliberately broken state
+variants were rejected: clearing every same-scope bind, retaining old state on
+a changed generation, and admitting generation0. The lifecycle fixture covers
+receive-before-poll retention, pending reply invalidation, activity retention,
+new request identity after a scope change, and explicit scope loss. These are
+authored-state checks, not native callback ordering, network delivery or game
+memory evidence. No game ran, and ordinary reconciliation remains unfinished.
