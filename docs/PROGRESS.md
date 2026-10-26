@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: review owner-run inventory worker output
+
+The owner-run worker exported the missing semantic dependency0xba520 from
+the retained Ghidra project. Its receipt, nonempty body and source identity
+were checked independently. Five retained inventory batches cover79 unique
+requested entries/78 nonempty bodies;0xda350 remains missing. The new index
+lookup compares full keys after hashing and traversing the collision chain.
+
+The worker's broader ownership/relevance, teardown causality, complete-graph
+and hypothetical crash claims were not adopted as proven facts. A private
+supervisor audit preserves output hashes and narrows the accepted findings;
+the canonical research now distinguishes those claims from the new lookup
+evidence. No runtime code, game or tests changed. Inventory root cause and
+reliable equipment readiness remain unresolved. See
+[inventory review limits](INVENTORY-REPLICATION-RESEARCH.md).
+
 ## 2026-10-26: compile scoped native revive instancing component
 
 The authored binding component accepts an already loaded authored or existing

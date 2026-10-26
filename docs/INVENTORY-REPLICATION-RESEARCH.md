@@ -314,3 +314,43 @@ normal-runtime lookup, inventory write or gameplay repair was added. Three
 native targets compiled and fingerprints matched; no game or tests ran.
 The new fields and association-order hypothesis still need deferred live
 evidence before the inventory issue can be closed.
+
+## External worker lookup expansion and review limits
+
+An owner-run worker added one focused Ghidra export for the previously
+unreviewed insertion dependency0xba520. Independent receipt/report/source
+identity checks confirmed terminal exit0, one requested/nonempty decompilation
+and the supported executable digest. Unioning the five retained inventory
+batches gives79 unique requested entries and78 nonempty decompilations;
+0xda350 remains missing. The worker reports29 semantic reviews; that count
+is not proof that every interpretation or the whole subsystem is correct.
+
+The newly reviewed helper hashes the low word to choose a bucket, traverses
+its collision chain and compares the complete longlong key. It writes the
+matching element index, or-1, through its output argument. This supports the
+earlier insertion helper's existing-key branch without proving original
+source names or an overlapping-channel fault. Its bucket expression uses
+field+0x44 minus one as the mask; the field must not simply be labeled a
+stored precomputed mask from this body.
+
+Several worker conclusions remain unsupported or need narrower wording:
+
+- Full-key equality excludes direct low-word key substitution in these
+  inspected paths; it does not disprove every map corruption/lifetime fault.
+- bOnlyOwnerSee does not establish the proposed ownership/relevance route.
+  The SDK separately exposes bOnlyRelevantToOwner. Actual values, native
+  relevance/ownership evaluation and the guest connection still need evidence.
+- The conditional shadow cleanup does not by itself show that a scene callback
+  cleared the live pawn's InvManager. Preserve the shadow/live distinction.
+- The dynamic17/static13579432 receive samples remain uncorrelated with their
+  exact sender events. Channel recycling or actor static flags are hypotheses.
+- A hypothetical immediate crash after bypassing the class filter was not
+  observed. A wrong-class reference is not a justified repair.
+- The selected address graph is not a complete engine graph; unresolved
+  indirect calls and unreviewed bodies remain explicit gaps.
+
+The original worker artifacts and a separate supervisor audit were retained
+privately with hashes rather than rewriting the worker's claims into facts.
+No new game/process observation, runtime source change, pointer restoration,
+package-map edit or behavioral test followed from this review. The inventory
+root cause and repeatable equipment readiness remain unresolved.

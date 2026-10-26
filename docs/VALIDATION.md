@@ -1,5 +1,13 @@
 # Validation status
 
+An owner-run inventory worker produced one new nonempty Ghidra decompilation
+for lookup helper0xba520. Independent retained-receipt/report/current-source
+checks confirm79 unique requested entries/78 nonempty bodies across the five
+inventory batches, with0xda350 missing. The new helper's full-key comparison
+narrows the insertion dependency; broader ownership, channel-recycling and
+scene-null causality claims remain unverified. No repair, game or tests ran.
+See [worker review boundaries](INVENTORY-REPLICATION-RESEARCH.md).
+
 A scoped revive binding component compiled with the action/context as one
 three-class package. It requires a loaded animation, empty instance slot5 and
 current owned or explicit simulated presentation context, then uses the native
