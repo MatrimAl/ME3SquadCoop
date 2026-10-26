@@ -1,5 +1,19 @@
 # Progress
 
+## 2026-10-26: locate native interaction selection context
+
+Native registration/thunk inspection identifies exact selection entries
+0xa9bf90/0xaa55f0; both decompiled from the retained project. Selected paths
+use the selection object's owning controller, its current pawn, input and
+camera rather than a separate cached Shepard/AI binding. Native candidate
+registry, gating, scoring and presentation remain authoritative.
+
+This removes an unsupported need to manually rebind a target cache, while
+leaving actual guest selection/update readiness unresolved. No native update
+call, selection construction or target write was added. Only research/private
+indexing changed; no game or tests ran. See
+[selection context findings](GUEST-INTERACTION-RESEARCH.md).
+
 ## 2026-10-26: trace ordinary guest use into authoritative revival
 
 Fourteen selected interaction scripts decoded completely with matching lengths
