@@ -77,3 +77,24 @@ The first protected paired run completed two four-stage exchanges: guest request
 `ME3_SQUAD_COOP_FIRE_RPC_TRACE=1` separately enables read-only observations of 20 weapon, pawn and inventory script entries in protected progress tests, with `ME3_SQUAD_COOP_AMMO_WIRE_TRACE=1` supplying current scope and native receive context. Exact reflected method/parameter identity, script length and native dispatch are required before installation. Ordinary calls forward unchanged, and records are limited to 256 per process. Paired entry/exit records reserve space before forwarding: per-frame Tick/HandleWeaponFiring observations have 64 rows, while fire command methods have a separate 192-row allowance. A sustained trigger hold therefore cannot spend the command allowance on Tick alone. Exhausted budgets still forward every original call. An incoming RPC label requires the selected weapon channel and exact `FFrame` target function/object inside a live native receive; a method name alone is insufficient.
 
 A protected pair with reconciliation disabled observed two host start-fire and two stop-fire entries for the selected guest weapon. Original forwarding returned, but state stayed `Active` across each entry and host consumed count stayed 0 while guest counts reached 3 and 6. This proves arrival at the host entry, not a complete script/native firing path. Internal VM calls may bypass `UFunction.Func`; missing nested or client entries cannot establish their absence. A pawn shot/effects counter can change independently of an observed ammunition increment and is not proof of enemy damage. The next discriminators are actual incoming script progress and the native ammunition-firing path, without weakening the separate combat requirements.
+
+
+## Real aimed-fire tail ordering
+
+The latest protected real-fire run narrowed its final one-round disagreement
+without a speculative replication change. On the guest, a completed native
+receive decoded AmmoUsedCount26 and left actual weapon storage26. Fifteen
+milliseconds later, the selected local native FireAmmunition call entered
+with26 and returned with27. The host ended at26. Nine later samples per side
+remained stable, with reserves210. Thus this episode needs no missing final
+decode to explain the mismatch: a local consumption followed the last observed
+authoritative value. This is an ordering observation, not a general proof of
+all prediction/timer behavior or every prior inventory failure.
+
+The existing settled host snapshot adapter is an appropriate separate opt-in
+candidate for this exact case: it waits for idle and unchanged local counts,
+requests host values and accepts only a fresh matching owned-weapon reply.
+Its earlier successful zero-ammo exchanges did not exercise actual firing.
+Validation during the real aimed-fire route is still required before adopting
+it as ordinary gameplay behavior. Host counters, native hit payloads and local
+fire prediction remain unchanged by this investigation.
