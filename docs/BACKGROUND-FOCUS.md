@@ -1,5 +1,15 @@
 # Background co-op focus
 
+The ordinary entry also extends the same policy to a pending host Listen and
+to a successfully started host listener awaiting its first peer. The existing
+standalone/no-driver and listener/no-server/no-peer checks constrain these
+contexts; a pending cancellation, failed or absent request, unsupported network
+mode, scene or unowned pause does not admit prewarm. Three native targets built;
+ordinary and protected no-game harnesses passed host/guest pending, consumed,
+cancelled, disabled and listener-ready policy cases. The host startup extension
+has not yet been exercised in a real game. The last host-only `PlayersOnly`
+stall did not capture its focus-owner flag, so its cause remains unproven.
+
 In an ordinary startup run with the extension enabled, the guest connected and
 the policy installed, but no focus-owned pause occurred in 71 sampled startup
 states. This does not demonstrate that the extension recovers an actual focus

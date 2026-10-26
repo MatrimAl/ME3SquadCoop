@@ -116,9 +116,10 @@ static int background_focus_context(uintptr_t self,uintptr_t frame,int expected_
 #ifdef ME3_PROTECTED_ARENA_FOCUS_QA
     prewarm=arena_focus_prewarm_opted(b,s->engine,self,net);
 #elif defined(ME3_ORDINARY_STARTUP_FOCUS)
-    /* Only a configured, unconsumed guest join intent admits standalone
-     * prewarm. The identity, mode and pause-ownership checks above still apply. */
-    prewarm=net==0&&runtime_guest_startup_focus_pending();
+    /* A configured guest join or host listener intent admits standalone
+     * prewarm; a verified host listener may also wait for its first peer.
+     * Identity, mode and pause-ownership checks above still apply. */
+    prewarm=runtime_startup_focus_pending();
 #endif
     uintptr_t connection=0,remote=0;GameArray peers={0};
     if(prewarm&&net==0&&!driver)prewarm_kind=1;

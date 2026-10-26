@@ -141,7 +141,7 @@ __declspec(dllexport) int ME3RuntimeScriptSlotSelfTest(void) {return native_scri
 #include "runtime_rpc_receive_selftest.h"
 __declspec(dllexport) int ME3RuntimeRpcReceiveSelfTest(void) {return runtime_rpc_receive_selftest();}
 #include "runtime_core_fixture.h"
-__declspec(dllexport) int ME3RuntimeNetworkStartSelfTest(void) {return runtime_network_start_selftest()&&runtime_guest_startup_focus_selftest()&&runtime_package_preload_selftest();}
+__declspec(dllexport) int ME3RuntimeNetworkStartSelfTest(void) {return runtime_network_start_selftest()&&runtime_startup_focus_selftest()&&runtime_package_preload_selftest();}
 __declspec(dllexport) int ME3RuntimeTravelIdleSelfTest(void) {return runtime_join_travel_idle_selftest();}
 __declspec(dllexport) int ME3RuntimeJoinReadinessSelfTest(void) {return runtime_join_readiness_selftest();}
 __declspec(dllexport) int ME3RuntimeJoinDiagnosticsSelfTest(void) {return runtime_join_diagnostics_selftest();}

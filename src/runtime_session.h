@@ -21,7 +21,7 @@ static int native_session_role(void) {
 #include "guest_cinematic_registration_adapter.h"
 #include "guest_equipment_bootstrap.h"
 #include "squad_session_core.h"
-static int runtime_guest_startup_focus_pending(void);
+static int runtime_startup_focus_pending(void);
 #define ME3_ORDINARY_STARTUP_FOCUS
 #include "background_focus.h"
 #undef ME3_ORDINARY_STARTUP_FOCUS
@@ -149,7 +149,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     runtime_command_pause_prepare(base,engine,runtime_control_enabled&&runtime_scope_ready);
     session_command_menu_retained=runtime_host_command_menu_held;
     if(!after)background_focus_prepare(base,engine,runtime_control_enabled&&
-        (runtime_scope_ready||runtime_guest_startup_focus_pending()));
+        (runtime_scope_ready||runtime_startup_focus_pending()));
     if(g_runtime_config.role==ME3_ROLE_GUEST) {
         runtime_guest_frame(base,engine,after,now);return;
     }
