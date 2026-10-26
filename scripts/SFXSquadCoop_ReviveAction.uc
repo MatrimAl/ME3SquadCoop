@@ -235,6 +235,8 @@ defaultproperties
     fAnimBlendInTime=0.4
     fAnimBlendOutTime=0.4
     bReplicateCustomAction=true
+    bClientPredictCustomAction=false
+    bForceLocalSimulation=false
     bDisableMovement=false
     ERootMotionMode=ERootMotionMode.RMM_Ignore
     ERootMotionRotationMode=ERootMotionRotationMode.RMRM_Ignore

@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-26: make revive owner replication policy explicit
+
+Selected native-package scripts show base action replication sets owner
+notification from !bClientPredictCustomAction and requests a native net update.
+The authored action now explicitly disables prediction and forced local
+simulation instead of adding a persistent pawn owner-notification flag write.
+The native receive path verifies/instances action IDs and dispatches the
+existing target/start/interrupt flow; no custom RPC/admission bypass was added.
+
+Eight replication exports and four base lifecycle exports decoded completely
+with42/77 aligned explicit branch targets. Normal EndCustomAction propagation
+and client lifetime remain unresolved; a missing exact registration-name hit
+was not substituted with a nearby native body. Five authored classes compiled
+without errors/warnings and with unchanged tracked inputs. No game or tests
+ran; actual delivery, completion and cleanup remain activation requirements.
+See [replication boundary](REVIVE-ACTION.md).
+
 ## 2026-10-26: prepare authored script startup DLC candidate
 
 A new offline tool checks the successful compile receipt/current inputs and

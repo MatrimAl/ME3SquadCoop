@@ -1,5 +1,14 @@
 # Validation status
 
+The authored revive action explicitly disables client prediction and forced
+local simulation. Base replication scripts set owner notification from that
+prediction policy; no extra pawn-flag lease was added. Eight replication and
+four lifecycle script exports decoded with matching lengths and42/77 aligned
+branches respectively. Normal native end propagation remains unresolved.
+All five classes compiled without errors/warnings and with unchanged tracked
+inputs; no owner delivery, client completion, game or tests were observed.
+See [replication policy](REVIVE-ACTION.md).
+
 An authored-script DLC candidate was generated privately with the compiled
 five-class PCC, minimal startup config, reviewed Mount bytes and LEC-generated
 TOC. Config values/types roundtripped; TOC readback matched each of the three

@@ -67,6 +67,48 @@ an authored candidate for the native target path, not proof of working
 replication or client animation. Session admission and guest assignment remain
 external prerequisites for a future scoped installer.
 
+## Native replication and prediction policy
+
+A focused read decoded eight base action/pawn replication scripts, with
+matching serialized/VM lengths and42 aligned explicit branches. ShouldReplicate
+requires authority and bReplicateCustomAction. Base Replicate sets the action
+transition/trigger/action/power fields, clears Target, sets
+bReplicateCustomActionInfoToOwner to !bClientPredictCustomAction and requests
+bForceNetUpdate. The authored override supplies SyncPawn as Target after that
+base call. ReplicateInterrupt uses the native interrupt transition and the
+same owner/prediction rule.
+
+The candidate now explicitly sets bClientPredictCustomAction=false and
+bForceLocalSimulation=false. Owner notification remains owned by the existing
+native script, without an extra persistent pawn-flag lease. Disabling forced
+local simulation avoids entering the base action's conditional role/movement
+replication rewrite path. These defaults express a policy; no prior live
+prediction fault, successful owner delivery or animation has been shown.
+
+On receive, CustomActionInfoUpdated verifies/instances the named action,
+dispatches ClientDoCustomAction for the native start/override transition,
+buffers a start while another action runs, or interrupts only matching current
+action/power IDs. Role2 pending-action reset is a separate controller check.
+ClientDoCustomAction reenters pawn.StartCustomAction with the received target
+and forced flag; the normal CanDo/override path still participates. No custom
+RPC, forced admission or received action-ID rewrite is added.
+
+Four further base lifecycle exports matched lengths with77 aligned branches.
+Base Start calls ShouldReplicate/Replicate and later marks bStartedCustomAction.
+Base Stop restores its presentation settings and clears that started flag.
+EndThisCustomAction delegates to pawn.EndCustomAction. That final native end
+transition and normal-completion propagation remain unresolved by these
+script reads; the lack of a Replicate call in base Stop is not proof that
+completion is never replicated. An exact-image registration-name search for
+intABioPawnexecEndCustomAction had no match; no nearby function was substituted
+and no native body/semantic conclusion was claimed from that negative search.
+
+In particular, the authored empty animation-end notification must not be
+treated as proof of client lifetime completion. Matching start/interrupt
+delivery, normal completion and cleanup on owning/simulated peers remain
+activation requirements. Existing subclass CDO flags do not establish native
+replication conditions or actual transport delivery by themselves.
+
 ## Remaining integration
 
 | Requirement | Current boundary |
@@ -90,9 +132,10 @@ SingleAnim start/stop own their animation/timeline/root-motion work and
 optional OnTimeUp timer. This bounded review does not establish the surrounding
 native end-state transition order or cleanup after travel/control changes.
 
-Context, action and binding compiled with zero errors/warnings and unchanged tracked
+All five authored classes compiled with zero errors/warnings and unchanged tracked
 input hashes. The saved private package SHA-256 is
-`01783b8482808e26e88bce56e579832b021204abc1ed6a71b7e2605bee925f1c`.
+`925c99c3c93acf6ae701661ba0aade352f8aa45d7c5e81ac4dbe9b1e7138bff9`
+for the five-class explicit prediction/local-simulation policy revision.
 LEC accepts the external root-motion enums as
 ERootMotionMode.RMM_Ignore and ERootMotionRotationMode.RMRM_Ignore; the body
 stance animation names are an array. This is compilation/save evidence only.
