@@ -25,7 +25,7 @@ static void runtime_rpc_fixture_forward(void *self,void *bunch) {
     }
 }
 static int runtime_rpc_receive_selftest(void) {
-    int ok=native_rpc_receive_context_selftest();
+    int ok=native_rpc_receive_context_selftest()&&initial_object_selftest();
     RuntimeRpcReceive original=runtime_rpc_receive_original;
     DWORD thread=runtime_rpc_receive_thread,error=GetLastError();
     NativeRpcReceiveFrame *saved=native_rpc_receive_frame;native_rpc_receive_frame=NULL;

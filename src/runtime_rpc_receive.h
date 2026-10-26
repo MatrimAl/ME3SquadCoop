@@ -9,12 +9,40 @@ static RuntimeRpcReceive runtime_rpc_receive_original;
 static uintptr_t runtime_rpc_receive_base;
 static DWORD runtime_rpc_receive_thread;
 static int runtime_rpc_receive_attempted,runtime_rpc_receive_installed;
+#define ME3_INITIAL_OBJECT_ORDINARY
+#define initial_actor_trace_base runtime_rpc_receive_base
+#define initial_actor_trace_thread runtime_rpc_receive_thread
+#define initial_actor_trace_installed runtime_rpc_receive_installed
+#include "initial_object_trace.h"
+#undef initial_actor_trace_base
+#undef initial_actor_trace_thread
+#undef initial_actor_trace_installed
+#undef ME3_INITIAL_OBJECT_ORDINARY
+static unsigned runtime_initial_receive_events;
 static void runtime_rpc_receive(void *self,void *bunch) {
     DWORD error=GetLastError();NativeRpcReceiveFrame frame;
+    InitialObjectFrame initial={0};int initial_thread=GetCurrentThreadId()==runtime_rpc_receive_thread;
+    uintptr_t base=runtime_rpc_receive_base,channel=(uintptr_t)self;
+    uint32_t flags_before=0;unsigned char initial_byte=0;
+    if(initial_thread&&initial_object_installed&&runtime_initial_receive_events<128&&
+       is_live(base,channel)&&read_ptr(channel)==base+0x11a2150&&!read_ptr(channel+0xa0)&&
+       read_at((uintptr_t)bunch+0xc4,&initial_byte,1)&&initial_byte&&
+       read_at(channel+0x68,&flags_before,4)) {
+        initial.active=1;initial.event=++runtime_initial_receive_events;
+        initial.channel=channel;initial.archive=(uintptr_t)bunch;
+        read_at(channel+0x6c,&initial.index,4);
+    }
+    if(initial_thread){initial.previous=initial_object_frame;initial_object_frame=&initial;}
     native_rpc_receive_begin(&frame,runtime_rpc_receive_thread,
         runtime_control_enabled&&runtime_scope_ready?(uintptr_t)self:0);
     SetLastError(error);runtime_rpc_receive_original(self,bunch);
-    error=GetLastError();native_rpc_receive_end(&frame);SetLastError(error);
+    error=GetLastError();native_rpc_receive_end(&frame);
+    if(initial_thread)initial_object_frame=initial.previous;
+    if(initial.active) {
+        uint32_t flags_after=0;read_at(channel+0x68,&flags_after,4);
+        char row[340];snprintf(row,sizeof row,"{\"runtime_initial_actor\":\"after-native-receive\",\"event\":%u,\"channel_index\":%d,\"flags_before\":%u,\"flags_after\":%u,\"actor_present\":%s,\"class_present\":%s,\"forwarded_unchanged\":true}\r\n",initial.event,initial.index,flags_before,flags_after,read_ptr(channel+0xa0)?"true":"false",read_ptr(channel+0xa8)?"true":"false");line(row);
+    }
+    SetLastError(error);
 }
 static int runtime_rpc_receive_install(uintptr_t base) {
     uintptr_t slot=base+0x11a2150+0x2d0,expected=base+0x488700;
@@ -38,6 +66,9 @@ static void runtime_rpc_receive_prepare(uintptr_t base) {
      * Sharing the existing explicit reconciliation opt-in adds no QA mode. */
     static int opted=-1;
     if(opted<0){wchar_t value[8]={0};opted=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_AMMO_RECONCILE",value,8)==1&&value[0]==L'1';}
-    if(opted&&runtime_control_enabled&&runtime_scope_ready)runtime_rpc_receive_install(base);
+    if((opted&&runtime_control_enabled&&runtime_scope_ready)||
+       (g_runtime_config.role==ME3_ROLE_GUEST&&initial_object_opted()&&runtime_control_enabled)) {
+        if(runtime_rpc_receive_install(base))initial_object_install(base);
+    }
 }
 #endif

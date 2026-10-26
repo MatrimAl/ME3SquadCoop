@@ -60,7 +60,12 @@ static void *initial_object_forward(void *archive,void *output,uintptr_t caller)
             f->event,f->index,valid?"true":"false",(unsigned long long)object,live?"true":"false",actor?"true":"false",kind,quoted,flags,result==archive?"true":"false",GetTickCount());line(row);
         snprintf(row,sizeof row,"{\"initial_object_trace\":\"reference-inputs\",\"receive_event\":%u,\"channel_index\":%d,\"tag_known\":%s,\"tag\":%u,\"index_known\":%s,\"index\":%u,\"scalar_hooks_installed\":%s,\"output_null\":%s,\"payload_modified\":false,\"monotonic_ms\":%lu}\r\n",
             f->event,f->index,f->tag_known?"true":"false",f->tag,f->index_known?"true":"false",f->index_value,
-            inventory_reference_installed?"true":"false",valid&&!object?"true":"false",GetTickCount());line(row);
+#ifdef ME3_INITIAL_OBJECT_ORDINARY
+            "false",
+#else
+            inventory_reference_installed?"true":"false",
+#endif
+            valid&&!object?"true":"false",GetTickCount());line(row);
     }
     SetLastError(after);return result;
 }
@@ -69,7 +74,11 @@ static void *initial_object_read(void *archive,void *output) {
 }
 static void initial_object_install(uintptr_t base) {
     if(initial_object_installed||!initial_object_opted()||!initial_actor_trace_installed||
+#ifdef ME3_INITIAL_OBJECT_ORDINARY
+       g_runtime_config.role!=ME3_ROLE_GUEST||
+#else
        test_action!=5||strcmp(test_role,"client")||!progress_enabled||!has_marker(root)||
+#endif
        GetCurrentThreadId()!=initial_actor_trace_thread)return;
     static const unsigned char pin[20]={0x48,0x89,0x5c,0x24,8,0x48,0x89,0x6c,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x57,0x48,0x83,0xec,0x20};
     uintptr_t slot=base+0x119dda8+0x30,expected=base+0x464910;unsigned char bytes[20];DWORD old,ignored;
@@ -79,8 +88,10 @@ static void initial_object_install(uintptr_t base) {
     PVOID previous=InterlockedCompareExchangePointer((PVOID volatile*)slot,(PVOID)initial_object_read,(PVOID)expected);
     VirtualProtect((void*)slot,8,old,&ignored);
     if((uintptr_t)previous!=expected){initial_object_original=NULL;return;}
+#ifndef ME3_INITIAL_OBJECT_ORDINARY
     initial_reference_bits_observer=initial_object_bits_observe;
     initial_reference_index_observer=initial_object_index_observe;
+#endif
     initial_object_installed=1;line("{\"initial_object_trace\":\"installed\",\"limit\":128,\"output_only\":true}\r\n");
 }
 static unsigned initial_object_test_calls;

@@ -1,5 +1,30 @@
 # Runtime integration status
 
+The owner reported normal guest WASD movement and mouse camera working in the
+successful ordinary pair, but could not see host Shepard. Treat that as owner
+input evidence, not independently measured movement/combat. No input bootstrap
+change is justified by that report.
+
+History review identified `73adb0a`/`464dde3` and evidence `f9b2aff`: their
+protected appearance experiment handles an existing remote player with a null
+skeletal-mesh asset. It is not wired into the ordinary entry, and its recorded
+positive scope was asset application, not full customization/render proof.
+The latest unchanged ordinary pair instead yielded six read-only snapshots
+where host Shepard's channel mapped to a valid guest channel but no guest Actor
+pointer. Both peers remained connected until bounded shutdown. This earlier
+stage cannot be fixed by calling appearance code on a nonexistent actor.
+
+The existing initial-object decoder observer is now reused by the ordinary
+receive forwarder under default-off `ME3_SQUAD_COOP_INITIAL_OBJECT_TRACE=1`.
+The guest installs before connection-scope readiness, records the native first
+reference output and post-receive actor/class/flags, then forwards unchanged.
+It reuses existing exact pins, bounded rows and synchronous output copying;
+ordinary mode installs no scalar hooks, so tag/index inputs remain unknown.
+No decode replay, payload/actor/channel mutation or synthetic input is added.
+Three targets rebuilt and ordinary/protected no-game harnesses passed, with the
+shared observer selftest also invoked by the ordinary fixture. Live decode
+output for this ordinary integration remains pending.
+
 The opt-in stock morph-package load succeeded in an ordinary-entry pair from
 `0a03937`: the resident GUID changed to the disk/cache GUID through the shipped
 LoadPackage API (native entry RVAb6cfa0), with no mod GUID writes. The guest
