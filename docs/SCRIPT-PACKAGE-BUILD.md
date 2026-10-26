@@ -40,10 +40,16 @@ private paths and must stay outside Git.
 
 The required constructor/method/error-report signatures were read from the
 already supplied local Legendary Explorer6.5 assembly. PowerShell source syntax
-was parsed successfully. No class compilation, dependency initialization,
-package save/reload, fixture or game was executed with this new tool yet.
-Consequently this is prepared build tooling, not a validated package pipeline
-or a compiled revive implementation.
+was parsed successfully. The tool has now initialized dependencies, compiled
+the authored `SFXSquadCoop_ReviveContext` class without compiler errors/warnings
+and saved one private LE3 package. Compilation supplies the source filename's
+class name explicitly through `intendedClassName`; a new export cannot use an
+empty intended name. The receipt confirmed unchanged tracked inputs.
+
+No package reload, fixture, game, install or mount was executed. This establishes
+one class compilation/save, not universal tool behavior, engine acceptance or
+a compiled full revive action. See the
+[revive context component](REVIVE-CONTEXT.md).
 
 The first authored action must still supply the normal animation, target,
 authority, controller context, timer ownership, cancellation and replication

@@ -1,5 +1,12 @@
 # Validation status
 
+The authored UnrealScript revive-context component compiled without errors/
+warnings and saved one private package. Tracked input hashes remained unchanged.
+Its native dispatch and recovery predicates are separate; it is not constructed
+or activated by runtime code. Full action animation, reservation/timer cleanup,
+replication and per-peer availability remain unfinished. No game, fixture or
+behavioral tests ran. See [revive context limits](REVIVE-CONTEXT.md).
+
 Guest shoulder-camera acquisition/retention now refuses native downed/dead
 or unreadable life state and uses existing compare-before-restore cleanup.
 All28 selected life scripts decoded with matching lengths and88 aligned

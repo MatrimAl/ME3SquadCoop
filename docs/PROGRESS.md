@@ -1,5 +1,20 @@
 # Progress
 
+## 2026-10-26: compile the shared authored revive-context component
+
+The first authored UnrealScript component captures and rechecks action,
+party-pawn/controller/world identities, ordinary-mode/life/range eligibility
+and current action5/synchronized target. Authority-only native Revive dispatch
+is one-shot per captured context and distinct from subsequent observed native
+recovery. It does not write health, action arrays or stale controller caches.
+
+The package compiler now passes an explicit intended class name. The context
+compiled without errors/warnings and one private package was saved with
+unchanged tracked inputs. This is a context dependency, not the full action:
+animation, duration/cancellation, reservation/timer ownership, replicated target
+and per-peer slot integration remain unfinished. No game, fixture or tests
+ran. See [authored revive context](REVIVE-CONTEXT.md).
+
 ## 2026-10-26: prepare repeatable private script-package builds
 
 The existing local Legendary Explorer assembly exposes FileLib, CompileClass

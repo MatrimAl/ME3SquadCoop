@@ -81,7 +81,8 @@ try {
     $scriptReceipt.Status='compiling'
     foreach($scriptSource in $scriptSourcePaths){
         $scriptText=[IO.File]::ReadAllText($scriptSource)
-        $scriptResult=[LegendaryExplorerCore.UnrealScript.UnrealScriptCompiler]::CompileClass($scriptPackage,$scriptText,$scriptLibrary,$scriptOptions,$null,$null,$null,$null)
+        $scriptClassName=[IO.Path]::GetFileNameWithoutExtension($scriptSource)
+        $scriptResult=[LegendaryExplorerCore.UnrealScript.UnrealScriptCompiler]::CompileClass($scriptPackage,$scriptText,$scriptLibrary,$scriptOptions,$null,$null,$null,$scriptClassName)
         $scriptLog=$scriptResult.Item2
         if($null -eq $scriptLog){throw 'Compiler returned no diagnostics.'}
         $scriptReceipt.Classes+=@{Source=$scriptSource;HasErrors=$scriptLog.HasErrors;Errors=@($scriptLog.AllErrors|ForEach-Object {$_.ToString()});Warnings=@($scriptLog.AllWarnings|ForEach-Object {$_.ToString()})}
