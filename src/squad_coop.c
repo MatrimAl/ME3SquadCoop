@@ -224,7 +224,7 @@ __declspec(dllexport) int ME3RuntimePolicySelfTest(void) {
     g_runtime_config=saved;runtime_control_enabled=enabled;runtime_scope_ready=ready;return ok;
 }
 __declspec(dllexport) int ME3RuntimeSessionGateSelfTest(void) {return session_gate_selftest();}
-__declspec(dllexport) int ME3RuntimeCameraSelfTest(void) {return guest_camera_adapter_selftest();}
+__declspec(dllexport) int ME3RuntimeCameraSelfTest(void) {return guest_camera_adapter_selftest()&&remote_appearance_case_selftest();}
 __declspec(dllexport) int ME3RuntimeCinematicSelfTest(void) {return guest_cinematic_registration_selftest();}
 __declspec(dllexport) int ME3RuntimeHashFileFixture(const wchar_t *path,const unsigned char *expected) {
     return path&&expected&&runtime_hash_file_matches(path,expected);

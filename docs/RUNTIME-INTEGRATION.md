@@ -1,5 +1,25 @@
 # Runtime integration status
 
+The historical `remote_appearance_qa.h` path is now also callable from ordinary
+guest Tick, using the existing default-off appearance options. Protected entry
+retains its marker/action gates. Ordinary entry uses fresh native connection
+and local context checks and runs appearance last, after the power adapter.
+The same default-male, missing-mesh, simulated-role, unique-channel and loaded
+asset-group restrictions remain. Its admission fixture is shared between both
+entries. Three native targets built; ordinary and protected no-game harnesses
+passed. This does not yet prove live appearance application in ordinary entry,
+nor general customization, repeated player lifetimes or campaign travel.
+
+One completed candidate pair from `3352439` dispatched stock guest loading of
+`BioChar_Player` before native join. The same static index577545 then resolved
+the correct archetype, native receive formed Shepard on channel17, and six
+paired snapshots retained both the guest cache entry and the replicated player.
+The player's skeletal-mesh asset was readable but null in all six snapshots,
+with the same default appearance IDs admitted by the old appearance path.
+This is bounded support for package preparation, not repeatable startup or
+rendered visibility. Cleanup restored the sandbox TOC byte-identical, preserved
+profiles and left no games, native exceptions or cleanup errors.
+
 The next default-off candidate calls the shipped `SFXGame.LoadPackage` once
 for `BioChar_Player`, after the guest's ordinary readiness window and before
 native join travel. It reuses the host loader's exact reflected parameter

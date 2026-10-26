@@ -79,6 +79,9 @@ static int runtime_session_scope(uintptr_t base,uintptr_t engine) {
 #include "runtime_input_bootstrap.h"
 #include "runtime_command_pause.h"
 #include "runtime_revive_prepare.h"
+#define ME3_REMOTE_APPEARANCE_ORDINARY
+#include "remote_appearance_qa.h"
+#undef ME3_REMOTE_APPEARANCE_ORDINARY
 static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     SessionContext c=session_context(engine);
     uint32_t world_flags=0;
@@ -128,6 +131,13 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
     c=session_context(engine);
     ordinary=runtime_control_enabled&&runtime_scope_ready&&!session_engine_blocked(c);
     runtime_guest_power_tick(base,engine,c,ordinary,after,now);
+    if(after) {
+        /* Appearance loading may invoke native code. Run last with a fresh
+         * connection and local context; no later adapter reuses this frame. */
+        c=session_context(engine);
+        remote_appearance_qa_tick(base,engine,c.pc,c.pawn,c.world,!session_engine_blocked(c),
+            runtime_control_enabled&&runtime_session_scope(base,engine),GetTickCount());
+    }
 }
 static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     session_engine=engine;session_game_thread=GetCurrentThreadId();

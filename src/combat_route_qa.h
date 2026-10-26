@@ -596,10 +596,7 @@ static int combat_route_qa_selftest(void) {
     float invalid[3]={bottom[0]+251,bottom[1],bottom[2]};if(combat_lower_landing(invalid,bottom))return 0;
     invalid[0]=bottom[0];invalid[2]=bottom[2]+16;if(combat_lower_landing(invalid,bottom))return 0;
     invalid[2]=NAN;if(combat_lower_landing(invalid,bottom))return 0;
-    int appearance_case[]={1,1,1,1,1,1,1,1,0,0,0};
-    if(!remote_appearance_case(1,1,1,1,1,1,1,1,0,0,0))return 0;
-    for(unsigned i=0;i<11;++i){int changed[11];memcpy(changed,appearance_case,sizeof changed);changed[i]=i<8?0:1;
-        if(remote_appearance_case(changed[0],changed[1],changed[2],changed[3],changed[4],changed[5],changed[6],changed[7],changed[8],changed[9],changed[10]))return 0;}
+    if(!remote_appearance_case_selftest())return 0;
     if(!(combat_forward_step(0,1,1,1,0,1,0,0,0,0)==COMBAT_FORWARD_INPUT))return 0;
     if(!(combat_forward_step(0,1,1,1,0,1,2999,0,279.99f,0)==COMBAT_FORWARD_INPUT))return 0;
     if(!(combat_forward_step(0,1,1,1,0,1,3000,0,50,0)==COMBAT_FORWARD_OBSERVE))return 0;

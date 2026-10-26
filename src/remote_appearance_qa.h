@@ -1,6 +1,6 @@
 #ifndef ME3_REMOTE_APPEARANCE_QA_H
 #define ME3_REMOTE_APPEARANCE_QA_H
-/* Default-off protected experiment, not a general appearance synchronizer.
+/* Default-off scoped experiment, not a general appearance synchronizer.
  * The owned remote player had a null mesh asset despite a valid channel.
  * The normal zero-argument UpdateAppearance wrapper blocks for asset load.
  * It also validates IDs and updates personalization effects. Never call it
@@ -17,7 +17,11 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
         uintptr_t info,int ordinary,int enabled,DWORD now) {
     static int loaded,opted;
     if(!loaded){wchar_t text[8]={0};loaded=1;opted=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_REMOTE_APPEARANCE_QA",text,8)==1&&text[0]==L'1';}
-    if(!opted||!enabled||!ordinary||!has_marker(root)||test_action!=5||remote_appearance_attempted||now-remote_appearance_scan_at<1000)return;
+    if(!opted||!enabled||!ordinary||
+#ifndef ME3_REMOTE_APPEARANCE_ORDINARY
+       !has_marker(root)||test_action!=5||
+#endif
+       remote_appearance_attempted||now-remote_appearance_scan_at<1000)return;
     remote_appearance_scan_at=now;
     unsigned char net=255;
     if(!guest_camera_actor_live(base,local)||!is_kind_of(base,local,"SFXPawn_Ashley")||
@@ -89,5 +93,12 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
     char row[500];snprintf(row,sizeof row,
         "{\"remote_appearance_qa\":\"returned\",\"same_pawn_world\":%s,\"asset_live\":%s,\"full_host_appearance_verified\":false,\"monotonic_ms\":%lu}\r\n",
         same?"true":"false",is_live(base,after_asset)?"true":"false",now);line(row);
+}
+static int remote_appearance_case_selftest(void) {
+    int admitted[]={1,1,1,1,1,1,1,1,0,0,0};
+    if(!remote_appearance_case(1,1,1,1,1,1,1,1,0,0,0))return 0;
+    for(unsigned i=0;i<11;++i){int changed[11];memcpy(changed,admitted,sizeof changed);changed[i]=i<8?0:1;
+        if(remote_appearance_case(changed[0],changed[1],changed[2],changed[3],changed[4],changed[5],changed[6],changed[7],changed[8],changed[9],changed[10]))return 0;}
+    return 1;
 }
 #endif
