@@ -10,6 +10,14 @@ guest-action observer could not verify foreground window activation and exited
 without sending input. The runner cleaned up successfully, but the observer's
 exit was nonzero. Movement and firing therefore remain unverified.
 
+A second ordinary pair from `2a80baf` again registered the existing squad and
+observed the native connection interval. A foreground-thread attachment did
+not make the guest window verifiably foreground, so the action observer sent
+no input and exited nonzero. Its record says `not-ready`, but the process
+trace identifies foreground activation as the actual failure. The game runner
+completed, original profile and sandbox TOC were restored, and no game or
+native exception remained. This is not an input or combat pass.
+
 An ordinary pair from `f5f8f74` connected but reached a different startup
 ordering: the world squad slot was empty, so the created-squad path briefly
 registered a local squad and obtained a positive combat getter. Within one
