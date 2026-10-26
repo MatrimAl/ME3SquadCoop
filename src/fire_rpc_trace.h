@@ -39,12 +39,19 @@ static GuestPlayerContextMethod fire_rpc_methods[FIRE_RPC_COUNT];
 static FireRpcExec fire_rpc_original;
 static uintptr_t fire_rpc_base;
 static int fire_rpc_enabled=-1,fire_rpc_installed,fire_rpc_attempted;
-static unsigned fire_rpc_rows,fire_rpc_calls,fire_rpc_parent;
+static unsigned fire_rpc_rows,fire_rpc_frame_rows,fire_rpc_command_rows,fire_rpc_calls,fire_rpc_parent;
 static int fire_rpc_opted(void) {
     if(fire_rpc_enabled<0){wchar_t value[8]={0};fire_rpc_enabled=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_FIRE_RPC_TRACE",value,8)==1&&value[0]==L'1';}
     return fire_rpc_enabled&&progress_enabled&&(test_action==5||test_action==6);
 }
-static int fire_rpc_take(void) { if(fire_rpc_rows>=256)return 0;++fire_rpc_rows;return 1; }
+/* Reserve both rows before forwarding, including nested calls. Per-frame
+ * observations cannot exhaust the command/release allowance. */
+static int fire_rpc_take_pair(int shape) {
+    unsigned *used=shape?&fire_rpc_frame_rows:&fire_rpc_command_rows;
+    unsigned limit=shape?64:192;
+    if(*used>limit-2||fire_rpc_rows>254)return 0;
+    *used+=2;fire_rpc_rows+=2;return 1;
+}
 static int fire_rpc_receive_matches(uintptr_t channel,uintptr_t expected,uintptr_t node,uintptr_t fn,
                                     uintptr_t object,uintptr_t self,int net) {
     return net&&channel&&channel==expected&&node==fn&&object==self;
@@ -76,7 +83,6 @@ static int fire_rpc_receiver_valid(int k,uintptr_t self) {
 }
 static void fire_rpc_snapshot(int k,const char *stage,unsigned id,unsigned parent,int incoming,
                               int frame_matches,int object_matches,unsigned long generation,uintptr_t frame) {
-    if(!fire_rpc_take())return;
     AmmoWireScope *s=&ammo_wire_scope;int valid=s->generation==generation&&ammo_wire_scope_valid();
     int used=-1,spare=-1;uint32_t nofire=0;unsigned char bfire=255,mode=255,role=255;char state[96]={0},safe[200];
     if(valid){
@@ -118,6 +124,7 @@ static void fire_rpc_exec(int k,void *self,void *frame,void *result) {
     /* Per-frame methods would spend the bounded log before the input pulse. */
     if(capture&&fire_rpc_definitions[k].shape){unsigned char fire=0;
         capture=read_at(s->pc.pointer+0x480,&fire,1)&&fire==1;}
+    if(capture)capture=fire_rpc_take_pair(fire_rpc_definitions[k].shape);
     unsigned id=0,parent=fire_rpc_parent;unsigned long generation=s->generation;int incoming=0,nm=0,om=0;
     if(capture){
         uintptr_t node=read_ptr((uintptr_t)frame+0x18),object=read_ptr((uintptr_t)frame+0x20);
@@ -215,7 +222,7 @@ static void fire_rpc_trace_prepare(void) {
             (PVOID)fire_rpc_wrappers[k],(PVOID)fire_rpc_original)!=(PVOID)fire_rpc_original)goto rejected;
         ++installed;
     }
-    fire_rpc_installed=1;line("{\"fire_rpc_trace\":\"installed\",\"methods\":20,\"limit\":256,\"observational\":true}\r\n");return;
+    fire_rpc_installed=1;line("{\"fire_rpc_trace\":\"installed\",\"methods\":20,\"limit\":256,\"frame_row_limit\":64,\"command_row_limit\":192,\"observational\":true}\r\n");return;
 rejected:
     for(int k=0;k<installed;++k)InterlockedCompareExchangePointer((PVOID volatile*)(fire_rpc_methods[k].function.pointer+0xd8),
         (PVOID)fire_rpc_original,(PVOID)fire_rpc_wrappers[k]);
@@ -228,7 +235,7 @@ static void fire_rpc_fixture_forward(void *a,void *b,void *c) {
     *(int*)c=987;SetLastError(123);
 }
 static int fire_rpc_selftest(void) {
-    FireRpcExec saved=fire_rpc_original;int installed=fire_rpc_installed;unsigned rows=fire_rpc_rows;DWORD error=GetLastError();
+    FireRpcExec saved=fire_rpc_original;int installed=fire_rpc_installed;unsigned rows=fire_rpc_rows,frame_rows=fire_rpc_frame_rows,command_rows=fire_rpc_command_rows;DWORD error=GetLastError();
     int a=1,b=2,c=3;fire_rpc_fixture_args[0]=&a;fire_rpc_fixture_args[1]=&b;fire_rpc_fixture_args[2]=&c;
     fire_rpc_installed=0;fire_rpc_original=fire_rpc_fixture_forward;fire_rpc_fixture_calls=fire_rpc_fixture_bad=0;
     SetLastError(42);fire_rpc_exec_0(&a,&b,&c);
@@ -248,13 +255,18 @@ static int fire_rpc_selftest(void) {
         !fire_rpc_receiver_matches(2,44,11,22,33,33,22)&&
         !fire_rpc_receiver_matches(2,0,11,22,0,0,22)&&
         !fire_rpc_receiver_matches(3,33,11,22,33,33,22);
-    fire_rpc_rows=255;ok=ok&&fire_rpc_take()&&!fire_rpc_take()&&fire_rpc_rows==256;
+    fire_rpc_rows=fire_rpc_frame_rows=fire_rpc_command_rows=0;
+    for(int i=0;i<32;++i)ok=fire_rpc_take_pair(2)&&ok;
+    ok=ok&&!fire_rpc_take_pair(1)&&fire_rpc_rows==64;
+    for(int i=0;i<96;++i)ok=fire_rpc_take_pair(0)&&ok;
+    ok=ok&&!fire_rpc_take_pair(0)&&fire_rpc_rows==256&&
+        fire_rpc_frame_rows==64&&fire_rpc_command_rows==192;
     ok=ok&&fire_rpc_receive_matches(1,1,2,2,3,3,1)&&!fire_rpc_receive_matches(4,1,2,2,3,3,1)&&
         !fire_rpc_receive_matches(1,1,4,2,3,3,1)&&!fire_rpc_receive_matches(1,1,2,2,4,3,1)&&
         !fire_rpc_receive_matches(1,1,2,2,3,3,0)&&!fire_rpc_receive_matches(0,0,2,2,3,3,1);
     ok=ok&&fire_rpc_code_offset(100,100,78)==0&&fire_rpc_code_offset(178,100,78)==78&&
         fire_rpc_code_offset(99,100,78)==-1&&fire_rpc_code_offset(179,100,78)==-1&&
         fire_rpc_code_offset(0,100,78)==-1&&fire_rpc_code_offset(UINTPTR_MAX,UINTPTR_MAX-10,78)==-1;
-    fire_rpc_rows=rows;fire_rpc_original=saved;fire_rpc_installed=installed;SetLastError(error);return ok;
+    fire_rpc_rows=rows;fire_rpc_frame_rows=frame_rows;fire_rpc_command_rows=command_rows;fire_rpc_original=saved;fire_rpc_installed=installed;SetLastError(error);return ok;
 }
 #endif

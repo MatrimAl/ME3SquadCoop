@@ -609,3 +609,26 @@ No native exception or remaining game process was recorded and original
 profiles stayed unchanged; the read-only monitor again reported access denied.
 The QA correction enables this previously blocked test; it is not a gameplay
 repair and is not included in the ordinary player ASI.
+
+
+## Retained aimed-fire release review and trace budget
+
+Offline review of the retained two-second aimed-fire episode found an incoming
+host ServerStartFire followed by ServerStopFire on the same selected weapon
+channel and scope generation. Both original calls returned. The stop call
+changed the sampled fire mode to zero; the immediate native state snapshot
+still named WeaponFiring, so restoration to Active is not established.
+Nine later weapon samples on each side retained used=28 and spare=210 over
+about eight seconds, with stable process-local pawn/weapon identities. This
+supports cessation of ammunition consumption in that one episode. It does
+not change the strict four-pulse verifier result or establish repeatability,
+local trigger-state restoration, enemy damage or full campaign playability.
+
+The guest script-entry trace had exhausted its 256 rows before release.
+Its missing stop entry therefore cannot establish missing dispatch. The
+protected observer now reserves paired entry/exit space before forwarding,
+with 64 rows for per-frame methods and 192 for command methods, retaining the
+same total bound. This is a default-off diagnostic change, not a firing fix.
+All three native targets built, the current-source fingerprint passed, and
+the native fire RPC forwarding/budget self-test passed without starting the
+game. No new gameplay test was run for this change.
