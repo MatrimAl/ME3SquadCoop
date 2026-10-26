@@ -1,5 +1,16 @@
 # Runtime integration status
 
+The latest appearance bookkeeping binds its attempt to the admitted player and
+WorldInfo identities rather than the whole process. Matching identities retain
+their one-attempt limit through scenes or transient channel loss. A different
+player/world must pass the existing missing-mesh, role, metadata, channel and
+native ABI gates again; native-call re-entry is independently blocked. Full
+object/class indices, names and paths distinguish reused pointers. Three native
+targets built; ordinary and protected no-game harnesses passed, including
+same-context refusal and changed player/world generation/path cases. No new
+game ran for this change. Actual reconnect/travel lifetimes remain unverified;
+the live appearance evidence below predates this bookkeeping change.
+
 Ordinary guest startup now has a bounded positive path for host Shepard's
 initial actor and default male appearance. Two candidate pairs loaded
 `BioChar_Player` through the shipped `SFXGame.LoadPackage` before native join
@@ -33,8 +44,9 @@ including the shared appearance admission restrictions. Both package-preload
 pairs and the preceding comparison pair ended at their owned deadlines with
 zero recorded native exceptions, original profiles unchanged, sandbox base TOC
 restored byte-identical, temporary authored files removed and no games or cleanup
-errors remaining. The appearance path still attempts once per process; general
-customization, new player lifetimes, mission travel and repeatable combat remain
+errors remaining. The appearance path now attempts once in the current admitted
+player/world context; general customization, actual new player lifetimes,
+mission travel and repeatable combat remain
 unfinished. These observations do not establish a playable campaign.
 
 The missing-player investigation distinguished two stages. In unchanged-code

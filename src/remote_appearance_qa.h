@@ -6,8 +6,20 @@
  * It also validates IDs and updates personalization effects. Never call it
  * on the host, local pawn, a scene, or a customized/pending appearance.
  * No raw mesh, appearance-ID, actor flag or profile writes here. */
-static int remote_appearance_attempted;
+typedef struct RemoteAppearanceAttempt {
+    int valid;
+    GuestCameraStamp pawn,world;
+} RemoteAppearanceAttempt;
+static RemoteAppearanceAttempt remote_appearance_attempt;
+static int remote_appearance_call_active;
 static DWORD remote_appearance_scan_at;
+static int remote_appearance_attempt_matches(const RemoteAppearanceAttempt *attempt,
+        const GuestCameraStamp *pawn,const GuestCameraStamp *world) {
+    return attempt->valid&&guest_camera_stamp_core_equal(&attempt->pawn,pawn)&&
+        guest_camera_stamp_core_equal(&attempt->world,world)&&
+        !strcmp(attempt->pawn.full_name,pawn->full_name)&&
+        !strcmp(attempt->world.full_name,world->full_name);
+}
 static int remote_appearance_case(int enabled,int guest,int ordinary,int distinct,
         int channel,int role,int mesh_missing,int default_ids,int pending,int female,int morph) {
     return enabled==1&&guest==1&&ordinary==1&&distinct==1&&channel==1&&role==1&&
@@ -17,16 +29,23 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
         uintptr_t info,int ordinary,int enabled,DWORD now) {
     static int loaded,opted;
     if(!loaded){wchar_t text[8]={0};loaded=1;opted=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_REMOTE_APPEARANCE_QA",text,8)==1&&text[0]==L'1';}
-    if(!opted||!enabled||!ordinary||
+    if(!opted||!enabled||!ordinary||remote_appearance_call_active||
 #ifndef ME3_REMOTE_APPEARANCE_ORDINARY
        !has_marker(root)||test_action!=5||
 #endif
-       remote_appearance_attempted||now-remote_appearance_scan_at<1000)return;
+       now-remote_appearance_scan_at<1000)return;
     remote_appearance_scan_at=now;
     unsigned char net=255;
     if(!guest_camera_actor_live(base,local)||!is_kind_of(base,local,"SFXPawn_Ashley")||
        read_ptr(local+0x374)!=pc||read_ptr(local+0x198)!=info||
        !read_at(info+0x7c8,&net,1)||net!=3)return;
+    /* A scene or temporary channel loss does not authorize a second attempt
+     * on the same player. A new player/world identity must pass all gates. */
+    if(remote_appearance_attempt.valid&&remote_appearance_attempt.world.pointer==info&&
+       guest_camera_stamp_matches(base,&remote_appearance_attempt.world,1)&&
+       guest_camera_stamp_matches(base,&remote_appearance_attempt.pawn,1)&&
+       read_ptr(remote_appearance_attempt.pawn.pointer+0x198)==info&&
+       network_actor_channel_id(base,remote_appearance_attempt.pawn.pointer)>=0)return;
     GameArray array={0};uintptr_t *objects=identity_object_list(base,&array),target=0;int found=0;
     if(!objects)return;
     for(int i=0;i<array.count;++i){uintptr_t p=objects[i];
@@ -53,8 +72,12 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
     if(pe!=base+0x40d450||!guest_camera_stamp_matches(base,&pawn_stamp,1)||
        !guest_camera_stamp_matches(base,&mesh_stamp,1)||!guest_camera_stamp_matches(base,&world_stamp,1)||
        !guest_camera_stamp_matches(base,&fn_stamp,1)||read_ptr(target+0x3f4)!=mesh||read_ptr(mesh+0x258))return;
-    /* One attempt in this process, even if loading fails. No retry loop. */
-    remote_appearance_attempted=1;
+    if(remote_appearance_attempt_matches(&remote_appearance_attempt,&pawn_stamp,&world_stamp))return;
+    /* One attempt in the current player/world context, even if loading fails.
+     * Bind before the native call, which may re-enter this adapter. */
+    remote_appearance_attempt.valid=1;
+    remote_appearance_attempt.pawn=pawn_stamp;remote_appearance_attempt.world=world_stamp;
+    remote_appearance_call_active=1;
     line("{\"remote_appearance_qa\":\"calling-normal-UpdateAppearance\",\"default_metadata_only\":true,\"full_host_appearance_verified\":false}\r\n");
     ((ProcessEvent)pe)((void*)target,(void*)fn,NULL,NULL);
     int same=guest_camera_stamp_matches(base,&pawn_stamp,1)&&guest_camera_stamp_matches(base,&world_stamp,1);
@@ -93,12 +116,24 @@ static void remote_appearance_qa_tick(uintptr_t base,uintptr_t engine,uintptr_t 
     char row[500];snprintf(row,sizeof row,
         "{\"remote_appearance_qa\":\"returned\",\"same_pawn_world\":%s,\"asset_live\":%s,\"full_host_appearance_verified\":false,\"monotonic_ms\":%lu}\r\n",
         same?"true":"false",is_live(base,after_asset)?"true":"false",now);line(row);
+    remote_appearance_call_active=0;
 }
 static int remote_appearance_case_selftest(void) {
     int admitted[]={1,1,1,1,1,1,1,1,0,0,0};
     if(!remote_appearance_case(1,1,1,1,1,1,1,1,0,0,0))return 0;
     for(unsigned i=0;i<11;++i){int changed[11];memcpy(changed,admitted,sizeof changed);changed[i]=i<8?0:1;
         if(remote_appearance_case(changed[0],changed[1],changed[2],changed[3],changed[4],changed[5],changed[6],changed[7],changed[8],changed[9],changed[10]))return 0;}
-    return 1;
+    GuestCameraStamp pawn={0},world={0};pawn.pointer=0x100;pawn.index=7;world.pointer=0x200;world.index=9;
+    strcpy(pawn.full_name,"World.Player");strcpy(world.full_name,"World.Info");
+    RemoteAppearanceAttempt attempt={0};attempt.pawn=pawn;attempt.world=world;
+    if(remote_appearance_attempt_matches(&attempt,&pawn,&world))return 0;
+    attempt.valid=1;if(!remote_appearance_attempt_matches(&attempt,&pawn,&world))return 0;
+    GuestCameraStamp changed=pawn;changed.index++;
+    if(remote_appearance_attempt_matches(&attempt,&changed,&world))return 0;
+    changed=world;changed.index++;
+    if(remote_appearance_attempt_matches(&attempt,&pawn,&changed))return 0;
+    changed=pawn;strcpy(changed.full_name,"OtherWorld.Player");
+    if(remote_appearance_attempt_matches(&attempt,&changed,&world))return 0;
+    return remote_appearance_attempt_matches(&attempt,&pawn,&world);
 }
 #endif
