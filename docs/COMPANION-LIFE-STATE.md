@@ -109,3 +109,9 @@ fault behavior was changed by this camera boundary. Three native targets
 compiled and fingerprints matched; no game or behavioral tests ran. Actual
 downed camera appearance, restoration and usable post-revive control remain
 unverified.
+
+The subsequent [ordinary interaction trace](GUEST-INTERACTION-RESEARCH.md)
+connects normal selection/Used through CanUse and the native authority/client
+split to party StartRevive. It does not require a Shepard-class user in the
+selected scripts. Actual guest selection, action5 and authoritative revival
+completion remain outside that offline evidence.

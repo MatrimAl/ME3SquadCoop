@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: trace ordinary guest use into authoritative revival
+
+Fourteen selected interaction scripts decoded completely with matching lengths
+and55 aligned explicit destinations. GameModeDefault uses the controller's
+current selection, TryUse preserves CanUse and the normal authority/client
+split, and party EnableUsage binds the native Used delegate. The target's
+Used requires authority/downed/nondead state and a living party-pawn user,
+then starts the user's normal revive action5.
+
+This selected script route does not require the user to be SFXPawn_Player;
+there is no evidenced need for an alternate mod revive command or multiplayer
+flag rewrite. Actual input/selection, action context, completion and HUD
+availability remain unverified. Only research documentation/private readers
+changed; no game or tests ran. See
+[normal interaction research](GUEST-INTERACTION-RESEARCH.md).
+
 ## 2026-10-26: yield guest shoulder presentation during incapacitation
 
 All28 selected owned life-state functions decoded completely, with matching
