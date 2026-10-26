@@ -1,5 +1,23 @@
 # Existing native guest squad context
 
+An opt-in ordinary guest candidate now admits the pinned SetPlayerPawn script
+through the native role check only for the exact current squad and method on
+the dispatching thread. The callspace detour forwards the original decision
+for other calls; its temporary scope allows at most one matching skip result.
+It is enabled only with `ME3_SQUAD_COOP_LOCAL_SQUAD_SET=1` and is not a
+default-on or gameplay release. Its local fixture covers filtering, original
+forwarding, one-shot behavior and other-thread isolation.
+
+In one ordinary same-PC run from `35ecadb`, the native skip was adapted and
+SetPlayerPawn produced a registered guest squad context with a positive combat
+getter. A later read-only snapshot found both player caches equal to the
+owned Ashley and her squad pointer reciprocated. The connection stayed up for
+the observed interval; original profiles and the sandbox TOC were restored,
+all observers exited successfully and no native exception or game remained.
+The guest process ended at its test deadline: in-game lease cleanup on an
+ordinary disconnect was not observed. No movement, firing, powers, mission
+travel or two-PC gameplay was verified by this run.
+
 Status: implemented candidate; live initialization did not verify in one
 ordinary pair. In that run, method dispatch returned, admission and identity
 checks passed, but `CachedPlayerPawn` remained different from the owned
