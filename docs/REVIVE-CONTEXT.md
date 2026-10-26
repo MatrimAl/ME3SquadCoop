@@ -28,19 +28,52 @@ this captured reservation; another action's existing true flag is insufficient.
 Client presentation must follow native action replication rather than acquire
 this authority-side reservation or start its own authoritative duration.
 
-ReleaseReservation clears only within the same current action/context and
+ReleaseTargetState handles this action's timer pause before its reservation.
+ReleaseReservation refuses while a timer pause remains owned and clears only
+within the same current action/context and
 authority. If the flag was already cleared while that context remains valid,
 it drops its own record without another target write. If context/ownership
 changed, it returns false and retains the record; Reset/Capture then refuse
 to discard it in order to start another attempt. This is pending cleanup, not
 proof of a restored target. Cancel latches cancellation and attempts release.
-The future owning action must call release before surrendering its action
-identity and handle a false result explicitly.
+The owning action calls release before requesting native end/interrupt and
+before inherited Stop, retaining a false result as pending target cleanup.
 
 The flag has no owner/generation field. This component cannot detect an
 external clear-and-reassert cycle entirely between observations. It is not a
 global lock against arbitrary mods or native writes. Current-action/target
 identity limits clearing; live stop/callback ordering still needs evidence.
+
+## Native death-timer pause
+
+AcquireDeathTimerPause follows authority-side reservation acquisition, before
+inherited animation start. It searches the target's existing Actor.Timers for
+the explicit binding FuncName=PermaDeath/TimerObj=Target. No matching timer is
+a captured absent baseline; it does not create a timer. Duplicate matches
+refuse. An existing timer records bPaused, bLoop, Rate, Count and
+TimerTimeDilation. Rate must be positive/finite, Count nonnegative/finite and
+dilation finite. An existing paused timer is preserved without being owned.
+
+For an existing unpaused timer, ownership is recorded before native
+PauseTimer(true, PermaDeath, Target), followed by contextual and value readback.
+Duration cannot begin without a captured timer baseline. Continuing requires
+the same binding and recorded values, including this action's expected pause;
+appearance of a timer after an absent baseline cancels the attempt.
+
+ReleaseDeathTimerPause only resumes a pause recorded by this context. It
+requires the same action/control/world and authority. If the binding is gone,
+it drops its record without recreating a timer. If its unchanged timer was
+already resumed externally, it drops the record without another write. To
+resume a still-paused timer, all captured fields must match and the target
+must remain downed/nondead; a surviving timer on a recovered pawn is not
+resumed as a death callback. Native unpause must read back as expected.
+
+A duplicate/replaced/changed timer or lost context retains pending ownership;
+reservation release and Reset cannot silently discard it. A timer has no
+exposed generation, so identical removal/recreation entirely between reads
+cannot be distinguished. This is conditional state accounting, not a global
+timer lock or verified native recovery cleanup. The original timer's rate,
+count, loop and dilation are never written, and no timer is added/removed.
 
 BeginDuration starts once while the current action and its own target reservation
 qualify. It captures the reviver's current native fTimeToRevive and the world's
@@ -68,9 +101,11 @@ prove sustained movement, correct camera, collision or equipment after revival.
 The authored action candidate now supplies animation-start/query handling,
 per-update progress polling, native movement checks, a replicated-target path
 and pre-end/pre-stop release attempts. Refused releases remain explicitly
-pending. Native usage-module/death-timer baselines and cleanup, damage/native
-interruptions, animation availability and surrounding native end/stop ordering
-remain incomplete. This component's reservation bookkeeping alone is not
+pending. A scoped native death-timer pause is now included, but native timer
+semantics, recovery removal and pending cleanup remain unverified. Native
+usage-module baselines/cleanup, damage/native interruptions, animation
+availability and surrounding native end/stop ordering remain incomplete.
+This component's target-state bookkeeping alone is not
 sufficient for activation or proof that stop/recovery cleanup completes.
 Host story/session admission remains an external prerequisite; these checks
 do not authorize interaction during conversations or acquire guest control.
@@ -84,12 +119,12 @@ profile, GRI, possession or action-array writes.
 
 ## Compile evidence
 
-The authored context compiled with zero compiler errors/warnings and saved to
-a fresh private package using the new build command. The receipt status was
+The authored context and action compiled together with zero compiler errors/
+warnings and saved to a fresh private package using the build command. The receipt status was
 `compiled-not-installed`; tracked tool/Oodle/Core/Engine/SFXGame/source hashes
 were unchanged. The saved package digest was
-`5922d1574e873d5b0eac76455b550bed410330af01860d94e74c644b14e59c48`
-for the reservation/current-world revision.
+`2f438318f453097ca4360db62485a575bfa128269ae21f7466a4baadcdbd7cf2`
+for the native timer-pause revision.
 Failed earlier compiler outputs remain separate private directories and are
 not candidates. No native-source change required rebuilding the ASIs.
 

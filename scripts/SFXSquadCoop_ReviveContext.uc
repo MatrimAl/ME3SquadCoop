@@ -16,11 +16,15 @@ var float StartedAt;
 var float CompleteAt;
 var bool bReservationAttempted;
 var bool bReservationOwned;
+var bool bDeathTimerCaptured;
+var bool bDeathTimerPresent;
+var bool bDeathTimerPausedByUs;
+var TimerData DeathTimerBaseline;
 
 function bool Reset()
 {
     // Never discard a still-owned target just to accept a new action.
-    if (bReservationOwned)
+    if (bReservationOwned || bDeathTimerPausedByUs)
         return false;
     bCaptured = false;
     bDispatched = false;
@@ -29,6 +33,8 @@ function bool Reset()
     StartedAt = 0.0;
     CompleteAt = 0.0;
     bReservationAttempted = false;
+    bDeathTimerCaptured = false;
+    bDeathTimerPresent = false;
     Action = None;
     Reviver = None;
     Target = None;
@@ -117,7 +123,113 @@ function bool OwnsCurrentAction()
 function bool CanContinue()
 {
     return !bCancelled && OwnsCurrentAction() && EligibleTarget() && !Reviver.IsFiring()
-        && (!bReservationAttempted || OwnsReservation());
+        && (!bReservationAttempted || OwnsReservation())
+        && (!bDeathTimerCaptured || DeathTimerMatches(bDeathTimerPausedByUs || DeathTimerBaseline.bPaused));
+}
+
+// Native timer binding is the actor plus function name, not its array index.
+// An identical remove/recreate between observations has no exposed generation.
+function int FindDeathTimer()
+{
+    local int Index;
+    local int Found;
+
+    Found = -1;
+    if (Target == None)
+        return -2;
+    for (Index = 0; Index < Target.Timers.Length; Index++)
+    {
+        if (Target.Timers[Index].FuncName == 'PermaDeath' && Target.Timers[Index].TimerObj == Target)
+        {
+            if (Found != -1)
+                return -2;
+            Found = Index;
+        }
+    }
+    return Found;
+}
+
+function bool DeathTimerMatches(bool bExpectedPaused)
+{
+    local int Index;
+
+    if (!bDeathTimerCaptured || !OwnsCurrentAction())
+        return false;
+    Index = FindDeathTimer();
+    if (!bDeathTimerPresent)
+        return Index == -1;
+    if (Index < 0)
+        return false;
+    return Target.Timers[Index].bPaused == bExpectedPaused
+        && Target.Timers[Index].bLoop == DeathTimerBaseline.bLoop
+        && Target.Timers[Index].Rate == DeathTimerBaseline.Rate
+        && Target.Timers[Index].Count == DeathTimerBaseline.Count
+        && Target.Timers[Index].TimerTimeDilation == DeathTimerBaseline.TimerTimeDilation;
+}
+
+function bool AcquireDeathTimerPause()
+{
+    local int Index;
+
+    if (bDeathTimerCaptured || bDeathTimerPausedByUs || !CanContinue() || !OwnsReservation())
+        return false;
+    Index = FindDeathTimer();
+    if (Index == -2)
+        return false;
+    bDeathTimerCaptured = true;
+    bDeathTimerPresent = Index >= 0;
+    if (!bDeathTimerPresent)
+        return true;
+    DeathTimerBaseline = Target.Timers[Index];
+    if (!(DeathTimerBaseline.Rate > 0.0) || DeathTimerBaseline.Rate - DeathTimerBaseline.Rate != 0.0
+        || !(DeathTimerBaseline.Count >= 0.0) || DeathTimerBaseline.Count - DeathTimerBaseline.Count != 0.0
+        || DeathTimerBaseline.TimerTimeDilation - DeathTimerBaseline.TimerTimeDilation != 0.0)
+        return false;
+    // Preserve an existing pause; this action must never resume someone else's.
+    if (DeathTimerBaseline.bPaused)
+        return DeathTimerMatches(true);
+    // Record before native entry. A refused readback remains pending cleanup.
+    bDeathTimerPausedByUs = true;
+    Target.PauseTimer(true, 'PermaDeath', Target);
+    return OwnsReservation() && DeathTimerMatches(true);
+}
+
+function bool ReleaseDeathTimerPause()
+{
+    local int Index;
+
+    if (!bDeathTimerPausedByUs)
+        return true;
+    if (!OwnsCurrentAction() || int(Reviver.Role) != 3 || int(Target.Role) != 3)
+        return false;
+    Index = FindDeathTimer();
+    if (Index == -1)
+    {
+        // Native recovery may remove the timer. Never recreate it.
+        bDeathTimerPausedByUs = false;
+        return true;
+    }
+    if (DeathTimerMatches(false))
+    {
+        bDeathTimerPausedByUs = false;
+        return true;
+    }
+    // Do not resume a replaced timer or a death callback on a recovered pawn.
+    if (!DeathTimerMatches(true) || !Target.bIsDowned || Target.bIsDead
+        || !Target.IsInState('Downed'))
+        return false;
+    Target.PauseTimer(false, 'PermaDeath', Target);
+    if (!DeathTimerMatches(false))
+        return false;
+    bDeathTimerPausedByUs = false;
+    return true;
+}
+
+function bool ReleaseTargetState()
+{
+    if (!ReleaseDeathTimerPause())
+        return false;
+    return ReleaseReservation();
 }
 
 function bool OwnsReservation()
@@ -140,6 +252,8 @@ function bool AcquireReservation()
 
 function bool ReleaseReservation()
 {
+    if (bDeathTimerPausedByUs)
+        return false;
     if (!bReservationOwned)
         return true;
     if (!OwnsCurrentAction() || int(Reviver.Role) != 3 || int(Target.Role) != 3)
@@ -157,7 +271,7 @@ function bool BeginDuration()
     local float Duration;
     local float Now;
 
-    if (bDurationStarted || bCancelled || bDispatched || !CanContinue()
+    if (bDurationStarted || bCancelled || bDispatched || !bDeathTimerCaptured || !CanContinue()
         || !OwnsReservation())
         return false;
     Duration = Reviver.fTimeToRevive;
@@ -176,7 +290,7 @@ function bool BeginDuration()
 function Cancel()
 {
     bCancelled = true;
-    ReleaseReservation();
+    ReleaseTargetState();
 }
 
 function bool DurationComplete()

@@ -53,9 +53,9 @@ a working full revive feature. See the
 [revive context component](REVIVE-CONTEXT.md) and
 [authored action candidate](REVIVE-ACTION.md).
 
-The authored action candidate supplies context, duration polling, cancellation
-and a replicated-target path. Animation availability, native target-usage and
-death-timer ownership/cleanup, and end-to-end native action behavior remain
+The authored action candidate supplies context, duration polling, cancellation,
+a scoped native timer pause and a replicated-target path. Animation availability,
+native target-usage ownership, actual timer/recovery cleanup and end-to-end native action behavior remain
 unfinished as identified in [interaction research](GUEST-INTERACTION-RESEARCH.md).
 Compilation alone will not establish those behaviors. A shared package can
 avoid per-mission edits only once class availability and scoped assignment on

@@ -1,5 +1,14 @@
 # Validation status
 
+The revive candidate now captures the native PermaDeath timer binding/fields
+and conditionally pauses/resumes only its own changed pause. Absent timers are
+not created and preexisting pauses are not owned. Changed/duplicate bindings,
+lost context and a surviving paused timer after recovery retain pending
+cleanup rather than resume a foreign/death callback. Both authored classes
+compiled with zero errors/warnings and unchanged tracked inputs. No native
+timer behavior, completed recovery cleanup, game or tests were observed.
+See [timer scope and limits](REVIVE-CONTEXT.md).
+
 The authored revive action and context compiled together with zero errors/
 warnings and unchanged tracked inputs. The candidate polls native-world
 duration, dispatches native revival on authority, separates dispatch/recovery

@@ -1,12 +1,12 @@
 // Candidate action5 driver. Package mounting, shared class assignment and
-// native target-usage/death-timer leases are not yet integrated.
+// native target-usage leases are not yet integrated; timer cleanup is scoped.
 class SFXSquadCoop_ReviveAction extends SFXCustomAction_SingleAnim;
 
 var SFXSquadCoop_ReviveContext Context;
 var bool bBaseStarted;
 var bool bFinishing;
 var bool bStopping;
-var bool bReservationCleanupPending;
+var bool bTargetCleanupPending;
 var bool bRecoveryObserved;
 var int AttemptSerial;
 var float RecoveryStartedAt;
@@ -33,7 +33,7 @@ function bool PresentationContext(BioPawn SyncPawn)
 
 function bool InternalCanDoCustomAction(BioPawn SyncPawn, bool bForced)
 {
-    if (bBaseStarted || bStopping || bFinishing || bReservationCleanupPending
+    if (bBaseStarted || bStopping || bFinishing || bTargetCleanupPending
         || !PresentationContext(SyncPawn))
         return false;
     if (int(m_oPawn.Role) != 3)
@@ -51,7 +51,7 @@ function StartCustomAction()
     local int ThisAttempt;
     local bool bAnimationPlaying;
 
-    if (bBaseStarted || bStopping || bFinishing || bReservationCleanupPending
+    if (bBaseStarted || bStopping || bFinishing || bTargetCleanupPending
         || !OwnsSlot() || !PresentationContext(BioPawn(m_oPawn.SyncPawn)))
         return;
     if (!(RecoveryWait > 0.0) || RecoveryWait - RecoveryWait != 0.0)
@@ -64,8 +64,9 @@ function StartCustomAction()
         if (Context == None)
             Context = new(Self) class'SFXSquadCoop_ReviveContext';
         if (Context == None || !Context.Capture(Self, BioPawn(m_oPawn.SyncPawn))
-            || !Context.AcquireReservation())
+            || !Context.AcquireReservation() || !Context.AcquireDeathTimerPause())
         {
+            ReleaseContext(true);
             InterruptThisCustomAction();
             return;
         }
@@ -99,14 +100,14 @@ function ReleaseContext(bool bCancel)
 {
     if (Context == None)
     {
-        bReservationCleanupPending = false;
+        bTargetCleanupPending = false;
         return;
     }
     if (bCancel)
         Context.Cancel();
     // Keep a failed release visible and refuse a fresh capture. It is not
     // permission to clear a target after losing the owning action identity.
-    bReservationCleanupPending = !Context.ReleaseReservation();
+    bTargetCleanupPending = !Context.ReleaseTargetState();
 }
 
 function FinishAttempt(bool bInterrupted)

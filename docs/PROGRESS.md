@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-26: capture and scope native revive death-timer pauses
+
+The authored context now captures the target's explicit PermaDeath timer
+binding and pause/loop/rate/count/dilation baseline before inherited action
+start. It pauses only an existing unpaused timer via native PauseTimer and
+checks the expected readback. An absent timer is not added; an existing pause
+is preserved without ownership. Duration requires the captured baseline.
+
+Cleanup releases its timer pause before bBeingRevived, resuming only within
+the same authority/action/world and an unchanged downed target/timer. Native
+timer removal or an already restored unchanged pause requires no timer write.
+Changed state and lost identity remain pending; identical replacement between
+reads cannot be detected without a native generation. Target cleanup failure
+blocks a fresh capture. Usage-module leases and live native recovery/cleanup
+remain unfinished. Both classes compiled with zero errors/warnings and
+unchanged tracked inputs; no game, fixtures or tests ran. See
+[death-timer accounting](REVIVE-CONTEXT.md).
+
 ## 2026-10-26: compile authored revive action driver
 
 The new SingleAnim action5 candidate binds the authored context to start,
