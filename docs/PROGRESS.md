@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-26: identify missing serialized revive action prerequisite
+
+Fresh property reads show null custom-action class5 in the inspected Ashley
+and base pawn defaults. Existing CanDoCustomAction requires a nonnull class;
+the normal interaction/StartRevive route alone therefore cannot establish
+revive availability. Actual mission/archetype/runtime entries remain unmeasured.
+
+Nine retained LEMP revive functions decoded completely and expose timed start,
+authoritative dispatch, synchronized target, interruption and cleanup behavior.
+Its callback success field can be set outside the guarded Revive dispatch;
+that label must not be used as proof of actual resurrection. The reference
+also has MP-specific score behavior requiring separate compatibility review.
+
+No action array/class or health was written, no assets were integrated, and no
+game or tests ran. Research and player-experience requirements now explicitly
+retain this action-availability gap. See
+[revive availability findings](GUEST-INTERACTION-RESEARCH.md).
+
 ## 2026-10-26: locate native interaction selection context
 
 Native registration/thunk inspection identifies exact selection entries

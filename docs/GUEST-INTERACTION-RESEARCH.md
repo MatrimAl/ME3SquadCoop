@@ -85,3 +85,57 @@ at runtime, nor establish all nested helper semantics or class restrictions.
 No target override, new selection object, forced UpdateSelection call or
 cleared native gate was added. Source game identity stayed unchanged; no game
 or test ran. Normal target acquisition and action5 completion remain unverified.
+
+## Revive action availability and retained multiplayer reference
+
+A fresh read-only property inspection selected SFXGame.pcc,
+BioH_Ashley_00.pcc and BioP_Char.pcc. The explicit CustomActionClasses arrays
+in the base BioPawn/SFXPawn/Henchman/Player defaults and Ashley's class default
+all contain a null reference at index5. This does not prove a particular live
+Ashley instance lacks the action: archetypes, mission content and runtime
+initialization may supply replacements. It does prove that the inspected
+serialized defaults alone do not establish revive availability.
+
+This matters because the already decoded BioPawn.CanDoCustomAction regular
+action branch requires a nonnull class at the requested array index before
+VerifyCAHasBeenInstanced and the action's own permission method. StartRevive's
+call to StartCustomAction(5, target) is therefore not a sufficient implementation
+of revival when the actual current class entry is absent. No class/array entry
+was written from this observation.
+
+The separately retained LEMP reconstruction does export
+SFXGameContent.SFXCustomAction_Revive. Nine selected functions decoded fully,
+with matching serialized/expanded lengths and20 aligned explicit destinations.
+This is a reference mod's reconstruction, not proof of original multiplayer
+or campaign runtime behavior. Its selected lifecycle includes:
+
+- Start resolves the synchronized party target, sets authority-side
+  bBeingRevived, installs movement/firing checks and a resurrection timer,
+  disables target use, pauses its PermaDeath timer and updates both HUDs.
+- The resurrection callback gates actual Revive dispatch on a living reviver,
+  downed target, authority and a nonnull target controller. Its multiplayer
+  branch adds score/medal behavior, including a player-class cast.
+- Stop clears the action-owned timers, updates both HUDs, clears
+  bBeingRevived and conditionally resumes PermaDeath/re-enables target use
+  after an unsuccessful attempt. Firing interrupts the action; a dead target
+  ends it. Client action/replication methods pass the synchronized target.
+
+The callback subsequently sets its success field and ends the action outside
+the earlier guarded Revive dispatch block. That field, timer expiry, animation
+completion or an ended action must not alone establish actual resurrection.
+The target's native downed/dead/health and post-recovery ownership need separate
+evidence. This mod does not adopt that callback as a success verifier.
+
+The owned base Coalesced configuration separately supplies fTimeToRevive=1.5f
+and fReviveRange=512.f for the party-pawn section. These are serialized defaults,
+not measured effective settings. A selected base Startup class/name inventory
+contained no revive/custom-action matches; this is limited package coverage,
+not a claim that every campaign package was searched.
+
+The remaining implementation requirement is an available, properly scoped
+revive action with valid current pawn/controller/target context and coherent
+cancel/cleanup/replication. Merely reusing the normal interaction RPC does not
+satisfy it. No LEMP assets were copied into a distributable package, no multiplayer
+flag was forced, and no direct health/resurrection or action-array write was
+added. All inspected package/config inputs retained their hashes. No game or
+behavioral test ran; campaign revival remains incomplete.
