@@ -1,5 +1,22 @@
 # Runtime integration status
 
+The opt-in stock morph-package load succeeded in an ordinary-entry pair from
+`0a03937`: the resident GUID changed to the disk/cache GUID through the shipped
+LoadPackage API (native entry RVAb6cfa0), with no mod GUID writes. The guest
+established native connection scope and join status3. Host assigned Ashley,
+released her for a scene with AI/story authority preserved, reacquired her,
+then restored AI/story state on the bounded guest's disconnect. Recorded
+ownership intervals were31.781s and47.859s. This is one successful same-PC
+ordinary-entry run, not sustained movement/combat or full campaign support.
+
+The native connection scope remained until the guest deadline; both launchers
+returned their expected timeout code124. Thus the disconnect in this run
+coincides with bounded test shutdown, rather than the prior version-mismatch
+rejection. Terminal audit restored the sandbox base TOC byte-identical,
+preserved the original profile and left no game processes, native exceptions
+or cleanup errors. The package preload is still opt-in and targeted; broader
+mission coverage and normal player controls require separate evidence.
+
 A focused default-off host candidate (`ME3_SQUAD_COOP_HOST_PACKAGE_PRELOAD=1`)
 now calls the shipped public static SFXGame.LoadPackage once for the observed
 morph package before Listen. It requires an idle standalone host, current game
