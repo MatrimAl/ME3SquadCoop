@@ -13,20 +13,36 @@ and deletion state; it does not repair stale action fields or ownership.
 
 Eligibility requires an ordinary unpaused world/current game mode, a living
 reviver outside ragdoll/recovery and a downed/nondead target within the target's
-native revive range. Continuing additionally requires current action5, its
+native revive range. It also requires BioWorldInfo and rejects active or
+activating conversations through the native conversation manager. Continuing additionally requires current action5, its
 exact instance in the pawn's action array, synchronized target and no firing.
 Authority uses the supported native role value3 through explicit enum-to-int
 conversion. No role value is written.
 
-DispatchRevive requires that context, authority on both pawns, the target's
-reservation flag and an unused local dispatch record. It consumes that record
+BeginDuration starts once while the current action and target reservation
+qualify. It captures the reviver's current native fTimeToRevive and the world's
+TimeSeconds deadline. Nonpositive/nonfinite durations, nonfinite clocks and
+nonadvancing/nonfinite deadlines refuse; no arbitrary duration cap or hardcoded
+campaign revive time replaces native configuration. No Actor timer is created.
+
+DurationComplete is the owning action's required progress poll. It cancels
+permanently for that captured attempt when control/target/scene/firing checks
+fail or the native world clock becomes invalid/backward. A later clear frame
+does not restart the attempt. Cancel explicitly latches that state. The
+caller must poll each action update: polling only once at the deadline cannot
+observe an intervening transient cancellation condition. Movement/damage
+cancellation remains a responsibility of the owning action.
+
+DispatchRevive requires the completed native-world duration, current context,
+authority on both pawns, the target's reservation flag and an unused local
+dispatch record. It consumes that record
 before invoking existing PlayerController.Revive. A true return means dispatch
 only; the native method has no returned success result. RecoveryObserved is
 separate and requires the same actors/world/control context, authority and a
 target whose native dead/downed/state predicates have cleared. It does not
 prove sustained movement, correct camera, collision or equipment after revival.
 
-The future owning action must still provide animation, duration, movement/
+The future owning action must still provide animation, per-update progress polling, movement/
 damage cancellation, reservation ownership, timer baseline/cleanup and native
 replicated-target handling. In particular this component does not prove that
 a reservation flag was set by its own action; that ownership belongs to the
@@ -46,7 +62,8 @@ The authored context compiled with zero compiler errors/warnings and saved to
 a fresh private package using the new build command. The receipt status was
 `compiled-not-installed`; tracked tool/Oodle/Core/Engine/SFXGame/source hashes
 were unchanged. The saved package digest was
-`2d82711e29fd2ac44a0a2f6f1b9807fbfd65d574f4ebfb03859258a206ca5a2e`.
+`8c081ca40ab6682cda68f740aa82e746b5e05885420cef148c7a8e8fe42c671f`
+for the duration/conversation revision.
 Failed earlier compiler outputs remain separate private directories and are
 not candidates. No native-source change required rebuilding the ASIs.
 

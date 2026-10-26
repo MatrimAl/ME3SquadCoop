@@ -1,5 +1,13 @@
 # Validation status
 
+The authored revive context's native-world duration, cancellation latch and
+conversation checks compiled without errors/warnings. Its deadline does not
+register pawn timers; the pending action must poll progress each update and
+own animation, reservation and cancellation/cleanup. A private package was
+saved with unchanged tracked inputs. No game, fixture or behavioral tests ran;
+clock behavior, interruptions and actual revival remain unverified. See
+[revive context](REVIVE-CONTEXT.md).
+
 The authored UnrealScript revive-context component compiled without errors/
 warnings and saved one private package. Tracked input hashes remained unchanged.
 Its native dispatch and recovery predicates are separate; it is not constructed

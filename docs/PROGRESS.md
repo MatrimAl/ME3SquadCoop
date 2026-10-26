@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-26: add native-world revive duration and cancellation latch
+
+The authored context now starts progress once from the reviver's current
+fTimeToRevive and native world clock. Dispatch requires its completed deadline,
+current action/target context and authority. Invalid/backward clocks or a
+failed progress check latch cancellation, preventing silent restart when the
+scope becomes eligible again. No pawn callback timer or forced configured
+duration was added. Ordinary-world checks now also refuse active/activating
+conversations.
+
+The owning action still needs to poll progress each update and manage animation,
+movement/damage cancellation, target reservation and death-timer baseline/
+cleanup. It is not integrated or assigned to either peer. The revised class
+compiled without errors/warnings into a new private package; tracked inputs
+remained unchanged. No game, fixture or behavioral tests ran. See
+[revive progress contract](REVIVE-CONTEXT.md).
+
 ## 2026-10-26: compile the shared authored revive-context component
 
 The first authored UnrealScript component captures and rechecks action,

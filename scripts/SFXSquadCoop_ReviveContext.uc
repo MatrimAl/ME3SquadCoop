@@ -10,11 +10,19 @@ var Controller TargetController;
 var WorldInfo SharedWorld;
 var bool bCaptured;
 var bool bDispatched;
+var bool bDurationStarted;
+var bool bCancelled;
+var float StartedAt;
+var float CompleteAt;
 
 function Reset()
 {
     bCaptured = false;
     bDispatched = false;
+    bDurationStarted = false;
+    bCancelled = false;
+    StartedAt = 0.0;
+    CompleteAt = 0.0;
     Action = None;
     Reviver = None;
     Target = None;
@@ -38,6 +46,18 @@ function bool SameActors()
 
 function bool OrdinaryWorld()
 {
+    local BioWorldInfo Info;
+    local BioConversationManager Conversation;
+
+    if (!SameActors())
+        return false;
+    Info = BioWorldInfo(SharedWorld);
+    if (Info == None)
+        return false;
+    Conversation = Info.m_pConversationManager;
+    if (Conversation != None && (Conversation.m_aActiveConversations.Length != 0
+        || Conversation.m_bActivatingConversation))
+        return false;
     return SameActors() && !SharedWorld.bPlayersOnly && !SharedWorld.bPlayersOnlyPending
         && SharedWorld.Pauser == None && !PlayerController.bCinematicMode
         && PlayerController.GameModeManager2 != None
@@ -87,14 +107,62 @@ function bool OwnsCurrentAction()
 
 function bool CanContinue()
 {
-    return OwnsCurrentAction() && EligibleTarget() && !Reviver.IsFiring();
+    return !bCancelled && OwnsCurrentAction() && EligibleTarget() && !Reviver.IsFiring();
+}
+
+// Progress follows the native world clock, without adding callbacks to the
+// pawn's timer list. An interrupted attempt cannot silently start again.
+function bool BeginDuration()
+{
+    local float Duration;
+    local float Now;
+
+    if (bDurationStarted || bCancelled || bDispatched || !CanContinue()
+        || !Target.bBeingRevived)
+        return false;
+    Duration = Reviver.fTimeToRevive;
+    Now = SharedWorld.TimeSeconds;
+    // x-x is zero only for finite values; NaN/infinity are refused.
+    if (!(Duration > 0.0) || Duration - Duration != 0.0 || Now - Now != 0.0)
+        return false;
+    StartedAt = Now;
+    CompleteAt = Now + Duration;
+    if (!(CompleteAt > StartedAt) || CompleteAt - CompleteAt != 0.0)
+        return false;
+    bDurationStarted = true;
+    return true;
+}
+
+function Cancel()
+{
+    bCancelled = true;
+}
+
+function bool DurationComplete()
+{
+    local float Now;
+
+    if (!bDurationStarted || bCancelled || bDispatched)
+        return false;
+    if (!CanContinue() || !Target.bBeingRevived)
+    {
+        Cancel();
+        return false;
+    }
+    Now = SharedWorld.TimeSeconds;
+    if (Now - Now != 0.0 || Now < StartedAt)
+    {
+        Cancel();
+        return false;
+    }
+    return Now >= CompleteAt;
 }
 
 // A true return means one native dispatch, never verified resurrection. The
 // action must observe target recovery independently and still run its cleanup.
 function bool DispatchRevive()
 {
-    if (bDispatched || !CanContinue() || !Target.bBeingRevived
+    if (!DurationComplete() || !CanContinue() || !Target.bBeingRevived
         || int(Reviver.Role) != 3 || int(Target.Role) != 3)
         return false;
     bDispatched = true;
