@@ -74,6 +74,17 @@ function bool IdleContext()
             && !Info.m_pConversationManager.m_bActivatingConversation));
 }
 
+function bool IsRegistered()
+{
+    local int Index;
+
+    if (!bPending || bMutating || bUnregisterRequested || !SameContext())
+        return false;
+    Index = RecordIndex();
+    return Index >= 0 && Pawn.TemporaryAnims[Index].RefCount > 0 && MeshOccurrences() == 1
+        && ExpectedAnimation != None && Mesh.FindAnimSequence('CB_MP_Revive') == ExpectedAnimation;
+}
+
 function bool Acquire(SFXPawn_PlayerParty Candidate, SFXPlayerController Admission, AnimSet LoadedSet)
 {
     local int Index;

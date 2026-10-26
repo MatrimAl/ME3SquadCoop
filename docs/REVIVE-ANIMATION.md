@@ -52,6 +52,8 @@ timeline or override asset/list was copied into the authored package.
 
 `scripts/SFXSquadCoop_ReviveAnimation.uc` supplies an uncalled lease for an
 already loaded AnimSet. Runtime admission and asset loading remain external.
+The [setup coordinator](REVIVE-SETUP.md) now uses this optional lease before
+binding action5 and releases it only after the action binding retires.
 It captures current pawn/controller/world/role/mesh, requires idle ordinary
 control, and refuses existing revive lookup, matching temporary records or a
 mesh occurrence of the supplied set. Existing availability should use the
@@ -84,7 +86,7 @@ The nonempty ReplaceAnimSetWithDynamic override merely sets a power's
 CastAnimSet. LoadAnimSet uses shared PowerManager.LastPowerAnimSet state and
 RegisterCustomAnimset, which the revive component does not borrow.
 
-All four authored classes compiled together without errors/warnings and with
+The four authored classes at this revision compiled together without errors/warnings and with
 unchanged tracked inputs. The saved private package digest is
 `0d5cecf7464dbd267087b04477e69e9f351124d3f7794bc8434550d3e5019af9`.
 No runtime invokes this lease. Asset loading, native mesh refresh, reference

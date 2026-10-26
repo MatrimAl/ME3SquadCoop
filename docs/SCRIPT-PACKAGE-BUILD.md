@@ -42,7 +42,8 @@ The required constructor/method/error-report signatures were read from the
 already supplied local Legendary Explorer6.5 assembly. PowerShell source syntax
 was parsed successfully. The tool has now initialized dependencies, compiled
 the authored `SFXSquadCoop_ReviveContext`, `SFXSquadCoop_ReviveAction` and
-`SFXSquadCoop_ReviveBinding` and `SFXSquadCoop_ReviveAnimation` classes together,
+`SFXSquadCoop_ReviveBinding`, `SFXSquadCoop_ReviveAnimation` and
+`SFXSquadCoop_ReviveSetup` classes together,
 in that order, without compiler
 errors/warnings and saved one private LE3 package.
 Compilation supplies the source filename's
@@ -50,11 +51,12 @@ class name explicitly through `intendedClassName`; a new export cannot use an
 empty intended name. The receipt confirmed unchanged tracked inputs.
 
 No package reload, fixture, game, install or mount was executed. This establishes
-four-class compilation/save, not universal tool behavior, engine acceptance or
+five-class compilation/save, not universal tool behavior, engine acceptance or
 a working full revive feature. See the
 [revive context component](REVIVE-CONTEXT.md) and
 [authored action candidate](REVIVE-ACTION.md) and
-[scoped binding component](REVIVE-BINDING.md).
+[scoped binding component](REVIVE-BINDING.md) and
+[coordinated preparation](REVIVE-SETUP.md).
 
 The authored action candidate supplies context, duration polling, cancellation,
 a scoped native timer pause, usage/lens-state accounting and a replicated-target

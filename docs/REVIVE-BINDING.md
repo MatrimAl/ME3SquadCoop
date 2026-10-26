@@ -3,6 +3,8 @@
 `scripts/SFXSquadCoop_ReviveBinding.uc` is an authored, compiled binding
 component. No runtime constructs or calls it yet. It is not a package loader,
 session admission policy or proof of a working action5 on either peer.
+The [setup coordinator](REVIVE-SETUP.md) now prepares animation before binding
+and retires binding before animation; the coordinator is also uncalled.
 
 The caller must establish current co-op membership, world/session lifetime and
 retirement before control handoff. It supplies an already available class and

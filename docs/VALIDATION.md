@@ -1,5 +1,14 @@
 # Validation status
 
+A revive setup coordinator now joins optional animation registration and
+action binding, retaining failed preparation/retirement state. It prepares
+animation before binding and retires binding before animation; readiness
+rechecks the current binding and any positive temporary animation record.
+All five classes compiled without errors/warnings and with unchanged tracked
+inputs. Runtime construction/invocation, shared loading, peer admission and
+pre-handoff ordering remain unfinished. No game or tests ran. See
+[setup lifecycle](REVIVE-SETUP.md).
+
 Six manual feature-review cases were staged privately with hash-checked
 native artifacts and the current four-class script package. Nothing was
 installed or launched; revive remains integration-pending. A separate exact

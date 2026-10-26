@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: coordinate revive preparation and ordered retirement
+
+The authored setup object joins optional animation registration and the
+authored action5 binding. Existing revive lookup avoids another animation
+record. Failed preparation retains pending component state; retirement drops
+the binding before requesting animation removal, preventing removal while
+the owned action is still active/pending. Readiness checks current binding,
+sequence resolution and a positive native registration record where owned.
+
+The coordinator keeps busy/preparing guards across native calls and exposes
+local failure/pending status for the eventual runtime owner. It is not a
+session admission or asset-loading replacement. All five classes compiled
+with zero errors/warnings and unchanged tracked inputs. Shared loading,
+per-peer invocation/admission and pre-handoff retirement remain unfinished.
+No game, deployment or tests ran. See [setup contract](REVIVE-SETUP.md).
+
 ## 2026-10-26: stage gradual manual feature and recording reviews
 
 The owner requested gradual feature preparation with reviewable gameplay
