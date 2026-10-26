@@ -1,5 +1,20 @@
 # Runtime integration status
 
+An optional guest-only `ME3_SQUAD_COOP_JOIN_EVENT_TRACE=1` observer now records
+the supported Engine.UpdateProgress virtual's title/message arguments at event
+time. It is distinct from the existing post-Tick viewport-slot polling, which
+may miss transient messages. Installation requires the current engine identity,
+exact vtable/slot and16 supported entry bytes. A resident compare/exchange lease
+forwards the native callback once with unchanged self/kind/string pointers and
+preserves LastError across observation. No text pointer is retained or freed.
+Recording requires the admitted engine and game thread within the existing
+60-second join observation window, with at most16 process-wide event rows.
+Kinds and strings are evidence, not automatic rejection/success classification.
+Default configuration installs no progress observer. Three native targets built
+and the ordinary runtime harness passed, including actual callback forwarding,
+argument/output error-state behavior, expiry/wrap and record-budget checks.
+This revision has not yet been exercised in-game.
+
 The combined invariant-DLC/additive-base-TOC experiment now resolves and opens
 the authored config on both roles. A sampled guest frame has no corrupt-DLC
 modal, but ordinary join still returns to EntryMenu without an observed native

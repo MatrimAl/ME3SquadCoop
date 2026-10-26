@@ -24,6 +24,7 @@ static volatile LONG runtime_host_start_gate=1;
 static wchar_t g_executable[MAX_PATH];
 #include "runtime_session.h"
 #include "runtime_network_bootstrap.h"
+#include "runtime_join_event_trace.h"
 #include "runtime_panel.h"
 #include "runtime_ready_policy.h"
 static EngineTick runtime_original_tick;
@@ -78,6 +79,8 @@ static int runtime_install_bridge(uintptr_t base) {
     if((uintptr_t)previous!=expected){runtime_original_tick=NULL;return 0;}
     session_enabled=1;InterlockedExchange(&g_bridge_installed,1);
     line("{\"runtime\":\"bridge-installed\",\"implicit-travel\":false,\"automated-input\":false}\r\n");
+    if(runtime_join_event_opted()&&!runtime_join_event_install(base,engine))
+        line("{\"runtime_network\":\"join-event-observer-refused\",\"native_progress_unchanged\":true}\r\n");
     return 1;
 }
 static DWORD WINAPI runtime_start(void *unused) {
@@ -143,6 +146,7 @@ __declspec(dllexport) int ME3RuntimeTravelIdleSelfTest(void) {return runtime_joi
 __declspec(dllexport) int ME3RuntimeJoinReadinessSelfTest(void) {return runtime_join_readiness_selftest();}
 __declspec(dllexport) int ME3RuntimeJoinDiagnosticsSelfTest(void) {return runtime_join_diagnostics_selftest();}
 __declspec(dllexport) int ME3RuntimeJoinProgressSelfTest(void) {return runtime_join_progress_selftest()&&runtime_join_outcome_selftest();}
+__declspec(dllexport) int ME3RuntimeJoinEventSelfTest(void) {return runtime_join_event_selftest();}
 #include "runtime_transport_fixture.h"
 __declspec(dllexport) int ME3RuntimeTransportSelfTest(void) {return runtime_transport_selftest();}
 #include "runtime_host_fixture.h"
