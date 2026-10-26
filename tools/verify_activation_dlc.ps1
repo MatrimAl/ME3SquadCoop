@@ -72,12 +72,37 @@ public static class ME3ActivationVerificationResolver {
   };
  }
 }
+public static class ME3ActivationTocHash {
+ public static int Bucket(string name,int count) {
+  uint[] table=new uint[256];
+  unchecked {
+   for(uint i=0;i<256;i++) {
+    uint crc=i<<24;
+    for(int bit=0;bit<8;bit++)crc=(crc<<1)^((crc&0x80000000)!=0?0x04c11db7u:0u);
+    table[i]=crc;
+   }
+   uint hash=0;
+   foreach(char c in name.ToUpperInvariant()) {
+    if(c>127)throw new InvalidDataException("ASCII activation filename required");
+    hash=(hash>>8)^table[(hash^(byte)c)&255];
+    hash=(hash>>8)^table[hash&255];
+   }
+   return (int)(hash%(uint)count);
+  }
+ }
+}
 "@
 [ME3ActivationVerificationResolver]::Install($verifyTool)
 $null=[Reflection.Assembly]::LoadFrom($verifyAssembly)
 $verifyToc=[LegendaryExplorerCore.Unreal.TOCBinFile]::new((Join-Path $verifyRoot 'PCConsoleTOC.bin'))
 $verifyEntries=@($verifyToc.GetAllEntries())
 if($verifyEntries.Count -ne $verifyExpected.Count-1){throw 'TOC unexpected entry count'}
+for($verifyBucketIndex=0;$verifyBucketIndex -lt $verifyToc.HashBuckets.Count;$verifyBucketIndex++){
+ foreach($verifyBucketEntry in $verifyToc.HashBuckets[$verifyBucketIndex].TOCEntries){
+  $verifyLeaf=[IO.Path]::GetFileName($verifyBucketEntry.name.Replace('/','\'))
+  if([ME3ActivationTocHash]::Bucket($verifyLeaf,$verifyToc.HashBuckets.Count) -ne $verifyBucketIndex){throw 'TOC invariant filename hash bucket mismatch'}
+ }
+}
 foreach($verifyRelative in ($verifyExpected|Where-Object {$_ -ne 'PCConsoleTOC.bin'})){
  $verifyMatches=@($verifyEntries|Where-Object {$_.name.Replace('\','/') -ceq $verifyRelative})
  if($verifyMatches.Count -ne 1 -or $verifyMatches[0].size -ne (Get-Item -LiteralPath (Join-Path $verifyRoot $verifyRelative)).Length){throw 'TOC content entry mismatch'}
@@ -125,5 +150,5 @@ foreach($verifyRelative in $verifyExpected){
 if((Get-FileHash -LiteralPath $verifyReceipt -Algorithm SHA256).Hash -ne $verifyBefore -or
    (Get-FileHash -LiteralPath $verifyAssembly -Algorithm SHA256).Hash -ne $verifyToolHash){throw 'Receipt or tool changed during verification'}
 @{Status='offline-verified-not-installed';Variant=$verifyData.Variant;Files=$verifyExpected.Count;
- ReceiptSHA256=$verifyBefore;MountContractVerified=$true;TOCVerified=$true;ConfigVerified=$verifyConfig;
+ ReceiptSHA256=$verifyBefore;MountContractVerified=$true;TOCVerified=$true;TOCHashBucketsVerified=$true;ConfigVerified=$verifyConfig;
  EnglishMetadataVerified=$verifyEnglish;StarterConfigVerified=$verifyStarter;Installed=$false;EngineAccepted=$false;GameExecuted=$false}|ConvertTo-Json

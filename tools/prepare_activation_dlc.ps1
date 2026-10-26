@@ -87,7 +87,13 @@ try {
   }
   if($activationTlkReader.FindDataById(($activationStringID+3),$false,$true,$true,$false) -ne 'Female'){throw 'Authored TLK female readback mismatch'}
  }
- $activationTOC=[LegendaryExplorerCore.Unreal.TOCCreator]::CreateDLCTOCForDirectory($activationRoot,[LegendaryExplorerCore.Packages.MEGame]::LE3)
+ $activationSavedCulture=[Threading.Thread]::CurrentThread.CurrentCulture
+ try {
+  # Retained LEC hashes uppercased filenames using the current culture.
+  # A Turkish .bin must hash like native ASCII .BIN, not dotted-capital-I.
+  [Threading.Thread]::CurrentThread.CurrentCulture=[Globalization.CultureInfo]::InvariantCulture
+  $activationTOC=[LegendaryExplorerCore.Unreal.TOCCreator]::CreateDLCTOCForDirectory($activationRoot,[LegendaryExplorerCore.Packages.MEGame]::LE3)
+ } finally {[Threading.Thread]::CurrentThread.CurrentCulture=$activationSavedCulture}
  try {[IO.File]::WriteAllBytes((Join-Path $activationRoot 'PCConsoleTOC.bin'),$activationTOC.ToArray())} finally {$activationTOC.Dispose()}
  $activationParsed=[LegendaryExplorerCore.Unreal.TOCBinFile]::new((Join-Path $activationRoot 'PCConsoleTOC.bin'))
  $activationEntries=@($activationParsed.GetAllEntries()|ForEach-Object {@{Name=$_.name;Size=$_.size}})

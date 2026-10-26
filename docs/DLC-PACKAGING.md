@@ -1,5 +1,46 @@
 # Native activation DLC packaging
 
+## Confirmed config lookup failure and deterministic TOC preparation
+
+The corrected observer run (`7743c40`) first logged manager-not-ready, then
+installed successfully on both roles. The exact authored Default config lookup
+returned0 with no resolved output on each process. A stable host snapshot
+decoded21 base/official directory entries and no authored DLC directory. The
+corrected string fields are+16/+32 within56-byte directory records; an earlier
+exploratory+16/+40 read is superseded. Guest join dispatched and its inspected
+80s frame showed the same corrupt-content warning. Cleanup restored all
+temporary authored state with no remaining games, profile change, native
+exception or cleanup error; both window encoders exited0.
+
+Selected native TOC parser/registration/load functions exported successfully
+from the unchanged retained database. Static count/linear-walk checks match
+the candidate TOC's three entries, but that is not a live registration result.
+The retained official TOCCreator includes DLC content in the LE2/LE3 basegame
+TOC as well as generating individual DLC TOCs. Prior experiments changed only
+the DLC TOC. A new private additive base-TOC candidate preserves all4090
+baseline semantic entries and adds exactly the three authored content paths.
+An independent parser checks original entries, exact additions, flags, sizes,
+SHA fields, bucket placement and the native-style linear entry count. The
+private runner retains a durable original backup and uses exact-content atomic
+replacement/restoration only in the independent copy after original-file locks
+are established. Synthetic-copy installation/restoration passed, and external
+content changes were preserved/refused rather than overwritten. No actual game
+has yet evaluated this base-TOC candidate; its successful acceptance cannot be
+assumed from these checks.
+
+The independent check also exposed culture-sensitive hashing in retained LEC:
+its filename uppercasing uses current culture. Turkish uppercasing changes the
+`i` in `.bin`, yielding a different hash bucket from invariant ASCII `.BIN`.
+The first private base-TOC preparation also used doubled path separators;
+both mistakes were rejected before installation. Revised preparations use
+normal separators and invariant culture, preserving all other content.
+The public DLC preparation now temporarily uses invariant culture for TOC
+generation and restores the caller's culture afterward. The verifier independently
+checks every authored filename's invariant CRC bucket, instead of relying only
+on parser readback. The corrected starter and freshly generated minimal
+English variants passed; the previous self-consistent wrong-bucket starter
+candidate was rejected. Distribution/installer allowlists remain unchanged.
+
 ## Resolver startup observation
 
 The first resolver-instrumented pair (`257597b`) reported installation refusal
