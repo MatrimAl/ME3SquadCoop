@@ -26,6 +26,15 @@ regenerated. This difference is a lead, not a proven cause or fix. The candidate
 has not been installed, accepted by the production verifier or run in-game.
 The existing distribution and installer allowlists remain unchanged.
 
+The offline verifier now recognizes this separate starter research variant only
+with an explicit `-StarterConfigTemplate` input matching the retained template's
+SHA-256. It compares all eight actual config assets against the pinned template,
+allowing only the BioEngine mod-name substitution. Existing Mount, English TLK,
+TOC, receipt and payload checks still apply. The positive candidate passed;
+consistent receipt/TOC copies with missing config assets or a changed template
+identity were rejected, as was omission of the explicit template. The previous
+minimal English variant still verified. These are offline results only.
+
 A separate [authored-script candidate](SCRIPT-DLC-CANDIDATE.md) now stages the
 revive package, minimal startup config and generated/read-back TOC privately.
 It is not installed or engine-validated and does not change the asset-free

@@ -2,7 +2,8 @@
 [CmdletBinding()]
 param(
  [Parameter(Mandatory)][string]$Receipt,
- [Parameter(Mandatory)][string]$LegendaryExplorerPath
+ [Parameter(Mandatory)][string]$LegendaryExplorerPath,
+ [string]$StarterConfigTemplate
 )
 $ErrorActionPreference='Stop'
 if($PSVersionTable.PSVersion.Major -lt 7){throw 'PowerShell7 required'}
@@ -23,8 +24,11 @@ $verifyData=Get-Content -LiteralPath $verifyReceipt -Raw|ConvertFrom-Json
 if($verifyData.Status -ne 'prepared-not-installed' -or $verifyData.Installed -ne $false -or
    $verifyData.EngineAccepted -ne $false -or $verifyData.GameExecuted -ne $false -or
    $verifyData.ContainsOwnerGameAssets -ne $false){throw 'Unusable preparation receipt'}
-$verifyConfig=$verifyData.Variant -in @('mount-toc-minimal-config','mount-toc-config-english-tlk')
-$verifyEnglish=$verifyData.Variant -eq 'mount-toc-config-english-tlk'
+$verifyStarter=$verifyData.Variant -eq 'mount-toc-starter-config-english-tlk'
+$verifyConfig=$verifyData.Variant -in @('mount-toc-minimal-config','mount-toc-config-english-tlk','mount-toc-starter-config-english-tlk')
+$verifyEnglish=$verifyData.Variant -in @('mount-toc-config-english-tlk','mount-toc-starter-config-english-tlk')
+if($verifyStarter -and !$StarterConfigTemplate){throw 'Explicit pinned starter template required'}
+if(!$verifyStarter -and $StarterConfigTemplate){throw 'Starter template applies only to its declared research variant'}
 if(!$verifyConfig -and $verifyData.Variant -ne 'mount-toc'){throw 'Unsupported activation variant'}
 $verifyID=if($verifyEnglish){1915100}else{0}
 if($verifyData.ResearchStringID -ne $verifyID -or $verifyData.StringIDAllocationVerified -ne $false){throw 'Unexpected research string identity'}
@@ -81,12 +85,31 @@ foreach($verifyRelative in ($verifyExpected|Where-Object {$_ -ne 'PCConsoleTOC.b
 if($verifyConfig){
  $verifyStream=[IO.File]::OpenRead((Join-Path $verifyRoot 'CookedPCConsole/Default_DLC_MOD_ME3SquadCoop.bin'))
  try {$verifyAssets=[LegendaryExplorerCore.Coalesced.CoalescedConverter]::DecompileGame3ToMemory($verifyStream)} finally {$verifyStream.Dispose()}
+ if($verifyStarter){
+  AssertActivationPlainPath $StarterConfigTemplate
+  $verifyTemplateHash=(Get-FileHash -LiteralPath $StarterConfigTemplate -Algorithm SHA256).Hash
+  if($verifyTemplateHash -ne 'BF830CA939A25A4C2E256B86C6201431420EC7695FA4B0C160F011939202B879' -or
+     $verifyData.TemplateSHA256 -ne $verifyTemplateHash){throw 'Unexpected starter template identity'}
+  $verifyStream=[IO.File]::OpenRead($StarterConfigTemplate)
+  try {$verifyTemplateAssets=[LegendaryExplorerCore.Coalesced.CoalescedConverter]::DecompileGame3ToMemory($verifyStream)} finally {$verifyStream.Dispose()}
+  $verifyKeys=@('BioAI.xml','BioCredits.xml','BioDifficulty.xml','BioEngine.xml','BioGame.xml','BioInput.xml','BioUI.xml','BioWeapon.xml')
+  if($verifyAssets.Count -ne 8 -or $verifyTemplateAssets.Count -ne 8 -or
+     @(Compare-Object @($verifyAssets.Keys) $verifyKeys -CaseSensitive).Count){throw 'Unexpected starter config assets'}
+  foreach($verifyKey in $verifyKeys){
+   $verifyExpectedText=$verifyTemplateAssets[$verifyKey]
+   if($verifyKey -ceq 'BioEngine.xml'){$verifyExpectedText=$verifyExpectedText.Replace('StarterKit','ME3SquadCoop')}
+   [xml]$verifyExpectedXml=$verifyExpectedText;[xml]$verifyActualXml=$verifyAssets[$verifyKey]
+   if($verifyExpectedXml.OuterXml -cne $verifyActualXml.OuterXml){throw 'Starter config semantic mismatch'}
+  }
+  if((Get-FileHash -LiteralPath $StarterConfigTemplate -Algorithm SHA256).Hash -ne $verifyTemplateHash){throw 'Starter template changed during verification'}
+ }else{
  if($verifyAssets.Count -ne 1 -or !$verifyAssets.ContainsKey('BioEngine.xml')){throw 'Unexpected config assets'}
  [xml]$verifyXml=$verifyAssets['BioEngine.xml']
  $verifyProps=@($verifyXml.SelectNodes('//Property'))
  if($verifyProps.Count -ne 1 -or $verifyProps[0].GetAttribute('name') -cne 'seekfreepcpaths' -or
     $verifyProps[0].GetAttribute('type') -ne '2' -or $verifyProps[0].ParentNode.GetAttribute('name') -cne 'core.system' -or
     $verifyProps[0].InnerText -cne '..\..\BIOGame\DLC\DLC_MOD_ME3SquadCoop\CookedPCConsole'){throw 'Config semantic mismatch'}
+ }
 }
 if($verifyEnglish){
  $verifyTlk=[LegendaryExplorerCore.TLK.ME2ME3.ME2ME3TalkFile]::new((Join-Path $verifyRoot 'CookedPCConsole/DLC_MOD_ME3SquadCoop_INT.tlk'))
@@ -103,4 +126,4 @@ if((Get-FileHash -LiteralPath $verifyReceipt -Algorithm SHA256).Hash -ne $verify
    (Get-FileHash -LiteralPath $verifyAssembly -Algorithm SHA256).Hash -ne $verifyToolHash){throw 'Receipt or tool changed during verification'}
 @{Status='offline-verified-not-installed';Variant=$verifyData.Variant;Files=$verifyExpected.Count;
  ReceiptSHA256=$verifyBefore;MountContractVerified=$true;TOCVerified=$true;ConfigVerified=$verifyConfig;
- EnglishMetadataVerified=$verifyEnglish;Installed=$false;EngineAccepted=$false;GameExecuted=$false}|ConvertTo-Json
+ EnglishMetadataVerified=$verifyEnglish;StarterConfigVerified=$verifyStarter;Installed=$false;EngineAccepted=$false;GameExecuted=$false}|ConvertTo-Json
