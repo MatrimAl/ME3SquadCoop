@@ -1,5 +1,17 @@
 # Existing native guest squad context
 
+An explicitly compiled private ordinary-entry fire-QA binary from `e85e704`
+was used in one same-PC pair. The native existing-squad context registered,
+but the test bot repeatedly reported `missing-live-weapon` on the guest and
+never dispatched FireWeapon. The host recorded a live Ashley weapon and the
+ordinary ClientGivenTo attempt, without proof of guest execution. The paired
+weapon observer collected zero samples because its live-weapon prerequisites
+did not hold. This does not prove that previously observed manual firing was
+lost, that player input failed, or that a shot hit anything. Native connection
+was observed; sandbox cleanup and original profiles were unchanged, and no
+process or native exception remained. The default player ASI does not include
+the private QA fire path.
+
 The protected research fire bot now resolves either a validated existing
 squad lease or the original created-squad lease. The existing branch rechecks
 the same local pawn, world, squad caches, channel and native combat getter;
