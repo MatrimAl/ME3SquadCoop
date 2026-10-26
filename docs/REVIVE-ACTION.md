@@ -39,6 +39,16 @@ consumed once before the native call and remains distinct from observing
 cleared dead/downed/state predicates. No direct health write or multiplayer
 GRI/profile switch is introduced.
 
+Nonauthority peers now start a separate presentation deadline from their
+current native fTimeToRevive and world clock. Expiry, an invalid/backward
+clock or changed presentation context locally ends the current action through
+EndThisCustomAction, without Revive, recovery success or a server-interrupt
+request. A received interrupt may end it earlier through the stock path.
+Stop clears the presentation deadline's started record. No actor timer is
+registered and no authoritative target state is acquired by this path.
+Peer configuration mismatch, late delivery, pauses and actual visual timing
+remain unverified; local visual expiry is not host completion evidence.
+
 RecoveryWait defaults to a two-second observation interval after dispatch; it
 does not replace fTimeToRevive or imply revival success. Nonpositive/nonfinite
 waits, invalid deadlines and nonfinite/backward recovery clocks refuse or
@@ -96,12 +106,29 @@ RPC, forced admission or received action-ID rewrite is added.
 Four further base lifecycle exports matched lengths with77 aligned branches.
 Base Start calls ShouldReplicate/Replicate and later marks bStartedCustomAction.
 Base Stop restores its presentation settings and clears that started flag.
-EndThisCustomAction delegates to pawn.EndCustomAction. That final native end
-transition and normal-completion propagation remain unresolved by these
-script reads; the lack of a Replicate call in base Stop is not proof that
-completion is never replicated. An exact-image registration-name search for
-intABioPawnexecEndCustomAction had no match; no nearby function was substituted
-and no native body/semantic conclusion was claimed from that negative search.
+EndThisCustomAction delegates to pawn.EndCustomAction. The earlier assumption
+that the latter was a native body was incorrect: its SDK flags and subsequent
+package read show a final simulated script calling DoCustomAction(0).
+The unsuccessful native registration-name search was therefore the wrong route;
+it is not evidence of an unresolved native end implementation.
+
+The completion follow-up read four payloads with matching serialized/VM
+lengths and six aligned explicit branch destinations. GetCurrentCustomAction
+is a native parameter stub; its body is not established. The other three
+scripts show EndCustomAction calling DoCustomAction(0), InterruptCustomAction
+delegating to the selected action's interrupt, and CustomActionEnded calling
+Stop on the started selected action. Together with the earlier DoCustomAction
+read, Stop occurs before CurrentCustomAction/CurrentPowerCustomAction are
+reassigned. This supports pre-stop identity cleanup on that script path; it
+does not prove native callback reentrancy or actual live cleanup.
+
+The inspected ordinary end path has no explicit completion replication call.
+The reconstructed reference revive starts its Resurrect timer on presentation
+peers too, outside its authority-only reservation/timer-check block; that
+callback ends the action independently of its guarded native Revive dispatch.
+The authored candidate previously polled duration only on authority while
+ignoring animation-end notifications, leaving no corresponding presentation
+expiry. It now supplies the local presentation deadline described above.
 
 In particular, the authored empty animation-end notification must not be
 treated as proof of client lifetime completion. Matching start/interrupt
@@ -119,7 +146,7 @@ replication conditions or actual transport delivery by themselves.
 | Downed death timer | Captured native binding/fields and conditional pause/resume; native timer/recovery behavior and identical replacement remain unverified |
 | Cleanup after lost context | Pending metadata is retained; no foreign-context flag clearing or completed recovery |
 | HUD and interruption coverage | No countdown HUD integration; damage and all native interruption paths remain unverified |
-| Native end/stop ordering | Script stop path inspected; surrounding native state changes remain unresolved |
+| End/stop ordering | End-to-Do0-to-Stop-before-ID-clear script path inspected; native callbacks, live cleanup and peer timing unverified |
 | Client and authority behavior | No engine load, tick, animation, replication or actual revival evidence |
 
 ## Static and compile evidence
@@ -127,15 +154,15 @@ replication conditions or actual transport delivery by themselves.
 The selected native-package script review decoded eight stop/animation
 functions with matching serialized/VM lengths and22 aligned explicit branch
 destinations. BioPawn.CustomActionEnded invokes the selected action's Stop when
-started, while EndThisCustomAction delegates to native pawn.EndCustomAction.
+started, while EndThisCustomAction delegates to the pawn's script EndCustomAction.
 SingleAnim start/stop own their animation/timeline/root-motion work and
-optional OnTimeUp timer. This bounded review does not establish the surrounding
-native end-state transition order or cleanup after travel/control changes.
+optional OnTimeUp timer. The separate completion read establishes the selected
+script ordering described above, not live cleanup after travel/control changes.
 
 All five authored classes compiled with zero errors/warnings and unchanged tracked
 input hashes. The saved private package SHA-256 is
-`925c99c3c93acf6ae701661ba0aade352f8aa45d7c5e81ac4dbe9b1e7138bff9`
-for the five-class explicit prediction/local-simulation policy revision.
+`9cb6c8a73dc2a59f8c27876bdb25ff57394c601bd91ca85333d96ffc3c781593`
+for the five-class nonauthority presentation-duration revision.
 LEC accepts the external root-motion enums as
 ERootMotionMode.RMM_Ignore and ERootMotionRotationMode.RMRM_Ignore; the body
 stance animation names are an array. This is compilation/save evidence only.

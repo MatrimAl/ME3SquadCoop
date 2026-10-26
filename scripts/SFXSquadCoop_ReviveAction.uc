@@ -12,6 +12,9 @@ var int AttemptSerial;
 var float RecoveryStartedAt;
 var float RecoveryDeadline;
 var float RecoveryWait;
+var bool bPresentationDurationStarted;
+var float PresentationStartedAt;
+var float PresentationDeadline;
 
 function bool OwnsSlot()
 {
@@ -74,6 +77,7 @@ function StartCustomAction()
     }
     bFinishing = false;
     bRecoveryObserved = false;
+    bPresentationDurationStarted = false;
     RecoveryStartedAt = 0.0;
     RecoveryDeadline = 0.0;
     AttemptSerial++;
@@ -95,6 +99,39 @@ function StartCustomAction()
     }
     if (int(m_oPawn.Role) == 3 && (Context == None || !Context.BeginDuration()))
         FinishAttempt(true);
+    if (int(m_oPawn.Role) != 3 && !BeginPresentationDuration())
+        FinishPresentation();
+}
+
+// The reference revive has a timer on presentation peers as well. Local
+// expiry ends only this presentation; it never dispatches Revive or success.
+function bool BeginPresentationDuration()
+{
+    local float Duration;
+
+    if (!bBaseStarted || !OwnsSlot() || int(m_oPawn.Role) == 3
+        || !PresentationContext(BioPawn(m_oPawn.SyncPawn)))
+        return false;
+    Duration = SFXPawn_PlayerParty(m_oPawn).fTimeToRevive;
+    PresentationStartedAt = m_oPawn.WorldInfo.TimeSeconds;
+    PresentationDeadline = PresentationStartedAt + Duration;
+    if (!(Duration > 0.0) || Duration - Duration != 0.0
+        || PresentationStartedAt - PresentationStartedAt != 0.0
+        || !(PresentationDeadline > PresentationStartedAt)
+        || PresentationDeadline - PresentationDeadline != 0.0)
+        return false;
+    bPresentationDurationStarted = true;
+    return true;
+}
+
+function FinishPresentation()
+{
+    if (!bBaseStarted || bFinishing || bStopping || !OwnsSlot() || int(m_oPawn.Role) == 3)
+        return;
+    bFinishing = true;
+    // EndCustomAction is a local DoCustomAction(0) script path. Unlike
+    // InterruptThisCustomAction it sends no server-interrupt request.
+    EndThisCustomAction();
 }
 
 function ReleaseContext(bool bCancel)
@@ -135,9 +172,16 @@ function TickCustomAction(float DeltaTime)
 
     ThisAttempt = AttemptSerial;
     Super.TickCustomAction(DeltaTime);
-    if (ThisAttempt != AttemptSerial || !bBaseStarted || bFinishing || bStopping
-        || !OwnsSlot() || int(m_oPawn.Role) != 3)
+    if (ThisAttempt != AttemptSerial || !bBaseStarted || bFinishing || bStopping || !OwnsSlot())
         return;
+    if (int(m_oPawn.Role) != 3)
+    {
+        Now = m_oPawn.WorldInfo.TimeSeconds;
+        if (!bPresentationDurationStarted || !PresentationContext(BioPawn(m_oPawn.SyncPawn))
+            || Now - Now != 0.0 || Now < PresentationStartedAt || Now >= PresentationDeadline)
+            FinishPresentation();
+        return;
+    }
     if (Context == None)
     {
         FinishAttempt(true);
@@ -197,6 +241,7 @@ function StopCustomAction()
     if (bStopping)
         return;
     bStopping = true;
+    bPresentationDurationStarted = false;
     ReleaseContext(true);
     if (bBaseStarted)
     {
@@ -222,8 +267,8 @@ function ClientDoCustomAction(bool bForced)
     Super.ClientDoCustomAction(bForced);
 }
 
-// The host's configured duration and native completion/interrupt replication
-// own the action lifetime, independently of animation notification timing.
+// Authority owns actual revival; each nonauthority peer has a local
+// presentation deadline. Animation notification alone declares neither.
 function BodyStanceAnimEndNotification(AnimNodeSequence SeqNode, float PlayedTime, float ExcessTime)
 {
 }

@@ -1,5 +1,15 @@
 # Validation status
 
+Revive presentation peers now have a local native-config/world-clock deadline
+that ends their action without dispatching revival or reporting success.
+This fills a source-level lifetime gap while authority retains actual revival.
+The EndCustomAction native-body assumption was corrected: the selected script
+calls DoCustomAction(0), which stops the current started action before clearing
+its IDs. Four completion payloads matched lengths with six aligned branches;
+one is a native parameter stub. All five authored classes compiled without
+errors/warnings and unchanged tracked inputs. No live peer timing, cleanup,
+game or tests were observed. See [completion and presentation](REVIVE-ACTION.md).
+
 The authored revive action explicitly disables client prediction and forced
 local simulation. Base replication scripts set owner notification from that
 prediction policy; no extra pawn-flag lease was added. Eight replication and

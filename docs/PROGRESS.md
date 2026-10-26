@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-26: give nonauthority revive presentation a local end deadline
+
+The prior native-body assumption for BioPawn.EndCustomAction was corrected
+against SDK flags and a selected package read. Its script calls DoCustomAction(0),
+which reaches the started action's Stop before replacing the current IDs.
+Four completion payloads matched lengths with six aligned branch targets;
+GetCurrentCustomAction is a native parameter stub, not body evidence.
+
+The authored action previously polled duration only on authority while its
+animation-end callback was empty. The reference revive also runs an end timer
+on presentation peers. The candidate now supplies a local native-config/world-
+clock presentation deadline, ending through the local script without native
+Revive, success or a server-interrupt request. Authority remains the only
+revival dispatcher. Five classes compiled without errors/warnings and with
+unchanged tracked inputs. Peer timing, actual cleanup and late/interrupted
+delivery remain unverified; no game or tests ran. See [action lifetime](REVIVE-ACTION.md).
+
 ## 2026-10-26: make revive owner replication policy explicit
 
 Selected native-package scripts show base action replication sets owner
