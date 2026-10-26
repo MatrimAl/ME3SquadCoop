@@ -1,5 +1,27 @@
 # Runtime integration status
 
+Two completed ordinary pairs from `8f2d10e` now distinguish the intermittent
+initial-object failure. Both forwarded a static reference (tag0) with index
+577545 for the channel independently mapped to host Shepard. In the first
+pair, channel17 decoded `BioChar_Player.Archetypes.Soldier.MaleShepard_Soldier`,
+native receive formed the player, and six later snapshots retained its guest
+replica. In the second, channel9 decoded null, native flags changed1 to9,
+Actor/Class remained null, and six later snapshots retained that failure.
+Channel numbers must be mapped for each run; channel9 in the first pair was a
+Matinee actor. Neither observation proves a gameplay repair or rendered host
+appearance. A mesh component alone does not prove its mesh asset is populated.
+
+The failing nonzero static index excludes an encoded dynamic-channel null in
+this sample. Existing exact-image Level codec and resolver exports identify
+the next distinction: archive error, package-entry/linker/cache resolution,
+streamed-level filtering or requested-class rejection. No branch has yet been
+proven responsible. A focused export of archive forwarder RVA0x464910 confirms
+its archive+0xb0 connection -> connection+0xf0 map route. The retained Ghidra
+database stayed byte-identical; no new whole-binary analysis was performed.
+Both pairs closed at their owned deadlines with zero recorded native
+exceptions, original profiles unchanged, sandbox base TOC restored byte-identical,
+temporary authored files removed and no games or cleanup errors remaining.
+
 The same initial-object opt-in now additionally observes the existing native
 one-bit reference tag and bounded index outputs. Exact scalar ABIs, two-slot
 installation pins and rollback policy are reused from the protected inventory
@@ -8,8 +30,8 @@ active initial-object decode and exact native caller addresses. It never reads
 or replays packet bits. Original arguments and outputs are forwarded once,
 with LastError preserved after observation; unrelated calls only forward.
 Three native targets built and the ordinary harness passed, including actual
-tag/index forwarding, caller filtering and output/error-state checks. Live
-tag/index results are pending. This does not enable appearance initialization
+tag/index forwarding, caller filtering and output/error-state checks. The two
+live results above establish bounded tag/index capture. This does not enable appearance initialization
 or repair a null actor.
 
 The ordinary initial-object observer run from `cb5960b` captured a readable
