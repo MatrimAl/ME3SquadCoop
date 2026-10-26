@@ -42,9 +42,11 @@ function bool RetireOwnedParts()
 {
     if (Binding != None && !Binding.Release())
         return false;
+    // The action is detached before native animation removal can become
+    // pending. Retain only that animation lease across a permitted handoff.
+    Binding = None;
     if (Animation != None && !Animation.Release())
         return false;
-    Binding = None;
     Animation = None;
     bRetiring = false;
     return true;
@@ -62,6 +64,15 @@ function bool Retire()
     bDone = RetireOwnedParts();
     bBusy = false;
     return bDone;
+}
+
+// Handoff readiness is distinct from complete retirement. The runtime must
+// continue polling Retire on this same lifetime and forbid a replacement
+// setup until native removal completes.
+function bool HandoffReady()
+{
+    return bRetiring && !bBusy && !bPreparing && !bReady && Binding == None
+        && (Animation == None || Animation.HandoffReady());
 }
 
 function bool FailPreparation(name Reason)

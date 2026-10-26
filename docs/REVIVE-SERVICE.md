@@ -33,6 +33,23 @@ cleared Setup and the world is current. Pending cleanup is never forcibly
 discarded by a timer or Destroy override. External destruction and old-world
 disposal still require native lifecycle evidence.
 
+RetireForHandoff now distinguishes a control-release boundary from full
+retirement. It first calls Retire for the same token. If that remains pending,
+it can return true only after the action binding has been released and the
+animation lease has read back zero native references after its one nonforced
+unregister request (or observed removal). Status remains 3 until final removal
+is observed; the caller must retain/poll the same service, forbid replacement
+setup and wait for Status 4 before DestroyRetired. This method does not perform
+the control handoff or establish when a scene will begin.
+
+After an unregister request, animation retirement only reads the captured
+pawn/world/mesh/set lifetime. A controller/role or menu-state change no longer
+prevents observing actual removal. Registration and the unregister request
+itself still require the captured ordinary idle control context. A changed
+mesh/world or shared reference count does not grant handoff permission. If a
+scene already prevents that initial request, retirement can still remain
+pending: runtime must arrange the pre-handoff call, not bypass these guards.
+
 The factory is separate because the supplied compiler could not resolve a new
 class's self-type/class literal while compiling its definition. Service compiles
 first and the factory uses that registered class normally, returning Actor.
@@ -41,7 +58,7 @@ No existing game class/package was changed.
 Seven classes compiled without errors/warnings and with unchanged tracked
 inputs, in order: context, action, binding, animation, setup, service, factory.
 Package SHA-256:
-`bcf4d2a15eb0455257ec43910a31e7b69e4b021b879a715aacd1b3c1dfa19c8c`.
+`8c8c4f5a5bb75fed211bc8fc7ebbf684286090160e9bd13ba59fb280cec457f0`.
 Earlier failed compiler directories remain unusable. Loaded class/default/
 function resolution, reflected native-call ABI, actual factory invocation,
 per-peer admission and retirement hooks remain unfinished. No game, fixture,

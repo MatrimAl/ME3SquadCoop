@@ -131,6 +131,16 @@ treated as disposal permission. The current lease does not force native removal
 or write the update bit, mesh list or temporary count. It still needs live
 removal/frame/playback evidence and runtime pre-handoff coordination.
 
+The authored lease now separates SameAssetLifetime from its stricter control
+context. Once the one nonforced unregister request has been issued, Release
+only observes exact pawn/world/mesh/set identity and record/mesh removal; it
+does not require the old controller, role or unpaused state to remain intact.
+Before that request, ordinary idle control is still required. HandoffReady
+requires native zero-reference readback (or actual removal), not elapsed time,
+and is not full disposal. Changed mesh/world and duplicate/shared records do
+not authorize a write or replacement setup. This revision compiled together
+with all seven classes without errors/warnings; live handoff remains untested.
+
 The first export attempt failed before analysis because Ghidra could not save
 its JDK location; it produced zero decompilations and remains separate. The
 permission-corrected runs completed with exact source identity, terminal exit0

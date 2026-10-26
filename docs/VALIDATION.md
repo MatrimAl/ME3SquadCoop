@@ -1,5 +1,16 @@
 # Validation status
 
+Revive retirement now separates the pre-control-handoff boundary from final
+native animation removal. Setup drops a released action binding before
+waiting; the service exposes matching-token RetireForHandoff. A pending
+animation lease can observe removal after controller/role changes without
+another unregister call, while initial mutation still requires its captured
+ordinary idle context. Handoff readiness requires zero native reference
+readback or observed removal. All seven classes compiled without errors or
+warnings and with unchanged tracked inputs. Runtime invocation, scene ordering
+and actual cleanup remain unverified; no game or behavioral tests ran for this
+revision. See [service contract](REVIVE-SERVICE.md).
+
 A protected same-PC Mars pair was run from source revision `d0e0009` with
 separate window-only host/guest recordings. Selected frames decoded and were
 visually inspected; joined recordings probe as 960x540 H.264 at 30 fps, lasting

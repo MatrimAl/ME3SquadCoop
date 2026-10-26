@@ -4,6 +4,14 @@ The [local world service](REVIVE-SERVICE.md) now retains this object and uses
 deferred preparation plus separate activation for the future native bridge.
 It is compiled but no runtime spawns or invokes it yet.
 
+Retirement now clears the completed Binding reference before waiting on
+animation removal. HandoffReady is separate from retirement completion: it
+requires retirement latched, no active preparation/mutation, the binding gone,
+and either no animation lease or that lease's confirmed unregister/readback
+boundary. A caller must retain the coordinator until full Retire succeeds and
+must not prepare a replacement while removal remains pending. See the
+[service handoff contract](REVIVE-SERVICE.md).
+
 A separate [script DLC candidate](SCRIPT-DLC-CANDIDATE.md) now prepares config/
 Mount/TOC around the compiled classes; it remains uninstalled and does not
 establish shared loading or invoke this coordinator.

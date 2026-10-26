@@ -103,6 +103,17 @@ function bool DestroyRetired(int Token)
     return Destroy();
 }
 
+// Release the action and request nonforced native animation removal while
+// control is still captured. True may leave Status==3: retain and poll this
+// actor after handoff; DestroyRetired remains unavailable until Status==4.
+function bool RetireForHandoff(int Token)
+{
+    if (Retire(Token))
+        return true;
+    return !bBusy && bInitialized && bRetiring && !bRetired && !bDeleteMe
+        && Token > 0 && Token == ScopeToken && Setup != None && Setup.HandoffReady();
+}
+
 defaultproperties
 {
     bHidden=true
