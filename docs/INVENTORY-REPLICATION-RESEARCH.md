@@ -389,3 +389,28 @@ the new script-slot fixture. Compiled negative controls rejected a wrong target,
 an index outside the declared count and a capacity smaller than count. Fixture
 memory is allocated locally; no game was launched and no live activation fix
 or completed campaign progression was demonstrated.
+
+## Protected guest activation entry observer
+
+`ME3_SQUAD_COOP_ACTIVATION_TRACE=1` adds a default-off protected guest observer
+for the exact four-byte SFXGame.SFXWeapon.ClientWeaponSet UFunction.Func entry.
+Installation requires the current selected weapon scope, exact image/dispatch
+pins, reflected function ABI/body and class script slot223 target. It changes
+only that function's dispatch pointer to an exactly-once forwarder. Arguments,
+locals, script, counters, original LastError and incoming bytes are preserved.
+It does not add an activation request or call an Engine superclass instead.
+
+Entry/leave rows pair at most64 calls for the current selected weapon and game
+thread. They record scope generation, frame-node/object matches, inventory
+pointers and native state. The observer deliberately does not treat frame.Locals
+as decoded input values. Calls before installation, unrelated weapons and VM
+paths bypassing UFunction.Func are outside coverage. A matching entry proves
+that specific empty function entry ran; it does not prove its parent call,
+successful activation, network delivery or a complete readiness fix. Missing
+rows do not prove the function never ran.
+
+All three targets built. The actual probe fixture passed; compiled mutants
+rejected double forwarding, another thread and an old scope generation. The
+private protected pair runner's existing isolation/capture/cleanup self-tests
+passed with the observer opt-in prepared. Those fixture results precede any
+new live observation and are not a gameplay verdict.

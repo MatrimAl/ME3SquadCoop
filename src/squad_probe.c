@@ -440,6 +440,7 @@ static int native_session_role(void) {return test_action;}
 #include "ammo_wire_trace.h"
 #include "native_ammo_scope_selftest.h"
 #include "ammo_reconcile.h"
+#include "guest_activation_trace.h"
 #include "fire_rpc_trace.h"
 #include "native_fire_trace.h"
 #include "guest_hit_trace.h"
@@ -585,6 +586,7 @@ static void game_tick(void *self,float delta) {
     if(session_enabled)session_frame(base,(uintptr_t)self,1);
     combat_route_qa_tick(base,(uintptr_t)self,1,GetTickCount());
     ammo_wire_prepare(base);
+    guest_activation_prepare();
     ammo_reconcile_tick();
     fire_rpc_trace_prepare();
     native_fire_trace_prepare();
@@ -778,6 +780,7 @@ __declspec(dllexport) int SquadFunctionLookupSelfTest(void) { return function_lo
 __declspec(dllexport) int SquadNetworkActorSelfTest(void) { return network_actor_identity_selftest(); }
 __declspec(dllexport) int SquadRpcReceiveContextSelfTest(void) { return native_rpc_receive_context_selftest(); }
 __declspec(dllexport) int SquadNativeScriptSlotSelfTest(void) { return native_script_slot_selftest(); }
+__declspec(dllexport) int SquadGuestActivationSelfTest(void) { return guest_activation_selftest(); }
 __declspec(dllexport) int SquadAmmoWireSelfTest(void) { return ammo_wire_selftest(); }
 __declspec(dllexport) int SquadAmmoReconcileSelfTest(void) { return ammo_rpc_selftest(); }
 __declspec(dllexport) int SquadFireRpcTraceSelfTest(void) { return fire_rpc_selftest(); }
