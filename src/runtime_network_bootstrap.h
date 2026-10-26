@@ -183,7 +183,9 @@ static int runtime_cancel_start_tick(void) {
     return 1; /* Concurrent fresh requests may be considered on the next Tick. */
 }
 static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now) {
-    if(runtime_cancel_start_tick())return;
+    int cancelled=runtime_cancel_start_tick();
+    runtime_archetype_retention_tick(base,engine,now);
+    if(cancelled)return;
     runtime_auto_rejoin_tick(base,engine,now);
     runtime_rejoin_tick(base,engine,now);
     runtime_auto_relisten_tick(base,engine,now);
@@ -266,7 +268,7 @@ static void runtime_network_start_tick(uintptr_t base,uintptr_t engine,DWORD now
         }
         return;
     }
-    if(!runtime_guest_archetype_preload(base,c)){runtime_join_window_reset();return;}
+    if(!runtime_guest_archetype_preload(base,engine,c)){runtime_join_window_reset();return;}
     wchar_t command[64];
     if(runtime_auto_rejoin_target.pointer&&runtime_peer_ready_required&&!runtime_peer_ready)return;
     if(!runtime_join_command(&g_runtime_config,command,64)||!runtime_join_console_abi(base,c.pc)) {

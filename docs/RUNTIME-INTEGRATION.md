@@ -1,5 +1,12 @@
 # Runtime integration status
 
+Ordinary guest startup now retains the loaded stock player archetypes in an
+owned native loader group through join, and releases its group on explicit
+lifecycle boundaries. Join admission checks the actual retained identities,
+not merely successful package dispatch. Four native targets built and the
+ordinary no-game harness passed. Travel survival and visibility are unverified;
+no game ran. See [player-template retention](PLAYER-ARCHETYPE-RETENTION.md).
+
 The remote appearance adapter now retains an admitted loading request across
 transient completion-ABI/readiness failures and across an `ApplyAppearance`
 return that still has no live mesh asset. It captures the original group and

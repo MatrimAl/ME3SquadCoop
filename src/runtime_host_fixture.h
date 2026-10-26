@@ -124,6 +124,41 @@ static int runtime_host_startup_selftest(void) {
     ok=ok&&!remote_appearance_group_assets_live(base,(uintptr_t)loader,group);
     requests.count=1;memcpy(entry,&requests,sizeof requests);memset(request+32,0,8);
     ok=ok&&!remote_appearance_group_assets_live(base,(uintptr_t)loader,group);
+    /* Retention reads must distinguish an owned unloaded request from a
+     * loaded reference, and refuse changed paths/classes or foreign groups. */
+    RuntimeArchetypeRetention saved_retention=runtime_archetypes;
+    uintptr_t saved_loader=read_ptr(o[15]+0xd90);unsigned char saved_arrays[32];
+    memcpy(saved_arrays,(void*)(o[6]+0x68),32);
+    runtime_fixture_ptr(o[15]+0xd90,o[6]);
+    memset(&runtime_archetypes,0,sizeof runtime_archetypes);
+    runtime_archetypes.active=1;runtime_archetypes.count=1;
+    ok=ok&&guest_camera_stamp_read(base,o[15],&runtime_archetypes.engine,1)&&
+        guest_camera_stamp_read(base,o[6],&runtime_archetypes.loader,1)&&
+        guest_camera_stamp_read(base,o[4],&runtime_archetypes.assets[0],1);
+    memcpy(runtime_archetypes.group,group,8);
+    wchar_t asset_path[640];int length=MultiByteToWideChar(CP_UTF8,0,runtime_archetypes.assets[0].full_name,-1,asset_path,640);
+    RuntimeAssetRequest owned_request={{asset_path,length,length},read_ptr(o[4]+0x50),{0},o[4]};
+    GameArray owned_requests={(uintptr_t)&owned_request,1,1};
+    memcpy(entry,&owned_requests,sizeof owned_requests);
+    memcpy((void*)(o[6]+0x68),&package_entries,sizeof package_entries);memset((void*)(o[6]+0x78),0,16);
+    ok=ok&&runtime_asset_group_count(o[6],group)==1&&runtime_asset_group_count(o[6],wrong)==0&&
+        runtime_archetype_group_owned(base,o[15],1);
+    runtime_fixture_ptr(o[15]+0xd90,0);
+    ok=ok&&!runtime_archetype_group_owned(base,o[15],0)&&runtime_archetype_group_owned(base,0,0);
+    runtime_fixture_ptr(o[15]+0xd90,o[6]);
+    owned_request.asset=0;
+    ok=ok&&!runtime_archetype_group_owned(base,o[15],1)&&runtime_archetype_group_owned(base,o[15],0);
+    owned_request.asset=o[4];owned_request.klass=o[24];
+    ok=ok&&!runtime_archetype_group_owned(base,o[15],0);owned_request.klass=read_ptr(o[4]+0x50);
+    wchar_t first=asset_path[0];asset_path[0]=L'?';
+    ok=ok&&!runtime_archetype_group_owned(base,o[15],0);asset_path[0]=first;
+    memcpy(entry+24,wrong,8);ok=ok&&!runtime_archetype_group_owned(base,o[15],0);
+    memcpy(entry+24,group,8);
+    ok=ok&&runtime_archetype_path("BioChar_Player.Archetypes.Soldier.MaleShepard_Soldier")&&
+       !runtime_archetype_path("Other.Archetypes.Soldier.MaleShepard_Soldier")&&
+       !runtime_archetype_path("BioChar_Player.Archetypes.");
+    runtime_archetypes=saved_retention;runtime_fixture_ptr(o[15]+0xd90,saved_loader);
+    memcpy((void*)(o[6]+0x68),saved_arrays,32);
     const RuntimeHostNativeCalls calls={runtime_host_fixture_copy,runtime_host_fixture_destroy,
         runtime_host_fixture_listen,runtime_host_fixture_initialize,runtime_host_fixture_error_free};
     SessionContext context=session_context(o[15]);CombatContextChain chain;

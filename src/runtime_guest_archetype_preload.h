@@ -3,13 +3,18 @@
 /* Ordinary guest preparation for the observed missing BioChar_Player net object.
  * Use the same stock API as host morph loading, before native guest travel.
  * No package-map/cache/actor/role writes or synthetic input. */
+#include "runtime_archetype_retention.h"
 static RuntimePackagePreload runtime_guest_preload;
-static int runtime_guest_archetype_preload(uintptr_t base,SessionContext context) {
+static int runtime_guest_archetype_preload(uintptr_t base,uintptr_t engine,SessionContext context) {
     if(!runtime_package_preload_option(L"ME3_SQUAD_COOP_GUEST_ARCHETYPE_PRELOAD"))return 1;
     GuestCameraStamp world={0};
     if(!guest_camera_stamp_read(base,context.world,&world,1)||!guest_camera_stamp_matches(base,&world,1))return 0;
     int decision=runtime_package_preload_decision(&runtime_guest_preload,&world);
-    if(decision!=PACKAGE_PRELOAD_BEGIN)return decision==PACKAGE_PRELOAD_READY;
+    if(decision!=PACKAGE_PRELOAD_BEGIN){
+        if(decision!=PACKAGE_PRELOAD_READY)return 0;
+        if(!runtime_package_preload_option(L"ME3_SQUAD_COOP_GUEST_ARCHETYPE_RETAIN"))return 1;
+        return runtime_archetype_retain(base,engine,context.world);
+    }
     uintptr_t game=read_ptr(context.world+0x6b0),fn=function_named(base,"SFXGame","LoadPackage");
     unsigned char mode=255;
     if(g_runtime_config.role!=ME3_ROLE_GUEST||!session_actor_live(base,game)||
