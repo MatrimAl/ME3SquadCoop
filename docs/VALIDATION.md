@@ -1,5 +1,13 @@
 # Validation status
 
+Four exact native animation entries decompiled with nonempty outputs and
+unchanged supported source identity. Registration/thunk assembly establishes
+Add/Rmv/Register targets; a direct removal call and chained unwind metadata
+locate the parent temporary-record cleanup loop. Zero-reference expiry removes
+the record and calls RmvAnimSet, while PlayersOnly skips that selected block.
+This supports deferred cleanup waiting, not a live removal/playback claim.
+No runtime/script mutation, game or tests ran. See [native animation cleanup](REVIVE-ANIMATION.md).
+
 Authored revive action admission now starts closed, opens only after final
 coordinated preparation, and closes before binding retirement waits for a
 running action's cleanup. Readiness requires that local gate open. Changed

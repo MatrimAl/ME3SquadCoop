@@ -93,6 +93,51 @@ No runtime invokes this lease. Asset loading, native mesh refresh, reference
 concurrency, deferred removal and peer playback remain unfinished. No game,
 fixture, install, mount or tests ran.
 
+## Native animation mutation and deferred cleanup follow-up
+
+Exact-image registration names resolve AddAnimSet through string0x1383970,
+pair0x179fb70 and thunk0xb3bbc0 to body0xa87140; RmvAnimSet through
+string0x1383938, pair0x179fb60 and thunk0xb3bc40 to0xa93070;
+RegisterCustomAnimset through string0x1383060, pair0x179f980 and thunk0xb3cd30
+to0xa92020. The bridge calls were checked in decoded unwind-bounded assembly.
+A retained-project export completed with three requested/nonempty bodies.
+
+AddAnimSet reads the pawn Mesh at+0x3f4 and its AnimSets array at+0x320. An
+absent set is appended. The existing-set branch invokes a removal helper
+before appending it again; it is not a harmless reference-count increment.
+The mesh's+0x43c bit0x800, declared bAnimSetUpdated, is set. RmvAnimSet removes
+a matching mesh entry and sets that update bit. Both contain additional
+helper-returned-object handling that is not a complete mesh-cache/refresh
+contract. RegisterCustomAnimset writes a separate pawn+0x584 map and appends
+to the mesh; it does not operate on TemporaryAnims refcounts.
+
+The explicit direct RmvAnimSet call at0xa94a8d was verified as an instruction
+inside fragment0xa94a06. Its Windows unwind CHAININFO records lead through
+0xa9492d and0xa94925 to parent entry0xa948e0. That evidence supplied the exact
+parent export instead of guessing a nearby function. One requested/nonempty
+parent decompilation completed, giving four successful entries in this review.
+
+The parent's TemporaryAnims loop at pawn+0x76c/count+0x774 retains an entry
+while its RefCount at+8 is nonzero. At zero it subtracts the update delta from
+TimeLeft at+0xc; after expiry it removes the temporary record and calls
+RmvAnimSet for the saved set. The selected processing block is skipped when
+actor+0x25c mask0x41 is set, WorldInfo is absent, or WorldInfo+0x7c0 mask0x400
+(PlayersOnly) is set. Other calls and the full tick scheduling/mesh refresh
+lifecycle are not established by this cleanup observation.
+
+This supports using normal temporary registration and waiting for actual
+record/mesh removal. A pause can defer cleanup; wall-clock expiry must not be
+treated as disposal permission. The current lease does not force native removal
+or write the update bit, mesh list or temporary count. It still needs live
+removal/frame/playback evidence and runtime pre-handoff coordination.
+
+The first export attempt failed before analysis because Ghidra could not save
+its JDK location; it produced zero decompilations and remains separate. The
+permission-corrected runs completed with exact source identity, terminal exit0
+and nonempty per-function outputs. Private review records preserve hashes,
+address chains, bounded facts and unknown nested helpers. No game or tests ran;
+this step changed research evidence, not runtime behavior or the authored PCC.
+
 ## Search and evidence boundary
 
 The selected scans read AnimSequence object names and SequenceName properties

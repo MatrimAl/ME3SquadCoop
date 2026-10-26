@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-26: resolve native temporary animation removal path
+
+Registration and thunk instruction evidence selected AddAnimSet0xa87140,
+RmvAnimSet0xa93070 and RegisterCustomAnimset0xa92020. A verified direct removal
+call and chained Windows unwind records selected parent0xa948e0, avoiding
+fragment/nearby-function substitution. All four exact entries decompiled with
+nonempty bodies and source-matching terminal receipts.
+
+Add/remove mutate the mesh list and set bAnimSetUpdated; custom registration
+uses separate map storage. The parent's temporary-record loop retains nonzero
+references, decrements TimeLeft at zero and removes/calls RmvAnimSet on expiry.
+PlayersOnly skips that selected block. This supports the existing nonforced
+unregister/wait policy and rules out treating elapsed wall time as cleanup
+permission. Nested helpers, full mesh refresh/tick scheduling and live removal
+remain unverified. The first JDK-settings permission failure yielded no output;
+corrected runs completed. No game, tests or runtime/script changes occurred.
+See [animation cleanup evidence](REVIVE-ANIMATION.md).
+
 ## 2026-10-26: close new revive admission during pending retirement
 
 Runtime-lifecycle review exposed a missing link: clearing setup readiness did
