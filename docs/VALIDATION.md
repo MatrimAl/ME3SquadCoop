@@ -1,5 +1,15 @@
 # Validation status
 
+A temporary revive-animation lease compiled with the context/action/binding
+as a four-class package, without errors/warnings and with unchanged tracked
+inputs. It uses native temporary registration for an already loaded set and
+requires exact sequence lookup; retirement requests one nonforced unregister
+and waits for record/mesh removal. Eight selected script payloads decoded with
+16 aligned branches, including native parameter stubs whose actual bodies
+remain unreviewed. Asset loading, native refresh/removal, shared-count behavior
+and playback remain unverified. No runtime call, game or tests ran. See
+[animation lifetime candidate](REVIVE-ANIMATION.md).
+
 An owner-run inventory worker produced one new nonempty Ghidra decompilation
 for lookup helper0xba520. Independent retained-receipt/report/current-source
 checks confirm79 unique requested entries/78 nonempty bodies across the five

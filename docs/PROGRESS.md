@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: compile scoped temporary revive animation registration
+
+The new authored animation lease accepts an already loaded set, refuses an
+existing revive lookup/temporary record/mesh occurrence and uses the game's
+RegisterTemporaryAnim rather than rewriting Mesh.AnimSets. Readback requires
+one reference/occurrence and the exact expected sequence. Retirement follows
+action-binding release, requests one nonforced unregister and remains pending
+until native removal is observed; changed/shared counts are not guessed away.
+
+Eight selected script payloads matched lengths with16 aligned branch targets.
+Native AddAnimSet/RmvAnimSet/registration stubs do not establish actual native
+refresh or deferred removal. All four authored classes compiled without errors/
+warnings and with unchanged tracked inputs. The lease remains uncalled; asset
+loading, peer admission, skeleton/playback, concurrency and native cleanup are
+unfinished. No game or tests ran. See [animation lifecycle](REVIVE-ANIMATION.md).
+
 ## 2026-10-26: review owner-run inventory worker output
 
 The owner-run worker exported the missing semantic dependency0xba520 from

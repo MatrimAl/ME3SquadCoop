@@ -48,6 +48,49 @@ it does not prove network delivery or movement interruption. Its root motion
 remains Ignore, whereas the inspected reference selects Translate. No native
 timeline or override asset/list was copied into the authored package.
 
+## Temporary animation registration candidate
+
+`scripts/SFXSquadCoop_ReviveAnimation.uc` supplies an uncalled lease for an
+already loaded AnimSet. Runtime admission and asset loading remain external.
+It captures current pawn/controller/world/role/mesh, requires idle ordinary
+control, and refuses existing revive lookup, matching temporary records or a
+mesh occurrence of the supplied set. Existing availability should use the
+binding directly. The supplied set must have exactly one CB_MP_Revive sequence
+with positive finite length; readback must resolve that exact sequence.
+
+Acquire records pending state before RegisterTemporaryAnim. It requires one
+temporary reference and one mesh occurrence afterwards. A false result can
+retain pending state and must not be treated as no mutation. Skeleton
+compatibility and actual playback remain unverified.
+
+Release must follow action-binding retirement in the same idle ordinary
+context. It requests UnregisterTemporaryAnim once, with zero delay and no
+force-remove, only when the record has one reference and one mesh occurrence.
+It remains pending until later polling sees both removed. Shared/changed
+counts remain pending rather than guessing ownership. Deleted pawn/world
+state drops bookkeeping without a table write. No direct animation-array or
+refcount writes occur. Same-value external replacement is not detectable.
+
+Eight selected script exports matched serialized/VM lengths with16 aligned
+explicit branch targets. RegisterTemporaryAnim increments an existing
+temporary record, leaves an already installed mesh set unowned, or adds a
+count1 record and calls AddAnimSet. UnregisterTemporaryAnim decrements its
+matching record and sets TimeLeft at zero; the candidate never requests its
+force-remove fallback. Native deferred removal remains unresolved.
+
+AddAnimSet, RmvAnimSet and RegisterCustomAnimset are native declarations:
+their short script payloads are parameter stubs, not native body evidence.
+The nonempty ReplaceAnimSetWithDynamic override merely sets a power's
+CastAnimSet. LoadAnimSet uses shared PowerManager.LastPowerAnimSet state and
+RegisterCustomAnimset, which the revive component does not borrow.
+
+All four authored classes compiled together without errors/warnings and with
+unchanged tracked inputs. The saved private package digest is
+`0d5cecf7464dbd267087b04477e69e9f351124d3f7794bc8434550d3e5019af9`.
+No runtime invokes this lease. Asset loading, native mesh refresh, reference
+concurrency, deferred removal and peer playback remain unfinished. No game,
+fixture, install, mount or tests ran.
+
 ## Search and evidence boundary
 
 The selected scans read AnimSequence object names and SequenceName properties
