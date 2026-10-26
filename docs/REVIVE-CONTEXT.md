@@ -9,7 +9,8 @@ The component captures a candidate action, distinct party-pawn reviver/target,
 their current controllers and shared world. It refuses an already reserved
 target or an action whose cached pawn/player-controller/AI links do not match
 the current control context. SameActors rechecks reciprocal possession, world
-and deletion state; it does not repair stale action fields or ownership.
+and deletion state, including the native current WorldInfo getter matching
+the captured world. It does not repair stale action fields or ownership.
 
 Eligibility requires an ordinary unpaused world/current game mode, a living
 reviver outside ragdoll/recovery and a downed/nondead target within the target's
@@ -19,7 +20,29 @@ exact instance in the pawn's action array, synchronized target and no firing.
 Authority uses the supported native role value3 through explicit enum-to-int
 conversion. No role value is written.
 
-BeginDuration starts once while the current action and target reservation
+AcquireReservation requires authority on both pawns, current action5/exact
+instance/synchronized target and an unreserved eligible target. It records
+the attempt before setting the native bBeingRevived flag, with no native call
+between the final false check and assignment. Duration and dispatch require
+this captured reservation; another action's existing true flag is insufficient.
+Client presentation must follow native action replication rather than acquire
+this authority-side reservation or start its own authoritative duration.
+
+ReleaseReservation clears only within the same current action/context and
+authority. If the flag was already cleared while that context remains valid,
+it drops its own record without another target write. If context/ownership
+changed, it returns false and retains the record; Reset/Capture then refuse
+to discard it in order to start another attempt. This is pending cleanup, not
+proof of a restored target. Cancel latches cancellation and attempts release.
+The future owning action must call release before surrendering its action
+identity and handle a false result explicitly.
+
+The flag has no owner/generation field. This component cannot detect an
+external clear-and-reassert cycle entirely between observations. It is not a
+global lock against arbitrary mods or native writes. Current-action/target
+identity limits clearing; live stop/callback ordering still needs evidence.
+
+BeginDuration starts once while the current action and its own target reservation
 qualify. It captures the reviver's current native fTimeToRevive and the world's
 TimeSeconds deadline. Nonpositive/nonfinite durations, nonfinite clocks and
 nonadvancing/nonfinite deadlines refuse; no arbitrary duration cap or hardcoded
@@ -42,19 +65,20 @@ separate and requires the same actors/world/control context, authority and a
 target whose native dead/downed/state predicates have cleared. It does not
 prove sustained movement, correct camera, collision or equipment after revival.
 
-The future owning action must still provide animation, per-update progress polling, movement/
-damage cancellation, reservation ownership, timer baseline/cleanup and native
-replicated-target handling. In particular this component does not prove that
-a reservation flag was set by its own action; that ownership belongs to the
-pending action lease. It must not be activated merely because the flag is set.
+The future owning action must still provide animation, per-update progress
+polling, movement/damage cancellation, reservation release ordering, native
+usage-module baseline/cleanup, death-timer baseline/cleanup and replicated-target
+handling. This component's reservation bookkeeping alone is not sufficient
+for activation or proof that stop/recovery cleanup completes.
 Host story/session admission remains an external prerequisite; these checks
 do not authorize interaction during conversations or acquire guest control.
 
 The source is not a replacement for a missing action class or for its native
 CanDoCustomAction checks. A caller must invoke Capture only when starting a
 fresh action and must not Reset/rearm an in-progress attempt to replay a
-partial dispatch. The context performs no health, timer, collision, profile,
-GRI, ownership or action-array writes.
+partial dispatch. The context's direct target writes are limited to its scoped
+bBeingRevived reservation. It performs no direct health, timer, collision,
+profile, GRI, possession or action-array writes.
 
 ## Compile evidence
 
@@ -62,8 +86,8 @@ The authored context compiled with zero compiler errors/warnings and saved to
 a fresh private package using the new build command. The receipt status was
 `compiled-not-installed`; tracked tool/Oodle/Core/Engine/SFXGame/source hashes
 were unchanged. The saved package digest was
-`8c081ca40ab6682cda68f740aa82e746b5e05885420cef148c7a8e8fe42c671f`
-for the duration/conversation revision.
+`5922d1574e873d5b0eac76455b550bed410330af01860d94e74c644b14e59c48`
+for the reservation/current-world revision.
 Failed earlier compiler outputs remain separate private directories and are
 not candidates. No native-source change required rebuilding the ASIs.
 

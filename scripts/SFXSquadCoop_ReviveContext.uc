@@ -14,21 +14,28 @@ var bool bDurationStarted;
 var bool bCancelled;
 var float StartedAt;
 var float CompleteAt;
+var bool bReservationAttempted;
+var bool bReservationOwned;
 
-function Reset()
+function bool Reset()
 {
+    // Never discard a still-owned target just to accept a new action.
+    if (bReservationOwned)
+        return false;
     bCaptured = false;
     bDispatched = false;
     bDurationStarted = false;
     bCancelled = false;
     StartedAt = 0.0;
     CompleteAt = 0.0;
+    bReservationAttempted = false;
     Action = None;
     Reviver = None;
     Target = None;
     PlayerController = None;
     TargetController = None;
     SharedWorld = None;
+    return true;
 }
 
 function bool SameActors()
@@ -41,7 +48,8 @@ function bool SameActors()
         && PlayerController.WorldInfo == SharedWorld && TargetController.WorldInfo == SharedWorld
         && PlayerController.Pawn == Reviver && Reviver.Controller == PlayerController
         && Target.Controller == TargetController && TargetController.Pawn == Target
-        && Action.m_oPawn == Reviver && Action.m_oPC == PlayerController && Action.m_oAI == None;
+        && Action.m_oPawn == Reviver && Action.m_oPC == PlayerController && Action.m_oAI == None
+        && class'WorldInfo'.static.GetWorldInfo() == SharedWorld;
 }
 
 function bool OrdinaryWorld()
@@ -75,7 +83,8 @@ function bool EligibleTarget()
 
 function bool Capture(BioCustomAction Candidate, BioPawn SyncPawn)
 {
-    Reset();
+    if (!Reset())
+        return false;
     if (Candidate == None || Candidate.m_oPawn == None)
         return false;
     Action = Candidate;
@@ -107,7 +116,38 @@ function bool OwnsCurrentAction()
 
 function bool CanContinue()
 {
-    return !bCancelled && OwnsCurrentAction() && EligibleTarget() && !Reviver.IsFiring();
+    return !bCancelled && OwnsCurrentAction() && EligibleTarget() && !Reviver.IsFiring()
+        && (!bReservationAttempted || OwnsReservation());
+}
+
+function bool OwnsReservation()
+{
+    return bReservationOwned && bReservationAttempted && OwnsCurrentAction()
+        && int(Reviver.Role) == 3 && int(Target.Role) == 3 && Target.bBeingRevived;
+}
+
+function bool AcquireReservation()
+{
+    if (bReservationAttempted || bReservationOwned || !CanContinue()
+        || int(Reviver.Role) != 3 || int(Target.Role) != 3 || Target.bBeingRevived)
+        return false;
+    // No native call occurs between the final false check and this write.
+    bReservationAttempted = true;
+    bReservationOwned = true;
+    Target.bBeingRevived = true;
+    return OwnsReservation();
+}
+
+function bool ReleaseReservation()
+{
+    if (!bReservationOwned)
+        return true;
+    if (!OwnsCurrentAction() || int(Reviver.Role) != 3 || int(Target.Role) != 3)
+        return false;
+    if (Target.bBeingRevived)
+        Target.bBeingRevived = false;
+    bReservationOwned = false;
+    return true;
 }
 
 // Progress follows the native world clock, without adding callbacks to the
@@ -118,7 +158,7 @@ function bool BeginDuration()
     local float Now;
 
     if (bDurationStarted || bCancelled || bDispatched || !CanContinue()
-        || !Target.bBeingRevived)
+        || !OwnsReservation())
         return false;
     Duration = Reviver.fTimeToRevive;
     Now = SharedWorld.TimeSeconds;
@@ -136,6 +176,7 @@ function bool BeginDuration()
 function Cancel()
 {
     bCancelled = true;
+    ReleaseReservation();
 }
 
 function bool DurationComplete()
@@ -144,7 +185,7 @@ function bool DurationComplete()
 
     if (!bDurationStarted || bCancelled || bDispatched)
         return false;
-    if (!CanContinue() || !Target.bBeingRevived)
+    if (!CanContinue() || !OwnsReservation())
     {
         Cancel();
         return false;
@@ -162,7 +203,7 @@ function bool DurationComplete()
 // action must observe target recovery independently and still run its cleanup.
 function bool DispatchRevive()
 {
-    if (!DurationComplete() || !CanContinue() || !Target.bBeingRevived
+    if (!DurationComplete() || !CanContinue() || !OwnsReservation()
         || int(Reviver.Role) != 3 || int(Target.Role) != 3)
         return false;
     bDispatched = true;

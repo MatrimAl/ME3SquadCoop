@@ -1,5 +1,13 @@
 # Validation status
 
+The authored revive context's authority-side target reservation and current
+native-world identity check compiled without errors/warnings. Duration and
+dispatch now require its own reservation record. Release refuses changed
+action/control identity and retains pending metadata; the future owning action
+must establish pre-stop ordering and cleanup. No live cleanup, mutual exclusion
+or revival is proven. Tracked inputs remained unchanged; no game or tests ran.
+See [reservation limits](REVIVE-CONTEXT.md).
+
 The authored revive context's native-world duration, cancellation latch and
 conversation checks compiled without errors/warnings. Its deadline does not
 register pawn timers; the pending action must poll progress each update and

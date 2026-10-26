@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-26: scope authority-side revive target reservations
+
+The authored context now acquires bBeingRevived only for its own current
+action/target on authority, refusing existing reservations. Native-world
+duration and dispatch require that captured reservation. Conditional release
+retains pending ownership metadata when action/context no longer matches;
+Reset/Capture cannot silently discard it to accept another target. Current
+WorldInfo identity also gates the captured context through the native getter.
+
+The owning action still needs pre-stop release ordering and explicit pending
+cleanup handling, native use/death-timer baselines, animation and replication.
+A boolean flag cannot detect an unobserved external clear/reassert cycle; no
+global lock or completed cleanup is claimed. The revised class compiled with
+zero errors/warnings and unchanged tracked inputs. No game, fixture or tests
+ran. See [reservation contract](REVIVE-CONTEXT.md).
+
 ## 2026-10-26: add native-world revive duration and cancellation latch
 
 The authored context now starts progress once from the reviver's current
