@@ -148,3 +148,27 @@ recorded original profiles unchanged and no native exception, and left no
 game process. Both window encoders exited0. This result does not invalidate
 the TOC format readback; it separates structural consistency from actual
 engine acceptance.
+
+
+## Named configuration follow-up
+
+Focused offline disassembly of the supported executable separates two paths
+to the same error-record routine/code0x51692. The Mount caller records it when
+the Mount loader returns false. Another caller invokes a loader that constructs
+Default_ plus the DLC-derived name plus .bin; resolution/file-load failure also
+records that code. The latter path is conditional on DLC state flags and a
+global enable. This static finding does not prove which branch fired live.
+Chained x64 unwind fragments were included rather than mistaking the first
+runtime-function fragment for a complete body. No game was launched for this
+inspection; Ghidra's timed-out search supplied no decompilation evidence.
+
+The staging tool now offers explicit -IncludeMinimalConfig for a separate
+mount-toc-minimal-config candidate. It compiles one newly authored BioEngine
+core.system seekfreepcpaths property, type2, naming only this mod's own cooked
+folder. Those property names/operation type were independently observed in
+retained base and LEMP configuration reads; no binary config was copied.
+There is no startup PCC, startup registration, TLK, animation or owner asset.
+Readback requires exactly that one property, and regenerated TOC readback
+requires both the unchanged Mount and the correctly sized named coalesced.
+The candidate receipt still records EngineAccepted=false and Installed=false.
+This narrows the next experiment; it does not establish the corruption fix.

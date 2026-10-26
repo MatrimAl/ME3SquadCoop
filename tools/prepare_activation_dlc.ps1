@@ -2,7 +2,8 @@
 [CmdletBinding()]
 param(
  [Parameter(Mandatory)][string]$LegendaryExplorerPath,
- [Parameter(Mandatory)][string]$OutputDirectory
+ [Parameter(Mandatory)][string]$OutputDirectory,
+ [switch]$IncludeMinimalConfig
 )
 $ErrorActionPreference='Stop'
 if($PSVersionTable.PSVersion.Major -lt 7){throw 'PowerShell7 required'}
@@ -35,7 +36,8 @@ $activationRoot=Join-Path $activationOutput 'DLC_MOD_ME3SquadCoop'
 $activationCooked=Join-Path $activationRoot 'CookedPCConsole'
 $null=New-Item -ItemType Directory -Path $activationCooked
 $activationStatus=[ordered]@{Status='preparing';Installed=$false;EngineAccepted=$false;GameExecuted=$false;
- ContainsOwnerGameAssets=$false;ToolSHA256=$activationToolHash;Files=@()}
+ ContainsOwnerGameAssets=$false;ToolSHA256=$activationToolHash;Files=@();
+ Variant=$(if($IncludeMinimalConfig){'mount-toc-minimal-config'}else{'mount-toc'})}
 try {
  $activationStream=[IO.MemoryStream]::new()
  $activationWriter=[IO.BinaryWriter]::new($activationStream)
@@ -46,16 +48,40 @@ try {
  } finally {$activationWriter.Dispose();$activationStream.Dispose()}
  if($activationBytes.Length -ne 108){throw 'Unexpected Mount length'}
  [IO.File]::WriteAllBytes((Join-Path $activationCooked 'Mount.dlc'),$activationBytes)
+ if($IncludeMinimalConfig){
+  $activationXml=@"
+<?xml version="1.0" encoding="utf-8"?>
+<CoalesceAsset id="BioEngine" name="bioengine.ini" source="..\..\biogame\config\bioengine.ini">
+ <Sections><Section name="core.system"><Property name="seekfreepcpaths" type="2">..\..\BIOGame\DLC\DLC_MOD_ME3SquadCoop\CookedPCConsole</Property></Section></Sections>
+</CoalesceAsset>
+"@
+  $activationAssets=[Collections.Generic.Dictionary[string,string]]::new()
+  $activationAssets.Add('BioEngine.xml',$activationXml)
+  $activationConfig=Join-Path $activationCooked 'Default_DLC_MOD_ME3SquadCoop.bin'
+  $activationMemory=[LegendaryExplorerCore.Coalesced.CoalescedConverter]::CompileFromMemory($activationAssets)
+  try {[IO.File]::WriteAllBytes($activationConfig,$activationMemory.ToArray())} finally {$activationMemory.Dispose()}
+  $activationConfigStream=[IO.File]::OpenRead($activationConfig)
+  try {$activationConfigReadback=[LegendaryExplorerCore.Coalesced.CoalescedConverter]::DecompileGame3ToMemory($activationConfigStream)} finally {$activationConfigStream.Dispose()}
+  [xml]$activationReadXml=$activationConfigReadback['BioEngine.xml']
+  $activationProperties=@($activationReadXml.SelectNodes('//Property'))
+  if($activationProperties.Count -ne 1 -or $activationProperties[0].GetAttribute('name') -ne 'seekfreepcpaths' -or
+     $activationProperties[0].GetAttribute('type') -ne '2' -or $activationProperties[0].InnerText -ne '..\..\BIOGame\DLC\DLC_MOD_ME3SquadCoop\CookedPCConsole'){throw 'Minimal config roundtrip mismatch'}
+ }
  $activationTOC=[LegendaryExplorerCore.Unreal.TOCCreator]::CreateDLCTOCForDirectory($activationRoot,[LegendaryExplorerCore.Packages.MEGame]::LE3)
  try {[IO.File]::WriteAllBytes((Join-Path $activationRoot 'PCConsoleTOC.bin'),$activationTOC.ToArray())} finally {$activationTOC.Dispose()}
  $activationParsed=[LegendaryExplorerCore.Unreal.TOCBinFile]::new((Join-Path $activationRoot 'PCConsoleTOC.bin'))
  $activationEntries=@($activationParsed.GetAllEntries()|ForEach-Object {@{Name=$_.name;Size=$_.size}})
  $activationMountEntries=@($activationEntries|Where-Object {$_.Name.Replace('/','\') -eq 'CookedPCConsole\Mount.dlc'})
  if($activationMountEntries.Count -ne 1 -or $activationMountEntries[0].Size -ne 108){throw 'TOC Mount entry mismatch'}
+ if($IncludeMinimalConfig){
+  $activationConfigEntries=@($activationEntries|Where-Object {$_.Name.Replace('/','\') -eq 'CookedPCConsole\Default_DLC_MOD_ME3SquadCoop.bin'})
+  if($activationConfigEntries.Count -ne 1 -or $activationConfigEntries[0].Size -ne (Get-Item -LiteralPath $activationConfig).Length){throw 'TOC config entry mismatch'}
+ }
  if((Get-FileHash -LiteralPath $activationAssembly -Algorithm SHA256).Hash -ne $activationToolHash){throw 'Tool assembly changed'}
  $activationStatus.TOCEntries=$activationEntries
  $activationStatus.Files=@(Get-ChildItem -LiteralPath $activationRoot -File -Recurse|ForEach-Object {@{RelativePath=[IO.Path]::GetRelativePath($activationRoot,$_.FullName);Bytes=$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}})
- if($activationStatus.Files.Count -ne 2){throw 'Unexpected activation payload'}
+ $activationExpectedCount=if($IncludeMinimalConfig){3}else{2}
+ if($activationStatus.Files.Count -ne $activationExpectedCount){throw 'Unexpected activation payload'}
  $activationStatus.Status='prepared-not-installed'
 } catch {$activationStatus.Status='failed';$activationStatus.Error=$_.Exception.Message;throw}
 finally {$activationStatus|ConvertTo-Json -Depth 6|Set-Content -LiteralPath (Join-Path $activationOutput 'preparation.json') -Encoding utf8}
