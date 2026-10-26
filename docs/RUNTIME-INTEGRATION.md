@@ -260,3 +260,25 @@ actual-entry control/camera/disconnect runs, reliable equipment and authoritativ
 enemy damage, actual full conversations, mission transitions, two physical PCs
 over Radmin, authored installable DLC, and Mod Manager install/disable/rollback.
 Do not label the offline integration as a release.
+
+
+## Ordinary readiness follow-up and rejected temporary DLC
+
+A later protected ordinary pair exercised the stable-player join guard: five
+samples over1000ms preceded its one-shot join at world time68.473seconds.
+Host native Listen again verified, and guest ConsoleCommand dispatched.
+No simultaneous native connection scope was observed. The guest transitioned
+to EntryMenu; the bounded viewport observation retained only Connecting.
+Decoded guest video shows an explicit corrupt-downloadable-content warning
+naming the temporary authored DLC_MOD_ME3SquadCoop directory. Thus this is not
+an isolated readiness or transport experiment, and the visual warning must not
+be hidden behind the empty console result. The exact internal rejection reason
+and its causal relationship to travel remain unproven.
+
+The private runner installed a Mount-only activation directory. That directory
+is a presence gate for the ASI, not demonstrated engine-accepted content. Resolve
+its packaging against the existing full authored DLC tooling before repeating
+ordinary network tests. Do not bypass engine package checks or treat presence
+as successful mounting. Cleanup removed the temporary ASI and DLC, restored the
+probe gate, retained original locks through shutdown, left original profiles
+unchanged, recorded no native exception and left no game process.
