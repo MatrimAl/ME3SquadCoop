@@ -1,5 +1,15 @@
 # Runtime integration status
 
+For LE3 2.0.0.48602, the SDK identifies the unequal final sampled appearance
+integer as the transient `OverrideHelmetID` (0x1514). Selected package script
+shows `FindOverrideHelmet` derives a breather-capable choice; its code alone
+does not explain the observed host value or prove a rendered mismatch. The
+normal appearance-completion script performs a loader cleanup after applying
+the appearance; the current guarded direct `ApplyAppearance` path does not
+execute that whole chain. Runtime consequences and safe cleanup conditions
+remain unverified. Selected source-bound exports and receipts remain in the
+private LE3 reverse-engineering workspace.
+
 An ordinary same-PC pair from `c16b2d2` connected with an owned Shepard
 channel and matching host/guest archetype and class paths. In six read-only
 samples, the guest replica's skeletal-mesh reference was null in the first
