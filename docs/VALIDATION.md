@@ -663,3 +663,23 @@ file locks until cleanup, reported original profiles unchanged, zero native
 exceptions, no observer/cleanup errors and no remaining game process. Its
 memory helper exited1 during shutdown; complete helper termination sampling
 is not claimed. Both window encoders exited0 and their segments were retained.
+
+
+## Bounded walking excerpts do not replace the route result
+
+Offline review applied the unchanged default walking evaluator to explicitly
+bounded20-second excerpts of the preceding retained run. A selected interval
+contained20 aligned samples over19.563seconds, with host displacement1690,
+host-Ashley1249 and guest1221 units and replica movement-direction cosine0.9991.
+All three moved throughout the eligible sampled intervals; no thresholds were
+changed. Multiple overlapping excerpts qualified, which are not independent
+trials. This establishes a bounded common-travel observation, not a full-route
+pass. The route's vertical-range/host-motion rejections and unsafe walking
+sample remain reported.
+
+That sample was a guest PlayerFalling state with vertical velocity about-840
+at height-180, above KillZ-2500. Adjacent samples show walking near height0
+beforeward and walking at about-380 one second afterward. This is a temporary
+descent with sampled walking recovery, not proof of out-of-world loss or of
+correct intended traversal. The earlier receive-time coordinate corruption
+is separate evidence and must not be conflated with this descent.

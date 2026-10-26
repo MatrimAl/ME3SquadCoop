@@ -95,6 +95,28 @@ The existing settled host snapshot adapter is an appropriate separate opt-in
 candidate for this exact case: it waits for idle and unchanged local counts,
 requests host values and accepts only a fresh matching owned-weapon reply.
 Its earlier successful zero-ammo exchanges did not exercise actual firing.
-Validation during the real aimed-fire route is still required before adopting
-it as ordinary gameplay behavior. Host counters, native hit payloads and local
+A subsequent real-fire route run is described below. Repeatability and
+ordinary-entry integration remain required before adopting it as ordinary
+gameplay behavior. Host counters, native hit payloads and local
 fire prediction remain unchanged by this investigation.
+
+
+## Settled snapshots during real firing
+
+The subsequent protected route enabled the existing adapter on both peers.
+The strict four-stage evaluator matched three completed exchanges. After an
+actual short firing pulse, the guest requested used5/spare210, the host
+returned used4/spare210, and the guest applied4/210; guest-local roundtrip was
+297ms. Two later exchanges already matched, at9/210 and28/210, taking282ms and
+312ms respectively. A separate aimed-fire episode bracketed three valid host
+Trooper health decreases. Nine later samples per side over about eight seconds
+remained28/210. The aimed episode needed no adapter write, so it does not prove
+that this adapter cured the preceding run's exact final-shot divergence.
+
+This extends the earlier zero-host-consumption protocol observation to actual
+firing and a real one-round correction. It is one protected run, not an ordinary
+runtime implementation or repeatability claim. The aggregate four-pulse fire
+verifier remained false; movement and full campaign gates also remained false.
+Original profiles stayed unchanged, native exceptions were zero and all game
+processes exited. The default-off adapter remains confined to the protected
+probe pending ordinary-entry integration and verification.
