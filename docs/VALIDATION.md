@@ -1,5 +1,13 @@
 # Validation status
 
+The current ordinary candidate adds stock host-team registration for a guest
+with an unassigned PRI and a read-only exception that retains an existing
+human lease during all-ambient, camera-free conversation lists. Native
+fixtures cover dispatch/admission/cleanup and conservative scene policy;
+live bidirectional enemy damage and the Mars corpse interaction remain owner
+checks. No new game was launched for these integrations. Shepard-death
+continuation and the reported AI T-pose are explicitly deferred.
+
 The native guest HUD fallback now follows actual member display state and
 current/displayed resistance-cache readiness, including native full-health
 auto-hide. The old config-bit proxy contradicted 49 recorded owned-Ashley

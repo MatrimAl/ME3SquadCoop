@@ -14,6 +14,13 @@ human players to leave the cabin. Native fixtures cover the adapter contracts;
 live discovery, movement boundaries and animation remain owner checks. See
 [story trigger authority](docs/STORY-TRIGGER-AUTHORITY.md) for scope and test steps.
 
+It also registers an unassigned guest in the existing native host team and
+retains human companion control during proven camera-free ambient lines.
+These address a missing hostility prerequisite and unwanted AI interaction
+handoffs; live combat and corpse-interaction results await owner testing. See
+[team registration](docs/GUEST-TEAM-REGISTRATION.md) and
+[ambient control](docs/AMBIENT-COMPANION-CONTROL.md).
+
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.
 Native keyboard power slots/icons remain enabled. Shift Command mode now retains

@@ -108,6 +108,8 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_story_warning.h"
 #include "runtime_team_hud.h"
 #include "runtime_story_gate.h"
+#include "runtime_ambient_conversation.h"
+#include "runtime_guest_team.h"
 #include "runtime_power_action_context.h"
 static SessionContext runtime_host_power_context(uintptr_t engine) {
     SessionContext c=session_context(engine);
@@ -205,6 +207,8 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
 static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     session_engine=engine;session_game_thread=GetCurrentThreadId();
     runtime_scope_ready=runtime_session_scope(base,engine);
+    runtime_ambient_conversation_configure(base);
+    if(!after&&runtime_guest_team_tick(base,engine,now))runtime_scope_ready=runtime_session_scope(base,engine);
     runtime_revive_peer_configure();
     runtime_team_hud_configure();
     if(!after)runtime_rpc_receive_prepare(base);
@@ -227,6 +231,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     session_host_frame(base,engine,after);
     if(after) {
         runtime_scope_ready=runtime_session_scope(base,engine);
+        if(runtime_guest_team_tick(base,engine,GetTickCount()))runtime_scope_ready=runtime_session_scope(base,engine);
         runtime_host_power_context_tick(base,engine);
         runtime_presentation_tick(base,engine,GetTickCount());
         runtime_revive_peer_tick(base,engine,GetTickCount());

@@ -53,6 +53,9 @@ typedef struct {
 /* Ordinary runtime may retain an existing lease in a verified native command
  * menu. NULL keeps the protected probe's original scene policy. */
 static int (*session_command_menu_retained)(uintptr_t,SessionContext);
+/* Optional ordinary-runtime proof that every active conversation is ambient.
+ * NULL preserves the protected probe's original full handoff policy. */
+static int (*session_ambient_conversation_held)(SessionContext,uintptr_t,int);
 /* Optional ordinary-entry resource cleanup. NULL preserves probe behavior.
  * Called under session_releasing before native control is detached. */
 static void (*session_before_control_release)(uintptr_t,uintptr_t);
@@ -152,7 +155,8 @@ static const char *session_environment_block_reason(SessionContext c) {
         if (!read_at(conversation + 0xd0, &active, 4)) return "conversation-count-unreadable";
         if (active < 0) return "conversation-count-invalid";
         if (!read_at(conversation + 0xe8, &activating, 4)) return "conversation-flags-unreadable";
-        if (active > 0) return "conversation-active";
+        if (active > 0 && (!session_ambient_conversation_held ||
+            !session_ambient_conversation_held(c,conversation,active))) return "conversation-active";
         if (activating & 1) return "conversation-activating";
     }
     return NULL;
