@@ -26,6 +26,21 @@ class LocalSquadPlanTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             RuntimeSessionPlan('guest', '192.168.1.2', peer_ipv4='192.168.1.3', local_squad_set=1)
 
+    def test_native_mapped_power_candidate_is_guest_only_and_explicit(self):
+        key = 'ME3_SQUAD_COOP_NATIVE_MAPPED_POWERS'
+        guest = RuntimeSessionPlan('guest', '192.168.1.2', peer_ipv4='192.168.1.3')
+        self.assertNotIn(key, guest.environment)
+        self.assertNotIn(key, guest.child_environment({key:'1'}))
+        opted = RuntimeSessionPlan('guest', '192.168.1.2', peer_ipv4='192.168.1.3', native_mapped_powers=True)
+        self.assertEqual(opted.environment[key], '1')
+        with self.assertRaises(ValueError):
+            RuntimeSessionPlan('host', '192.168.1.2', native_mapped_powers=True)
+        with self.assertRaises(ValueError):
+            RuntimeSessionPlan('guest', '192.168.1.2', peer_ipv4='192.168.1.3', native_mapped_powers=1)
+        result = subprocess.run([sys.executable,str(ROOT/'tools/prepare_session.py'),'--role','guest',
+            '--bind','192.168.1.2','--peer','192.168.1.3','--native-mapped-powers'],capture_output=True,text=True,check=True)
+        self.assertEqual(json.loads(result.stdout)['environment'][key], '1')
+
     def test_cli_emits_guest_setting(self):
         result = subprocess.run([sys.executable, str(ROOT/'tools/prepare_session.py'), '--role', 'guest',
                                  '--bind', '192.168.1.2', '--peer', '192.168.1.3', '--local-squad-set'],

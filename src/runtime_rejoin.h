@@ -1,6 +1,7 @@
 #ifndef ME3_RUNTIME_REJOIN_H
 #define ME3_RUNTIME_REJOIN_H
-/* Explicit recovery after an ordinary join attempt. No automatic reconnect,
+/* Explicit recovery after a join attempt or verified owned client origin.
+ * No automatic reconnect,
  * forced disconnect, fault reset, mission selection or stale-world cleanup. */
 static void runtime_rejoin_finish(int status,const char *reason,DWORD now) {
     char row[350];snprintf(row,sizeof row,
@@ -26,7 +27,7 @@ static void runtime_rejoin_tick(uintptr_t base,uintptr_t engine,DWORD now) {
         InterlockedExchange(&runtime_network_start_status,RUNTIME_START_RETRY_WAITING);
     }
     if(!runtime_control_enabled||g_runtime_config.role!=ME3_ROLE_GUEST||
-       !InterlockedCompareExchange(&runtime_join_attempted,0,0)||
+       !runtime_rejoin_history_valid()||
        InterlockedCompareExchange(&runtime_join_requested,0,0)) {
         runtime_rejoin_finish(RUNTIME_START_RETRY_REFUSED,"disabled-or-conflicting-request",now);return;
     }

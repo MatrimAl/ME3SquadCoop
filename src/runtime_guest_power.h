@@ -274,6 +274,7 @@ static void runtime_power_log(int status,const char *reason,unsigned index,DWORD
 }
 #include "runtime_power_input.h"
 #include "runtime_native_power_input.h"
+#include "runtime_mapped_power_input.h"
 static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionContext c,int ordinary,int after,DWORD now) {
     RuntimePowerCatalog current;
     if(!runtime_control_enabled||!runtime_scope_ready||!runtime_power_read_catalog(base,c,ordinary,&current)) {
@@ -289,6 +290,7 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
     }
     if(after)return;
     runtime_power_bind_slots(&current,(unsigned)runtime_power_scope);
+    runtime_mapped_power_input_prepare(base,c,ordinary);
     runtime_native_power_input_install(base);
     int action=runtime_power_input_poll((unsigned)runtime_power_scope,(unsigned)current.count);
     int action_index=action>=0?runtime_power_slot_index(&current,(unsigned)action):-1;

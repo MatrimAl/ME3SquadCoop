@@ -20,6 +20,7 @@ class RuntimeSessionPlan:
     native_power_hotkeys: bool = False
     native_power_icons: bool = False
     local_squad_set: bool = None
+    native_mapped_powers: bool = False
 
     def __post_init__(self):
         if self.role not in ("host", "guest"):
@@ -42,6 +43,8 @@ class RuntimeSessionPlan:
             raise ValueError("native power hotkeys require a guest plan and a boolean option")
         if type(self.native_power_icons) is not bool or (self.native_power_icons and not self.native_power_hotkeys):
             raise ValueError("native power icons require native power hotkeys and a boolean option")
+        if type(self.native_mapped_powers) is not bool or (self.native_mapped_powers and self.role != "guest"):
+            raise ValueError("native mapped powers require a guest plan and a boolean option")
         endpoint = DirectIPConfig(
             "host" if self.role == "host" else "client",
             self.bind_ipv4, self.port, self.peer_ipv4, loopback_qa=False)
@@ -89,6 +92,8 @@ class RuntimeSessionPlan:
             values["ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS"] = "1"
         if self.native_power_icons:
             values["ME3_SQUAD_COOP_NATIVE_POWER_ICONS"] = "1"
+        if self.native_mapped_powers:
+            values["ME3_SQUAD_COOP_NATIVE_MAPPED_POWERS"] = "1"
         return values
 
     def child_environment(self, inherited):

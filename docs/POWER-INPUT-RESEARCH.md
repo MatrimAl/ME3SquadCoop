@@ -1,5 +1,38 @@
 # Power input research
 
+## Opt-in native mapped-command candidate
+
+The ordinary guest can explicitly enable `ME3_SQUAD_COOP_NATIVE_MAPPED_POWERS=1`
+or the planner's `--native-mapped-powers` option. Defaults and existing keyboard
+options are unchanged; host plans refuse this option. This is a candidate for
+normal `TryUsePower` command delivery, independently of the external shortcuts
+and PC wheel hotkey bridge. Actual gamepad/console alias delivery through the
+hooked ProcessEvent virtual remains unverified.
+
+Retained owned script identifies `SFXGameModeDefault.TryUsePower` as an exec
+function (`0x20202`) with one four-byte `Power` integer, no return value and
+724 expanded script bytes. It reads its controller through `Outer`, including
+`Outer.PlayerInput` and `Outer.Pawn`; the latter is cast to `SFXPawn_Player`.
+The candidate checks that exact method/parameter/native ABI and the native
+ProcessEvent entry before replacing the current default mode's forwarding
+virtual. It requires the current controller's `GameModeManager2.GameModes[0]`,
+mode0, matching Outer, registered owned Ashley and current input identities.
+
+The callback reads already-decoded ProcessEvent parameters and queues actions
+0..4 or6 through the existing scoped mapped-power API. It performs read-only
+membership/catalog validation and no native engine call. The ordinary Tick
+retains final scene/life/rank/controller, mapped-name, combat, expiry and
+SquadOrderUsePower checks. Owned unavailable/unsupported requests are consumed
+and logged; other methods/controllers, host/disabled runtime and released
+control forward the original call once. LastError is preserved around the
+filter. There is no FFrame parsing, script-function rewrite, new key polling,
+saved mapping change, caster override or forced cast.
+
+The native self-test covers forwarding, ownership/policy refusal and unsupported
+command handling; its availability does not establish actual input delivery or
+a cast. No game or new reverse-engineering analysis was performed for this
+candidate. Native compilation and focused verification are reported separately.
+
 Guest power use is **unverified**. No native binding/profile rewrite, forced
 unlock, cooldown change or replacement transport has been implemented.
 An explicit ordinary-runtime request API is now implemented as a compiled

@@ -143,6 +143,9 @@ __declspec(dllexport) int ME3RuntimeScriptSlotSelfTest(void) {return native_scri
 #include "runtime_rpc_receive_selftest.h"
 __declspec(dllexport) int ME3RuntimeRpcReceiveSelfTest(void) {return runtime_rpc_receive_selftest();}
 #include "runtime_core_fixture.h"
+#include "runtime_auto_rejoin_fixture.h"
+__declspec(dllexport) int ME3RuntimeAttachRecoverySelfTest(void) {return runtime_attach_recovery_selftest();}
+__declspec(dllexport) int ME3RuntimeMappedPowerInputSelfTest(void) {return runtime_mapped_power_input_selftest();}
 __declspec(dllexport) int ME3RuntimeNetworkStartSelfTest(void) {return runtime_network_start_selftest()&&runtime_startup_focus_selftest()&&runtime_package_preload_selftest();}
 __declspec(dllexport) int ME3RuntimeTravelIdleSelfTest(void) {return runtime_join_travel_idle_selftest();}
 __declspec(dllexport) int ME3RuntimeJoinReadinessSelfTest(void) {return runtime_join_readiness_selftest();}
@@ -186,8 +189,9 @@ __declspec(dllexport) int ME3RuntimeJoinRequestSelfTest(void) {
 __declspec(dllexport) int ME3RuntimeRejoinRequestSelfTest(void) {
     Me3RuntimeConfig saved=g_runtime_config;Me3RuntimeConfigStatus status=g_config_status;
     LONG enabled=g_enable_requested,requested=runtime_join_requested,attempted=runtime_join_attempted,
-        retry=runtime_rejoin_requested,network_status=runtime_network_start_status;
-    runtime_join_requested=runtime_join_attempted=runtime_rejoin_requested=0;
+        retry=runtime_rejoin_requested,network_status=runtime_network_start_status,
+        origin=runtime_rejoin_verified_origin;
+    runtime_join_requested=runtime_join_attempted=runtime_rejoin_requested=runtime_rejoin_verified_origin=0;
     g_enable_requested=1;g_config_status=ME3_CONFIG_READY;g_runtime_config.role=ME3_ROLE_GUEST;
     int ok=!runtime_request_rejoin();runtime_join_attempted=1;
     g_runtime_config.role=ME3_ROLE_HOST;ok=ok&&!runtime_request_rejoin();
@@ -198,7 +202,7 @@ __declspec(dllexport) int ME3RuntimeRejoinRequestSelfTest(void) {
         runtime_rejoin_requested==1&&runtime_join_attempted==1&&!runtime_join_requested;
     g_runtime_config=saved;g_config_status=status;g_enable_requested=enabled;
     runtime_join_requested=requested;runtime_join_attempted=attempted;runtime_rejoin_requested=retry;
-    runtime_network_start_status=network_status;return ok;
+    runtime_rejoin_verified_origin=origin;runtime_network_start_status=network_status;return ok;
 }
 static unsigned runtime_fixture_tick_count;
 static uintptr_t runtime_fixture_tick_self;

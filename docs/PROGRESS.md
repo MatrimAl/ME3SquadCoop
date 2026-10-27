@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-10-27: attached-client recovery and mapped power input
+
+An already-connected guest using `--start attach --auto-rejoin` could not
+record its verified owned client origin because no startup join attempt had
+occurred. Recovery now accepts that separately recorded native origin without
+fabricating startup history. The existing disposal, standalone cleanup,
+readiness, target and one-attempt-per-origin checks remain. The native fixture
+covers attach with no join attempt, both old registry slots retiring, one
+queued recovery and refusal to spend that origin twice. A failed initial join
+still supplies no automatic recovery origin.
+
+The optional native mapped-power bridge now connects the exact default-mode
+`TryUsePower` ProcessEvent call to the existing scoped power queue. It checks
+the current registered Ashley, input/controller/mode/method identities and
+decoded integer ABI; no engine call runs inside the filter. Other calls forward
+unchanged. Actual gamepad alias delivery and a completed cast remain owner
+checks, so this bridge stays explicitly opt-in.
+
+All four native targets rebuilt. The native runtime harness and four focused
+session-plan tests passed. No game was launched for these changes.
+
 ## 2026-10-27: ordinary owned movement-payload correction
 
 The normal guest now includes the existing protected correction for native

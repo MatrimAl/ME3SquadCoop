@@ -49,6 +49,8 @@ def main():
                  "ME3RuntimeRpcReceiveSelfTest",
                  "ME3RuntimeScriptSlotSelfTest",
                  "ME3RuntimeJoinRequestSelfTest", "ME3RuntimeRejoinRequestSelfTest", "ME3RuntimeTravelIdleSelfTest",
+                 "ME3RuntimeAttachRecoverySelfTest",
+                 "ME3RuntimeMappedPowerInputSelfTest",
                  "ME3RuntimeJoinReadinessSelfTest",
                  "ME3RuntimeJoinDiagnosticsSelfTest",
                  "ME3RuntimeJoinProgressSelfTest",

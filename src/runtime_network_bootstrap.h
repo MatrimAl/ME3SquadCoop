@@ -16,6 +16,9 @@ typedef enum RuntimeNetworkStartStatus {
 static volatile LONG runtime_join_requested,runtime_join_attempted,runtime_network_start_status;
 static volatile LONG runtime_listen_requested,runtime_listen_attempted;
 static volatile LONG runtime_rejoin_requested;
+/* Actual owned client observation also authorizes recovery for --start attach.
+ * It never impersonates a startup join attempt or grants automatic retry. */
+static volatile LONG runtime_rejoin_verified_origin;
 static DWORD runtime_rejoin_started;
 static int runtime_join_retry_armed;
 static volatile LONG runtime_relisten_requested,runtime_listen_successful;
@@ -90,12 +93,16 @@ static int runtime_request_join(void) {
     if(InterlockedCompareExchange(&runtime_join_requested,1,0))return 0;
     InterlockedExchange(&runtime_network_start_status,RUNTIME_START_WAITING);return 1;
 }
+static int runtime_rejoin_history_valid(void) {
+    return InterlockedCompareExchange(&runtime_join_attempted,0,0)||
+        InterlockedCompareExchange(&runtime_rejoin_verified_origin,0,0);
+}
 /* Export callers only enqueue intent. Native world/cleanup state belongs
  * exclusively to Tick, never an arbitrary caller thread. */
 static int runtime_request_rejoin(void) {
     if(g_config_status!=ME3_CONFIG_READY||g_runtime_config.role!=ME3_ROLE_GUEST||
        !InterlockedCompareExchange(&g_enable_requested,0,0)||
-       !InterlockedCompareExchange(&runtime_join_attempted,0,0)||
+       !runtime_rejoin_history_valid()||
        InterlockedCompareExchange(&runtime_join_requested,0,0))return 0;
     return InterlockedCompareExchange(&runtime_rejoin_requested,1,0)==0;
 }

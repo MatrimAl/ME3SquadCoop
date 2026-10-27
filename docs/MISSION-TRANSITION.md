@@ -84,6 +84,9 @@ with reciprocal Ashley ownership and a registered player context. It records
 the validated native root/driver identities; a dispatched ConsoleCommand,
 progress text or net-mode observation alone cannot establish this origin.
 New origin epochs never wrap into reused values.
+The same verified origin permits recovery with `--start attach --auto-rejoin`,
+without recording a startup join attempt that never occurred.
+This admission does not grant an automatic retry after an initial join failure.
 
 After that root and driver both have positive twice-read registry disposal
 evidence, the scheduler can request the existing retry path in a different

@@ -4,6 +4,18 @@
  * disposed. Never disconnect, choose a mission or retry a failed initial join. */
 static SessionHandle runtime_auto_rejoin_origin_world,runtime_auto_rejoin_origin_driver;
 static unsigned runtime_auto_rejoin_epoch,runtime_auto_rejoin_attempted_epoch;
+/* Called only after the full reciprocal owned/registered client scope and
+ * twice-read native world/driver identities have passed below. */
+static int runtime_auto_rejoin_observe_origin(SessionHandle world,SessionHandle network) {
+    if(!session_handle_matches(world)||!session_handle_matches(network))return 0;
+    if(runtime_auto_rejoin_epoch&&
+       world.pointer==runtime_auto_rejoin_origin_world.pointer&&world.index==runtime_auto_rejoin_origin_world.index&&
+       world.name==runtime_auto_rejoin_origin_world.name&&network.pointer==runtime_auto_rejoin_origin_driver.pointer&&
+       network.index==runtime_auto_rejoin_origin_driver.index&&network.name==runtime_auto_rejoin_origin_driver.name)return 0;
+    if(runtime_auto_rejoin_epoch==UINT32_MAX)return 0;
+    runtime_auto_rejoin_origin_world=world;runtime_auto_rejoin_origin_driver=network;++runtime_auto_rejoin_epoch;
+    InterlockedExchange(&runtime_rejoin_verified_origin,1);return 1;
+}
 static int runtime_auto_rejoin_client_scope(uintptr_t base,uintptr_t engine,
     const CombatContextChain *chain,SessionContext c) {
     uintptr_t local=0,driver=read_ptr(chain->world+0x120),connection=read_ptr(driver+0x80);
@@ -27,6 +39,14 @@ static int runtime_auto_rejoin_old_gone(uintptr_t base) {
         session_registry_retired(base,runtime_auto_rejoin_origin_world,&again)&&
         session_registry_retired(base,runtime_auto_rejoin_origin_driver,&again);
 }
+/* Consume one observed origin only after disposal and the caller's normal
+ * standalone readiness gates. A failed initial join has no origin epoch. */
+static int runtime_auto_rejoin_queue_origin(uintptr_t base,SessionHandle target) {
+    if(!runtime_auto_rejoin_epoch||runtime_auto_rejoin_attempted_epoch==runtime_auto_rejoin_epoch||
+       target.pointer==runtime_auto_rejoin_origin_world.pointer||!session_handle_matches(target)||
+       !runtime_auto_rejoin_old_gone(base)||!runtime_request_rejoin())return 0;
+    runtime_auto_rejoin_attempted_epoch=runtime_auto_rejoin_epoch;runtime_auto_rejoin_target=target;return 1;
+}
 static void runtime_auto_rejoin_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     static int configured,opted;static DWORD checked;
     if(!configured) {
@@ -36,7 +56,6 @@ static void runtime_auto_rejoin_tick(uintptr_t base,uintptr_t engine,DWORD now) 
     runtime_auto_rejoin_enabled=opted&&g_runtime_config.role==ME3_ROLE_GUEST;
     if(!opted||runtime_auto_rejoin_suspended||!runtime_control_enabled||
        g_runtime_config.role!=ME3_ROLE_GUEST||g_config_status!=ME3_CONFIG_READY||
-       !InterlockedCompareExchange(&runtime_join_attempted,0,0)||
        InterlockedCompareExchange(&runtime_join_requested,0,0)||
        InterlockedCompareExchange(&runtime_rejoin_requested,0,0))return;
     if(checked&&now-checked<500)return;checked=now;
@@ -50,12 +69,7 @@ static void runtime_auto_rejoin_tick(uintptr_t base,uintptr_t engine,DWORD now) 
         combat_context_read_chain(base,&again);
         if(!combat_context_chain_equal(&chain,&again)||read_ptr(chain.world+0x120)!=driver||
            !session_handle_matches(world)||!session_handle_matches(network))return;
-        if(runtime_auto_rejoin_epoch&&
-           world.pointer==runtime_auto_rejoin_origin_world.pointer&&world.index==runtime_auto_rejoin_origin_world.index&&
-           world.name==runtime_auto_rejoin_origin_world.name&&network.pointer==runtime_auto_rejoin_origin_driver.pointer&&
-           network.index==runtime_auto_rejoin_origin_driver.index&&network.name==runtime_auto_rejoin_origin_driver.name)return;
-        if(runtime_auto_rejoin_epoch==UINT32_MAX)return; /* Never reuse an origin epoch. */
-        runtime_auto_rejoin_origin_world=world;runtime_auto_rejoin_origin_driver=network;++runtime_auto_rejoin_epoch;
+        if(!runtime_auto_rejoin_observe_origin(world,network))return;
         line("{\"runtime_network\":\"automatic-rejoin-origin-observed\",\"owned_registered_guest\":true,\"campaign_verified\":false}\r\n");return;
     }
     RuntimeJoinSample ready={0};
@@ -66,8 +80,7 @@ static void runtime_auto_rejoin_tick(uintptr_t base,uintptr_t engine,DWORD now) 
        !runtime_join_context_sample(base,c,&chain,&ready))return;
     SessionHandle target=session_capture_handle(chain.world);combat_context_read_chain(base,&again);
     if(!combat_context_chain_equal(&chain,&again)||!session_handle_matches(target)||
-       !narrative_probe_object(base,chain.world,"World")||!runtime_request_rejoin())return;
-    runtime_auto_rejoin_attempted_epoch=runtime_auto_rejoin_epoch;runtime_auto_rejoin_target=target;
+       !narrative_probe_object(base,chain.world,"World")||!runtime_auto_rejoin_queue_origin(base,target))return;
     line("{\"runtime_network\":\"automatic-rejoin-queued\",\"native_disconnect_requested\":false,\"connection_verified\":false}\r\n");
 }
 #endif

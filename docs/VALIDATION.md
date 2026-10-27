@@ -1,5 +1,12 @@
 # Validation status
 
+The current build adds attached-client recovery admission and an opt-in
+native mapped-power command bridge. Native fixtures passed for the former's
+disposal/one-origin lifecycle and the latter's forwarding/policy/LastError
+contract. Four focused planner tests passed. These checks do not prove an
+actual mission transition, gamepad command delivery or power effect; the owner
+will exercise those in-game. No game was launched for this integration.
+
 The current ordinary guest includes the previously protected optimized native
 movement-payload correction. It retains the unchanged original callback and
 temporarily adapts only its owner-bit admission under exact receive/channel/
