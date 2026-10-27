@@ -102,6 +102,8 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_remote_helmet.h"
 #include "remote_weapon_presentation.h"
 #include "runtime_presentation_rpc.h"
+#include "runtime_guest_vitals_hud.h"
+#include "runtime_power_action_context.h"
 static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     SessionContext c=session_context(engine);
     uint32_t world_flags=0;
@@ -132,10 +134,16 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
     }
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,enabled,now);
     guest_camera_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
+    runtime_power_action_context_retire(base,c,ordinary,enabled,runtime_power_menu_context_held(base,c));
     /* Context retention is independent of optional icon initialization.
      * This admits no orders and never rebuilds context inside the menu. */
     if(!runtime_power_menu_context_held(base,c))
         guest_player_context_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
+    /* Native registration can change context. Bind only the resulting
+     * current idle action instances before normal power input is consumed. */
+    c=session_context(engine);
+    ordinary=enabled&&!session_engine_blocked(c);
+    if(!after)runtime_power_action_context_prepare(base,c,ordinary,enabled);
     /* A scene/PlayersOnly interval suspends writes, not the captured healthy
      * collision lifetime. Keep observing the same pawn while it is released;
      * only an actual session disable/scope loss retires that baseline. */
@@ -166,6 +174,7 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
             runtime_control_enabled&&runtime_scope_ready,GetTickCount());
         runtime_scope_ready=runtime_session_scope(base,engine);
         runtime_presentation_tick(base,engine,GetTickCount());
+        runtime_guest_vitals_tick(base,engine,GetTickCount());
     }
 }
 static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {

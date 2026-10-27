@@ -146,6 +146,26 @@ __declspec(dllexport) int ME3RuntimeRpcReceiveSelfTest(void) {return runtime_rpc
 #include "runtime_auto_rejoin_fixture.h"
 __declspec(dllexport) int ME3RuntimeAttachRecoverySelfTest(void) {return runtime_attach_recovery_selftest();}
 __declspec(dllexport) int ME3RuntimeMappedPowerInputSelfTest(void) {return runtime_mapped_power_input_selftest();}
+__declspec(dllexport) int ME3RuntimePowerActionContextSelfTest(void) {return runtime_power_action_context_selftest();}
+static unsigned guest_vitals_fixture_calls;
+static void guest_vitals_fixture_forward(void *a,void *b,void *c,void *d) {
+    if((uintptr_t)a==1&&(uintptr_t)b==2&&(uintptr_t)c==3&&(uintptr_t)d==4&&GetLastError()==411)++guest_vitals_fixture_calls;
+    SetLastError(412);
+}
+__declspec(dllexport) int ME3RuntimeGuestVitalsSelfTest(void) {
+    float fraction=-1;
+    if(!guest_vitals_fraction(25,100,&fraction)||fraction!=0.25f||
+       !guest_vitals_fraction(0,100,&fraction)||fraction!=0||
+       !guest_vitals_fraction(150,100,&fraction)||fraction!=1||
+       guest_vitals_fraction(NAN,100,&fraction)||guest_vitals_fraction(10,NAN,&fraction)||
+       guest_vitals_fraction(10,0,&fraction)||guest_vitals_fraction(-1,100,&fraction)||
+       guest_vitals_fraction(500,100,&fraction))return 0;
+    GuestVitalsHud saved=guest_vitals;DWORD error=GetLastError();
+    memset(&guest_vitals,0,sizeof guest_vitals);guest_vitals.original=guest_vitals_fixture_forward;guest_vitals_fixture_calls=0;
+    SetLastError(411);guest_vitals_process_event((void*)1,(void*)2,(void*)3,(void*)4);
+    int ok=guest_vitals_fixture_calls==1&&GetLastError()==412;
+    guest_vitals=saved;SetLastError(error);return ok;
+}
 __declspec(dllexport) int ME3RuntimeNetworkStartSelfTest(void) {return runtime_network_start_selftest()&&runtime_startup_focus_selftest()&&runtime_package_preload_selftest();}
 __declspec(dllexport) int ME3RuntimeTravelIdleSelfTest(void) {return runtime_join_travel_idle_selftest();}
 __declspec(dllexport) int ME3RuntimeJoinReadinessSelfTest(void) {return runtime_join_readiness_selftest();}

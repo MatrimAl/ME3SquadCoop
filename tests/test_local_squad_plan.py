@@ -41,6 +41,17 @@ class LocalSquadPlanTest(unittest.TestCase):
             '--bind','192.168.1.2','--peer','192.168.1.3','--native-mapped-powers'],capture_output=True,text=True,check=True)
         self.assertEqual(json.loads(result.stdout)['environment'][key], '1')
 
+    def test_normal_guest_power_slots_are_automatic_and_reversible(self):
+        guest = RuntimeSessionPlan('guest', '192.168.1.2', peer_ipv4='192.168.1.3')
+        self.assertEqual(guest.environment['ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS'], '1')
+        self.assertEqual(guest.environment['ME3_SQUAD_COOP_NATIVE_POWER_ICONS'], '1')
+        disabled = RuntimeSessionPlan('guest', '192.168.1.2', peer_ipv4='192.168.1.3', native_power_hotkeys=False)
+        self.assertEqual(disabled.environment['ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS'], '0')
+        self.assertEqual(disabled.environment['ME3_SQUAD_COOP_NATIVE_POWER_ICONS'], '0')
+        host = RuntimeSessionPlan('host', '192.168.1.2')
+        self.assertNotIn('ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS', host.environment)
+        self.assertNotIn('ME3_SQUAD_COOP_NATIVE_POWER_ICONS', host.environment)
+
     def test_cli_emits_guest_setting(self):
         result = subprocess.run([sys.executable, str(ROOT/'tools/prepare_session.py'), '--role', 'guest',
                                  '--bind', '192.168.1.2', '--peer', '192.168.1.3', '--local-squad-set'],

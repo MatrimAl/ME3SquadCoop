@@ -26,7 +26,7 @@ static int runtime_power_icons_enabled(void) {
     if(!configured) {
         wchar_t value[8]={0};
         DWORD n=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_NATIVE_POWER_ICONS",value,8);
-        opted=n==1&&value[0]==L'1';configured=1;
+        opted=!n||(n==1&&value[0]==L'1');configured=1;
     }
     return opted&&runtime_native_power_input_enabled();
 }

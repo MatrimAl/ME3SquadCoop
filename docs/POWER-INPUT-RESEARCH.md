@@ -1,5 +1,16 @@
 # Power input research
 
+## Current guest controls
+
+Native keyboard power slots and their icons now default on for the ordinary
+guest. Explicit zero environment values or the planner's corresponding
+`--no-native-power-*` options disable them. The existing power order route now
+also has a scoped idle-instance controller-context adapter; it does not create
+actions, force a cast or change native rank/cooldown/target checks. The mapped
+gamepad candidate below remains opt-in. Historical opt-in descriptions are
+superseded by [the current player controls](GUEST-PLAYER-HUD.md). This new
+combination has not been exercised in a game.
+
 ## Opt-in native mapped-command candidate
 
 The ordinary guest can explicitly enable `ME3_SQUAD_COOP_NATIVE_MAPPED_POWERS=1`

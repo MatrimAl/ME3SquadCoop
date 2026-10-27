@@ -13,7 +13,7 @@ static int runtime_native_power_input_enabled(void) {
     if(!configured) {
         wchar_t value[8]={0};
         DWORD length=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS",value,8);
-        opted=length==1&&value[0]==L'1';configured=1;
+        opted=!length||(length==1&&value[0]==L'1');configured=1;
     }
     return opted;
 }

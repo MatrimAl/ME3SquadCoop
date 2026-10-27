@@ -1,5 +1,20 @@
 # Progress
 
+## 2026-10-27: guest health/shield display and power readiness
+
+The ordinary guest now has a Canvas health/shield HUD with numeric values,
+fed by its owned damage module and inventory shield. Unknown readings stay
+unknown, samples are bound to the current pawn/controller/world/registration,
+and native HUD events and pen state are preserved. Normal keyboard power
+slots/icons now default on. The new scoped action-context adapter binds only
+idle existing Ashley powers with an empty player-controller cache, retaining
+native restrictions and conditional cleanup of its own changes.
+
+All four native outputs rebuilt. Native runtime fixtures and five focused
+session-plan tests passed. No game was launched. Visible HUD values, physical
+power input, actual casts/cooldowns/effects and scene-return behavior remain
+owner checks. See [guest player controls](GUEST-PLAYER-HUD.md).
+
 ## 2026-10-27: attached-client recovery and mapped power input
 
 An already-connected guest using `--start attach --auto-rejoin` could not

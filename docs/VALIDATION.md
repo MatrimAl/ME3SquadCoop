@@ -1,5 +1,13 @@
 # Validation status
 
+Guest health/shield Canvas drawing and idle power-controller context binding
+are now implemented, with native keyboard power slots/icons defaulting on.
+The native harness passed fraction/unknown-value and exactly-once HUD
+forwarding/LastError checks plus power pointer compare-and-swap refusal and
+external-change preservation. Five focused planner tests passed. No in-game
+HUD appearance, damage/recharge tracking, actual power effect or recovery is
+claimed for this build; these are the owner's next checks.
+
 The current build adds attached-client recovery admission and an opt-in
 native mapped-power command bridge. Native fixtures passed for the former's
 disposal/one-origin lifecycle and the latter's forwarding/policy/LastError

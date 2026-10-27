@@ -8,6 +8,12 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 **Status: research prototype. A complete playable campaign and a validated player installation are not available yet.** This repository publishes source and test tooling so the work can continue openly, with clear limits on what has actually been demonstrated.
 
+The current build adds a guest Ashley health/shield HUD and enables normal
+keyboard power slots/icons by default, with scoped initialization of existing
+idle power controller caches. These changes compile and pass their native
+fixtures; their visible behavior and actual casts await owner testing. See
+[guest player controls](docs/GUEST-PLAYER-HUD.md).
+
 The ordinary runtime now connects the local host/guest pair and retains guest
 Ashley control. Remote Shepard weapon/mask presentation is corrected, authored
 shuttle actors survive guest loading, and the measured scene-return collision

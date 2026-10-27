@@ -17,8 +17,8 @@ class RuntimeSessionPlan:
     auto_rejoin: bool = False
     ready_channel: bool = False
     input_bootstrap: bool = False
-    native_power_hotkeys: bool = False
-    native_power_icons: bool = False
+    native_power_hotkeys: bool = None
+    native_power_icons: bool = None
     local_squad_set: bool = None
     native_mapped_powers: bool = False
 
@@ -39,9 +39,9 @@ class RuntimeSessionPlan:
             raise ValueError("input bootstrap requires a guest plan and a boolean option")
         if self.local_squad_set is not None and (type(self.local_squad_set) is not bool or (self.local_squad_set and self.role != "guest")):
             raise ValueError("local squad initialization requires a guest plan and a boolean option")
-        if type(self.native_power_hotkeys) is not bool or (self.native_power_hotkeys and self.role != "guest"):
+        if self.native_power_hotkeys is not None and (type(self.native_power_hotkeys) is not bool or (self.native_power_hotkeys and self.role != "guest")):
             raise ValueError("native power hotkeys require a guest plan and a boolean option")
-        if type(self.native_power_icons) is not bool or (self.native_power_icons and not self.native_power_hotkeys):
+        if self.native_power_icons is not None and (type(self.native_power_icons) is not bool or (self.native_power_icons and (self.role != "guest" or self.native_power_hotkeys is False))):
             raise ValueError("native power icons require native power hotkeys and a boolean option")
         if type(self.native_mapped_powers) is not bool or (self.native_mapped_powers and self.role != "guest"):
             raise ValueError("native mapped powers require a guest plan and a boolean option")
@@ -88,10 +88,9 @@ class RuntimeSessionPlan:
             values["ME3_SQUAD_COOP_INPUT_BOOTSTRAP"] = "1"
         if self.role == "guest":
             values["ME3_SQUAD_COOP_LOCAL_SQUAD_SET"] = "0" if self.local_squad_set is False else "1"
-        if self.native_power_hotkeys:
-            values["ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS"] = "1"
-        if self.native_power_icons:
-            values["ME3_SQUAD_COOP_NATIVE_POWER_ICONS"] = "1"
+        if self.role == "guest":
+            values["ME3_SQUAD_COOP_NATIVE_POWER_HOTKEYS"] = "0" if self.native_power_hotkeys is False else "1"
+            values["ME3_SQUAD_COOP_NATIVE_POWER_ICONS"] = "0" if self.native_power_icons is False or self.native_power_hotkeys is False else "1"
         if self.native_mapped_powers:
             values["ME3_SQUAD_COOP_NATIVE_MAPPED_POWERS"] = "1"
         return values
