@@ -1,13 +1,14 @@
 # Guest collision restoration candidate
 
-This default-off candidate addresses an actual release/reacquire failure. A
+This scoped candidate addresses an actual release/reacquire failure. A
 paired read-only recorder observed guest Ashley losing world and actor collision
 when control was released. Those settings stayed disabled when control returned;
 the guest fell, and authoritative movement later fell too. An inventory loss was
 not required. The implementation still needs a protected positive game test.
 
-Set `ME3_SQUAD_COOP_COLLISION_RESTORE=1` only for controlled research. The same
-implementation is included in the protected probe and ordinary entry. It first
+The ordinary entry now enables it by default; explicit
+`ME3_SQUAD_COOP_COLLISION_RESTORE=0` disables it. The protected probe retains
+its explicit `=1` opt-in. The same implementation is shared by both entries. It first
 requires healthy, acknowledged guest ownership of Ashley on the actual native
 channel. It captures complete pawn, controller, world, channel/connection/driver,
 class-default and collision-cylinder/template identities. The observed healthy
@@ -27,6 +28,15 @@ local possession, the same native channel lifetime and objects, ordinary game
 control, a living initialized pawn, no pause/conversation, and an unchanged
 released snapshot. Missing or changed context never authorizes a write. A
 generation receives at most one attempt, with no continuous reassertion.
+
+During the protected presentation run from `f0fc0c7`, the owner confirmed the
+weapon/mask issue solved, then reported Ashley falling. That run measured
+equipment but did not sample the relevant position/physics/collision fields;
+it cannot distinguish ordinary descent, collision loss or the previously
+observed receive-time position failure. Its original-file/profile audit and
+cleanup passed. The next observer includes both Ashley replicas' movement and
+collision fields. Default activation does not broaden any repair predicate,
+and is not a claim that this newly reported fall has been diagnosed or fixed.
 
 The ordinary runtime keeps the session-lifetime gate separate from permission
 to write on a particular frame. A scene or `bPlayersOnly` interval suspends

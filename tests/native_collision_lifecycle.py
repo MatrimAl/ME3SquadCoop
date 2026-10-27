@@ -20,16 +20,18 @@ def main():
                ZIG_LOCAL_CACHE_DIR=str(local / "zig-local-cache"),
                TMP=str(temp), TEMP=str(temp))
     with tempfile.TemporaryDirectory(prefix="collision-lifecycle-", dir=local) as tmp:
-        output = Path(tmp) / "fixture.exe"
-        build = subprocess.run([str(args.zig.resolve(strict=True)), "cc", "-target", "x86_64-windows-gnu",
-                                "-std=c17", "-O2", "-Wall", "-I", str(ROOT / "src"),
-                                str(ROOT / "tests/native_collision_lifecycle_fixture.c"),
-                                "-o", str(output)], cwd=ROOT, env=env, capture_output=True,
-                               text=True, encoding="utf-8", errors="replace", timeout=300)
-        if build.returncode:
-            print("\n".join((build.stdout + build.stderr).splitlines()[:20]), flush=True)
-            raise SystemExit(build.returncode)
-        subprocess.run([str(output)], cwd=ROOT, check=True, timeout=30)
+        for ordinary in (False, True):
+            output = Path(tmp) / ("ordinary.exe" if ordinary else "protected.exe")
+            build = subprocess.run([str(args.zig.resolve(strict=True)), "cc", "-target", "x86_64-windows-gnu",
+                                    "-std=c17", "-O2", "-Wall", "-I", str(ROOT / "src"),
+                                    *(["-DME3_ORDINARY_COLLISION_RESTORE"] if ordinary else []),
+                                    str(ROOT / "tests/native_collision_lifecycle_fixture.c"),
+                                    "-o", str(output)], cwd=ROOT, env=env, capture_output=True,
+                                   text=True, encoding="utf-8", errors="replace", timeout=300)
+            if build.returncode:
+                print("\n".join((build.stdout + build.stderr).splitlines()[:20]), flush=True)
+                raise SystemExit(build.returncode)
+            subprocess.run([str(output)], cwd=ROOT, check=True, timeout=30)
 
 
 if __name__ == "__main__":

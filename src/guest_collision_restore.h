@@ -1,6 +1,6 @@
 #ifndef ME3_GUEST_COLLISION_RESTORE_H
 #define ME3_GUEST_COLLISION_RESTORE_H
-/* Default-off repair of an observed release/reacquire collision loss. Never
+/* Scoped repair of an observed release/reacquire collision loss. Never
  * derive permission from a pawn name alone, reassert during a scene, move an
  * actor, or restore the broken collision state when this repair is disabled.
  * Include after guest_player_context_adapter.h. Call on the game thread.
@@ -16,6 +16,12 @@ typedef struct GuestCollisionRestore {
     DWORD reported;
 } GuestCollisionRestore;
 static GuestCollisionRestore guest_collision_restore;
+static int guest_collision_option(DWORD count,const wchar_t *value) {
+#ifdef ME3_ORDINARY_COLLISION_RESTORE
+    if(!count)return 1;
+#endif
+    return count==1&&value&&value[0]==L'1';
+}
 static int guest_collision_equal(const GuestCollisionShape *a,const GuestCollisionShape *b) {
     return a->actor==b->actor&&a->block==b->block&&a->component==b->component&&
         a->type==b->type&&a->replicated==b->replicated;
@@ -143,7 +149,8 @@ static int guest_collision_ordinary(uintptr_t base,uintptr_t pc,uintptr_t pawn,u
 static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,int ordinary,int enabled,DWORD now) {
     GuestCollisionRestore *l=&guest_collision_restore;
     if(!l->configured){wchar_t value[8]={0};DWORD n=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_COLLISION_RESTORE",value,8);
-        l->configured=1;l->opted=n==1&&value[0]==L'1';}
+        l->configured=1;l->opted=guest_collision_option(n,value);
+    }
     if(!enabled||!l->opted){
         /* Repairs retain a valid engine collision state. Reintroducing the
          * observed broken state on disable would make an owned pawn fall. */
@@ -238,6 +245,12 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
     l->released=l->pending=0;
 }
 static int guest_collision_selftest(void) {
+#ifdef ME3_ORDINARY_COLLISION_RESTORE
+    if(!guest_collision_option(0,L""))return 0;
+#else
+    if(guest_collision_option(0,L""))return 0;
+#endif
+    if(!guest_collision_option(1,L"1")||guest_collision_option(1,L"0")||guest_collision_option(7,L"invalid"))return 0;
     GuestCollisionShape real_release={0,1,0xaa,0,0};
     if(!guest_collision_disabled(&real_release))return 0;
     real_release.type=12;real_release.replicated=12;if(guest_collision_disabled(&real_release))return 0;

@@ -19,7 +19,9 @@ static int native_session_role(void) {
 #include "guest_player_context_adapter.h"
 #undef ME3_RUNTIME_LOCAL_SQUAD_SET
 #include "guest_power_order_contract.h"
+#define ME3_ORDINARY_COLLISION_RESTORE
 #include "guest_collision_restore.h"
+#undef ME3_ORDINARY_COLLISION_RESTORE
 #include "guest_cinematic_registration_adapter.h"
 #include "guest_equipment_bootstrap.h"
 #include "squad_session_core.h"
