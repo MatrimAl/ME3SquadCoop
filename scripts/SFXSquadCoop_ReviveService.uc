@@ -72,6 +72,24 @@ function bool Activate(int Token)
     return bActivated;
 }
 
+function bool CanActivate(int Token)
+{
+    return !bBusy && !bRetiring && !bRetired && SameScope(Token)
+        && Setup != None && Setup.CanActivate();
+}
+
+function bool Suspend(int Token)
+{
+    local bool bClosed;
+
+    if (bBusy || bRetiring || bRetired || !SameScope(Token) || Setup == None)
+        return false;
+    bBusy = true;
+    bClosed = Setup.Suspend();
+    bBusy = false;
+    return bClosed;
+}
+
 // 0=unavailable, 1=prepared/closed, 2=active, 3=retiring/pending, 4=retired.
 // Readiness is sampled, not authorization for a later native operation.
 function int Status(int Token)

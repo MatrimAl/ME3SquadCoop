@@ -1,12 +1,15 @@
-# Native revive preparation candidate
+# Native revive admission candidate
 
 `src/runtime_revive_prepare.h` connects ordinary Tick to the authored
-factory/service. The guest has its local pawn slot; the
+factory/service. The guest has local Ashley and a validated role1 remote
+Shepard presentation slot; the
 [host preparation path](REVIVE-HOST-PREPARATION.md) has separate story-pawn and
-guest-companion slots. It is disabled by default. The explicit research opt-in is
-`ME3_SQUAD_COOP_REVIVE_PREPARE_QA=1`, read once per process. This is preparation
-work, not a supported player setting or a completed revive feature. The
-protected probe does not include this path.
+guest-companion slots. The ordinary runtime now enables this path when its
+native owner-PC bridge is installed; `ME3_SQUAD_COOP_REVIVE=0` disables it.
+The private owner-derived addon must be loaded on both peers. The old
+`ME3_SQUAD_COOP_REVIVE_PREPARE_QA=1` still permits closed preparation alone.
+This candidate has not demonstrated mutual revival in-game. The protected
+probe does not include this path.
 
 The candidate requires an enabled, transport-scoped ordinary session and the
 current native world. Guest admission uses registered reciprocal local Ashley
@@ -18,13 +21,16 @@ factory default object and service class under `ME3SquadCoopActions`. It does
 not load packages or animations. It now also resolves the exact already-loaded
 `ME3SquadCoopActions.ReviveAnimSet` from the
 [private owner-derived package](REVIVE-ASSET-PACKAGE.md), checks its native
-Engine.BioDynamicAnimSet class, and supplies it with presentation=false. Missing
+Engine.BioDynamicAnimSet class, and supplies it with presentation=true only for
+the guest's remote Shepard. Missing
 animation delays preparation without blocking retirement of an existing
-service. Startup loading and shared runtime availability remain unverified.
+service. The private addon declares startup/seekfree loading; actual runtime
+loading and shared availability remain owner checks.
 
 ## Reflected call boundary
 
-For CreateFor, Status, Retire, RetireForHandoff and DestroyRetired, the bridge
+For CreateFor, Status, CanActivate, Activate, Suspend, Retire, RetireForHandoff
+and DestroyRetired, the bridge
 walks actual loaded UFunction/UProperty metadata using the supported Core SDK
 layout. It checks exact function owner, function/property class identities,
 static versus instance policy, nonnative/nonnetwork flags, parameter count,
@@ -57,24 +63,43 @@ if spawn callbacks invalidated Initialize before it captured any setup. That
 actor can follow normal DestroyRetired handling without touching pawn state.
 Partial initialization with real Setup still uses normal ordered retirement.
 
-The bridge never calls Activate. Status1 means prepared with admission closed,
-not peer agreement. Any other status or a scene/disable/ownership/context loss
-latches retirement. RetireForHandoff is polled before guest adapters may release
+Status1 means prepared with admission closed; status2 means active. Both are
+retained during normal actions and downed-target handling. Initial factory
+creation waits for idle actions and a living pawn, so ordinary busy input does
+not waste the one attempt. Other statuses or scene/disable/ownership/context loss
+latch retirement. RetireForHandoff is polled before guest adapters may release
 their context. Its Boolean result is not treated as disposal: destruction is
 requested only after a fresh Status4. A missing read or changed current world
 retains the old handle without calling old-world objects; positive registry
 disposal permits dropping the native handle. A new preparation still requires
 a new admitted scope.
 
-## Unfinished integration
+## Native peer agreement
 
-This preparation-only path does not hold back a narrative handoff and does not
-claim its initial cleanup request precedes every native scene transition.
-It retains unresolved cleanup instead of opening admission or overwriting a
-slot. Actual host service invocation, the guest simulated-host counterpart, shared loading,
-authenticated peer readiness, production pre-handoff ordering and actual
-mutual revival remain unfinished. No game, package installation, runtime ABI
-observation, factory dispatch, fixture or behavioral test was performed for
-this revision. All three native targets built; seven authored classes compiled
-without errors/warnings with unchanged tracked inputs. A fresh test stage is
-required because both native code and authored package changed.
+`runtime_revive_peer.h` shares the existing ServerSay/ClientAdminMessage owner-PC
+RPC wrappers with remote presentation. Exact native receive frame, actor channel,
+connection, driver, world and registration stamps authorize the source; parsing
+a message does not authorize anything. Receive callbacks only queue bounded
+scalars. All authored calls happen on normal Tick at a bounded cadence.
+
+ME3RV1 carries a guest nonce, host nonce, canonical Shepard/Ashley channel indices
+and the loaded package GUID. No pointers, health, use target or gameplay command
+is serialized. A query/offer/arm/commit/ack exchange binds the same two local
+service tokens and full lifetime stamps on each peer. Both slots must pass the
+authored idle/pending preflight before opening admission. Wrong phases, nonces,
+channels, GUIDs or stale scopes cannot activate. Partial native activation failure
+uses ordinary authored retirement, without forced Stop or slot overwrites.
+
+Active peers exchange a heartbeat once per second. Three seconds of silence, or
+an unconfirmed commit lasting more than three seconds, suspends admission while
+retaining the same prepared actions/animation. Retransmissions cannot extend
+that commit deadline. A fresh agreement can rearm these existing services.
+Actual ownership/world changes retire them instead. An old agreement cannot
+close a later preparation. Narrative release is never blocked by cleanup.
+
+The normal Used/TryUse/StartRevive path remains the gameplay entry; this bridge
+does not force resurrection or change health. Native fixtures cover scalar
+parsing, pair identity/freshness, preflight policy and phase/deadline refusal.
+Seven authored classes compile without errors/warnings. Runtime ABI acceptance,
+normal interaction delivery, actual animation and mutual revival remain untested
+in-game. No game was launched or package installed for this integration.

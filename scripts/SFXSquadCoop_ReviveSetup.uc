@@ -36,6 +36,23 @@ function bool Activate()
     return Prepared() && Binding.OpenAdmission() && Ready();
 }
 
+// Opening an already open admission is unnecessary while its action is busy.
+// A closed binding uses exactly the same idle/pending guards as OpenAdmission.
+function bool CanActivate()
+{
+    return Prepared() && (Binding.AdmissionOpen()
+        || (Binding.IdlePawn() && !Binding.ActionHasPendingWork()));
+}
+
+// Peer readiness can expire without changing ownership. Close only the new
+// admission gate; keep this binding and its animation available for rearming.
+function bool Suspend()
+{
+    if (bBusy || bPreparing || bRetiring || !bReady || Binding == None)
+        return false;
+    return Binding.CloseAdmission() && !Binding.AdmissionOpen();
+}
+
 // bBusy remains held by the caller across native registration/instancing.
 // Release binding first: the action must no longer depend on a temporary set.
 function bool RetireOwnedParts()

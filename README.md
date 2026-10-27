@@ -16,6 +16,11 @@ fixtures; their visible behavior and actual casts await owner testing. See
 It also includes a scoped fix for a queued fire start surviving a real guest
 fire release during weapon preparation. Live cancellation and a fresh press
 afterward remain owner checks; see [firing scope](docs/NATIVE-FIRE-OBSERVATION.md).
+The revive candidate now prepares both players on both peers and opens the
+normal interaction path after a native connection-scoped agreement. It needs
+the separately prepared private owner-derived addon on both peers; the public
+archive does not contain game animation assets. In-game revival remains an
+owner check. See [revive integration](docs/REVIVE-NATIVE-BRIDGE.md).
 
 The ordinary runtime now connects the local host/guest pair and retains guest
 Ashley control. Remote Shepard weapon/mask presentation is corrected, authored

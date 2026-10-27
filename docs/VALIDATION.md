@@ -1,5 +1,19 @@
 # Validation status
 
+The ordinary revive candidate now resolves Activate/CanActivate/Suspend and
+prepares canonical Shepard/Ashley slots on both peers, including the guest's
+simulated Shepard presentation. Native owner-PC readiness messages bind actual
+connection/channel/world lifetimes and loaded package GUID; active admission
+has heartbeat suspension and a fixed commit deadline. Native fixtures cover
+parser bounds/overflow, wrong identity/phase/nonces, stale pairs, busy preflight
+and deadline boundaries. Seven updated authored classes compiled with no errors
+or warnings, and a fresh private owner-derived addon passed offline payload,
+config-preservation and TOC checks. No game or installation was performed.
+Actual package loading, normal interaction, mutual revive animation and
+continued control after revival remain owner checks. Public archives omit the
+owner's game animation assets. See [bridge](REVIVE-NATIVE-BRIDGE.md) and
+[private preparation](REVIVE-ASSET-PACKAGE.md).
+
 The current ordinary host adds delayed-fire cancellation after a verified
 incoming guest stop RPC and completed stock script. Native fixtures pass the
 exact forwarding/order/LastError contract, refusal conditions and stock timer

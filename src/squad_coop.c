@@ -148,6 +148,8 @@ __declspec(dllexport) int ME3RuntimeAttachRecoverySelfTest(void) {return runtime
 __declspec(dllexport) int ME3RuntimeMappedPowerInputSelfTest(void) {return runtime_mapped_power_input_selftest();}
 __declspec(dllexport) int ME3RuntimePowerActionContextSelfTest(void) {return runtime_power_action_context_selftest();}
 __declspec(dllexport) int ME3RuntimeDelayedFireStopSelfTest(void) {return runtime_delayed_fire_stop_selftest();}
+#include "runtime_revive_pair_selftest.h"
+__declspec(dllexport) int ME3RuntimeReviveSelfTest(void) {return runtime_revive_pair_selftest()&&runtime_revive_peer_selftest();}
 static unsigned guest_vitals_fixture_calls;
 static void guest_vitals_fixture_forward(void *a,void *b,void *c,void *d) {
     if((uintptr_t)a==1&&(uintptr_t)b==2&&(uintptr_t)c==3&&(uintptr_t)d==4&&GetLastError()==411)++guest_vitals_fixture_calls;

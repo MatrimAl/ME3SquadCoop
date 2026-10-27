@@ -15,6 +15,10 @@ static PresentationRpcExec presentation_original;
 static uintptr_t presentation_base;
 static int presentation_installed,presentation_attempted,presentation_busy;
 static unsigned presentation_events;
+/* Additional authored gameplay admission uses these same two owner-PC RPCs.
+ * Its receiver may only queue scalars; engine calls stay on the normal Tick. */
+static int (*presentation_peer_enabled)(void);
+static int (*presentation_peer_receive)(uintptr_t,uintptr_t,int,const wchar_t*,size_t,const NetworkActorIdentityEntry*);
 static uint64_t presentation_sequence,presentation_pending;
 static DWORD presentation_sent_at,presentation_scan_at,presentation_received_at;
 static unsigned char presentation_helmet[4];
@@ -53,13 +57,16 @@ static int presentation_method_valid(int k) {
         read_at(fn+0xe6,&size,2)&&size==16&&read_at(fn+0xe8,&result,2)&&result==65535&&
         read_at(fn+0xe4,&index,2)&&!index&&read_at(fn+0xea,&params,1)&&params==1;
 }
-static int presentation_send(uintptr_t pc,int k,const RemotePresentationMessage *message) {
-    wchar_t text[96];int count=remote_presentation_format(message,text);
-    if(!count||!presentation_method_valid(k)||!session_actor_live(presentation_base,pc)||
+static int presentation_send_text(uintptr_t pc,int k,const wchar_t *text,int count) {
+    if(!text||count<8||count>192||text[count-1]||!presentation_method_valid(k)||!session_actor_live(presentation_base,pc)||
        read_ptr(read_ptr(pc)+0x230)!=presentation_base+0x40d450||!guest_equipment_dispatch_pins(presentation_base))return 0;
     GameArray parameter={(uintptr_t)text,count,count};
     ((ProcessEvent)(presentation_base+0x40d450))((void*)pc,(void*)presentation_methods[k].function.pointer,&parameter,NULL);
     return 1;
+}
+static int presentation_send(uintptr_t pc,int k,const RemotePresentationMessage *message) {
+    wchar_t text[96];int count=remote_presentation_format(message,text);
+    return count&&presentation_send_text(pc,k,text,count);
 }
 static int presentation_guest_valid(uintptr_t base) {
     PresentationGuestScope *s=&presentation_guest;
@@ -108,15 +115,19 @@ static int presentation_source(uintptr_t self,uintptr_t frame,int k,NetworkActor
         source->connection==presentation_guest.objects[4].pointer;
 }
 static int presentation_receive(uintptr_t self,uintptr_t frame) {
-    if(!presentation_installed||!presentation_opted()||presentation_busy)return 0;
-    int k=g_runtime_config.role==ME3_ROLE_HOST?0:1;GameArray string={0};wchar_t text[96]={0};
+    if(!presentation_installed||presentation_busy)return 0;
+    int k=g_runtime_config.role==ME3_ROLE_HOST?0:1;GameArray string={0};wchar_t text[192]={0};
     if(!presentation_method_valid(k)||read_ptr(frame+0x18)!=presentation_methods[k].function.pointer)return 0;
     uintptr_t locals=read_ptr(frame+0x30);
-    if(!read_at(locals,&string,sizeof string)||!string.data||string.count<8||string.count>96||
+    if(!read_at(locals,&string,sizeof string)||!string.data||string.count<8||string.count>192||
        string.max<string.count||string.max>256||!read_at(string.data,text,(SIZE_T)string.count*sizeof(wchar_t))||
-       wcsncmp(text,L"ME3PR2 ",7))return 0;
+       text[string.count-1])return 0;
+    int peer=!wcsncmp(text,L"ME3RV1 ",7);
+    if(!peer&&(wcsncmp(text,L"ME3PR2 ",7)||!presentation_opted()))return 0;
     NetworkActorIdentityEntry source={0};
     if(!presentation_source(self,frame,k,&source))return 0;
+    if(peer)return presentation_peer_receive?
+        presentation_peer_receive(self,frame,k,text,(size_t)string.count,&source):1;
     RemotePresentationMessage m={0};
     if(!remote_presentation_parse(text,string.count,&m))return 1;
     DWORD now=GetTickCount();
@@ -205,13 +216,15 @@ static int presentation_default_host(uintptr_t base,uintptr_t pawn) {
 }
 static void runtime_presentation_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     SessionContext c=session_context(engine);
-    if(!presentation_opted()||!runtime_control_enabled||!runtime_scope_ready||session_engine_blocked(c)) {
+    if((!presentation_opted()&&!(presentation_peer_enabled&&presentation_peer_enabled()))||
+       !runtime_control_enabled||!runtime_scope_ready||session_engine_blocked(c)) {
         memset(&presentation_guest,0,sizeof presentation_guest);presentation_pending=0;presentation_received=0;
         presentation_weapon_candidate=presentation_weapon_pending=presentation_weapon_confirmed=0;
         presentation_host_request.active=0;return;
     }
     presentation_install(base,c.pc);if(!presentation_installed)return;
     if(g_runtime_config.role==ME3_ROLE_HOST) {
+        if(!presentation_opted()){presentation_host_request.active=0;return;}
         PresentationHostRequest r=presentation_host_request;presentation_host_request.active=0;
         if(!r.active||now-r.received_at>3000||r.epoch!=session_epoch||!session_active||session_releasing||
            !session_story_valid(base)||c.pawn!=r.pawn.pointer||session_remote!=r.pc.pointer||
@@ -244,14 +257,14 @@ static void runtime_presentation_tick(uintptr_t base,uintptr_t engine,DWORD now)
             PresentationGuestScope candidate;
             if(presentation_capture_guest(base,c,&candidate))presentation_guest=candidate;
         }
-        if(presentation_guest_valid(base)&&(!presentation_pending||now-presentation_sent_at>3000)&&presentation_sequence!=UINT64_MAX) {
+        if(presentation_opted()&&presentation_guest_valid(base)&&(!presentation_pending||now-presentation_sent_at>3000)&&presentation_sequence!=UINT64_MAX) {
             RemotePresentationMessage request={L'Q',++presentation_sequence,(unsigned)presentation_guest.index,{0}};
             presentation_pending=request.request;presentation_sent_at=now;
             presentation_weapon_pending=presentation_weapon_valid(base);
             if(!presentation_send(c.pc,0,&request))presentation_pending=0;
         }
     }
-    if(presentation_received&&now-presentation_received_at<=3000&&presentation_guest_valid(base)) {
+    if(presentation_opted()&&presentation_received&&now-presentation_received_at<=3000&&presentation_guest_valid(base)) {
         presentation_busy=1;
         runtime_remote_helmet_apply(base,engine,c.pc,c.pawn,c.world,presentation_guest.objects[2].pointer,presentation_helmet,now);
         if(presentation_weapon_confirmed&&presentation_weapon_valid(base)) {

@@ -102,6 +102,7 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_remote_helmet.h"
 #include "remote_weapon_presentation.h"
 #include "runtime_presentation_rpc.h"
+#include "runtime_revive_peer.h"
 #include "runtime_guest_vitals_hud.h"
 #include "runtime_power_action_context.h"
 static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
@@ -110,8 +111,8 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
     int unpaused=c.world&&read_at(c.world+0x7c0,&world_flags,4)&&!(world_flags&0x400);
     int enabled=runtime_control_enabled&&runtime_scope_ready&&unpaused;
     int ordinary=enabled&&!session_engine_blocked(c);
-    /* Poll the preparation-only service before any adapter may release the
-     * local context. No bridge path opens action admission. */
+    /* Poll authored preparation/retirement before context release. Admission
+     * is opened only by the peer agreement on the after-Tick path. */
     if(!after) {
         unsigned before=runtime_revive_dispatch_generation;
         runtime_revive_prepare_tick(base,engine,c,ordinary,now);
@@ -174,12 +175,14 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
             runtime_control_enabled&&runtime_scope_ready,GetTickCount());
         runtime_scope_ready=runtime_session_scope(base,engine);
         runtime_presentation_tick(base,engine,GetTickCount());
+        runtime_revive_peer_tick(base,engine,GetTickCount());
         runtime_guest_vitals_tick(base,engine,GetTickCount());
     }
 }
 static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     session_engine=engine;session_game_thread=GetCurrentThreadId();
     runtime_scope_ready=runtime_session_scope(base,engine);
+    runtime_revive_peer_configure();
     if(!after)runtime_rpc_receive_prepare(base);
     runtime_command_pause_prepare(base,engine,runtime_control_enabled&&runtime_scope_ready);
     session_command_menu_retained=runtime_host_command_menu_held;
@@ -200,6 +203,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     if(after) {
         runtime_scope_ready=runtime_session_scope(base,engine);
         runtime_presentation_tick(base,engine,GetTickCount());
+        runtime_revive_peer_tick(base,engine,GetTickCount());
     }
 }
 #endif
