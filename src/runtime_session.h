@@ -97,8 +97,8 @@ static int ordinary_fire_qa_allowed(void) {
 #define ME3_REMOTE_APPEARANCE_ORDINARY
 #include "remote_appearance_qa.h"
 #undef ME3_REMOTE_APPEARANCE_ORDINARY
-#include "remote_weapon_presentation.h"
 #include "runtime_remote_helmet.h"
+#include "remote_weapon_presentation.h"
 #include "runtime_presentation_rpc.h"
 static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     SessionContext c=session_context(engine);

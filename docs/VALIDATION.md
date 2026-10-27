@@ -1,5 +1,17 @@
 # Validation status
 
+Protected presentation run from `518b21a`: 43 paired samples, with the last
+41 agreeing on forced helmet slots, OverrideHelmetID 2 and attached headgear
+asset. The replica tree remained stable/ticking in those post-completion
+samples. Video overlap prevents full rendered attribution. Host-selected
+weapon actor/mesh arrived, while remote Weapon/Owner were null and its
+replicated index could not resolve through the shortened chain. The next
+candidate confirms that weapon's channel across two correlated replies before
+stock ownership/equip calls. Four native targets and both native harnesses
+passed. This is not a combat or campaign completion claim. The first pair
+and four observers exited 0, preserving 8,210 original-file locks, profiles
+and TOC with no native exceptions, cleanup errors or games left running.
+
 The scoped ordinary presentation candidate now transfers only the host's
 forced helmet slots over source-validated native owner-PC RPCs, derives helmet
 assets through stock code and catches up an existing unattached selected

@@ -122,4 +122,83 @@ static int remote_weapon_presentation_selftest(void) {
     b.mesh.pointer++;if(remote_weapon_presentation_same(&a,&b))return 0;b=a;
     b.world.index++;return !remote_weapon_presentation_same(&a,&b);
 }
+/* A replicated weapon can arrive without its unreplicated Owner/selected
+ * reference while the manager's replicated index targets an incomplete chain.
+ * The caller supplies the host-selected actor, confirmed across two native
+ * owner-PC replies in the same captured actor-channel lifetime. Use only the
+ * stock existing-item ownership and immediate simulated equip paths. Do not
+ * manufacture a pickup, chain entry, replicated index, weapon or ammunition. */
+static RemoteWeaponPresentationAttempt remote_weapon_selection_attempt;
+static DWORD remote_weapon_selection_scan_at;
+static void runtime_remote_weapon_apply(uintptr_t base,uintptr_t pc,uintptr_t local,uintptr_t world,
+        uintptr_t pawn,uintptr_t weapon,DWORD now) {
+    if(now-remote_weapon_selection_scan_at<1000)return;
+    remote_weapon_selection_scan_at=now;
+    unsigned char pawn_role=255,weapon_role=255,inventory_role=255;
+    uintptr_t inventory=read_ptr(pawn+0x414),mesh=read_ptr(pawn+0x3f4),component=read_ptr(weapon+0x380);
+    RemoteAppearanceAttempt *appearance=&remote_appearance_attempt;uint32_t support=0;
+    if(!appearance->valid||appearance->apply_pending||appearance->pawn.pointer!=pawn||appearance->world.pointer!=world||
+       !guest_camera_stamp_matches(base,&appearance->pawn,1)||!guest_camera_stamp_matches(base,&appearance->world,1)||
+       !guest_player_context_basic_owned(base,pc,local,world)||pawn==local||!is_kind_of(base,pawn,"SFXPawn_Player")||
+       !guest_camera_actor_live(base,pawn)||!guest_camera_actor_live(base,weapon)||!is_kind_of(base,weapon,"SFXWeapon")||
+       !guest_camera_actor_live(base,inventory)||!is_kind_of(base,inventory,"SFXInventoryManager")||
+       read_ptr(pawn+0x198)!=world||read_ptr(weapon+0x198)!=world||read_ptr(inventory+0x198)!=world||
+       !read_at(pawn+0x26a,&pawn_role,1)||pawn_role!=1||!read_at(weapon+0x26a,&weapon_role,1)||weapon_role!=1||
+       !read_at(inventory+0x26a,&inventory_role,1)||inventory_role!=1||read_ptr(pawn+0x374)||
+       read_ptr(pawn+0x41c)||read_ptr(inventory+0x288)||!read_at(pawn+0xff4,&support,4)||!(support&0x20))return;
+    GuestEquipmentSnapshot before,after;
+    if(!guest_equipment_snapshot(pawn,weapon,inventory,&before)||(before.owner&&before.owner!=pawn)||
+       before.instigator!=pawn||before.weapon_inventory!=inventory||before.inventory_instigator!=pawn||
+       (before.inventory_owner&&before.inventory_owner!=pawn)||before.pawn_inventory!=inventory||before.pawn_weapon||
+       !narrative_probe_object(base,mesh,"SkeletalMeshComponent")||read_ptr(mesh+0x40)!=pawn||
+       !narrative_probe_object(base,read_ptr(mesh+0x258),"SkeletalMesh")||
+       !narrative_probe_object(base,component,"SkeletalMeshComponent")||read_ptr(component+0x40)!=weapon||
+       !narrative_probe_object(base,read_ptr(component+0x258),"SkeletalMesh")||read_ptr(component+0x260))return;
+    NetworkActorScope scope;NetworkActorIdentityEntry pch={0},wch={0},ich={0};
+    if(!network_actor_read_scope(base,pawn,&scope)||network_actor_scan_driver(base,pawn,scope.driver,&pch)<0||
+       network_actor_scan_driver(base,weapon,scope.driver,&wch)<0||network_actor_scan_driver(base,inventory,scope.driver,&ich)<0||
+       pch.connection!=wch.connection||pch.connection!=ich.connection)return;
+    RemoteWeaponPresentationAttempt stamp={0};stamp.valid=1;
+    if(!guest_camera_stamp_read(base,pawn,&stamp.pawn,1)||!guest_camera_stamp_read(base,world,&stamp.world,1)||
+       !guest_camera_stamp_read(base,mesh,&stamp.mesh,1)||!guest_camera_stamp_read(base,weapon,&stamp.weapon,1)||
+       !guest_camera_stamp_read(base,inventory,&stamp.inventory,1)||!guest_camera_stamp_read(base,component,&stamp.component,1)||
+       remote_weapon_presentation_same(&remote_weapon_selection_attempt,&stamp))return;
+    uintptr_t given=guest_player_context_find_method(base,read_ptr(weapon+0x50),"Inventory","ClientGivenTo");
+    uintptr_t equip=guest_equipment_find_first(base,read_ptr(inventory+0x50),"SetWeaponImmediately");
+    GuestCameraStamp given_stamp,equip_stamp;
+    if(!guest_camera_stamp_read(base,given,&given_stamp,1)||strcmp(given_stamp.full_name,"Engine.Inventory.ClientGivenTo")||
+       !guest_player_context_function_abi(base,given,"Inventory","ClientGivenTo",0x10201c2,12,65535,0,0xf52b0,2)||
+       !runtime_remote_helmet_param(base,given,"NewOwner","ObjectProperty",0,0x80)||
+       !runtime_remote_helmet_param(base,given,"bDoNotActivate","BoolProperty",8,0x80)||
+       !guest_camera_stamp_read(base,equip,&equip_stamp,1)||strcmp(equip_stamp.full_name,"SFXGame.SFXInventoryManager.SetWeaponImmediately")||
+       !guest_player_context_function_abi(base,equip,"SFXInventoryManager","SetWeaponImmediately",0x20902,12,8,0,0xf52b0,2)||
+       !runtime_remote_helmet_param(base,equip,"WpnForSwitch","ObjectProperty",0,0x80)||
+       !runtime_remote_helmet_param(base,equip,"ReturnValue","BoolProperty",8,0x580)||
+       !guest_equipment_dispatch_pins(base)||!guest_equipment_snapshot(pawn,weapon,inventory,&after)||memcmp(&before,&after,sizeof before)) {
+        static unsigned reported;
+        if(reported++<4)line("{\"remote_weapon_presentation\":\"existing-weapon-method-admission-refused\"}\r\n");
+        return;
+    }
+    remote_weapon_selection_attempt=stamp;
+    if(!before.owner) {
+        unsigned char params[12]={0};uint32_t inactive=1;memcpy(params,&pawn,8);memcpy(params+8,&inactive,4);
+        if(!runtime_remote_helmet_dispatch(base,weapon,given,params))return;
+    }
+    if(!guest_camera_stamp_matches(base,&stamp.pawn,1)||!guest_camera_stamp_matches(base,&stamp.world,1)||
+       !guest_camera_stamp_matches(base,&stamp.weapon,1)||!guest_camera_stamp_matches(base,&stamp.inventory,1)||
+       !guest_camera_stamp_matches(base,&given_stamp,1)||!guest_camera_stamp_matches(base,&equip_stamp,1)||
+       read_ptr(pawn+0x374)||read_ptr(pawn+0x41c)||read_ptr(inventory+0x288)||
+       read_ptr(weapon+0x180)!=pawn||read_ptr(weapon+0x190)!=pawn||read_ptr(weapon+0x2b0)!=inventory)return;
+    unsigned char params[12]={0};memcpy(params,&weapon,8);
+    if(!runtime_remote_helmet_dispatch(base,inventory,equip,params))return;
+    uint32_t returned=0;memcpy(&returned,params+8,4);
+    int stable=guest_camera_stamp_matches(base,&stamp.pawn,1)&&guest_camera_stamp_matches(base,&stamp.world,1)&&
+        guest_camera_stamp_matches(base,&stamp.weapon,1)&&guest_camera_stamp_matches(base,&stamp.inventory,1)&&
+        guest_camera_stamp_matches(base,&stamp.mesh,1)&&guest_camera_stamp_matches(base,&stamp.component,1);
+    int selected=stable&&read_ptr(pawn+0x41c)==weapon,attached=stable&&read_ptr(component+0x260)==mesh;
+    int counters=stable&&guest_equipment_snapshot(pawn,weapon,inventory,&after)&&before.used==after.used&&before.spare==after.spare;
+    char row[520];snprintf(row,sizeof row,
+        "{\"remote_weapon_presentation\":\"stock-existing-weapon-equipped\",\"native_result\":%u,\"same_identity\":%s,\"selected\":%s,\"attached_to_current_mesh\":%s,\"ammo_unchanged\":%s,\"rendered_visibility_verified\":false,\"monotonic_ms\":%lu}\r\n",
+        returned,stable?"true":"false",selected?"true":"false",attached?"true":"false",counters?"true":"false",now);line(row);
+}
 #endif

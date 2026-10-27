@@ -66,6 +66,40 @@ mesh admission only; full host appearance and customization remain unfinished.
 
 ## Scoped presentation candidate
 
+The first protected run of `518b21a` completed with 43 paired samples. After
+two startup samples, the remaining 41 matched all four forced slots
+(`[2,0,0,1]`), derived override ID 2 and the same attached, non-hidden headgear
+asset. Native logs recorded the correlated host reply, scoped getter
+continuation, stock slot application and loaded helmet-only build. The 41
+post-completion replica samples retained one instantiated tree with root tick
+147 to 5659. The first two samples preceded tree creation, so independent
+snapshots do not bracket the first helmet callback with a pre-existing tree.
+Window video contains overlapping characters and does not cleanly attribute
+the complete mask to Shepard. This proves bounded state/asset/attachment
+agreement, not full rendered presentation or other appearance variants.
+
+The same run identified the weapon's missing stage: the host-selected Predator
+actor and mesh reached the guest on channel 4, but its Owner and Shepard's
+selected Weapon were null. The inventory chain contained shield/Avenger while
+ReplicatedWeaponIndex was 3, so stock index resolution could not select that
+existing Predator. Replaying `ReplicatedWeaponUpdated` alone would wait on
+missing chain data. The attachment-only candidate correctly did not run.
+
+The scalar reply now includes the host's existing selected-weapon channel.
+The guest captures that actor/channel lifetime and requires a second correlated
+reply before admitting it. For an unselected remote role-1 pawn and role-1
+inventory manager, the narrow continuation invokes base
+`Inventory.ClientGivenTo` for a missing Owner and stock
+`SFXInventoryManager.SetWeaponImmediately` for that existing weapon. The pawn
+must have no controller or pending weapon. This avoids pickup events, new
+inventory, guessed replicated indices and autonomous/authority equip RPCs.
+The stock loadout function cannot write local engine loadout without a player
+controller; the remote pawn has none. This continuation needs live validation.
+
+The first run's runner and four observers exited 0, with original profiles
+unchanged, 8,210 locks, byte-identical TOC restoration, no native exceptions,
+forced cleanup, cleanup errors or remaining games.
+
 The ordinary runtime now requests the host story pawn's four transient forced
 helmet-controller slots through the existing native owner-PC RPCs. Requests
 and replies carry a monotonically increasing request ID and the current pawn

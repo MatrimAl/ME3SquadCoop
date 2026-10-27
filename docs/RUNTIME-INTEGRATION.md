@@ -1,5 +1,19 @@
 # Runtime integration status
 
+The first protected pair with the scoped presentation continuation (`518b21a`)
+delivered the host's forced helmet slots through native owner-PC RPCs. After
+two startup samples, 41 paired samples agreed on all slots, OverrideHelmetID
+and the attached headgear asset; the post-completion tree stayed stable and
+ticked. Full rendered attribution remains limited by overlapping video
+characters. The gun actor arrived, but selected Weapon/Owner were null and
+the replicated index exceeded the guest's shortened inventory chain.
+The next candidate carries the authoritative selected-weapon channel and
+confirms its guest actor lifetime across two replies before stock existing-item
+ownership/equip calls. No new item or pickup event is synthesized. Four targets
+and both native harnesses passed; live equip remains unverified. The first run
+and all four observers exited 0 with clean isolation/cleanup. See
+[presentation details](REMOTE-PLAYER-ANIMATION.md#scoped-presentation-candidate).
+
 The latest protected ordinary pair (`9a512fa`, native fingerprint unchanged
 from `4afddca`) measured existing, advancing host and remote-player animation
 trees. All 37 paired samples retained the replica mesh; eight extra root-tick

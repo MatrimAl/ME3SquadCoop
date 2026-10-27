@@ -19,6 +19,11 @@ static uint64_t presentation_sequence,presentation_pending;
 static DWORD presentation_sent_at,presentation_scan_at,presentation_received_at;
 static unsigned char presentation_helmet[4];
 static int presentation_received;
+/* Confirm a weapon actor/channel lifetime across a second correlated request.
+ * A reply never resolves a recycled channel into a newly admitted weapon. */
+static GuestCameraStamp presentation_weapon,presentation_weapon_channel;
+static unsigned presentation_weapon_index=2048;
+static int presentation_weapon_candidate,presentation_weapon_pending,presentation_weapon_confirmed;
 typedef struct PresentationHostRequest {
     RemotePresentationMessage message;
     GuestCameraStamp pc,pawn,world,connection;
@@ -68,6 +73,28 @@ static int presentation_guest_valid(uintptr_t base) {
     return network_actor_channel_valid(base,s->objects[2].pointer,s->objects[6].pointer,s->objects[5].pointer,&actor)&&
         actor.index==s->index&&actor.connection==s->objects[4].pointer;
 }
+static int presentation_weapon_valid(uintptr_t base) {
+    NetworkActorIdentityEntry entry={0};PresentationGuestScope *s=&presentation_guest;
+    return presentation_weapon_candidate&&presentation_guest_valid(base)&&
+        guest_camera_stamp_matches(base,&presentation_weapon,1)&&guest_camera_stamp_matches(base,&presentation_weapon_channel,1)&&
+        network_actor_channel_valid(base,presentation_weapon.pointer,presentation_weapon_channel.pointer,s->objects[5].pointer,&entry)&&
+        entry.connection==s->objects[4].pointer&&entry.index==(int)presentation_weapon_index&&
+        is_kind_of(base,presentation_weapon.pointer,"SFXWeapon")&&
+        read_ptr(presentation_weapon.pointer+0x198)==s->objects[3].pointer&&
+        read_ptr(presentation_weapon.pointer+0x190)==s->objects[2].pointer;
+}
+static void presentation_weapon_capture(uintptr_t base,unsigned index) {
+    presentation_weapon_candidate=presentation_weapon_confirmed=0;presentation_weapon_index=index;
+    if(index>2047||!presentation_guest_valid(base))return;
+    PresentationGuestScope *s=&presentation_guest;NetworkActorIdentityEntry entry={0};
+    uintptr_t channel=read_ptr(s->objects[4].pointer+0xf84+(uintptr_t)index*8),weapon=read_ptr(channel+0xa0);
+    if(!network_actor_channel_valid(base,weapon,channel,s->objects[5].pointer,&entry)||entry.index!=(int)index||
+       entry.connection!=s->objects[4].pointer||!is_kind_of(base,weapon,"SFXWeapon")||
+       read_ptr(weapon+0x198)!=s->objects[3].pointer||read_ptr(weapon+0x190)!=s->objects[2].pointer||
+       !guest_camera_stamp_read(base,weapon,&presentation_weapon,1)||
+       !guest_camera_stamp_read(base,channel,&presentation_weapon_channel,1))return;
+    presentation_weapon_candidate=1;
+}
 static int presentation_source(uintptr_t self,uintptr_t frame,int k,NetworkActorIdentityEntry *source) {
     NativeRpcReceiveFrame *r=native_rpc_receive_current(session_game_thread);NetworkActorScope world;
     if(!runtime_control_enabled||!runtime_scope_ready||!r||!r->channel||
@@ -87,7 +114,7 @@ static int presentation_receive(uintptr_t self,uintptr_t frame) {
     uintptr_t locals=read_ptr(frame+0x30);
     if(!read_at(locals,&string,sizeof string)||!string.data||string.count<8||string.count>96||
        string.max<string.count||string.max>256||!read_at(string.data,text,(SIZE_T)string.count*sizeof(wchar_t))||
-       wcsncmp(text,L"ME3PR1 ",7))return 0;
+       wcsncmp(text,L"ME3PR2 ",7))return 0;
     NetworkActorIdentityEntry source={0};
     if(!presentation_source(self,frame,k,&source))return 0;
     RemotePresentationMessage m={0};
@@ -107,6 +134,10 @@ static int presentation_receive(uintptr_t self,uintptr_t frame) {
     }
     if(!remote_presentation_reply_matches(&m,presentation_pending,(unsigned)presentation_guest.index,presentation_sent_at,now))return 1;
     memcpy(presentation_helmet,m.helmet,4);presentation_received=1;presentation_received_at=now;
+    if(presentation_weapon_pending&&m.weapon_channel==presentation_weapon_index&&presentation_weapon_valid(presentation_base))
+        presentation_weapon_confirmed=1;
+    else presentation_weapon_capture(presentation_base,m.weapon_channel);
+    presentation_weapon_pending=0;
     presentation_pending=0;presentation_log("received-host-helmet",m.channel,m.helmet);return 1;
 }
 static void presentation_exec(void *self,void *frame,void *result) {
@@ -176,6 +207,7 @@ static void runtime_presentation_tick(uintptr_t base,uintptr_t engine,DWORD now)
     SessionContext c=session_context(engine);
     if(!presentation_opted()||!runtime_control_enabled||!runtime_scope_ready||session_engine_blocked(c)) {
         memset(&presentation_guest,0,sizeof presentation_guest);presentation_pending=0;presentation_received=0;
+        presentation_weapon_candidate=presentation_weapon_pending=presentation_weapon_confirmed=0;
         presentation_host_request.active=0;return;
     }
     presentation_install(base,c.pc);if(!presentation_installed)return;
@@ -192,11 +224,19 @@ static void runtime_presentation_tick(uintptr_t base,uintptr_t engine,DWORD now)
            target.index!=(int)r.message.channel||!read_at(c.pawn+0x105c,r.message.helmet,4))return;
         for(unsigned i=0;i<4;++i)if(r.message.helmet[i]>3)return;
         if(!read_at(c.pawn+0x105c,check,4)||memcmp(check,r.message.helmet,4))return;
+        r.message.weapon_channel=2048;
+        uintptr_t weapon=read_ptr(c.pawn+0x41c),inventory=read_ptr(c.pawn+0x414);NetworkActorIdentityEntry weapon_entry={0};
+        if(session_actor_live(base,weapon)&&is_kind_of(base,weapon,"SFXWeapon")&&
+           read_ptr(weapon+0x198)==c.world&&read_ptr(weapon+0x190)==c.pawn&&read_ptr(weapon+0x180)==c.pawn&&
+           is_live(base,inventory)&&read_ptr(weapon+0x2b0)==inventory&&
+           network_actor_scan_driver(base,weapon,identity_host_driver,&weapon_entry)>=0&&weapon_entry.connection==session_connection&&
+           read_ptr(c.pawn+0x41c)==weapon)r.message.weapon_channel=(unsigned)weapon_entry.index;
         r.message.kind=L'A';if(presentation_send(r.pc.pointer,1,&r.message))presentation_log("sent-host-helmet",r.message.channel,r.message.helmet);
         return;
     }
     if(!presentation_guest_valid(base)) {
         memset(&presentation_guest,0,sizeof presentation_guest);presentation_pending=0;presentation_received=0;
+        presentation_weapon_candidate=presentation_weapon_pending=presentation_weapon_confirmed=0;
     }
     if(!presentation_scan_at||now-presentation_scan_at>=1000) {
         presentation_scan_at=now;
@@ -207,12 +247,17 @@ static void runtime_presentation_tick(uintptr_t base,uintptr_t engine,DWORD now)
         if(presentation_guest_valid(base)&&(!presentation_pending||now-presentation_sent_at>3000)&&presentation_sequence!=UINT64_MAX) {
             RemotePresentationMessage request={L'Q',++presentation_sequence,(unsigned)presentation_guest.index,{0}};
             presentation_pending=request.request;presentation_sent_at=now;
+            presentation_weapon_pending=presentation_weapon_valid(base);
             if(!presentation_send(c.pc,0,&request))presentation_pending=0;
         }
     }
     if(presentation_received&&now-presentation_received_at<=3000&&presentation_guest_valid(base)) {
         presentation_busy=1;
         runtime_remote_helmet_apply(base,engine,c.pc,c.pawn,c.world,presentation_guest.objects[2].pointer,presentation_helmet,now);
+        if(presentation_weapon_confirmed&&presentation_weapon_valid(base)) {
+            c=session_context(engine);
+            runtime_remote_weapon_apply(base,c.pc,c.pawn,c.world,presentation_guest.objects[2].pointer,presentation_weapon.pointer,now);
+        }
         presentation_busy=0;
     }
 }
