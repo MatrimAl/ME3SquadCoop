@@ -5,7 +5,7 @@
  * two-assignment script. The native callspace still runs; only its skip
  * result for this actor/function on the dispatching thread is adapted. */
 typedef int (*LocalSquadCallspace)(void*,void*,void*,void*);
-typedef struct LocalSquadCall {uintptr_t actor,function;int adapted;} LocalSquadCall;
+typedef struct LocalSquadCall {uintptr_t actor,function;int adapted,limit;} LocalSquadCall;
 static LocalSquadCallspace local_squad_original;
 static DWORD local_squad_tls=TLS_OUT_OF_INDEXES;
 static uintptr_t local_squad_base;
@@ -14,8 +14,8 @@ static unsigned char local_squad_hook_bytes[16];
 static int local_squad_callspace(void *actor,void *function,void *parameters,void *frame) {
     int result=local_squad_original(actor,function,parameters,frame);
     LocalSquadCall *call=local_squad_tls!=TLS_OUT_OF_INDEXES?(LocalSquadCall*)TlsGetValue(local_squad_tls):NULL;
-    if(call&&!call->adapted&&result==1&&!frame&&(uintptr_t)actor==call->actor&&
-       (uintptr_t)function==call->function){call->adapted=1;return 0;}
+    if(call&&call->adapted<(call->limit>0?call->limit:1)&&result==1&&!frame&&(uintptr_t)actor==call->actor&&
+       (uintptr_t)function==call->function){++call->adapted;return 0;}
     return result;
 }
 static int local_squad_hook_ready(uintptr_t base) {

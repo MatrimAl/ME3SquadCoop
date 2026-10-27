@@ -97,6 +97,9 @@ static int ordinary_fire_qa_allowed(void) {
 #define ME3_REMOTE_APPEARANCE_ORDINARY
 #include "remote_appearance_qa.h"
 #undef ME3_REMOTE_APPEARANCE_ORDINARY
+#include "remote_weapon_presentation.h"
+#include "runtime_remote_helmet.h"
+#include "runtime_presentation_rpc.h"
 static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     SessionContext c=session_context(engine);
     uint32_t world_flags=0;
@@ -155,6 +158,12 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
         c=session_context(engine);
         remote_appearance_qa_tick(base,engine,c.pc,c.pawn,c.world,!session_engine_blocked(c),
             runtime_control_enabled&&runtime_session_scope(base,engine),GetTickCount());
+        c=session_context(engine);
+        runtime_scope_ready=runtime_session_scope(base,engine);
+        remote_weapon_presentation_tick(base,c.pc,c.pawn,c.world,!session_engine_blocked(c),
+            runtime_control_enabled&&runtime_scope_ready,GetTickCount());
+        runtime_scope_ready=runtime_session_scope(base,engine);
+        runtime_presentation_tick(base,engine,GetTickCount());
     }
 }
 static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
@@ -177,5 +186,9 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
         return;
     }
     session_host_frame(base,engine,after);
+    if(after) {
+        runtime_scope_ready=runtime_session_scope(base,engine);
+        runtime_presentation_tick(base,engine,GetTickCount());
+    }
 }
 #endif

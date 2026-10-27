@@ -1,5 +1,32 @@
 # Validation status
 
+The scoped ordinary presentation candidate now transfers only the host's
+forced helmet slots over source-validated native owner-PC RPCs, derives helmet
+assets through stock code and catches up an existing unattached selected
+weapon. It does not reset animation or create inventory. Four native targets
+built; the ordinary runtime harness (including scalar parsing/freshness,
+thread-local exact-callspace negative cases and weapon admission identities)
+and probe/low-integrity harness passed without launching the game. The first
+sandbox build stopped at Zig `Unexpected`; normal-user compilation succeeded.
+Actual slot agreement, helmet/weapon attachment and rendered visibility still
+require the protected live observation. See
+[presentation candidate](REMOTE-PLAYER-ANIMATION.md#scoped-presentation-candidate).
+
+Latest presentation evidence, 2026-10-27: a protected ordinary pair from
+`9a512fa` with the unchanged `4afddca` native fingerprint observed the remote
+Shepard mesh in all 37 paired samples. Host and replica had the same player
+animation template, separate trees, 15 sets and no animation pause/skeleton
+suppression. Eight additional samples measured advancing root tick tags with
+stable tree identities. This rules against an absent/non-ticking-tree diagnosis
+for that run; correct rendered poses and combat are not proven. The owner's
+latest image shows a weapon-holding pose with invisible weapon and mask.
+Host/replica OverrideHelmetID were 2/-1, with ordinary HelmetID 0/0. Earlier
+notes already recorded unequal overrides before the first mesh repair; a new
+helmet regression is unproven. The runner and four integrated observers exited
+0, original profiles and TOC were preserved, 8,210 original files were locked,
+and no exceptions, cleanup errors or games remained. See
+[remote-player presentation](REMOTE-PLAYER-ANIMATION.md).
+
 Work now prioritizes the observed walking/damage blockers; the unfinished
 replicated revive-peer prototype was retained privately, with active script
 sources restored byte-identically to the verified prior input. A focused

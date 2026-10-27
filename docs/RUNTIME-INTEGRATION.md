@@ -1,10 +1,19 @@
 # Runtime integration status
 
-The T-pose investigation now confirms that the appearance tail caches existing
-animation nodes but does not construct a missing tree. Parent startup replay
-also touches inventory and class data. See [remote-player animation](REMOTE-PLAYER-ANIMATION.md)
-for the selected source evidence and the remaining tree/set/update distinction.
-No new game was run for this investigation.
+The latest protected ordinary pair (`9a512fa`, native fingerprint unchanged
+from `4afddca`) measured existing, advancing host and remote-player animation
+trees. All 37 paired samples retained the replica mesh; eight extra root-tick
+samples advanced with stable tree identities. The owner's latest image instead
+shows missing weapon and mask presentation. Host `OverrideHelmetID` was 2 and
+replica -1 while both ordinary HelmetIDs were 0. Earlier notes already recorded
+unequal overrides before the first repair; a new helmet regression is unproven.
+See [remote-player presentation](REMOTE-PLAYER-ANIMATION.md). Replaying pawn
+startup or rebuilding a supposedly absent tree is not justified by this run.
+
+The runner and four integrated observers exited 0; original profiles and TOC
+were preserved, 8,210 files were locked and no exceptions, cleanup errors or
+games remained. Effective helmet state and remote weapon attachment remain
+unfinished; this was not a combat or campaign pass.
 
 The ordinary pair from `4afddca` connected and retained native connection
 scope until the guest deadline. Of 43 paired channel snapshots, 41 observed
@@ -17,7 +26,7 @@ but do not independently attribute a remote Shepard pose. Cleanup preserved
 original profiles, restored the sandbox TOC, and left no game processes,
 native exceptions or cleanup errors. No combat or campaign success is claimed.
 
-The next investigation is the remote player's animation initialization after
+The preceding investigation concerned the remote player's animation initialization after
 late mesh creation. Selected exact-build script exports `UpdateBodyAppearance`
 (39924) and `PostBeginPlay` (40099) were retained privately. The former calls
 `UpdateMeshComponent` and updates child bone maps/physics; the latter delegates

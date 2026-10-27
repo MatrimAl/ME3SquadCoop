@@ -64,11 +64,13 @@ static int runtime_rpc_receive_install(uintptr_t base) {
     line("{\"runtime\":\"rpc-receive-context-installed\",\"forwarding_only\":true}\r\n");return 1;
 }
 static void runtime_rpc_receive_prepare(uintptr_t base) {
-    /* Default off until ordinary reconciliation is integrated and validated.
-     * Sharing the existing explicit reconciliation opt-in adds no QA mode. */
-    static int opted=-1;
+    /* The scalar presentation RPC uses the same forwarding-only provenance
+     * frame. Reconciliation retains its separate explicit opt-in. */
+    static int opted=-1,presentation=-1;
     if(opted<0){wchar_t value[8]={0};opted=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_AMMO_RECONCILE",value,8)==1&&value[0]==L'1';}
-    if((opted&&runtime_control_enabled&&runtime_scope_ready)||
+    if(presentation<0){wchar_t value[8]={0};DWORD n=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_REMOTE_PRESENTATION",value,8);
+        presentation=!n||(n==1&&value[0]==L'1');}
+    if(((opted||presentation)&&runtime_control_enabled&&runtime_scope_ready)||
        (g_runtime_config.role==ME3_ROLE_GUEST&&initial_object_opted()&&runtime_control_enabled)) {
         if(runtime_rpc_receive_install(base)){initial_object_install(base);runtime_initial_reference_install(base);}
     }
