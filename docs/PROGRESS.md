@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-27: ordinary owned movement-payload correction
+
+The normal guest now includes the existing protected correction for native
+optimized payloads skipped while the pawn has `bNetOwner`. The current
+ReceivedBunch frame, exact native callers, reciprocal autonomous Ashley owner,
+world/driver/channel and reader/map/shadow identities gate a transient bit
+lease around one unchanged five-argument callback. The bit is restored to the
+same live pawn while preserving unrelated native changes. No position, role,
+inventory reference, archive cursor or packet is authored.
+
+All four native targets rebuilt. The native runtime harness passed the new
+lease/forwarding checks and existing runtime fixtures without launching a game.
+The prior protected positive is retained evidence, not validation of this
+ordinary integration. The owner will perform gameplay checks; sustained
+movement, scene control return, combat and mission progression remain open.
+Current activation packaging also includes all four authored DLC files instead
+of silently generating the older Mount-only candidate.
+
 ## 2026-10-26: add local actor ownership and deferred revive activation
 
 The service/factory candidate provides a normal Actor.Spawn entry and retains

@@ -8,6 +8,15 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 **Status: research prototype. A complete playable campaign and a validated player installation are not available yet.** This repository publishes source and test tooling so the work can continue openly, with clear limits on what has actually been demonstrated.
 
+The ordinary runtime now connects the local host/guest pair and retains guest
+Ashley control. Remote Shepard weapon/mask presentation is corrected, authored
+shuttle actors survive guest loading, and the measured scene-return collision
+variants are admitted. The normal guest now also includes the previously
+protected [owned movement-payload correction](docs/OWNED-OPTIMIZED-RECEIVE.md).
+This latest integration passed native fixtures; gameplay confirmation is
+pending owner testing. A completed shuttle-door gesture still differs on the
+guest. See [current validation](docs/VALIDATION.md) for the remaining scope.
+
 ## The goal
 
 - Keep the host authoritative over story choices, world state and saves.
@@ -29,7 +38,7 @@ These observations come from bounded tests with real game processes on one Windo
 | Area | Observed result | Limit |
 | --- | --- | --- |
 | Native connection | Host and guest connected through LE3's UE3 networking | Cross-PC play untested |
-| Ordinary host startup | Separate runtime opened a native listener in the current Mars world; Windows confirmed the requested local Radmin interface and port | Ordinary guest connection and control still need validation |
+| Ordinary startup | Separate runtime opened a native listener and connected the local guest in the current Mars world | Full campaign and cross-PC behavior remain unverified |
 | Squad control | Guest Ashley possession; one protected run admitted a21-second shared walking interval and retained133 seconds of control in one epoch | Route-wide synchronization and mission progression unverified |
 | Player context | Guest-local squad context initialization and cleanup | Equipment readiness still inconsistent |
 | Cameras | Shoulder-camera adaptation and actual intro Matinee camera motion/cleanup | Full conversations unverified |
@@ -45,7 +54,12 @@ Gameplay is the priority. The current blocker is usable squadmate control after 
 
 Combat is also incomplete. Native guest firing requests have reached the authoritative host, but the host can defer firing while the port-arms animation flag remains set. A previous positive ammunition run does not establish repeatability, powers or enemy damage. Full conversations and sustained mission progression still require real gameplay evidence.
 
-The separate ordinary runtime opened a native host listener without reloading the current Mars mission, but ordinary guest connection/control has not been validated. The activation DLC also failed engine acceptance. Protected gameplay research therefore remains separate from an end-user installation. See [runtime integration](docs/RUNTIME-INTEGRATION.md) and [activation packaging](docs/DLC-PACKAGING.md). Radmin validation and package delivery follow the gameplay work.
+The separate ordinary runtime now connects the same-PC guest without reloading
+the host's current Mars mission. The current authored activation resolves its
+config and TLK in the protected copy; earlier activation failures remain
+documented. A validated player installation and cross-PC Radmin behavior are
+still pending. See [runtime integration](docs/RUNTIME-INTEGRATION.md) and
+[activation packaging](docs/DLC-PACKAGING.md).
 
 1. Verify scene return with healthy collision and sustained, synchronized walking.
 2. Make equipment/animation readiness repeatable; verify firing and stopping on both sides.

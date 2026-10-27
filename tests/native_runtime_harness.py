@@ -43,6 +43,7 @@ def main():
                  "ME3RuntimePolicySelfTest", "ME3RuntimeSessionGateSelfTest", "ME3RuntimeCameraSelfTest",
                  "ME3RuntimePresentationSelfTest",
                  "ME3RuntimeStuntRetentionSelfTest",
+                 "ME3RuntimeOwnedOptimizedSelfTest",
                  "ME3RuntimeCinematicSelfTest", "ME3RuntimeCoreCleanupSelfTest",
                  "ME3RuntimeTickForwardingSelfTest", "ME3RuntimeNetworkStartSelfTest",
                  "ME3RuntimeRpcReceiveSelfTest",

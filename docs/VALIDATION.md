@@ -1,5 +1,22 @@
 # Validation status
 
+The current ordinary guest includes the previously protected optimized native
+movement-payload correction. It retains the unchanged original callback and
+temporarily adapts only its owner-bit admission under exact receive/channel/
+owned-pawn guards. The normal build and native runtime harness pass, including
+negative admission, failed compare-and-swap, preservation of unrelated flag
+changes, exactly-once forwarding and LastError. This integration has not run
+in a game; the owner will check sustained movement, real conversation return,
+equipment retention and reconnect. See [implementation scope](OWNED-OPTIMIZED-RECEIVE.md).
+
+The latest protected private movement trials retained the shuttle actors and
+equipment, but their QA route stopped early at loading-time bounds. They do
+not validate scene-return collision or a full route. No further gameplay runs
+are being used as an implementation gate; owner checks are recorded separately.
+One read-only numerical comparison confirmed a meaningful completed door-pose
+difference, so matching bounds or some bone hashes cannot establish full shuttle
+animation agreement. No animation-tree reset or terminal Matinee replay was added.
+
 Protected run `3ec584a`: the client-level prune correction preserved the
 authored shuttle body and both doors before normal initialization. Independent
 post-join samples retained live actors, meshes and instantiated trees, with

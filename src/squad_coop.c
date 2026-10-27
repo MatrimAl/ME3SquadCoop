@@ -234,6 +234,34 @@ __declspec(dllexport) int ME3RuntimeHashFileFixture(const wchar_t *path,const un
     return path&&expected&&runtime_hash_file_matches(path,expected);
 }
 __declspec(dllexport) int ME3RuntimeIdentitySelfTest(void) {return me3_runtime_identity_selftest();}
+static unsigned runtime_owned_fixture_calls;
+static void runtime_owned_fixture_original(void *a,void *b,void *c,void *d,void *e) {
+    if((uintptr_t)a==11&&(uintptr_t)b==22&&(uintptr_t)c==33&&(uintptr_t)d==44&&(uintptr_t)e==55&&GetLastError()==607)
+        ++runtime_owned_fixture_calls;
+    SetLastError(609);
+}
+__declspec(dllexport) int ME3RuntimeOwnedOptimizedSelfTest(void) {
+    if(!runtime_owned_optimized_case(1,1,1,1,1,1,0x4000,0,10,15)||
+       runtime_owned_optimized_case(1,1,0,1,1,1,0x4000,0,10,15)||
+       runtime_owned_optimized_case(1,1,1,0,1,1,0x4000,0,10,15)||
+       runtime_owned_optimized_case(1,1,1,1,0,1,0x4000,0,10,15)||
+       runtime_owned_optimized_case(1,1,1,1,1,0,0x4000,0,10,15)||
+       runtime_owned_optimized_case(1,1,1,1,1,1,0,0,10,15)||
+       runtime_owned_optimized_case(1,1,1,1,1,1,0x4000,1,10,15)||
+       runtime_owned_optimized_case(1,1,1,1,1,1,0x4000,0,16,15)||
+       runtime_owned_optimized_case(1,1,1,1,1,1,0x4000,0,11,15))return 0;
+    volatile LONG flags=0xc000;
+    if(runtime_owned_optimized_clear(&flags,0x4000)||flags!=0xc000||
+       !runtime_owned_optimized_clear(&flags,0xc000)||flags!=0x8000)return 0;
+    InterlockedOr(&flags,0x100);runtime_owned_optimized_restore_bit(&flags);
+    if(flags!=0xc100)return 0; /* Retain a native change to another bit. */
+    RuntimeOwnedOptimizedOriginal saved=runtime_owned_optimized_original;
+    int enabled=runtime_control_enabled;DWORD error=GetLastError();
+    runtime_control_enabled=0;runtime_owned_fixture_calls=0;runtime_owned_optimized_original=runtime_owned_fixture_original;
+    SetLastError(607);runtime_owned_optimized_forward((void*)11,(void*)22,(void*)33,(void*)44,(void*)55,0);
+    int ok=runtime_owned_fixture_calls==1&&GetLastError()==609;
+    runtime_owned_optimized_original=saved;runtime_control_enabled=enabled;SetLastError(error);return ok;
+}
 __declspec(dllexport) int ME3RuntimeConfigSelfTest(void) {return runtime_config_selftest();}
 __declspec(dllexport) int ME3RuntimeSupportSelfTest(void) {
     unsigned char engine[0x510]={0},player[0x80]={0};uint32_t marker=17;
