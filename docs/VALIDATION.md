@@ -1,5 +1,17 @@
 # Validation status
 
+The owner confirmed the remote weapon/mask issue solved during the protected
+`f0fc0c7` run. Native and independent readbacks observed the existing selected
+weapon and attachment, preserving ammunition; this is bounded presentation
+evidence. The next `9d4679a` run captured an actual scene release that retained
+actor/blocking collision but lost world collision, with cylinder 0xaa and type
+0/0. The adapter's old predicate refused that specific variant after control
+returned. The predicate now includes only the measured variant; four targets,
+ordinary/protected collision lifecycle fixtures and both native harnesses pass.
+Its preventive in-game result remains unverified. The new paired shuttle images
+also reproduce unresolved guest scene bindings; see
+[shuttle presentation](SHUTTLE-SCENE-BINDING.md).
+
 Protected presentation run from `518b21a`: 43 paired samples, with the last
 41 agreeing on forced helmet slots, OverrideHelmetID 2 and attached headgear
 asset. The replica tree remained stable/ticking in those post-completion

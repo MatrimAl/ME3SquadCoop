@@ -66,6 +66,18 @@ mesh admission only; full host appearance and customization remain unfinished.
 
 ## Scoped presentation candidate
 
+The follow-up protected run from `f0fc0c7` exercised stock existing-weapon
+initialization: native result 1, the same actor identities, selected Predator,
+attachment to the current body mesh and unchanged ammunition. Independent
+samples observed the selected weapon/Owner/attachment after two startup
+samples. The owner then confirmed the weapon/mask problem solved in play.
+This confirms that reported presentation issue for this episode; it does not
+establish every weapon switch, custom appearance, combat or mission transition.
+The owner subsequently reported Ashley falling, tracked separately in
+[collision restoration](COLLISION-RESTORATION.md). Both launchers reached their
+bounded deadlines; the runner/four observers exited 0 with clean isolation and
+cleanup.
+
 The first protected run of `518b21a` completed with 43 paired samples. After
 two startup samples, the remaining 41 matched all four forced slots
 (`[2,0,0,1]`), derived override ID 2 and the same attached, non-hidden headgear
