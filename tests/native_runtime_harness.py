@@ -42,6 +42,7 @@ def main():
     for name in ("ME3RuntimeIdentitySelfTest", "ME3RuntimeConfigSelfTest", "ME3RuntimeSupportSelfTest",
                  "ME3RuntimePolicySelfTest", "ME3RuntimeSessionGateSelfTest", "ME3RuntimeCameraSelfTest",
                  "ME3RuntimePresentationSelfTest",
+                 "ME3RuntimeStuntRetentionSelfTest",
                  "ME3RuntimeCinematicSelfTest", "ME3RuntimeCoreCleanupSelfTest",
                  "ME3RuntimeTickForwardingSelfTest", "ME3RuntimeNetworkStartSelfTest",
                  "ME3RuntimeRpcReceiveSelfTest",

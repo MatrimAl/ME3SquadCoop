@@ -27,6 +27,7 @@ static wchar_t g_executable[MAX_PATH];
 #include "runtime_join_event_trace.h"
 #include "runtime_panel.h"
 #include "runtime_ready_policy.h"
+#include "runtime_stunt_actor_retention.h"
 static EngineTick runtime_original_tick;
 static DWORD runtime_last_gate;
 
@@ -55,6 +56,7 @@ static void runtime_tick(void *self,float delta) {
     runtime_panel_commands();
     runtime_control_enabled=g_dlc_active&&InterlockedCompareExchange(&g_enable_requested,0,0)&&
         g_config_status==ME3_CONFIG_READY;
+    runtime_stunt_actor_prepare(base,(uintptr_t)self);
     runtime_ready_policy_tick(base,(uintptr_t)self);
     runtime_network_start_tick(base,(uintptr_t)self,now);
     runtime_session_frame(base,(uintptr_t)self,0,now);
@@ -226,6 +228,7 @@ __declspec(dllexport) int ME3RuntimePolicySelfTest(void) {
 __declspec(dllexport) int ME3RuntimeSessionGateSelfTest(void) {return session_gate_selftest();}
 __declspec(dllexport) int ME3RuntimeCameraSelfTest(void) {return guest_camera_adapter_selftest()&&remote_appearance_case_selftest()&&remote_weapon_presentation_selftest();}
 __declspec(dllexport) int ME3RuntimePresentationSelfTest(void) {return runtime_presentation_selftest();}
+__declspec(dllexport) int ME3RuntimeStuntRetentionSelfTest(void) {return runtime_stunt_selftest();}
 __declspec(dllexport) int ME3RuntimeCinematicSelfTest(void) {return guest_cinematic_registration_selftest();}
 __declspec(dllexport) int ME3RuntimeHashFileFixture(const wchar_t *path,const unsigned char *expected) {
     return path&&expected&&runtime_hash_file_matches(path,expected);
