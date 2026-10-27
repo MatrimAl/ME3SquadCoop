@@ -105,7 +105,9 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_revive_peer.h"
 #include "runtime_native_hud.h"
 #include "runtime_guest_vitals_hud.h"
+#include "runtime_story_warning.h"
 #include "runtime_team_hud.h"
+#include "runtime_story_gate.h"
 #include "runtime_power_action_context.h"
 static SessionContext runtime_host_power_context(uintptr_t engine) {
     SessionContext c=session_context(engine);
@@ -206,6 +208,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     runtime_revive_peer_configure();
     runtime_team_hud_configure();
     if(!after)runtime_rpc_receive_prepare(base);
+    if(!after){runtime_story_gate_tick(base,engine,now);runtime_scope_ready=runtime_session_scope(base,engine);}
     runtime_command_pause_prepare(base,engine,runtime_control_enabled&&runtime_scope_ready);
     session_command_menu_retained=runtime_host_command_menu_held;
     if(!after)background_focus_prepare(base,engine,runtime_control_enabled&&

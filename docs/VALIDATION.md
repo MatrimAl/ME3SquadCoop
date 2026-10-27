@@ -1,5 +1,14 @@
 # Validation status
 
+The story-trigger candidate adds native admission and brush movement guards
+for classified Shepard story entries, plus a deferred Mars shuttle closure
+that checks every current human pawn against the authored cabin. Native
+fixtures exercise policy, forwarding and replay storage. No game was launched
+for this integration: discovery, actual overlap, warnings, both exit orders,
+ordinary door behavior and scene return remain owner checks. See
+[scope and manual checks](STORY-TRIGGER-AUTHORITY.md). This is not evidence of
+universal campaign trigger coverage or resolution of the previous guest crash.
+
 Power controller-cache preparation now also runs on the host's captured remote
 Ashley lease. The original guest-only path remains. It reuses native ownership/
 channel/story admission, accepts no local input object for that remote PC, and

@@ -8,6 +8,12 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 **Status: research prototype. A complete playable campaign and a validated player installation are not available yet.** This repository publishes source and test tooling so the work can continue openly, with clear limits on what has actually been demonstrated.
 
+The current ordinary build adds Shepard-only admission for classified story
+entries, guest entry warnings and a Mars shuttle close rule that waits for all
+human players to leave the cabin. Native fixtures cover the adapter contracts;
+live discovery, movement boundaries and animation remain owner checks. See
+[story trigger authority](docs/STORY-TRIGGER-AUTHORITY.md) for scope and test steps.
+
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.
 Native keyboard power slots/icons remain enabled. Shift Command mode now retains

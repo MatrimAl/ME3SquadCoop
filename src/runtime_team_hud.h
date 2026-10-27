@@ -100,10 +100,18 @@ static void runtime_team_hud_draw(uintptr_t canvas,int32_t *size,float scale) {
     guest_vitals_call(canvas,&guest_vitals.pos,position);guest_vitals_call(canvas,&guest_vitals.color,color);
     guest_vitals_call(canvas,&guest_vitals.text,&text);
 }
+static int runtime_team_or_story_enabled(void) {return runtime_team_hud_enabled()||runtime_story_warning_enabled();}
+static int runtime_team_or_story_owned(uintptr_t base,SessionContext c) {
+    return (runtime_team_hud_enabled()&&runtime_team_hud_owned(base,c))||runtime_story_warning_owned(base,c);
+}
+static void runtime_team_or_story_draw(uintptr_t canvas,int32_t *size,float scale) {
+    if(runtime_team_hud_enabled())runtime_team_hud_draw(canvas,size,scale);
+    runtime_story_warning_draw(canvas,size,scale);
+}
 static void runtime_team_hud_configure(void) {
     presentation_scope_enabled=runtime_team_hud_enabled;
-    guest_vitals_extra_enabled=runtime_team_hud_enabled;guest_vitals_extra_owned=runtime_team_hud_owned;
-    guest_vitals_extra_sample=runtime_team_hud_sample;guest_vitals_extra_draw=runtime_team_hud_draw;
+    guest_vitals_extra_enabled=runtime_team_or_story_enabled;guest_vitals_extra_owned=runtime_team_or_story_owned;
+    guest_vitals_extra_sample=runtime_team_hud_sample;guest_vitals_extra_draw=runtime_team_or_story_draw;
 }
 static int runtime_team_hud_selftest(void) {
     RuntimeTeamHud sample={0};RuntimeTeamHudScope scope={0};
