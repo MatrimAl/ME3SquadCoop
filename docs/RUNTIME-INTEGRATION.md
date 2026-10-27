@@ -1,5 +1,11 @@
 # Runtime integration status
 
+The T-pose investigation now confirms that the appearance tail caches existing
+animation nodes but does not construct a missing tree. Parent startup replay
+also touches inventory and class data. See [remote-player animation](REMOTE-PLAYER-ANIMATION.md)
+for the selected source evidence and the remaining tree/set/update distinction.
+No new game was run for this investigation.
+
 The ordinary pair from `4afddca` connected and retained native connection
 scope until the guest deadline. Of 43 paired channel snapshots, 41 observed
 a live skeletal mesh on the host Shepard replica in the guest. The retention
