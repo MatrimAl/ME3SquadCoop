@@ -242,7 +242,7 @@ __declspec(dllexport) int ME3RuntimeTickForwardingSelfTest(void) {
 }
 __declspec(dllexport) int ME3RuntimeCoreCleanupSelfTest(void) {return runtime_core_cleanup_selftest();}
 __declspec(dllexport) int ME3RuntimePolicySelfTest(void) {
-    Me3RuntimeConfig saved=g_runtime_config;int enabled=runtime_control_enabled,ready=runtime_scope_ready,ok=1;
+    Me3RuntimeConfig saved=g_runtime_config;int enabled=runtime_control_enabled,ready=runtime_scope_ready,ok=runtime_command_menu_mode_selftest();
     g_runtime_config.role=ME3_ROLE_GUEST;ok=ok&&native_session_role()==5&&!session_policy_is_host();
     g_runtime_config.role=ME3_ROLE_HOST;ok=ok&&native_session_role()==6&&session_policy_is_host();
     runtime_control_enabled=0;runtime_scope_ready=0;
@@ -254,7 +254,7 @@ __declspec(dllexport) int ME3RuntimePolicySelfTest(void) {
 }
 __declspec(dllexport) int ME3RuntimeSessionGateSelfTest(void) {return session_gate_selftest();}
 __declspec(dllexport) int ME3RuntimeCameraSelfTest(void) {return guest_camera_adapter_selftest()&&remote_appearance_case_selftest()&&remote_weapon_presentation_selftest();}
-__declspec(dllexport) int ME3RuntimePresentationSelfTest(void) {return runtime_presentation_selftest();}
+__declspec(dllexport) int ME3RuntimePresentationSelfTest(void) {return runtime_presentation_selftest()&&runtime_native_hud_selftest();}
 __declspec(dllexport) int ME3RuntimeStuntRetentionSelfTest(void) {return runtime_stunt_selftest();}
 __declspec(dllexport) int ME3RuntimeCinematicSelfTest(void) {return guest_cinematic_registration_selftest();}
 __declspec(dllexport) int ME3RuntimeHashFileFixture(const wchar_t *path,const unsigned char *expected) {

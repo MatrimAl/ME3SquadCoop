@@ -165,7 +165,7 @@ static void guest_vitals_draw(uintptr_t hud) {
     float x=(size[0]-width)*0.5f,y=size[1]-52*scale,h=0,s=0;
     int hv=q->hp_valid&&guest_vitals_fraction(q->hp,q->hp_max,&h),sv=q->shield_valid&&guest_vitals_fraction(q->shield,q->shield_max,&s);
     unsigned char saved[16];if(!read_at(canvas+0xa0,saved,sizeof saved)||!narrative_probe_object(base,read_ptr(canvas+0x80),"Font"))return;
-    if(guest_vitals_enabled()&&guest_vitals_owned(base,c)) {
+    if(guest_vitals_enabled()&&guest_vitals_owned(base,c)&&!runtime_native_hud_showing(base,c)) {
     guest_vitals_bar(canvas,x,y,width,h,hv,0,scale);guest_vitals_bar(canvas,x,y-9*scale,width,s,sv,1,scale);
     wchar_t title[160],hp[40],shield[40];
     if(hv)_snwprintf(hp,40,L"%.0f/%.0f",q->hp,q->hp_max);else wcscpy(hp,L"--");

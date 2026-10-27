@@ -818,3 +818,26 @@ beforeward and walking at about-380 one second afterward. This is a temporary
 descent with sampled walking recovery, not proof of out-of-world loss or of
 correct intended traversal. The earlier receive-time coordinate corruption
 is separate evidence and must not be conflated with this descent.
+
+## Native guest HUD, Shift retention and physical return candidate
+
+The latest owner session exposed a real scene return with disabled world
+collision and no guest UI re-registration, then a guest-first position
+jump/fall and a game access violation. Original profiles and protected TOC
+rollback passed; that cleanup result is separate from failed gameplay.
+
+The candidate removes UI/camera registration from the physical recovery gate,
+retains native Command mode5 alongside PowerWheel mode3, and binds the existing
+PC HUD player source to the current owned Ashley after the original native
+selectors. The normal native rendering and gameplay permissions remain intact.
+Foreign squad caches are preserved; refused re-registration now has bounded
+reason/cache-state diagnostics. Custom vitals remain fallback, and the teammate
+fallback only hides when a verified native teammate panel is actually visible.
+
+All four native targets built. The ordinary runtime harness passed, including
+mode policy, conditional unaligned HUD source writes and unchanged original
+selector forwarding/error-state fixtures. Both ordinary and protected collision
+lifecycle fixtures passed, including ownership return without UI registration,
+old/zero UI tokens, camera mismatch and native scene/input/action/death refusal.
+No new game was launched. Exact native HUD appearance, Shift interactions,
+sustained post-scene movement and the prior native crash remain owner checks.

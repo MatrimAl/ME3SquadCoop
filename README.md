@@ -8,11 +8,11 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 **Status: research prototype. A complete playable campaign and a validated player installation are not available yet.** This repository publishes source and test tooling so the work can continue openly, with clear limits on what has actually been demonstrated.
 
-The current build adds a guest Ashley health/shield HUD and enables normal
-keyboard power slots/icons by default, with scoped initialization of existing
-idle power controller caches. These changes compile and pass their native
-fixtures; their visible behavior and actual casts await owner testing. See
-[guest player controls](docs/GUEST-PLAYER-HUD.md).
+The current build binds the guest's existing native Shepard HUD player panel
+to owned Ashley, with the previous health/shield display retained as fallback.
+Native keyboard power slots/icons remain enabled. Shift Command mode now retains
+co-op ownership/context. Native appearance and power effects await owner testing;
+see [guest player controls](docs/GUEST-PLAYER-HUD.md).
 The same scoped controller preparation now also covers the host's authoritative
 Ashley power instances; live power effects and AI recovery remain owner checks.
 Both peers also receive a teammate health/shield readout with native downed/dead

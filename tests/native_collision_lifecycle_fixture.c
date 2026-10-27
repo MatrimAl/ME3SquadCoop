@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <wchar.h>
+#include <limits.h>
 
 typedef struct GameArray {uintptr_t data;int count,max;} GameArray;
 typedef struct GuestCameraStamp {uintptr_t pointer,klass;} GuestCameraStamp;
@@ -20,12 +21,14 @@ typedef struct FixtureContext {
     int registered;unsigned long token;GuestCameraStamp pc,pawn;
 } FixtureContext;
 static FixtureContext guest_player_context_lease;
+static unsigned presentation_queries;
 static int guest_player_context_registered_for(uintptr_t pc_value,uintptr_t pawn_value) {
+    ++presentation_queries;
     return guest_player_context_lease.registered&&guest_player_context_lease.pc.pointer==pc_value&&guest_player_context_lease.pawn.pointer==pawn_value;
 }
-static unsigned long guest_player_context_registration_token(void) {return guest_player_context_lease.token;}
+static unsigned long guest_player_context_registration_token(void) {++presentation_queries;return guest_player_context_lease.token;}
 typedef struct FixtureObject {_Alignas(8) unsigned char bytes[0x1000];} FixtureObject;
-static FixtureObject pc,pawn,world,component,cdo,templ,pawn_arch,component_arch,klass,channel,connection,driver,other,fn,field;
+static FixtureObject pc,pawn,world,component,cdo,templ,pawn_arch,component_arch,klass,channel,connection,driver,other,fn,field,manager,conversation;
 static _Alignas(8) unsigned char image[0x4ba140];
 static uintptr_t members[2],invalid_stamp;
 static int owned,channel_changed,abi_valid,camera_valid,dispatches,repair_logs;
@@ -52,6 +55,8 @@ static int narrative_probe_object(uintptr_t base,uintptr_t at,const char *kind){
     if(!strcmp(kind,"CylinderComponent"))return at==address(&component)||at==address(&templ)||at==address(&component_arch);
     if(!strcmp(kind,"ActorComponent"))return at==address(&component)||at==address(&other);
     if(!strcmp(kind,"ByteProperty"))return at==address(&field);
+    if(!strcmp(kind,"SFXGameModeManager"))return at==address(&manager);
+    if(!strcmp(kind,"BioConversationManager"))return at==address(&conversation);
     return 0;}
 static void object_name(uintptr_t base,uintptr_t at,char *out,size_t size){(void)base;
     snprintf(out,size,"%s",at==address(&field)?"NewCollisionType":"unexpected");}
@@ -67,6 +72,7 @@ static int guest_player_context_basic_owned(uintptr_t base,uintptr_t p,uintptr_t
     return owned&&p==address(&pc)&&a==address(&pawn)&&w==address(&world);}
 static int guest_camera_conditions(uintptr_t base,uintptr_t p,uintptr_t a,uintptr_t w,
     int ordinary,int enabled,uintptr_t *camera,uintptr_t *mode){
+    ++presentation_queries;
     *camera=*mode=0;return camera_valid&&ordinary&&enabled&&guest_player_context_basic_owned(base,p,a,w);}
 static int guest_player_context_channel(uintptr_t base,uintptr_t a,NetworkActorIdentityEntry *out){
     if(a!=address(&pawn))return 0;
@@ -91,13 +97,14 @@ static void set_shape(uintptr_t actor,uintptr_t cylinder,int healthy){
     put_byte(actor+0x26b,6);put_byte(actor+0x26c,6);
 }
 static void reset_fixture(void){
-    FixtureObject *objects[]={&pc,&pawn,&world,&component,&cdo,&templ,&pawn_arch,&component_arch,&klass,&channel,&connection,&driver,&other,&fn,&field};
+    FixtureObject *objects[]={&pc,&pawn,&world,&component,&cdo,&templ,&pawn_arch,&component_arch,&klass,&channel,&connection,&driver,&other,&fn,&field,&manager,&conversation};
     for(unsigned i=0;i<sizeof objects/sizeof *objects;++i){memset(objects[i],0,sizeof *objects[i]);ptr(address(objects[i])+0x50,address(&klass));}
     memset(&guest_collision_restore,0,sizeof guest_collision_restore);
     guest_collision_restore.configured=guest_collision_restore.opted=1;
     guest_player_context_lease=(FixtureContext){1,1,{address(&pc),address(&klass)},{address(&pawn),address(&klass)}};
-    owned=abi_valid=camera_valid=1;channel_changed=dispatches=repair_logs=0;invalid_stamp=0;
+    owned=abi_valid=camera_valid=1;channel_changed=dispatches=repair_logs=0;invalid_stamp=0;presentation_queries=0;
     ptr(address(&pc)+0x198,address(&world));ptr(address(&pawn)+0x198,address(&world));
+    ptr(address(&pc)+0xc38,address(&manager));
     ptr(address(&pawn)+0x1e0,address(&component));ptr(address(&klass)+0x13c,address(&cdo));
     ptr(address(&cdo)+0x1e0,address(&templ));ptr(address(&component)+0x58,address(&templ));
     ptr(address(&pawn)+0x58,address(&cdo));ptr(address(&templ)+0x40,address(&cdo));
@@ -127,7 +134,7 @@ static int release(void){
 static void reacquire(void){owned=1;guest_player_context_lease.registered=1;guest_player_context_lease.token=2;}
 static int restored(void){GuestCollisionShape shape={0};
     CHECK(guest_collision_shape(address(&pawn),address(&component),&shape));
-    CHECK(guest_collision_healthy(&shape)&&dispatches==1&&repair_logs==1&&guest_collision_restore.attempted==2);
+    CHECK(guest_collision_healthy(&shape)&&dispatches==1&&repair_logs==1&&guest_collision_restore.token==2&&guest_collision_restore.was_owned&&presentation_queries==0);
     uint32_t a=0,b=0;read_at(address(&pawn)+0x260,&a,4);read_at(address(&pawn)+0x264,&b,4);
     CHECK(a==(dispatch_actor_before|0x60000000)&&b==(dispatch_block_before|1));return 1;
 }
@@ -146,12 +153,22 @@ static int lifecycle_cases(void){
     reacquire();u32(address(&world)+0x7c0,0);frame(1,1,300);CHECK(!guest_collision_restore.tracked&&dispatches==0);
 
     CHECK(baseline());CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
-    guest_player_context_lease.token=1;frame(1,1,300);CHECK(dispatches==0);
-    guest_player_context_lease.token=2;frame(1,1,310);CHECK(restored());
+    /* The measured return has no UI re-registration, the old UI token and
+     * a camera target that still belongs to something else. Physical repair
+     * must use actual ownership/channel, never these presentation adapters. */
+    guest_player_context_lease.registered=0;guest_player_context_lease.token=1;camera_valid=0;
+    ptr(address(&pc)+0x3f4,address(&other));frame(1,1,300);CHECK(restored());
+
+    reset_fixture();guest_player_context_lease.registered=0;guest_player_context_lease.token=0;camera_valid=0;
+    frame(1,1,100);CHECK(guest_collision_restore.tracked&&guest_collision_restore.token==1);
+    CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
+    guest_player_context_lease.registered=0;guest_player_context_lease.token=0;frame(1,1,300);CHECK(restored());
 
     CHECK(baseline());CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
-    channel_changed=1;frame(1,1,300);CHECK(dispatches==0);
-    channel_changed=0;frame(1,1,310);CHECK(dispatches==0); /* no retry in this ownership generation */
+    channel_changed=1;frame(1,1,300);CHECK(dispatches==0&&guest_collision_restore.token==1&&!guest_collision_restore.was_owned);
+    /* A foreign discovered channel grants nothing and does not consume the
+     * captured channel's later valid ownership return. */
+    channel_changed=0;frame(1,1,310);CHECK(restored());
 
     CHECK(baseline());CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
     invalid_stamp=address(&component);frame(1,1,300);CHECK(guest_collision_restore.suppressed&&dispatches==0);
@@ -161,10 +178,10 @@ static int lifecycle_cases(void){
     ptr(address(&component)+0x58,address(&other));frame(1,1,300);CHECK(guest_collision_restore.suppressed&&dispatches==0);
 
     CHECK(baseline());CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
-    u32(address(&component)+0x16c,0x860000);frame(1,1,300);CHECK(dispatches==0&&guest_collision_restore.attempted==2);
+    u32(address(&component)+0x16c,0x860000);frame(1,1,300);CHECK(dispatches==0&&guest_collision_restore.token==2&&guest_collision_restore.was_owned);
 
     CHECK(baseline());CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
-    abi_valid=0;frame(1,1,300);CHECK(dispatches==0&&guest_collision_restore.attempted==2);
+    abi_valid=0;frame(1,1,300);CHECK(dispatches==0&&guest_collision_restore.token==2&&guest_collision_restore.was_owned);
 
     CHECK(baseline());CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
     image[0x4ba11f]^=1;frame(1,1,300);CHECK(dispatches==0);
@@ -176,8 +193,56 @@ static int lifecycle_cases(void){
     CHECK(baseline());CHECK(release());u32(address(&pawn)+0x260,0x49690100);
     frame(0,1,220);CHECK(!guest_collision_restore.pending&&!guest_collision_restore.released);
     reacquire();u32(address(&world)+0x7c0,0);frame(1,1,300);
-    CHECK(dispatches==0&&guest_collision_restore.attempted==0);
+    CHECK(dispatches==0&&guest_collision_restore.token==1&&!guest_collision_restore.was_owned);
     CHECK(release());reacquire();u32(address(&world)+0x7c0,0);frame(1,1,400);CHECK(restored());
+    return 1;
+}
+static int physical_guard_cases(void) {
+    /* Each guard is a real field consumed by guest_collision_ordinary. The
+     * caller intentionally supplies ordinary=true: native scene/action/input
+     * state must still refuse, retaining the candidate until it is safe. */
+    struct Blocker {FixtureObject *object;unsigned offset,size;uint64_t value,ordinary;} blockers[]={
+        {&world,0x7c0,4,0x400,0},{&world,0x7c0,4,0x800,0},
+        {&world,0x670,8,1,0},
+        {&pawn,0xe20,4,0x40000,0},
+        {&pawn,0xe18,4,0,0x40},{&pawn,0xe18,4,0x200040,0x40},
+        {&pawn,0xe18,4,0x20000040,0x40},
+        {&pawn,0xc20,4,9,0},{&pawn,0xc28,4,4,0},
+        {&pc,0x781,1,1,0},{&pc,0x77c,4,0x800,0},{&pc,0x77c,4,0x20000,0},
+        {&manager,0xa8,1,3,0},{&manager,0xa8,1,5,0},
+        {&manager,0xa8,1,7,0},{&manager,0xa8,1,8,0},{&manager,0xa4,4,1,0},
+        {&pawn,0x25c,4,0x4000000,0},{&pawn,0x268,1,0,1},{&pawn,0x268,1,3,1}
+    };
+    for(unsigned n=0;n<sizeof blockers/sizeof *blockers;++n) {
+        CHECK(baseline());CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
+        struct Blocker *b=blockers+n;uintptr_t at=address(b->object)+b->offset;
+        put(at,&b->value,b->size);frame(1,1,300);
+        CHECK(dispatches==0&&guest_collision_restore.released&&guest_collision_restore.token==1&&!guest_collision_restore.was_owned);
+        put(at,&b->ordinary,b->size);frame(1,1,310);CHECK(restored());
+    }
+    CHECK(baseline());CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
+    ptr(address(&pc)+0xc38,address(&other));frame(1,1,300);CHECK(dispatches==0);
+    ptr(address(&pc)+0xc38,address(&manager));frame(1,1,310);CHECK(restored());
+
+    for(unsigned flag=0;flag<2;++flag) {
+        CHECK(baseline());CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
+        ptr(address(&world)+0x948,address(&conversation));
+        GameArray active={0,flag?0:1,1};put(address(&conversation)+0xc8,&active,sizeof active);
+        u32(address(&conversation)+0xe8,flag?1:0);frame(1,1,300);
+        CHECK(dispatches==0&&guest_collision_restore.released&&guest_collision_restore.token==1&&!guest_collision_restore.was_owned);
+        active.count=0;put(address(&conversation)+0xc8,&active,sizeof active);
+        u32(address(&conversation)+0xe8,0);frame(1,1,310);CHECK(restored());
+    }
+    /* Death/downed is not a temporary scene guard. It discards the captured
+     * release; becoming alive cannot replay that candidate without another
+     * real ownership release and stable disabled collision observation. */
+    for(uint32_t life=0x100;life<=0x200;life+=0x100) {
+        CHECK(baseline());CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
+        u32(address(&pawn)+0xe20,life);frame(1,1,300);
+        CHECK(dispatches==0&&!guest_collision_restore.released&&!guest_collision_restore.pending);
+        u32(address(&pawn)+0xe20,0);frame(1,1,310);CHECK(dispatches==0);
+        CHECK(release());reacquire();u32(address(&world)+0x7c0,0);frame(1,1,410);CHECK(restored());
+    }
     return 1;
 }
 static void use_variant(void) {
@@ -207,7 +272,7 @@ static int variant_cases(void) {
     ptr(address(&pawn)+0x58,address(&other));frame(1,1,310);
     CHECK(guest_collision_restore.suppressed&&dispatches==0);
     /* Captured control return: local autonomous2, RemoteRole2. No role write;
-     * the same owned context/channel and new lease token are still required. */
+     * the same native owned pawn/channel and real return are still required. */
     reset_fixture();use_variant();frame(1,1,100);CHECK(guest_collision_restore.tracked);
     CHECK(release());reacquire();u32(address(&world)+0x7c0,0);
     put_byte(address(&pawn)+0x269,2);frame(1,1,310);CHECK(restored());
@@ -249,7 +314,7 @@ static int variant_cases(void) {
         uint32_t after=0;read_at(address(&pawn)+0x264,&after,4);CHECK((after&2)==adjacent);
     }
     /* Actual scene return: fully disabled Actor with retained block latch.
-     * Two stable samples, a new lease and every original guard are required. */
+     * Two stable samples, a native ownership return and identity guards are required. */
     for(uint32_t adjacent=0;adjacent<=2;adjacent+=2){
         reset_fixture();use_variant();frame(1,1,100);CHECK(guest_collision_restore.tracked);
         owned=0;guest_player_context_lease.registered=0;set_shape(address(&pawn),address(&component),0);
@@ -298,5 +363,5 @@ static int variant_cases(void) {
     }
     return 1;
 }
-int main(void){if(!guest_collision_selftest()||!lifecycle_cases()||!variant_cases())return 1;
-    puts("PASS collision adapter lifecycle: variants/sentinel, scene retention, guarded repair and refusal cases");return 0;}
+int main(void){if(!guest_collision_selftest()||!lifecycle_cases()||!physical_guard_cases()||!variant_cases())return 1;
+    puts("PASS collision adapter lifecycle: native ownership return without UI/camera, physical guards, variants and identity refusal");return 0;}

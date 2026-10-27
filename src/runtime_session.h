@@ -103,6 +103,7 @@ static int ordinary_fire_qa_allowed(void) {
 #include "remote_weapon_presentation.h"
 #include "runtime_presentation_rpc.h"
 #include "runtime_revive_peer.h"
+#include "runtime_native_hud.h"
 #include "runtime_guest_vitals_hud.h"
 #include "runtime_team_hud.h"
 #include "runtime_power_action_context.h"
@@ -171,6 +172,7 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
 #ifdef ME3_ORDINARY_FIRE_QA
     combat_fire_bot_tick(base,c.pc,c.pawn,c.world,ordinary,enabled,after,now);
 #endif
+    if(!after)runtime_native_hud_tick(base,engine,now);
     if(!after)runtime_input_bootstrap_tick(base,engine,now);
     if(!after)runtime_power_wheel_context_tick(base,engine);
     if(!after)runtime_power_icons_tick(base,engine,ordinary);
@@ -194,6 +196,7 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
         runtime_scope_ready=runtime_session_scope(base,engine);
         runtime_presentation_tick(base,engine,GetTickCount());
         runtime_revive_peer_tick(base,engine,GetTickCount());
+        runtime_native_hud_tick(base,engine,GetTickCount());
         runtime_guest_vitals_tick(base,engine,GetTickCount());
     }
 }

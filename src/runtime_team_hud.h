@@ -81,6 +81,7 @@ static void runtime_team_hud_sample(uintptr_t base,SessionContext c,DWORD now) {
 }
 static void runtime_team_hud_draw(uintptr_t canvas,int32_t *size,float scale) {
     RuntimeTeamHud *q=&runtime_team_hud;RuntimeTeamHudScope current;uintptr_t base=guest_vitals.base;
+    if(g_runtime_config.role==ME3_ROLE_GUEST&&runtime_native_hud_teammate_showing(base,session_context(session_engine)))return;
     if(!q->valid||!runtime_team_hud_scope_read(base,session_context(session_engine),&current,q->scope.channel.pointer)||
        !runtime_team_hud_sample_fresh(q,&current,GetTickCount()))return;
     float h=0,s=0,x=24*scale,y=118*scale,width=fminf(size[0]*0.24f,240*scale);

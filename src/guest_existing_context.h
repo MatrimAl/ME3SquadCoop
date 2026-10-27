@@ -94,6 +94,27 @@ static int guest_existing_context_gate(uintptr_t base,uintptr_t pc) {
     uint32_t value=2;uintptr_t input=read_ptr(pc+0x6dc);
     return is_live(base,input)&&combat_context_get(base,input,&value)&&value==1;
 }
+static const char *guest_existing_context_cache_state(uintptr_t base,int readable,uintptr_t value,uintptr_t pawn) {
+    if(!readable)return "unreadable";
+    if(!value)return "null";
+    if(value==pawn)return "owned";
+    /* Read helpers validate foreign actors before inspecting their type. A
+     * different cache is diagnostic evidence, never permission to replace it. */
+    return guest_camera_actor_live(base,value)&&is_kind_of(base,value,"BioPawn")?"other-live":"other-unverified";
+}
+static void guest_existing_context_admission(uintptr_t base,uintptr_t pawn,uintptr_t squad,const char *reason,DWORD now) {
+    GuestExistingContextLease *l=&guest_existing_context;
+    if(l->reported&&now-l->reported<5000)return;
+    l->reported=now;uintptr_t cached=0,current=0;uint32_t flags=0;
+    int cached_read=read_at(squad+0x2a8,&cached,8),current_read=read_at(squad+0x2cc,&current,8);
+    int flags_read=read_at(squad+0x2b0,&flags,4);char row[800];
+    snprintf(row,sizeof row,
+        "{\"guest_existing_context\":\"admission-refused\",\"reason\":\"%s\",\"lease_token\":%lu,\"current_scope_token\":%lu,\"cached_player\":\"%s\",\"current_player\":\"%s\",\"squad_flags_read\":%s,\"squad_flags\":%u,\"read_only\":true,\"monotonic_ms\":%lu}\r\n",
+        reason,l->token,guest_player_context_token,
+        guest_existing_context_cache_state(base,cached_read,cached,pawn),
+        guest_existing_context_cache_state(base,current_read,current,pawn),
+        flags_read?"true":"false",flags,now);line(row);
+}
 static void guest_existing_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t info,
     int eligible,const NetworkActorIdentityEntry *channel,const CombatContextChain *chain,DWORD now) {
     GuestExistingContextLease *l=&guest_existing_context;
@@ -105,28 +126,38 @@ static void guest_existing_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t p
         if(!l->registered){guest_existing_context_cleanup(base,"incomplete-application",now);return;}
         return;
     }
-    if(!eligible||channel->index<=0||!chain->squad||guest_player_context_lease.tracked||guest_player_context_lease.pending_cleanup||
-       (l->tracked&&l->token==guest_player_context_token))return;
+    if(!eligible||channel->index<=0||!chain->squad)return;
+    if(guest_player_context_lease.tracked||guest_player_context_lease.pending_cleanup||
+       (l->tracked&&l->token==guest_player_context_token)) {
+        guest_existing_context_admission(base,pawn,chain->squad,
+            guest_player_context_lease.tracked||guest_player_context_lease.pending_cleanup?
+            "owned-context-lifetime-pending":"control-scope-already-attempted",now);return;
+    }
     uintptr_t squad=chain->squad,cached=1,current=1;uint32_t flags=0;
-    if(!guest_camera_actor_live(base,squad)||!is_kind_of(base,squad,"BioPlayerSquad")||
-       read_ptr(squad+0x198)!=info||read_ptr(squad+0x40)!=chain->level||read_ptr(pawn+0xba8)!=squad||
-       !read_at(squad+0x2a8,&cached,8)||!read_at(squad+0x2cc,&current,8)||(current&&current!=pawn)||
-       (cached&&(cached!=pawn||current!=pawn))||
-       !read_at(squad+0x2b0,&flags,4)||(flags&0xe)!=0xe||
-       !guest_player_context_pins(base)||!guest_player_context_resolve(base,pc,now)||
-       read_ptr(squad+0x50)!=guest_player_context_methods.klass.pointer)return;
+    const char *refusal=NULL;
+    if(!guest_camera_actor_live(base,squad)||!is_kind_of(base,squad,"BioPlayerSquad"))refusal="native-player-squad-identity";
+    else if(read_ptr(squad+0x198)!=info||read_ptr(squad+0x40)!=chain->level||read_ptr(pawn+0xba8)!=squad)refusal="native-player-squad-scope";
+    else if(!read_at(squad+0x2a8,&cached,8)||!read_at(squad+0x2cc,&current,8))refusal="native-player-cache-unreadable";
+    else if((current&&current!=pawn)||(cached&&(cached!=pawn||current!=pawn)))refusal="native-player-cache-preserved";
+    else if(!read_at(squad+0x2b0,&flags,4)||(flags&0xe)!=0xe)refusal="native-player-squad-flags";
+    else if(!guest_player_context_pins(base)||!guest_player_context_resolve(base,pc,now))refusal="native-method-or-build-pin";
+    else if(read_ptr(squad+0x50)!=guest_player_context_methods.klass.pointer)refusal="native-player-squad-exact-class";
+    if(refusal){guest_existing_context_admission(base,pawn,squad,refusal,now);return;}
     int native_ready=cached==pawn;
     GuestExistingContextLease next={0};next.token=guest_player_context_token;next.current_before=current;
     next.channel_index=channel->index;next.tracked=1;
     uintptr_t objects[GEC_COUNT]={pc,pawn,info,chain->world,chain->level,read_ptr(pc+0x67c),squad,
         channel->channel,channel->connection,channel->driver};
-    for(unsigned i=0;i<GEC_COUNT;++i)if(!guest_camera_stamp_read(base,objects[i],&next.objects[i],1))return;
+    for(unsigned i=0;i<GEC_COUNT;++i)if(!guest_camera_stamp_read(base,objects[i],&next.objects[i],1)) {
+        guest_existing_context_admission(base,pawn,squad,"captured-lifetime-unreadable",now);return;
+    }
     *l=next;
     NetworkActorIdentityEntry checked_channel={0};CombatContextChain checked_chain;
-    if(!guest_player_context_conditions(base,pc,pawn,info,1,1,1,&checked_channel,&checked_chain)||
-       !guest_existing_context_same(base,pc,pawn,info,&checked_channel,&checked_chain)||
-       !read_at(squad+0x2a8,&cached,8)||cached!=(native_ready?pawn:0)||
-       !read_at(squad+0x2cc,&current,8)||current!=l->current_before)return;
+    if(!guest_player_context_conditions(base,pc,pawn,info,1,1,1,&checked_channel,&checked_chain))refusal="native-state-changed-before-apply";
+    else if(!guest_existing_context_same(base,pc,pawn,info,&checked_channel,&checked_chain))refusal="captured-scope-changed-before-apply";
+    else if(!read_at(squad+0x2a8,&cached,8)||cached!=(native_ready?pawn:0)||
+            !read_at(squad+0x2cc,&current,8)||current!=l->current_before)refusal="native-player-cache-changed-before-apply";
+    if(refusal){guest_existing_context_admission(base,pawn,squad,refusal,now);return;}
     /* Track the observation before native calls; one attempt per control
      * scope. Only the initializing branch owns the two script cache writes. */
     l->active=1;uintptr_t target=pawn;int dispatched=1;

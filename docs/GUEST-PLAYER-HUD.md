@@ -1,10 +1,20 @@
 # Guest health, shields and normal power controls
 
-The ordinary guest now enables a compact Ashley health/shield display and the
-existing native keyboard power slots/icons by default. The display uses the
-game's Canvas after the local BioHUD PostRender. It shows two bars and numeric
-current/maximum values near the bottom center. It does not load a new movie,
-change the stock target bars or change health/shield values.
+The ordinary guest now binds the existing PC Scaleform HUD's player display
+source to its reciprocally owned Ashley. Both original native actor selectors
+run once before the UI-only binding; the existing native health, shield,
+weapon and animation updates render the stock Shepard panel. The adapter checks
+the exact native selector ABI/callers, reflected member layout, unique GUI
+registry entry and live controller/world/channel scope. It does not load a
+movie, replace a class, alter gameplay permissions or change squad/story caches.
+Conditional cleanup preserves native UI replacements.
+
+The previous Canvas health/shield readout remains a fallback. It hides only
+while the native player source was recently bound and the game's own HUD and
+health visibility permissions allow the stock panel. The teammate fallback
+stays visible unless a native teammate panel actually contains the verified
+Shepard and is visible. Native appearance and behavior await owner testing;
+complete visual parity is not yet verified.
 
 Both peers now also have a teammate readout near the upper left: the host sees
 Ashley, and the guest sees Shepard. It shows health/shield bars and numbers plus
@@ -48,8 +58,14 @@ and defers while an action or scene is active. No rank, cooldown, action array,
 target or native power restriction is changed. The ordinary order queue still
 performs its existing readiness and native acceptance checks.
 
+Shift uses native Command mode5. Host possession and an already registered
+guest context now survive mode5 as well as PowerWheel mode3, with exact mode
+class/index and all existing story/scene checks. This does not admit gameplay
+orders during a scene or acquire a missing context inside the menu.
+
 Before launch, individual diagnostics can disable these additions:
 
+- `ME3_SQUAD_COOP_NATIVE_HUD=0`
 - `ME3_SQUAD_COOP_GUEST_VITALS_HUD=0`
 - `ME3_SQUAD_COOP_TEAM_HUD=0`
 - `ME3_SQUAD_COOP_POWER_ACTION_CONTEXT=0`

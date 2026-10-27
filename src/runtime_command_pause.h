@@ -1,5 +1,6 @@
 #ifndef ME3_RUNTIME_COMMAND_PAUSE_H
 #define ME3_RUNTIME_COMMAND_PAUSE_H
+#include "runtime_command_menu_mode.h"
 /* Use the game's command-pause policy in a verified native network world.
  * Never clear PlayersOnly, Pauser, conversations or input/animation locks. */
 typedef struct RuntimeCommandPause {
@@ -78,7 +79,8 @@ static void runtime_command_pause_prepare(uintptr_t base,uintptr_t engine,int en
 }
 static int runtime_host_command_menu_held(uintptr_t base,SessionContext c) {
     RuntimeCommandPause *policy=&runtime_command_pause;
-    if(c.mode!=3||g_runtime_config.role!=ME3_ROLE_HOST||!runtime_control_enabled||!runtime_scope_ready||
+    const char *mode_class=runtime_command_menu_class(c.mode);
+    if(!mode_class||g_runtime_config.role!=ME3_ROLE_HOST||!runtime_control_enabled||!runtime_scope_ready||
        !InterlockedCompareExchange(&g_enable_requested,0,0)||!session_active||session_fault||session_releasing||
        session_pending_reason||session_cleanup_pending||!policy->active||
        !runtime_command_pause_same(base,c,policy)||session_environment_block_reason(c)||
@@ -94,11 +96,11 @@ static int runtime_host_command_menu_held(uintptr_t base,SessionContext c) {
        !runtime_power_property(base,c.pc,"BioPlayerController","GameModeManager2","ObjectProperty",0xc38,8)||
        !runtime_power_property(base,manager,"SFXGameModeManager","GameModes","ArrayProperty",0x70,16)||
        !runtime_power_property(base,manager,"SFXGameModeManager","CurrentMode","ByteProperty",0xa8,1)||
-       !identity_array(manager+0x70,&modes,64)||modes.count<=3||
-       !read_at(modes.data+3*8,&mode,8)||!narrative_probe_object(base,mode,"SFXGameModePowerWheel")||
-       read_ptr(mode+0x40)!=c.pc||!read_at(manager+0xa8,&mode_id,1)||mode_id!=3)return 0;
+       !identity_array(manager+0x70,&modes,64)||modes.count<=c.mode||
+       !read_at(modes.data+(size_t)c.mode*8,&mode,8)||!narrative_probe_object(base,mode,mode_class)||
+       read_ptr(mode+0x40)!=c.pc||!read_at(manager+0xa8,&mode_id,1)||mode_id!=c.mode)return 0;
     return read_at(manager+0x70,&after,sizeof after)&&!memcmp(&after,&modes,sizeof after)&&
-        read_ptr(modes.data+3*8)==mode&&read_ptr(c.pc+0xc38)==manager&&
-        read_at(manager+0xa8,&mode_id,1)&&mode_id==3&&!session_environment_block_reason(c);
+        read_ptr(modes.data+(size_t)c.mode*8)==mode&&read_ptr(c.pc+0xc38)==manager&&
+        read_at(manager+0xa8,&mode_id,1)&&mode_id==c.mode&&!session_environment_block_reason(c);
 }
 #endif

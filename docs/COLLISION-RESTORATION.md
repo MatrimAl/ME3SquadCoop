@@ -184,3 +184,21 @@ nested unrelated fields mask the outer scope. Zero or partial scalar counts
 remain incomplete evidence. No additional archive hook or read/seek is added.
 Actual-header vector, inventory-reference and27-case receive fixtures pass.
 This extension has not been exercised in a game.
+
+## Ownership return independent of presentation
+
+An owner-controlled session captured stable released collision with world
+collision absent, followed by real control return without UI re-registration.
+The old repair required the presentation context and its new registration token,
+so it never attempted the physical repair. The adapter now uses its own actual
+ownership-return generation and checks native life/action/input/game-mode state
+directly. Camera reciprocity and UI registration no longer gate physics recovery.
+The captured healthy shape, two stable released samples, same object/component/
+class-template/channel identities, exact ABI, native SetCollisionType call and
+post-call physical readbacks remain required. No coordinates or roles are written.
+
+Focused ordinary/protected lifecycle fixtures pass, including repair while the
+UI is absent and camera mismatched, and refusal during native physical/scene
+locks. The same live session also had a large guest-first XY discontinuity and
+a later game access violation. This change does not establish that their root
+causes or sustained scene-return movement are fixed; owner gameplay is pending.

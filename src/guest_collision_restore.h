@@ -8,7 +8,7 @@
  * ordinary is the separate per-frame permission to acquire/repair. */
 typedef struct GuestCollisionShape {uint32_t actor,block,component;unsigned char type,replicated;} GuestCollisionShape;
 typedef struct GuestCollisionRestore {
-    int configured,opted,tracked,released,pending,was_owned,suppressed;unsigned long token,attempted;
+    int configured,opted,tracked,released,pending,was_owned,suppressed;unsigned long token;
     GuestCameraStamp pc,pawn,world,component,cdo,template,archetype,pawn_archetype,channel,connection,driver;
     NetworkActorIdentityEntry network;
     GuestCollisionShape healthy,release;
@@ -128,7 +128,8 @@ static int guest_collision_components_same(uintptr_t base,uintptr_t pawn,const G
     return 1;
 }
 static int guest_collision_ordinary(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world) {
-    uint32_t flags=0,dead=0,life=0;uintptr_t pauser=1,conversation=0;unsigned char roles[2],physics=0;
+    uint32_t flags=0,dead=0,life=0,disable=0;uintptr_t pauser=1,conversation=0;
+    unsigned char roles[2],physics=0,ignored=255,current=255;int32_t action=-1,power=-1;
     /* The supported guest stays locally autonomous (Role2) across control
      * return, but its RemoteRole can be0/1/2 rather than the initial3. Values
      * 0/1 are admitted only after a healthy owned baseline was captured.
@@ -137,11 +138,19 @@ static int guest_collision_ordinary(uintptr_t base,uintptr_t pc,uintptr_t pawn,u
      * pawn checked by the caller, not this client's RemoteRole byte. Do not
      * rewrite either role or admit a local simulated/authority pawn. */
     if(!read_at(world+0x7c0,&flags,4)||(flags&0xc00)||!read_at(world+0x670,&pauser,8)||pauser||
-       !read_at(pawn+0xe20,&dead,4)||(dead&0x300)||!read_at(pawn+0xe18,&life,4)||!(life&0x40)||
+       !read_at(pawn+0xe20,&dead,4)||(dead&0x40300)||!read_at(pawn+0xe18,&life,4)||!(life&0x40)||
+       (life&(0x200000|0x20000000))||!read_at(pawn+0xc20,&action,4)||action||
+       !read_at(pawn+0xc28,&power,4)||power||!read_at(pc+0x781,&ignored,1)||ignored||
        !read_at(pawn+0x25c,&flags,4)||(flags&0x4000000)||!read_at(pawn+0x269,roles,2)||
        (roles[0]!=2&&roles[0]!=3&&!(roles[0]<=1&&guest_collision_restore.tracked))||roles[1]!=2||
-       !read_at(pawn+0x268,&physics,1)||(physics!=1&&physics!=2)||!read_at(pc+0x77c,&flags,4)||(flags&0x20000)||
+       !read_at(pawn+0x268,&physics,1)||(physics!=1&&physics!=2)||!read_at(pc+0x77c,&flags,4)||(flags&(0x800|0x20000))||
        !read_at(world+0x948,&conversation,8))return 0;
+    /* Physical recovery must not depend on a restored camera target or UI
+     * squad registration. Retain their native action/input/mode safeguards
+     * directly, without using either presentation adapter as permission. */
+    uintptr_t manager=read_ptr(pc+0xc38);
+    if(!narrative_probe_object(base,manager,"SFXGameModeManager")||
+       !read_at(manager+0xa8,&current,1)||current||!read_at(manager+0xa4,&disable,4)||(disable&1))return 0;
     if(conversation) {
         GameArray active={0};
         if(!narrative_probe_object(base,conversation,"BioConversationManager")||
@@ -149,6 +158,9 @@ static int guest_collision_ordinary(uintptr_t base,uintptr_t pc,uintptr_t pawn,u
            !read_at(conversation+0xe8,&flags,4)||(flags&1))return 0;
     }
     return 1;
+}
+static int guest_collision_return_ready(int eligible,int released,int was_owned,unsigned long token) {
+    return eligible&&released&&!was_owned&&token&&token<ULONG_MAX;
 }
 static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,int ordinary,int enabled,DWORD now) {
     GuestCollisionRestore *l=&guest_collision_restore;
@@ -171,10 +183,9 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
             l->released=l->pending=0;return;
         }
     }
-    uintptr_t camera=0,mode=0;NetworkActorIdentityEntry channel={0};
+    NetworkActorIdentityEntry channel={0};
     int owned=guest_player_context_basic_owned(base,pc,pawn,world);
-    int eligible=owned&&ordinary&&guest_collision_ordinary(base,pc,pawn,world)&&guest_player_context_registered_for(pc,pawn)&&
-        guest_camera_conditions(base,pc,pawn,world,ordinary,enabled,&camera,&mode)&&
+    int eligible=owned&&ordinary&&guest_collision_ordinary(base,pc,pawn,world)&&
         guest_player_context_channel(base,pawn,&channel);
     if(!l->tracked) {
         if(!eligible)return;
@@ -192,7 +203,7 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
         uintptr_t targets[]={pc,pawn,world,component,cdo,templ,archetype,pawn_archetype,channel.channel,channel.connection,channel.driver};
         GuestCameraStamp *stamps[]={&l->pc,&l->pawn,&l->world,&l->component,&l->cdo,&l->template,&l->archetype,&l->pawn_archetype,&l->channel,&l->connection,&l->driver};
         for(unsigned i=0;i<11;++i)if(!guest_camera_stamp_read(base,targets[i],stamps[i],1))return;
-        l->healthy=shape;l->network=channel;l->token=guest_player_context_registration_token();l->tracked=1;l->was_owned=1;
+        l->healthy=shape;l->network=channel;l->token=1;l->tracked=1;l->was_owned=1;
         guest_collision_log("baseline","observed-healthy-owned-collision",now,1);return;
     }
     if(!owned) {
@@ -212,11 +223,22 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
         else {l->release=shape;l->pending=1;l->released=0;}
         return;
     }
-    if(!eligible||!l->released||l->was_owned||guest_player_context_registration_token()==l->token)return;
-    l->was_owned=1;l->token=guest_player_context_registration_token();
+    if(!guest_collision_return_ready(eligible,l->released,l->was_owned,l->token)) {
+        if(l->released&&!l->was_owned&&!eligible&&(!l->reported||now-l->reported>=5000)) {
+            l->reported=now;
+            guest_collision_log("return-waiting",!ordinary?"native-scene-or-mode-blocked":
+                !guest_collision_ordinary(base,pc,pawn,world)?"native-physical-state-blocked":
+                "owned-channel-unavailable",now,0);
+        }
+        return;
+    }
     if(channel.channel!=l->network.channel||channel.index!=l->network.index||channel.connection!=l->network.connection||
-       channel.driver!=l->network.driver||l->attempted==l->token)return;
-    l->attempted=l->token;GuestCollisionShape before={0};GameArray components={0};GuestCameraStamp saved[64];
+       channel.driver!=l->network.driver)return;
+    /* One attempt for this actual ownership return. UI registration can
+     * legitimately remain absent after a story handoff, so its token cannot
+     * identify physical control or prevent this repair. */
+    l->was_owned=1;++l->token;
+    GuestCollisionShape before={0};GameArray components={0};GuestCameraStamp saved[64];
     const char *refusal=NULL;
     if(!guest_collision_identity(base))refusal="captured-identity-changed";
     else if(!guest_collision_shape(pawn,l->component.pointer,&before))refusal="reacquired-shape-unreadable";
@@ -249,6 +271,9 @@ static void guest_collision_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
     l->released=l->pending=0;
 }
 static int guest_collision_selftest(void) {
+    if(!guest_collision_return_ready(1,1,0,1)||guest_collision_return_ready(0,1,0,1)||
+       guest_collision_return_ready(1,0,0,1)||guest_collision_return_ready(1,1,1,1)||
+       guest_collision_return_ready(1,1,0,0)||guest_collision_return_ready(1,1,0,ULONG_MAX))return 0;
 #ifdef ME3_ORDINARY_COLLISION_RESTORE
     if(!guest_collision_option(0,L""))return 0;
 #else
