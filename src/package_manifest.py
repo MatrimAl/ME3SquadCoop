@@ -26,6 +26,16 @@ FIXED_TARGETS = {
 }
 DLC_PREFIX = "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/"
 MOUNT_TARGET = DLC_PREFIX + "Mount.dlc"
+ACTIVATION_PREFIX = "BioGame/DLC/DLC_MOD_ME3SquadCoop/"
+ACTIVATION_FILES = (
+    "PCConsoleTOC.bin", "CookedPCConsole/Mount.dlc",
+    "CookedPCConsole/Default_DLC_MOD_ME3SquadCoop.bin",
+    "CookedPCConsole/DLC_MOD_ME3SquadCoop_INT.tlk",
+)
+ACTIVATION_TARGETS = frozenset(ACTIVATION_PREFIX + name for name in ACTIVATION_FILES)
+ACTIVATION_STRING_ID = 1915100
+FIXED_TARGETS.update(dict.fromkeys(ACTIVATION_TARGETS, "dlc"))
+BASE_TOC_TARGET = "BioGame/PCConsoleTOC.bin"
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?\Z")
 
@@ -44,7 +54,7 @@ def make_activation_mount(priority=5100):
     return raw
 
 
-def read_activation_mount(raw):
+def read_activation_mount(raw, *, string_id=0):
     """Strict bounded readback for this project's asset-free activation DLC."""
     if not isinstance(raw, bytes) or len(raw) != 0x6C:
         raise ValueError("activation Mount.dlc must contain exactly 108 bytes")
@@ -53,10 +63,205 @@ def read_activation_mount(raw):
         raise ValueError("Mount.dlc is not the supported LE3 mount format")
     if not 1 <= priority <= 65535:
         raise ValueError("invalid LE3 mount priority")
-    if build or flags != 0x0C or content or name or any(raw[0x24:]):
+    if string_id not in (0, ACTIVATION_STRING_ID) or type(string_id) is not int:
+        raise ValueError("unsupported authored activation string identity")
+    if build or flags != 0x0C or content != string_id or name != string_id or any(raw[0x24:]):
         raise ValueError("unexpected activation mount flags, TLK IDs or reserved build/GUID bytes")
     return {"game": "LE3", "mount_priority": priority, "loads_in_singleplayer": True,
-            "loads_in_multiplayer": True, "save_dependency": False, "tlk_id": 0}
+            "loads_in_multiplayer": True, "save_dependency": False, "tlk_id": string_id}
+
+
+def verify_activation_toc(root):
+    """Bounded readback of the three-file authored LE3 activation TOC.
+
+    TOCBinFile stores relative bucket offsets and variable-size entries. The
+    last entry's size is zero. No arbitrary package filename is admitted.
+    """
+    root = checked_root(root)
+    raw = safe_path(root, "PCConsoleTOC.bin").read_bytes()
+    if len(raw) < 36 or len(raw) > 4096 or struct.unpack_from("<3I", raw) != (0x3AB70C13, 0, 3):
+        raise ValueError("unsupported activation TOC header")
+    expected = {name.replace("/", "\\"): safe_path(root, name).stat().st_size
+                for name in ACTIVATION_FILES if name != "PCConsoleTOC.bin"}
+    table = []
+    for index in range(256):
+        crc = index << 24
+        for _ in range(8):
+            crc = ((crc << 1) ^ (0x04C11DB7 if crc & 0x80000000 else 0)) & 0xffffffff
+        table.append(crc)
+    found, ranges = {}, []
+    for bucket in range(3):
+        start = 12 + bucket * 8
+        relative, count = struct.unpack_from("<2I", raw, start)
+        if count > 3 or (count == 0) != (relative == 0):
+            raise ValueError("invalid activation TOC bucket")
+        at = start + relative
+        for entry in range(count):
+            if at < 36 or at + 29 > len(raw):
+                raise ValueError("activation TOC entry outside payload")
+            length, flags, size = struct.unpack_from("<HHI", raw, at)
+            end = at + length if length else len(raw)
+            if end > len(raw) or end < at + 29 or flags or any(raw[at+8:at+28]):
+                raise ValueError("invalid authored activation TOC entry")
+            nul = raw.find(b"\0", at + 28, end)
+            if nul < 0 or any(raw[nul+1:end]):
+                raise ValueError("invalid activation TOC filename termination")
+            try:
+                name = raw[at+28:nul].decode("ascii")
+            except UnicodeDecodeError as error:
+                raise ValueError("ASCII activation TOC filename required") from error
+            if name not in expected or name in found or size != expected[name]:
+                raise ValueError("activation TOC filename/size differs from payload")
+            hashed = 0
+            for value in name.rsplit("\\", 1)[-1].upper().encode("ascii"):
+                hashed = (hashed >> 8) ^ table[(hashed ^ value) & 255]
+                hashed = (hashed >> 8) ^ table[hashed & 255]
+            if hashed % 3 != bucket:
+                raise ValueError("activation TOC filename hash bucket mismatch")
+            if not length and entry + 1 != count:
+                raise ValueError("early terminal activation TOC entry")
+            found[name] = size
+            ranges.append((at, end))
+            at = end
+    ordered = sorted(ranges)
+    if set(found) != set(expected) or not ordered or ordered[0][0] != 36 or ordered[-1][1] != len(raw):
+        raise ValueError("incomplete activation TOC")
+    if any(a[1] != b[0] for a,b in zip(ordered,ordered[1:])):
+        raise ValueError("overlapping or unaccounted activation TOC bytes")
+    return found
+
+
+def parse_base_toc(raw):
+    """Read both native bucket and linear walks without changing a game file."""
+    if len(raw) < 20 or len(raw) > 64 * 1024 * 1024:
+        raise ValueError("base TOC size outside bounds")
+    magic, media, buckets = struct.unpack_from("<III", raw)
+    if magic != 0x3ab70c13 or media or not 0 < buckets <= 100000:
+        raise ValueError("unsupported base TOC header")
+    start = 12 + buckets * 8
+    if start >= len(raw):
+        raise ValueError("truncated base TOC buckets")
+    entries, visited = {}, set()
+    for bucket in range(buckets):
+        table = 12 + bucket * 8
+        offset, count = struct.unpack_from("<ii", raw, table)
+        if not 0 <= count <= 100000 or (count == 0 and offset):
+            raise ValueError("invalid base TOC bucket")
+        at = table + offset
+        for index in range(count):
+            if at < start or at + 29 > len(raw) or at in visited:
+                raise ValueError("overlapping base TOC entry")
+            visited.add(at)
+            step, flags, size = struct.unpack_from("<hHi", raw, at)
+            end = raw.find(b"\0", at + 28, min(len(raw), at + 4096))
+            if end < 0 or size < 0 or (step and (step < end+1-at or step % 4)):
+                raise ValueError("invalid base TOC entry fields")
+            try:
+                name = raw[at+28:end].decode("ascii")
+            except UnicodeDecodeError as error:
+                raise ValueError("ASCII base TOC filenames required") from error
+            key = name.casefold()
+            if not name or key in entries or (index+1 < count and step <= 0):
+                raise ValueError("duplicate or early terminal base TOC entry")
+            entries[key] = (name, size, flags, raw[at+8:at+28], bucket)
+            at += step
+    at, linear = start, set()
+    while at in visited and at not in linear:
+        linear.add(at)
+        step = struct.unpack_from("<h", raw, at)[0]
+        if not step:
+            break
+        at += step
+    if not linear or linear != visited or at not in visited or struct.unpack_from("<h", raw, at)[0]:
+        raise ValueError("base TOC linear walk differs from buckets")
+    return buckets, entries
+
+
+def toc_filename_hash(name):
+    table = []
+    for index in range(256):
+        crc = index << 24
+        for _ in range(8):
+            crc = ((crc << 1) ^ (0x04c11db7 if crc & 0x80000000 else 0)) & 0xffffffff
+        table.append(crc)
+    value = 0
+    for char in name.upper().encode("ascii"):
+        value = (value >> 8) ^ table[(value ^ char) & 255]
+        value = (value >> 8) ^ table[value & 255]
+    return value
+
+
+def encode_base_toc(buckets, entries):
+    """Return derived bytes only; retain every supplied entry's native bucket."""
+    table = bytearray(struct.pack("<III", 0x3ab70c13, 0, buckets) + bytes(buckets*8))
+    records = []
+    groups = {}
+    for entry in entries.values():
+        groups.setdefault(entry[4], []).append(entry)
+    for bucket in range(buckets):
+        group = groups.get(bucket, [])
+        if group:
+            struct.pack_into("<ii", table, 12+bucket*8, len(table)-(12+bucket*8), len(group))
+        for name, size, flags, hashed, _ in group:
+            encoded = name.encode("ascii") + b"\0"
+            length = (28 + len(encoded) + 3) & ~3
+            if length > 32767:
+                raise ValueError("base TOC filename stride outside bounds")
+            records.append(len(table))
+            table += struct.pack("<HHi", length, flags, size) + hashed + encoded
+            table += bytes(length - 28 - len(encoded))
+    if not records:
+        raise ValueError("empty base TOC")
+    struct.pack_into("<H", table, records[-1], 0)
+    return bytes(table)
+
+
+def derived_base_toc(before, manifest):
+    buckets, original = parse_base_toc(before)
+    expected = {}
+    if {item["path"] for item in manifest["files"] if item["kind"] == "dlc"} != ACTIVATION_TARGETS:
+        raise ValueError("complete authored activation required for base TOC preparation")
+    for item in manifest["files"]:
+        if item["kind"] != "dlc" or item["path"].endswith("/PCConsoleTOC.bin"):
+            continue
+        name = "BIOGame\\DLC\\DLC_MOD_ME3SquadCoop\\" + item["path"][len(ACTIVATION_PREFIX):].replace("/", "\\")
+        expected[name.casefold()] = (name, item["size"], 0, bytes(20), toc_filename_hash(name.rsplit("\\",1)[-1]) % buckets)
+    if len(expected) != 3:
+        raise ValueError("exactly three authored content additions required")
+    existing = {key:value for key,value in original.items() if key.startswith("biogame\\dlc\\dlc_mod_me3squadcoop\\")}
+    if existing:
+        if existing != expected:
+            raise ValueError("existing co-op base TOC entries conflict or are incomplete")
+        return before
+    revised = dict(original)
+    revised.update(expected)
+    after = encode_base_toc(buckets, revised)
+    new_buckets, checked = parse_base_toc(after)
+    if buckets != new_buckets or checked != revised or any(checked.get(key) != value for key,value in original.items()):
+        raise ValueError("derived TOC changed an existing entry")
+    return after
+
+
+def prepare_base_toc(package_root, manifest, baseline_path, output_path):
+    """Create a new derived artifact. Never install, replace or restore a TOC."""
+    verify_payload(package_root, manifest, installable=False)
+    baseline = Path(baseline_path).absolute()
+    safe_path(baseline.parent, baseline.name)
+    output = Path(output_path).absolute()
+    safe_path(output.parent, output.name)
+    if os.path.lexists(output):
+        raise FileExistsError("derived TOC output already exists")
+    before = baseline.read_bytes()
+    after = derived_base_toc(before, manifest)
+    if baseline.read_bytes() != before:
+        raise ValueError("baseline TOC changed during preparation")
+    with output.open("xb") as stream:
+        stream.write(after); stream.flush(); os.fsync(stream.fileno())
+    if baseline.read_bytes() != before or output.read_bytes() != after:
+        raise ValueError("TOC artifact readback failed; baseline was never written")
+    return {"status":"derived-toc-prepared-not-installed", "baseline_sha256":hashlib.sha256(before).hexdigest(),
+            "output_sha256":hashlib.sha256(after).hexdigest(), "added_entries":0 if before == after else 3,
+            "game_file_written":False}
 
 
 def digest(path):
@@ -181,8 +386,11 @@ def validate_manifest(manifest, *, allow_fixture=False, allow_candidate=False, i
             raise ValueError("release requires real authored DLC and a release native companion")
         if not any(item["path"] == MOUNT_TARGET for item in files):
             raise ValueError("authored DLC mount is missing")
-        if any(item["kind"] == "dlc" and item["path"] != MOUNT_TARGET for item in files):
-            raise ValueError("native-only activation DLC must contain only its authored Mount.dlc")
+        dlc_targets = {item["path"] for item in files if item["kind"] == "dlc"}
+        # Preserve hash-checked inspection/removal of old Mount-only receipts.
+        # New automatic bundles require the complete authored activation set.
+        if dlc_targets not in ({MOUNT_TARGET}, ACTIVATION_TARGETS):
+            raise ValueError("activation DLC requires its complete authored file set; no PCC/assets")
     return manifest
 
 
@@ -227,7 +435,10 @@ def verify_payload(package_root, manifest, *, allow_fixture=False, allow_candida
             # Source-name checks alone are insufficient: reject the actual diagnostic binary marker too.
             validate_native(path, fixture=manifest.get("channel") == "fixture")
         elif manifest.get("channel") != "fixture" and item["path"] == MOUNT_TARGET:
-            read_activation_mount(path.read_bytes())
+            modern = {entry["path"] for entry in manifest["files"] if entry["kind"] == "dlc"} == ACTIVATION_TARGETS
+            read_activation_mount(path.read_bytes(), string_id=ACTIVATION_STRING_ID if modern else 0)
+    if manifest.get("channel") != "fixture" and any(entry["path"] == ACTIVATION_PREFIX + "PCConsoleTOC.bin" for entry in manifest["files"]):
+        verify_activation_toc(safe_path(root, ACTIVATION_PREFIX.rstrip("/")))
     return root
 
 
@@ -310,6 +521,13 @@ def install(package_root, manifest, game_root, *, allow_fixture=False, allow_can
                 break
             if ancestor.exists() and not ancestor.is_dir():
                 raise FileExistsError("target ancestor is not a directory")
+    if {item["path"] for item in manifest["files"] if item["kind"] == "dlc"} == ACTIVATION_TARGETS:
+        base_toc = safe_path(root, BASE_TOC_TARGET)
+        if not base_toc.is_file():
+            raise ValueError("base TOC is missing; no components installed")
+        current = base_toc.read_bytes()
+        if derived_base_toc(current, manifest) != current or base_toc.read_bytes() != current:
+            raise ValueError("base TOC lacks current authored entries; prepare-base-toc creates a separate artifact only; no components installed")
     receipt = {"schema": 1, "package_id": PACKAGE_ID, "manifest_sha256": manifest_hash(manifest),
                "manifest": manifest, "status": "incomplete", "created_directories": [],
                "qa_candidate": manifest.get("channel") == "candidate"}

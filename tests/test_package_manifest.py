@@ -260,6 +260,53 @@ class PackageTests(unittest.TestCase):
             package.install(self.bundle, self.manifest, self.game)
         self.assertEqual(self.inventory(), self.before)
 
+    def test_separate_base_toc_artifact_and_read_only_install_preflight(self):
+        self.candidate_fixture()
+        content = {
+            "CookedPCConsole/Mount.dlc": struct.pack("<9I",1,0x2ad,0xcd,0x3006b,5100,0,12,1915100,1915100)+bytes(72),
+            "CookedPCConsole/Default_DLC_MOD_ME3SquadCoop.bin": b"SYNTHETIC AUTHORED CONFIG",
+            "CookedPCConsole/DLC_MOD_ME3SquadCoop_INT.tlk": b"SYNTHETIC AUTHORED TLK",
+        }
+        entries = {name.casefold():(name,len(raw),0,bytes(20),package.toc_filename_hash(name.rsplit("/",1)[-1])%3)
+                   for name,raw in content.items()}
+        entries = {key.replace("/","\\"):(name.replace("/","\\"),size,flags,hashed,bucket)
+                   for key,(name,size,flags,hashed,bucket) in entries.items()}
+        content["PCConsoleTOC.bin"] = package.encode_base_toc(3,entries)
+        self.manifest["files"] = self.manifest["files"][:1]
+        for relative,raw in content.items():
+            target = package.ACTIVATION_PREFIX + relative
+            path = package.safe_path(self.payload,target)
+            path.parent.mkdir(parents=True,exist_ok=True); path.write_bytes(raw)
+            self.manifest["files"].append({"path":target,"sha256":sha(raw),"size":len(raw),"kind":"dlc","origin":"authored"})
+        original = {"biogame\\synthetic\\other-mod.bin":("BIOGame\\Synthetic\\other-mod.bin",17,0x1234,bytes(range(20)),1)}
+        baseline = package.safe_path(self.game,package.BASE_TOC_TARGET)
+        baseline.parent.mkdir(parents=True,exist_ok=True)
+        raw = package.encode_base_toc(3,original); baseline.write_bytes(raw)
+        inventory = self.inventory()
+        with self.assertRaisesRegex(ValueError,"base TOC lacks"):
+            package.install(self.bundle,self.manifest,self.game,allow_candidate=True)
+        self.assertEqual(self.inventory(),inventory)
+        output = self.root / "derived-toc.bin"
+        result = package.prepare_base_toc(self.bundle,self.manifest,baseline,output)
+        self.assertEqual(result["added_entries"],3)
+        self.assertFalse(result["game_file_written"])
+        self.assertEqual(baseline.read_bytes(),raw)
+        buckets,revised = package.parse_base_toc(output.read_bytes())
+        self.assertEqual(buckets,3)
+        self.assertEqual(len(revised),4)
+        self.assertTrue(all(revised.get(key)==value for key,value in original.items()))
+        self.assertEqual(package.derived_base_toc(output.read_bytes(),self.manifest),output.read_bytes())
+        with self.assertRaises(FileExistsError):
+            package.prepare_base_toc(self.bundle,self.manifest,baseline,output)
+        # Fixture-owned external preparation only. Installer/remover never write this existing TOC.
+        baseline.write_bytes(output.read_bytes())
+        package.install(self.bundle,self.manifest,self.game,allow_candidate=True)
+        external = baseline.read_bytes() + b"EXTERNAL OWNER CHANGE"
+        baseline.write_bytes(external)
+        package.remove(self.game,expected_manifest_sha256=package.manifest_hash(self.manifest))
+        self.assertEqual(baseline.read_bytes(),external)
+        self.assertEqual(self.sentinel.read_bytes(),b"UNRELATED THIRD PARTY FILE")
+
     def test_candidate_rejects_wrong_game_mount_even_with_matching_hash(self):
         self.candidate_fixture()
         mount = package.safe_path(self.payload, package.MOUNT_TARGET)
@@ -275,7 +322,7 @@ class PackageTests(unittest.TestCase):
         raw = bytes(2048)
         self.manifest["files"].append({"path": self.dlc, "sha256": sha(raw), "size": len(raw),
                                        "kind": "dlc", "origin": "authored"})
-        with self.assertRaisesRegex(ValueError, "only its authored Mount"):
+        with self.assertRaisesRegex(ValueError, "complete authored file set"):
             package.validate_manifest(self.manifest, installable=False)
 
     def test_candidate_explicit_test_install_and_remove_preserve_all_other_files(self):
@@ -380,7 +427,11 @@ class PackageTests(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         archive_path = self.root / "test-deployment.7z"
-        result = module.build_deployment_archive(archive_path)
+        inputs = [os.environ.get(name) for name in ("ME3_PACKAGE_ACTIVATION_RECEIPT", "ME3_PACKAGE_LEGENDARY_EXPLORER", "ME3_PACKAGE_STARTER_TEMPLATE")]
+        if not all(inputs):
+            self.skipTest("archive integration requires explicit authored activation verification inputs")
+        result = module.build_deployment_archive(archive_path, activation_receipt=inputs[0], legendary_explorer=inputs[1],
+            starter_config_template=inputs[2], powershell=os.environ.get("ME3_PACKAGE_POWERSHELL", "pwsh"))
         self.assertTrue(result["archive_verified"])
         self.assertTrue(archive_path.is_file())
         self.assertGreater(archive_path.stat().st_size, 0)
@@ -399,7 +450,7 @@ class PackageTests(unittest.TestCase):
         subprocess.run([module.find_seven_zip(), "x", str(unpacked / result["mod_manager_archive"]),
                         "-o" + str(manager)], check=True, capture_output=True, timeout=60)
         self.assertEqual({path.relative_to(manager).as_posix() for path in manager.rglob("*") if path.is_file()},
-                         {"moddesc.ini", "DLC_MOD_ME3SquadCoop/CookedPCConsole/Mount.dlc"})
+                         {"moddesc.ini", *("DLC_MOD_ME3SquadCoop/" + name for name in package.ACTIVATION_FILES)})
         generated = json.loads((unpacked / "manifest.json").read_text())
         package.verify_payload(unpacked, generated, installable=False)
         # Reversible install of generated bytes into an owned synthetic target.

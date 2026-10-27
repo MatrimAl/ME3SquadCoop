@@ -1,3 +1,46 @@
+# Current authored activation bundle
+
+The candidate archive builder now packages the same four authored activation
+files used by the protected ordinary runtime: root `PCConsoleTOC.bin`,
+`CookedPCConsole/Mount.dlc`, `Default_DLC_MOD_ME3SquadCoop.bin` and
+`DLC_MOD_ME3SquadCoop_INT.tlk`. It requires an explicit preparation receipt,
+LegendaryExplorer directory and pinned upstream starter-config template. The
+existing PowerShell verifier checks the exact file set, hashes, Mount fields,
+TOC names/sizes/invariant buckets, config semantics and authored English strings
+before staging. These build inputs and private receipts are not redistributed.
+
+```powershell
+python tools/build_shareable.py build candidate.7z --activation-receipt <preparation.json> --legendary-explorer <tool-directory> --starter-config-template <starter-template.bin> --powershell <pwsh.exe>
+```
+
+The resulting portable payload contains the normal ASI and those four DLC
+files; the separate Mod Manager archive contains only the descriptor and DLC.
+No PCC, game assets, saves, loader, diagnostic ASI or decompiled source is
+included. Portable verification additionally checks the complete modern file
+set, exact Mount string identity and bounded TOC structure against payload
+sizes. Hash-checked inspection/removal of older Mount-only receipts remains
+available; automatic generation no longer silently produces that older variant.
+
+Candidate installation remains explicit and restricted to an independently
+verified test copy. Packaging and archive integrity do not establish a complete
+campaign, Mod Manager import, runtime disable/rollback or two-PC support.
+The portable installer also reads the existing base `BioGame/PCConsoleTOC.bin`
+and refuses before copying any component unless it already indexes all three
+authored content paths with their exact sizes, flags, hash fields and buckets.
+It never changes or restores that existing game file. The existing management
+tool can prepare a separate artifact for review:
+
+```powershell
+python manage.py prepare-base-toc <unpacked-package> <baseline-PCConsoleTOC.bin> <new-output.bin>
+```
+
+This reads the baseline and creates a new output only. It preserves every
+existing entry and bucket and adds exactly the three authored paths. Conflicts,
+partial existing co-op entries and existing output files are refused. It does
+not install that artifact; base-TOC setup remains a separate prerequisite.
+The historical distribution contract below describes the earlier Mount-only
+generation and is superseded by this section for new automatic bundles.
+
 # Native activation DLC packaging
 
 ## Config resolution restored with combined TOC candidate

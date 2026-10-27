@@ -95,7 +95,51 @@ def generate_moddesc_ini(cmmver="7.0", game="LE3", version="0.1.0"):
     )
 
 
-def build_deployment_archive(archive_path, channel="candidate"):
+def verified_activation_files(receipt_path, legendary_explorer, starter_config_template, *, powershell="pwsh"):
+    """Use the existing semantic verifier; retain no private paths in bundles."""
+    if not receipt_path or not legendary_explorer or not starter_config_template:
+        raise ValueError("current activation requires explicit receipt, LegendaryExplorer and starter template")
+    receipt_path = Path(receipt_path).resolve(strict=True)
+    package.checked_root(receipt_path.parent)
+    receipt_hash = package.digest(receipt_path)
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8-sig"))
+    if receipt.get("Variant") != "mount-toc-starter-config-english-tlk":
+        raise ValueError("the current authored starter-config activation is required")
+    verifier = HERE.parent / "verify_activation_dlc.ps1"
+    command = [str(powershell), "-NoProfile", "-File", str(verifier), "-Receipt", str(receipt_path),
+               "-LegendaryExplorerPath", str(Path(legendary_explorer).resolve(strict=True)),
+               "-StarterConfigTemplate", str(Path(starter_config_template).resolve(strict=True))]
+    process = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="strict", timeout=120)
+    if process.returncode:
+        raise ValueError("activation semantic verification failed; no archive created")
+    try:
+        result = json.loads(process.stdout.lstrip("\ufeff"))
+    except ValueError as error:
+        raise ValueError("activation verifier did not return a complete receipt") from error
+    required = ("MountContractVerified", "TOCVerified", "TOCHashBucketsVerified", "ConfigVerified",
+                "EnglishMetadataVerified", "StarterConfigVerified")
+    if (result.get("Status") != "offline-verified-not-installed" or result.get("Files") != 4 or
+            result.get("Variant") != receipt["Variant"] or any(result.get(key) is not True for key in required) or
+            result.get("ReceiptSHA256", "").lower() != receipt_hash or package.digest(receipt_path) != receipt_hash):
+        raise ValueError("activation semantic verification receipt mismatch")
+    root = package.safe_path(receipt_path.parent, "DLC_MOD_ME3SquadCoop")
+    files = []
+    for relative in package.ACTIVATION_FILES:
+        matches = [row for row in receipt["Files"] if row["RelativePath"].replace("\\", "/") == relative]
+        source = package.safe_path(root, relative)
+        if (len(matches) != 1 or source.stat().st_nlink != 1 or source.stat().st_size != matches[0]["Bytes"] or
+                package.digest(source) != matches[0]["SHA256"].lower()):
+            raise ValueError("activation payload changed after semantic verification")
+        raw = source.read_bytes()
+        if len(raw) != matches[0]["Bytes"] or hashlib.sha256(raw).hexdigest() != matches[0]["SHA256"].lower():
+            raise ValueError("activation bytes changed while staging")
+        files.append((relative, raw))
+    package.verify_activation_toc(root)
+    return files
+
+
+def build_deployment_archive(archive_path, channel="candidate", *, activation_receipt=None,
+        legendary_explorer=None, starter_config_template=None, powershell="pwsh"):
     """Bundle a separate Mod Manager DLC archive and an unfinished native payload.
 
     The inner DLC archive contains no ASI, executable, PCC or copied assets.
@@ -109,6 +153,7 @@ def build_deployment_archive(archive_path, channel="candidate"):
         raise ValueError("deployment archive must have a .7z extension")
     if archive_path.exists() or archive_path.is_symlink():
         raise FileExistsError("archive destination already exists")
+    activation = verified_activation_files(activation_receipt, legendary_explorer, starter_config_template, powershell=powershell)
     me3_coop_root = HERE.parents[1]
     # Never silently compile a different entry or package a stale native DLL.
     from build_state import verify_current
@@ -139,11 +184,13 @@ def build_deployment_archive(archive_path, channel="candidate"):
         stage = stage_root / "bundle"
         stage.mkdir()
         manager = stage_root / "mod-manager"
-        dlc_dir = manager / "DLC_MOD_ME3SquadCoop/CookedPCConsole"
-        dlc_dir.mkdir(parents=True)
-        mount_bytes = generate_mount_dlc()
-        mount_readback = package.read_activation_mount(mount_bytes)
-        (dlc_dir / "Mount.dlc").write_bytes(mount_bytes)
+        dlc_dir = manager / "DLC_MOD_ME3SquadCoop"
+        for relative, raw in activation:
+            destination = dlc_dir / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(raw)
+        mount_bytes = dict(activation)["CookedPCConsole/Mount.dlc"]
+        mount_readback = package.read_activation_mount(mount_bytes, string_id=package.ACTIVATION_STRING_ID)
         (manager / "moddesc.ini").write_text(generate_moddesc_ini(), encoding="utf-8")
         manager_archive = "ME3SquadCoop-DLC.7z"
         archive(manager, stage / manager_archive)
@@ -153,7 +200,7 @@ def build_deployment_archive(archive_path, channel="candidate"):
         payload.mkdir()
         for target, kind, raw in (
                 ("Binaries/Win64/ASI/ME3SquadCoop.asi", "native", asi_built.read_bytes()),
-                (package.MOUNT_TARGET, "dlc", mount_bytes)):
+                *((package.ACTIVATION_PREFIX + relative, "dlc", raw) for relative, raw in activation)):
             path = package.safe_path(payload, target)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(raw)
@@ -171,18 +218,22 @@ def build_deployment_archive(archive_path, channel="candidate"):
             "# Unfinished native co-op QA candidate\n\n"
             "All gameplay, Radmin, Mod Manager import, engine DLC loading, and runtime disable gates remain unverified. "
             "The mount metadata uses the reviewed LE3 layout; it is not engine validation. "
-            "There is no startup PCC, config override, TLK content, or game asset. "
+            "The activation includes only project-authored Mount, named starter config, English metadata TLK and root TOC. "
+            "No PCC, save, game asset, loader, decompiled source or private receipt is included. "
+            "Base-game TOC setup is a separate prerequisite; installation never updates or restores an existing base TOC. "
             "Priority 5100 is an unregistered research value, not a conflict-free allocation.\n",
             encoding="utf-8")
         (stage / "README.md").write_text(
             "# ME3 Squad Co-op: unfinished research candidate\n\n"
             "This is not a validated player release. Keep testing inside an independently verified game copy.\n\n"
-            "The separate ME3SquadCoop-DLC.7z contains only a Mod Manager descriptor and native-activation Mount.dlc. "
+            "The separate ME3SquadCoop-DLC.7z contains a Mod Manager descriptor and the complete authored activation DLC. "
             "Import that inner archive for the DLC job; this does not install the ASI companion. "
             "Actual Mod Manager acceptance and engine behavior remain untested.\n\n"
             "The native companion is under payload/Binaries/Win64/ASI. Mod Manager's ordinary DLC job rejects ASIs. "
             "The portable manage.py supports verification and explicit --qa-candidate installation into verified test copies only. "
             "Keep its manifest hash for hash-checked removal. Installation requires the game to be closed. "
+            "Before copying any components, installation requires the existing BioGame/PCConsoleTOC.bin to already index the three authored DLC content paths. "
+            "Run `python manage.py prepare-base-toc <package-root> <baseline-PCConsoleTOC.bin> <new-output.bin>` to create a separate derived artifact for review; this command never installs it or changes the baseline. "
             "Do not mix managed/manual installation methods; the receipt only owns files it installed. "
             "Removing or disabling the DLC is intended to close the native presence gate, with cleanup on the next game tick; "
             "that lifecycle still needs protected live verification. A compatible ASI loader is a separate prerequisite.\n",
@@ -291,6 +342,14 @@ def main():
     p.add_argument("args", nargs="+", type=Path)
     p.add_argument("--baseline-manifest", type=Path, default=None)
     p.add_argument("--channel", choices=("candidate", "release"), default="candidate")
+    p.add_argument("--activation-receipt", type=Path, help="explicit current authored activation preparation receipt")
+    p.add_argument("--legendary-explorer", type=Path, help="LegendaryExplorer folder for semantic verification")
+    p.add_argument("--starter-config-template", type=Path, help="explicit pinned upstream authored starter template")
+    p.add_argument("--powershell", default="pwsh", help="PowerShell 7 executable; used only while building")
+    p = sub.add_parser("prepare-base-toc", help="create a separate derived TOC artifact; never changes the baseline/game")
+    p.add_argument("package_root", type=Path)
+    p.add_argument("baseline_toc", type=Path)
+    p.add_argument("output", type=Path, help="new output file; existing destinations are refused")
     for action in ("verify", "install", "remove"):
         p = sub.add_parser(action)
         p.add_argument("package_root", type=Path)
@@ -304,13 +363,20 @@ def main():
         result = scaffold(args.destination)
     elif args.action == "build":
         if len(args.args) == 1:
-            result = build_deployment_archive(args.args[0], channel=args.channel)
+            result = build_deployment_archive(args.args[0], channel=args.channel, activation_receipt=args.activation_receipt,
+                legendary_explorer=args.legendary_explorer, starter_config_template=args.starter_config_template,
+                powershell=args.powershell)
         elif len(args.args) == 3:
+            if any((args.activation_receipt, args.legendary_explorer, args.starter_config_template)):
+                parser.error("activation options apply only to the one-argument archive build")
             if not args.baseline_manifest:
                 parser.error("--baseline-manifest is required for 3-argument build")
             result = build(args.args[0], args.args[1], args.args[2], args.baseline_manifest, channel=args.channel)
         else:
             parser.error("build requires either 1 argument (<archive.7z>) or 3 arguments (<source_root> <spec> <destination>)")
+    elif args.action == "prepare-base-toc":
+        manifest = json.loads((args.package_root / "manifest.json").read_text(encoding="utf-8"))
+        result = package.prepare_base_toc(args.package_root, manifest, args.baseline_toc, args.output)
     else:
         manifest = json.loads((args.package_root / "manifest.json").read_text(encoding="utf-8"))
         if args.action == "verify":
