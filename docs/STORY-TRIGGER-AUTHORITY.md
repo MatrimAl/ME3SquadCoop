@@ -9,6 +9,13 @@ executable. Set `ME3_SQUAD_COOP_STORY_GATES=0` to disable this adapter.
   through the original movement function with zero translation. A short local
   Canvas message asks the player to wait for Shepard. Rotation, movement flags,
   native hit output and the original return value remain native.
+  That movement fence opens once the same Shepard has actually entered or
+  crossed the authored brush. The runtime retains a bounded passage record
+  across rediscovery and scene handoffs, tied to event/volume/component/world,
+  Shepard and driver lifetimes. Guest event activation remains host-only.
+  Passage uses the native brush query and actual observed Shepard positions;
+  stale samples or long teleports cannot create a swept passage. On the guest
+  the existing verified remote Shepard channel supplies that observation.
 * Mars shuttle closure waits until every current human pawn has cleared the
   cabin. Either player can leave first. A blocked close request is retained and
   submitted once, with Shepard as instigator, after all players are outside.
@@ -35,6 +42,11 @@ bounds, indirect/nested event links and non-volume triggers can remain outside
 physical entry protection. They must be recorded during gameplay and supported
 from their actual authored behavior. The adapter does not emulate the entire
 Kismet virtual machine.
+
+A late-joining guest that never observed Shepard inside or crossing a still-
+armed volume cannot infer prior passage from an arbitrary later position.
+This local passage cache does not fabricate a historical route. Such a late-
+join case needs an authoritative progression snapshot if reproduced.
 
 ## Native scope
 
@@ -73,6 +85,8 @@ At the next protected manual session:
 3. Approach a conversation/camera-scene trigger as the guest first. Check the
    warning and entry boundary, then let Shepard trigger it. Check ordinary doors
    and backtracking after the scene too.
+   At the early shuttle walkway, let Shepard pass first and then follow with
+   the guest: the cleared movement fence must stay open for that live volume.
 4. Check guest control after the scene and the previously crashing handoff.
    The receive-scope correction remains an unverified crash candidate; this
    feature does not establish that the crash or Ashley's falling is resolved.

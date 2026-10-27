@@ -146,6 +146,24 @@ static int guest_camera_cached_channel(uintptr_t base,uintptr_t pawn) {
     return channel&&index>0;
 }
 #include "guest_camera_weapon_action.h"
+static int guest_camera_combat_mode(uintptr_t base,uintptr_t mode,uintptr_t pawn) {
+    uint32_t flags=0;
+    return is_live(base,mode)&&is_kind_of(base,mode,"SFXCameraMode_Combat")&&read_ptr(mode+0x7c)==pawn&&
+        read_at(mode+0x11c,&flags,4)&&!(flags&0x20)&&(flags&2);
+}
+static int guest_camera_mode_policy(int holding,int combat,int interpolate,int from_combat,int to_combat) {
+    return combat||(holding&&interpolate&&from_combat&&to_combat);
+}
+static int guest_camera_gameplay_mode(uintptr_t base,uintptr_t mode,uintptr_t pawn,int holding) {
+    if(guest_camera_combat_mode(base,mode,pawn))return 1;
+    if(!holding||!is_live(base,mode)||!is_kind_of(base,mode,"SFXCameraMode_Interpolate"))return 0;
+    uint32_t flags=0;
+    if(read_ptr(mode+0x7c)!=pawn||!read_at(mode+0x11c,&flags,4)||(flags&0x20))return 0;
+    uintptr_t from=read_ptr(mode+0x158),to=read_ptr(mode+0x160);
+    return from!=mode&&to!=mode&&guest_camera_mode_policy(holding,0,1,
+        guest_camera_combat_mode(base,from,pawn),guest_camera_combat_mode(base,to,pawn))&&
+        read_ptr(mode+0x158)==from&&read_ptr(mode+0x160)==to;
+}
 static int guest_camera_conditions_policy(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,
                                     int ordinary_mode,int enabled,uintptr_t *camera_out,uintptr_t *mode_out,int retain_weapon_action) {
     unsigned char net=255,current_mode=255,ignore=255;uint32_t disable=0,pc_flags=0,pawn_flags=0,busy=0;
@@ -162,9 +180,15 @@ static int guest_camera_conditions_policy(uintptr_t base,uintptr_t pc,uintptr_t 
      * collision/ragdoll presentation changes. Yield the shoulder-scale
      * lease independently of action/input flags, including weapon retention. */
     if(!read_at(pawn+0xe20,&busy,4)||(busy&0x300)) return guest_camera_reject("pawn-life-state");
-    if(!read_at(pc+0x77c,&pc_flags,4)||(pc_flags&(0x800|0x20000))||!read_at(pc+0x781,&ignore,1)||ignore) return guest_camera_reject("controller-cinematic-or-move-input");
-    if(!read_at(pawn+0xc20,&action,4)||action<0||!read_at(pawn+0xc28,&power,4)||power||
-       (action&&(!retain_weapon_action||!guest_camera_weapon_action(base,pc,pawn,action)))) return guest_camera_reject("custom-action-or-power");
+    uint32_t action_flags=0;int weapon=0,power_instance=0;
+    if(!read_at(pawn+0xc20,&action,4)||!read_at(pawn+0xc28,&power,4))return guest_camera_reject("custom-action-or-power");
+    if(retain_weapon_action&&action>0) {
+        if(action==132&&power>0)power_instance=guest_camera_native_action(base,pc,pawn,power,1,&action_flags);
+        else if(!power)weapon=guest_camera_native_action(base,pc,pawn,action,0,&action_flags);
+    }
+    if(!guest_camera_action_policy(retain_weapon_action,action,power,weapon,power_instance))return guest_camera_reject("custom-action-or-power");
+    if(!read_at(pc+0x77c,&pc_flags,4)||(pc_flags&(0x800|0x20000))||!read_at(pc+0x781,&ignore,1)||
+       (ignore&&!(ignore==1&&power_instance&&(action_flags&4))))return guest_camera_reject("controller-cinematic-or-move-input");
     if(
        !read_at(pawn+0xe18,&pawn_flags,4)||(pawn_flags&(0x200000|0x20000000))||
        !read_at(pawn+0xe20,&busy,4)||(busy&0x40000)) return guest_camera_reject("pawn-frozen-root-motion-or-conversation");
@@ -178,13 +202,12 @@ static int guest_camera_conditions_policy(uintptr_t base,uintptr_t pc,uintptr_t 
     if(!is_live(base,default_mode)||!is_kind_of(base,default_mode,"SFXGameModeDefault")||
        !read_at(default_mode+0xd0,&permissions,4)||(permissions&0x800)||
        (permissions&(2|0x400|0x1000))!=(2|0x400|0x1000)) return guest_camera_reject("default-mode-class-or-permissions");
-    uintptr_t camera=read_ptr(pc+0x684),mode=0;uint32_t camera_flags=0,mode_flags=0;
+    uintptr_t camera=read_ptr(pc+0x684),mode=0;uint32_t camera_flags=0;
     if(!guest_camera_actor_live(base,camera)||!is_kind_of(base,camera,"SFXPlayerCamera")||read_ptr(pc+0xe28)!=camera||
        read_ptr(camera+0x4a8)!=pc||read_ptr(camera+0x198)!=world||read_ptr(camera+0x3f4)!=pawn||
        !read_at(camera+0x57c,&camera_flags,4)||(camera_flags&1)) return guest_camera_reject("camera-reciprocity-target-or-disabled");
     mode=read_ptr(camera+0x558);
-    if(!is_live(base,mode)||!is_kind_of(base,mode,"SFXCameraMode_Combat")||read_ptr(mode+0x7c)!=pawn||
-       !read_at(mode+0x11c,&mode_flags,4)||(mode_flags&0x20)||!(mode_flags&2)) return guest_camera_reject("combat-mode-target-or-flags");
+    if(!guest_camera_gameplay_mode(base,mode,pawn,retain_weapon_action)) return guest_camera_reject("combat-mode-target-or-flags");
     if(!guest_camera_cached_channel(base,pawn)) return guest_camera_reject("positive-channel-cache-not-ready");
     *camera_out=camera;*mode_out=mode;return 1;
 }
@@ -232,12 +255,22 @@ static void guest_camera_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintpt
     if(!eligible) guest_camera_log_eligibility(base,pc,pawn,world,ordinary_mode,enabled,now);
     if(guest_camera_lease.tracked) {
         int same=eligible&&pc==guest_camera_lease.pc.pointer&&pawn==guest_camera_lease.pawn.pointer&&world==guest_camera_lease.world.pointer&&
-            camera==guest_camera_lease.camera.pointer&&mode==guest_camera_lease.mode.pointer&&
+            camera==guest_camera_lease.camera.pointer&&
             guest_camera_stamp_matches(base,&guest_camera_lease.pc,0)&&guest_camera_stamp_matches(base,&guest_camera_lease.pawn,0)&&
-            guest_camera_stamp_matches(base,&guest_camera_lease.world,0)&&guest_camera_stamp_matches(base,&guest_camera_lease.camera,0)&&guest_camera_stamp_matches(base,&guest_camera_lease.mode,0);
+            guest_camera_stamp_matches(base,&guest_camera_lease.world,0)&&guest_camera_stamp_matches(base,&guest_camera_lease.camera,0)&&
+            (mode!=guest_camera_lease.mode.pointer||guest_camera_stamp_matches(base,&guest_camera_lease.mode,0));
         if(!same) {
             guest_camera_restore(base,!enabled?"disabled":!ordinary_mode?"scene":"context-or-ownership-change",now);
             return;
+        }
+        if(mode!=guest_camera_lease.mode.pointer) {
+            GuestCameraStamp current_mode;
+            if(!guest_camera_stamp_read(base,mode,&current_mode,1)) {
+                guest_camera_restore(base,"camera-mode-lifetime-unavailable",now);return;
+            }
+            /* Native aim/action transitions keep selecting their own mode,
+             * FOV and interpolation. Only retain our existing shoulder scale. */
+            guest_camera_lease.mode=current_mode;
         }
         if(guest_camera_lease.applied) {
             uint32_t current=0;
@@ -286,6 +319,14 @@ static void guest_camera_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintpt
  * compare-before-restore policy. Main may expose this via its native runner.
  */
 static int guest_camera_adapter_selftest(void) {
+    if(!guest_camera_action_policy(0,0,0,0,0)||guest_camera_action_policy(0,9,0,1,0)||
+       !guest_camera_action_policy(1,9,0,1,0)||guest_camera_action_policy(1,9,0,0,0)||
+       !guest_camera_action_policy(1,132,27,0,1)||guest_camera_action_policy(0,132,27,0,1)||
+       guest_camera_action_policy(1,132,0,0,1)||guest_camera_action_policy(1,132,27,0,0)||
+       guest_camera_action_policy(1,5,27,0,1)||guest_camera_action_policy(1,-1,0,1,0))return 0;
+    if(!guest_camera_mode_policy(0,1,0,0,0)||guest_camera_mode_policy(0,0,1,1,1)||
+       !guest_camera_mode_policy(1,0,1,1,1)||guest_camera_mode_policy(1,0,1,0,1)||
+       guest_camera_mode_policy(1,0,1,1,0)||guest_camera_mode_policy(1,0,0,1,1))return 0;
     GuestCameraStamp a={0},b={0};a.pointer=b.pointer=16;a.klass=b.klass=32;a.index=b.index=1;a.class_index=b.class_index=2;
     a.name[0]=b.name[0]=3;a.name[1]=b.name[1]=4;a.class_name[0]=b.class_name[0]=5;
     if(!guest_camera_stamp_core_equal(&a,&b)) return 0;

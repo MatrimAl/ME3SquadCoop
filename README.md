@@ -16,10 +16,19 @@ live discovery, movement boundaries and animation remain owner checks. See
 
 It also registers an unassigned guest in the existing native host team and
 retains human companion control during proven camera-free ambient lines.
-These address a missing hostility prerequisite and unwanted AI interaction
-handoffs; live combat and corpse-interaction results await owner testing. See
+In the protected manual `dbd7265` session, native team registration and ambient
+control retention were observed. The owner confirmed damage in both directions
+and that the small Ashley interaction no longer forcibly moves her. See
 [team registration](docs/GUEST-TEAM-REGISTRATION.md) and
 [ambient control](docs/AMBIENT-COMPANION-CONTROL.md).
+
+The latest candidate opens a movement fence after observed Shepard passage,
+retains the guest shoulder camera through reload/power actions, adapts verified
+NPC weapon defaults for human ownership and supplies stock low-shield/break
+cosmetics from actual replicated shield decreases. These additions passed
+the native build and runtime/probe fixtures; they have not run in a game.
+Their gameplay checks remain pending, and full weapon parity remains
+unproven. See [weapon and presentation scope](docs/GUEST-WEAPON-PRESENTATION.md).
 
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.
@@ -78,13 +87,13 @@ These observations come from bounded tests with real game processes on one Windo
 | Weapon input | Earlier runs consumed authoritative ammunition after guest firing input | Stop-firing reliability and ammo agreement failed in some runs |
 | Isolation | Independent game copy, original-file read locks and private profile routing used | These protections must be established again for every test |
 
-Equipment results remain mixed: bounded runs have produced native firing and matching ammunition counts, while unchanged-build repeats have failed. Reliable firing, stopping and enemy damage remain unverified. Recent experiments also include native crashes; successful isolation checks must not be mistaken for gameplay success. See [progress notes](docs/PROGRESS.md).
+Earlier equipment runs produced mixed firing, stopping and ammunition results. In the later protected manual `dbd7265` session, the owner confirmed enemy damage in both directions. That bounded result does not establish weapon parity or sustained combat across the campaign. Recent experiments also include native crashes; successful isolation checks must not be mistaken for gameplay success. See [progress notes](docs/PROGRESS.md).
 
 ## Current work
 
 Gameplay is the priority. The current blocker is usable squadmate control after a scene: actual landing release/reacquisition has been observed, but Ashley can retain incomplete collision and fall or move out of sync. The latest walking evaluator rejected shared progression despite passing ownership handoffs. One protected run exercised the exact-shape collision repair and retained ground contact, but guest movement still failed. A later run captured a large position discontinuity inside the unchanged native receive call, followed by falling; the exact replicated field or codec remains unproven. See [collision restoration](docs/COLLISION-RESTORATION.md). Recent local-pair tests also exposed a custom focus-loss pause before possession; a guarded candidate now has protected live getter and mode-0 landing-scene observations; movement and full dialogue remain unverified. See [background focus](docs/BACKGROUND-FOCUS.md).
 
-Combat is also incomplete. Native guest firing requests have reached the authoritative host, but the host can defer firing while the port-arms animation flag remains set. A previous positive ammunition run does not establish repeatability, powers or enemy damage. Full conversations and sustained mission progression still require real gameplay evidence.
+Combat is also incomplete. Earlier runs exposed authoritative fire deferral while the port-arms animation flag remained set. The owner later confirmed bidirectional enemy damage in `dbd7265`; powers, full weapon parity and sustained mission progression still require gameplay evidence. The new weapon, camera, shield-feedback and passage changes have passed native checks but have not been tested in a game.
 
 The separate ordinary runtime now connects the same-PC guest without reloading
 the host's current Mars mission. The current authored activation resolves its
@@ -96,7 +105,7 @@ still pending. See [runtime integration](docs/RUNTIME-INTEGRATION.md) and
 1. Verify scene return with healthy collision and sustained, synchronized walking.
 2. Make equipment/animation readiness repeatable; verify firing and stopping on both sides.
 3. Test a real full conversation while the guest owns a squadmate, then verify camera/control restoration.
-4. Verify enemy damage, powers, sustained progression and mission transitions.
+4. Extend the confirmed bidirectional damage result to sustained combat; verify powers, progression and mission transitions.
 5. Test two physical PCs over Radmin.
 6. Validate installation, disable/uninstall and rollback before releasing a gameplay package.
 7. Expand beyond two participants with per-guest squad assignment and capacity tests.

@@ -20,6 +20,18 @@ stays visible unless a native teammate panel actually contains the verified
 Shepard and is visible. Native appearance and behavior await owner testing;
 complete visual parity is not yet verified.
 
+The shoulder-camera lease now retains its existing scale during validated
+native reload and power actions. The former idle/draw/holster-only predicate
+rejected a recorded reload action9 and restored the scale from1 to0, causing
+an unwanted close-up. Holding now proves the actual action table/class,
+pawn/controller ownership and native action state. Combat/aim/cover camera
+object transitions no longer release an otherwise valid lease; interpolation
+requires both endpoints to be the same pawn's combat cameras. Initial camera
+acquisition remains idle-only, and native FOV, aim, camera mode and animation
+selection remain unchanged. Full scenes and invalid ownership still retire it.
+Reload/power camera behavior and overall Shepard-equivalent weapon handling
+remain separate in-game checks.
+
 In one protected run, all 49 owned-Ashley samples had the correct native player
 source, health/shield fractions of 1 and actual member display flags `0x8400`,
 while config flags included `0x4000`. The old fallback predicate incorrectly

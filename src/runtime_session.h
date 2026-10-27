@@ -110,6 +110,8 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_story_gate.h"
 #include "runtime_ambient_conversation.h"
 #include "runtime_guest_team.h"
+#include "runtime_guest_weapon.h"
+#include "runtime_guest_shield_feedback.h"
 #include "runtime_power_action_context.h"
 static SessionContext runtime_host_power_context(uintptr_t engine) {
     SessionContext c=session_context(engine);
@@ -125,6 +127,7 @@ static void runtime_host_power_context_tick(uintptr_t base,uintptr_t engine) {
 static void runtime_before_host_control_release(uintptr_t base,uintptr_t engine) {
     /* Conditional cache cleanup never delays the core's story/AI handoff.
      * Busy actions retain pending cleanup until their ordinary idle state. */
+    runtime_guest_weapon_retire(base,engine,GetTickCount());
     runtime_power_action_context_retire(base,runtime_host_power_context(engine),0,0,0);
     if(runtime_revive_opted())runtime_revive_before_host_release(base,engine);
 }
@@ -208,6 +211,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     session_engine=engine;session_game_thread=GetCurrentThreadId();
     runtime_scope_ready=runtime_session_scope(base,engine);
     runtime_ambient_conversation_configure(base);
+    if(!after)runtime_guest_weapon_tick(base,engine,now);
     if(!after&&runtime_guest_team_tick(base,engine,now))runtime_scope_ready=runtime_session_scope(base,engine);
     runtime_revive_peer_configure();
     runtime_team_hud_configure();
@@ -218,7 +222,11 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     if(!after)background_focus_prepare(base,engine,runtime_control_enabled&&
         (runtime_scope_ready||runtime_startup_focus_pending()));
     if(g_runtime_config.role==ME3_ROLE_GUEST) {
-        runtime_guest_frame(base,engine,after,now);return;
+        runtime_guest_frame(base,engine,after,now);
+        runtime_scope_ready=runtime_session_scope(base,engine);
+        runtime_guest_weapon_tick(base,engine,GetTickCount());
+        if(after)runtime_guest_shield_feedback_tick(base,engine,GetTickCount());
+        return;
     }
     session_before_control_release=runtime_before_host_control_release;
     if(!after){runtime_host_power_context_tick(base,engine);runtime_revive_host_tick(base,engine,now);}
@@ -232,6 +240,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     if(after) {
         runtime_scope_ready=runtime_session_scope(base,engine);
         if(runtime_guest_team_tick(base,engine,GetTickCount()))runtime_scope_ready=runtime_session_scope(base,engine);
+        runtime_guest_weapon_tick(base,engine,GetTickCount());
         runtime_host_power_context_tick(base,engine);
         runtime_presentation_tick(base,engine,GetTickCount());
         runtime_revive_peer_tick(base,engine,GetTickCount());

@@ -66,6 +66,7 @@ static int runtime_story_sweep(uintptr_t base,uintptr_t volume,const float start
     typedef unsigned char (*Sweep)(void*,const float*,const float*,const float*);
     return ((Sweep)(base+0x6bbb40))((void*)volume,end,start,extent)?1:0;
 }
+#include "runtime_story_pass.h"
 static int runtime_story_human_outside(uintptr_t base,SessionContext c,uintptr_t pawn) {
     RuntimeStoryGate *g=&runtime_story_gate;float location[3],extent[3];uintptr_t component=read_ptr(pawn+0x1e0);
     float height=0,radius=0;
@@ -179,7 +180,7 @@ static uint32_t runtime_story_move(void *world,void *actor,const float *delta,co
                     for(unsigned n=0;n<3;++n){box.minimum[n]=bounds[n]-bounds[n+3];box.maximum[n]=bounds[n]+bounds[n+3];}
                     if(runtime_story_capsule_box(&box,start,radius,height)!=1&&
                        runtime_story_segment_box_entry(&box,start,end,radius,height,&t)!=1)continue;
-                    if(!runtime_story_event_live(g->base,source,c)||!runtime_story_event_armed(source->event.pointer)||
+                    if(runtime_story_passed(g->base,c,source)||!runtime_story_event_live(g->base,source,c)||!runtime_story_event_armed(source->event.pointer)||
                        !narrative_probe_object(g->base,source->volume.pointer,"Volume"))continue;
                     /* Allow an already-inside player to leave. Exact native
                      * brush sweep refines the broad-phase box, no box wall. */
@@ -271,9 +272,10 @@ static uint32_t runtime_story_replay_pending(RuntimeStoryGate *g,uintptr_t shepa
 }
 static void runtime_story_gate_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     RuntimeStoryGate *g=&runtime_story_gate;SessionContext c=session_context(engine);
-    if(!runtime_story_scope(base,c)) {g->pending.active=0;g->count=0;return;}
+    if(!runtime_story_scope(base,c)) {g->pending.active=0;g->count=0;memset(&runtime_story_pass,0,sizeof runtime_story_pass);return;}
     if(!runtime_story_query_prepare(base))return;
     runtime_story_discover(base,c,now);
+    runtime_story_pass_observe(base,c,now);
     RuntimeStoryPending *p=&g->pending;
     if(!p->active)return;
     NetworkActorScope scope;
@@ -338,7 +340,7 @@ static int runtime_story_gate_selftest(void) {
     ok&=!runtime_story_event_armed((uintptr_t)event);limit=0;memcpy(event+0x114,&limit,4);
     ok&=runtime_story_event_armed((uintptr_t)event);flags=0;memcpy(event+0x120,&flags,4);
     ok&=!runtime_story_event_armed((uintptr_t)event);
-    runtime_story_gate=saved;SetLastError(error);return ok;
+    runtime_story_gate=saved;SetLastError(error);return ok&&runtime_story_pass_selftest();
 }
 #endif
 #endif

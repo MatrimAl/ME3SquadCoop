@@ -1,11 +1,24 @@
 # Validation status
 
-The current ordinary candidate adds stock host-team registration for a guest
+The latest candidate adds Shepard-passage movement-fence retirement, reload/
+power shoulder-camera retention, scoped human weapon defaults and genuine
+shield-RepNotify-driven critical/break cosmetics. The native build and runtime/
+probe fixtures passed; this candidate has not run in a game. Its rendering,
+fire behavior and early walkway follow-through remain owner checks. See
+[scope and checks](GUEST-WEAPON-PRESENTATION.md).
+
+In the preceding protected manual `dbd7265` session, the owner confirmed enemy
+damage works in both directions and the small Ashley interaction no longer
+forces her to the location. Native host ChangeTeam and both-peer PRI/team0
+readbacks, ambient control retention and a later real scene handoff were
+observed. This is bounded positive evidence, not complete campaign support.
+
+The preceding ordinary candidate added stock host-team registration for a guest
 with an unassigned PRI and a read-only exception that retains an existing
 human lease during all-ambient, camera-free conversation lists. Native
-fixtures cover dispatch/admission/cleanup and conservative scene policy;
-live bidirectional enemy damage and the Mars corpse interaction remain owner
-checks. No new game was launched for these integrations. Shepard-death
+fixtures cover dispatch/admission/cleanup and conservative scene policy.
+The protected manual `dbd7265` observations and owner confirmations above
+provide the bounded live result for these integrations. Shepard-death
 continuation and the reported AI T-pose are explicitly deferred.
 
 The native guest HUD fallback now follows actual member display state and
