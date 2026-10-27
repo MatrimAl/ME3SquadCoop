@@ -16,7 +16,7 @@ typedef struct RuntimeArchetypeRetention {
     int active,inflight,connected,count;
     GuestCameraStamp engine,loader,world;
     GuestCameraStamp assets[RUNTIME_ARCHETYPE_LIMIT];
-    uint32_t group[2];
+    uint32_t group[2],package_name[2];
 } RuntimeArchetypeRetention;
 static RuntimeArchetypeRetention runtime_archetypes;
 static int runtime_archetype_path(const char *path) {
@@ -65,6 +65,8 @@ static int runtime_archetype_group_owned(uintptr_t base,uintptr_t engine,int loa
     for(int i=0;i<packages.count;++i){uintptr_t entry=packages.data+(uintptr_t)i*32;uint32_t group[2];GameArray requests={0},requests_after={0};
         if(!read_at(entry+24,group,8))return 0;
         if(memcmp(group,runtime_archetypes.group,8))continue;
+        uint32_t package_name[2];
+        if(!read_at(entry+16,package_name,8)||memcmp(package_name,runtime_archetypes.package_name,8))return 0;
         if(!read_at(entry,&requests,sizeof requests)||requests.count<1||requests.count>RUNTIME_ARCHETYPE_LIMIT||
            requests.max<requests.count||requests.max>4096||!requests.data)return 0;
         for(int j=0;j<requests.count;++j){RuntimeAssetRequest request={0};int match=-1;
@@ -77,7 +79,7 @@ static int runtime_archetype_group_owned(uintptr_t base,uintptr_t engine,int loa
                 int length=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,runtime_archetypes.assets[k].full_name,-1,expected,640);
                 if(length==request.path.count&&!memcmp(path,expected,(size_t)length*sizeof(wchar_t)))match=k;
             }
-            if(match<0||found[match]||request.klass!=runtime_archetypes.assets[match].klass||
+            if(match<0||found[match]||memcmp(request.package,runtime_archetypes.package_name,8)||request.klass!=runtime_archetypes.assets[match].klass||
                (request.asset&&request.asset!=runtime_archetypes.assets[match].pointer)||
                ((loaded||request.asset)&&(!request.asset||!guest_camera_stamp_matches(base,&runtime_archetypes.assets[match],1))))return 0;
             found[match]=1;++total;
@@ -133,7 +135,8 @@ static int runtime_archetype_retain(uintptr_t base,uintptr_t engine,uintptr_t wo
         next.assets[next.count++]=stamp;
     }
     HeapFree(GetProcessHeap(),0,objects);
-    if(overflow||!package||!next.count||!read_at(package+0x48,next.group,8))return 0;
+    if(overflow||!package||!next.count||!read_at(package+0x48,next.package_name,8))return 0;
+    memcpy(next.group,next.package_name,8);
     /* Process-local FName suffix, admitted only if neither loader array uses it. */
     next.group[1]=0x4d330000u;
     for(int i=0;i<128;++i,++next.group[1]){
@@ -146,6 +149,9 @@ static int runtime_archetype_retain(uintptr_t base,uintptr_t engine,uintptr_t wo
         if(length<=1)return 0;
         requests[i].path=(GameString){paths[i],length,length};requests[i].klass=next.assets[i].klass;
         requests[i].asset=next.assets[i].pointer;
+        /* Use the actual cooked package name. A zeroed FName is not an
+         * independently established None sentinel for this name pool. */
+        memcpy(requests[i].package,next.package_name,8);
     }
     struct {uint32_t group[2];GameArray assets;uintptr_t callback[2];} params={0};
     _Static_assert(sizeof params==40,"AsyncLoadAssets ABI");

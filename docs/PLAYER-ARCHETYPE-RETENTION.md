@@ -82,3 +82,20 @@ The revised native call rebuilt all four targets and passed the ordinary
 no-game harness. The window recorder now rejects client areas below 640x360;
 its private coordinator waits for that size before capture. PowerShell parsing
 passed. Neither revised capture nor native dispatch was rerun in a game.
+
+## Explicit cooked-package identity
+
+Each retained request now carries the verified root package's actual FName as
+`AltCookedPackageName`, separate from the private group's numeric suffix. The
+previous request left those eight bytes zeroed. The retained native load body
+at RVA 0xb03c10 uses the alternate cooked name unless it identifies the engine's
+None name; the code did not establish that an all-zero value met that condition.
+The stock `SFXWeaponUIDataManager.LoadData` script (SFXGame export 31764) likewise
+assigns the cooked package name explicitly. This supports supplying the known
+package, but does not prove the zero value caused the absent group in the run.
+
+Readback now requires the same cooked package both in the group record and in
+every request, in addition to the existing asset/path/class identity checks.
+Four native outputs rebuilt and the ordinary no-game harness passed, including
+wrong group-package and wrong request-package rejection. No game was launched
+for this correction; native travel survival and visibility remain unverified.

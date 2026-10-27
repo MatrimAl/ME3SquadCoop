@@ -136,8 +136,10 @@ static int runtime_host_startup_selftest(void) {
         guest_camera_stamp_read(base,o[6],&runtime_archetypes.loader,1)&&
         guest_camera_stamp_read(base,o[4],&runtime_archetypes.assets[0],1);
     memcpy(runtime_archetypes.group,group,8);
+    runtime_archetypes.package_name[0]=0x998;
+    memcpy(entry+16,runtime_archetypes.package_name,8);
     wchar_t asset_path[640];int length=MultiByteToWideChar(CP_UTF8,0,runtime_archetypes.assets[0].full_name,-1,asset_path,640);
-    RuntimeAssetRequest owned_request={{asset_path,length,length},read_ptr(o[4]+0x50),{0},o[4]};
+    RuntimeAssetRequest owned_request={{asset_path,length,length},read_ptr(o[4]+0x50),{0x998,0},o[4]};
     GameArray owned_requests={(uintptr_t)&owned_request,1,1};
     memcpy(entry,&owned_requests,sizeof owned_requests);
     memcpy((void*)(o[6]+0x68),&package_entries,sizeof package_entries);memset((void*)(o[6]+0x78),0,16);
@@ -146,6 +148,10 @@ static int runtime_host_startup_selftest(void) {
     runtime_fixture_ptr(o[15]+0xd90,0);
     ok=ok&&!runtime_archetype_group_owned(base,o[15],0)&&runtime_archetype_group_owned(base,0,0);
     runtime_fixture_ptr(o[15]+0xd90,o[6]);
+    owned_request.package[0]++;
+    ok=ok&&!runtime_archetype_group_owned(base,o[15],0);owned_request.package[0]--;
+    uint32_t wrong_package[2]={0x999,0};memcpy(entry+16,wrong_package,8);
+    ok=ok&&!runtime_archetype_group_owned(base,o[15],0);memcpy(entry+16,runtime_archetypes.package_name,8);
     owned_request.asset=0;
     ok=ok&&!runtime_archetype_group_owned(base,o[15],1)&&runtime_archetype_group_owned(base,o[15],0);
     owned_request.asset=o[4];owned_request.klass=o[24];
