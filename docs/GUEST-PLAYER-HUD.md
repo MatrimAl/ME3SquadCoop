@@ -10,11 +10,24 @@ movie, replace a class, alter gameplay permissions or change squad/story caches.
 Conditional cleanup preserves native UI replacements.
 
 The previous Canvas health/shield readout remains a fallback. It hides only
-while the native player source was recently bound and the game's own HUD and
-health visibility permissions allow the stock panel. The teammate fallback
+while the native player source was recently bound, native current/displayed
+resistance caches are valid and the actual native player panel owns display.
+Native full-resistance auto-hide is respected too. The fallback also obeys
+the game's HUD/health visibility permissions. Config `m_bDisablePlayerHealth`
+is not used as a visibility proxy: the measured player renderer does not read
+that flag. The teammate fallback
 stays visible unless a native teammate panel actually contains the verified
 Shepard and is visible. Native appearance and behavior await owner testing;
 complete visual parity is not yet verified.
+
+In one protected run, all 49 owned-Ashley samples had the correct native player
+source, health/shield fractions of 1 and actual member display flags `0x8400`,
+while config flags included `0x4000`. The old fallback predicate incorrectly
+kept an extra Canvas panel in that state. The corrected predicate uses the
+native member state and cache readiness without changing HUD config, widget
+state or game-mode permissions. Fixtures cover that recorded state, incomplete
+updates, missing/invalid values, hidden panels and intentional full hiding.
+Actual rendering, damage tracking and visual parity remain owner checks.
 
 Both peers now also have a teammate readout near the upper left: the host sees
 Ashley, and the guest sees Shepard. It shows health/shield bars and numbers plus

@@ -5,6 +5,8 @@
  * weapon and animation updates render the stock Shepard UI for owned Ashley.
  * Never change a squad/world cache, movie, gameplay permission or pawn class. */
 typedef void (*RuntimeHudSelector)(void*);
+typedef struct RuntimeHudResistances {float value[4];uint32_t flags;} RuntimeHudResistances;
+_Static_assert(sizeof(RuntimeHudResistances)==20,"native HUD resistance cache");
 typedef struct RuntimeNativeHud {
     SessionHandle handler,pc,pawn,world,baseline;
     uintptr_t base;
@@ -33,6 +35,25 @@ static uintptr_t runtime_native_hud_field(uintptr_t base,uintptr_t owner,const c
     }
     return 0;
 }
+static int runtime_native_hud_bool(uintptr_t base,uintptr_t owner,const char *name,int offset,uint64_t expected) {
+    uintptr_t field=runtime_native_hud_field(base,owner,name,"BoolProperty",offset,4);uint64_t mask=0;
+    return field&&read_at(field+0xd0,&mask,8)&&mask==expected;
+}
+static int runtime_native_hud_resistance_layout(uintptr_t base,uintptr_t member,uintptr_t owner) {
+    uintptr_t current=runtime_native_hud_field(base,member,"Resistances","StructProperty",0x70,20);
+    uintptr_t displayed=runtime_native_hud_field(base,member,"DisplayedResistances","StructProperty",0x84,20);
+    uintptr_t type=read_ptr(current+0xd0);
+    return current&&displayed&&narrative_probe_object(base,type,"ScriptStruct")&&read_ptr(type+0x40)==owner&&
+        read_ptr(displayed+0xd0)==type&&
+        runtime_native_hud_field(base,type,"fHealthPct","FloatProperty",0,4)&&
+        runtime_native_hud_field(base,type,"fArmourPct","FloatProperty",4,4)&&
+        runtime_native_hud_field(base,type,"fBioticPct","FloatProperty",8,4)&&
+        runtime_native_hud_field(base,type,"fShieldPct","FloatProperty",12,4)&&
+        runtime_native_hud_bool(base,type,"bHasShield",16,1)&&runtime_native_hud_bool(base,type,"bHasArmour",16,2)&&
+        runtime_native_hud_bool(base,type,"bHasBiotic",16,4)&&runtime_native_hud_bool(base,type,"bHasHealth",16,8)&&
+        runtime_native_hud_bool(base,member,"bVisible",0xb8,0x400)&&
+        runtime_native_hud_bool(base,member,"bDisplayVisible",0xb8,0x8000);
+}
 static int runtime_native_hud_layout(uintptr_t base,uintptr_t handler) {
     uintptr_t klass=read_ptr(handler+0x50),owner=0;char name[96];
     if(!narrative_probe_object(base,handler,"SFXSFHandler_PCHUD")||read_ptr(handler)!=base+0x14f58b0)return 0;
@@ -48,7 +69,7 @@ static int runtime_native_hud_layout(uintptr_t base,uintptr_t handler) {
     object_name(base,target,name,sizeof name);
     return owner&&info&&narrative_probe_object(base,type,"ScriptStruct")&&read_ptr(type+0x40)==owner&&
         narrative_probe_object(base,target,"Class")&&!strcmp(name,"BioPawn")&&invalid&&
-        read_at(invalid+0xd0,&mask,8)&&mask==0x200&&
+        read_at(invalid+0xd0,&mask,8)&&mask==0x200&&runtime_native_hud_resistance_layout(base,type,owner)&&
         runtime_power_property(base,handler,"SFXSFHandler_HUD","m_pPlayerController","ObjectProperty",0x708,8)&&
         runtime_power_property(base,handler,"SFXSFHandler_HUD","m_pPlayerSquad","ObjectProperty",0x710,8)&&
         runtime_power_property(base,handler,"SFXGUIMovie","oWorldInfo","ObjectProperty",0x2bc,8);
@@ -173,15 +194,38 @@ static void runtime_native_hud_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     q->handler=session_capture_handle(found);q->pc=session_capture_handle(c.pc);q->pawn=session_capture_handle(c.pawn);q->world=session_capture_handle(c.world);
     q->active=session_handle_matches(q->handler)&&session_handle_matches(q->pc)&&session_handle_matches(q->pawn)&&session_handle_matches(q->world);
 }
-static int runtime_native_hud_showing(uintptr_t base,SessionContext c) {
-    RuntimeNativeHud *q=&runtime_native_hud;uint32_t flags=0;GameArray modes={0};
+static int runtime_native_hud_health_allowed(uintptr_t base,SessionContext c) {
+    GameArray modes={0};
     uintptr_t mode=0;uint32_t permission=0;
-    return q->observed&&GetTickCount()-q->observed<=1000&&runtime_native_hud_scope(base,c)&&runtime_native_hud_owner(base,c)&&
-        read_ptr(q->handler.pointer+0x3cc)==c.pawn&&read_at(q->handler.pointer+0x8b8,&flags,4)&&(flags&0x100)&&!(flags&0x4000)&&
-        narrative_probe_object(base,c.manager,"SFXGameModeManager")&&identity_array(c.manager+0x70,&modes,64)&&
+    return narrative_probe_object(base,c.manager,"SFXGameModeManager")&&identity_array(c.manager+0x70,&modes,64)&&
         c.mode>=0&&c.mode<modes.count&&read_at(modes.data+(size_t)c.mode*8,&mode,8)&&
         narrative_probe_object(base,mode,"SFXGameModeBase")&&read_ptr(mode+0x40)==c.pc&&
         read_at(mode+0xd0,&permission,4)&&(permission&0x84)==0x84;
+}
+/* 1: visible native panel; 2: native full-resistance auto-hide. Neither state
+ * needs an extra Canvas health panel. Config bit 0x4000 is not consumed by the
+ * measured player-health renderer and cannot stand in for visibility. */
+static int runtime_native_hud_health_state(uint32_t flags,uint32_t info,uint32_t combat,const RuntimeHudResistances values[2]) {
+    if(!(flags&0x100)||!(info&0x400)||(info&0x200)||!(values[0].flags&8)||
+       values[0].flags!=values[1].flags||(values[0].flags&~15u))return 0;
+    for(unsigned n=0;n<2;++n)for(unsigned i=0;i<4;++i)
+        if(!isfinite(values[n].value[i])||values[n].value[i]<0||values[n].value[i]>1)return 0;
+    if(info&0x8000)return 1;
+    if(!(flags&0x2000)||(flags&0x10)||!(combat&8))return 0;
+    /* Native sampling clamps to [0,1]. All present bars must be fully settled,
+     * so a hidden/missing or still-interpolating health bar retains fallback. */
+    static const unsigned bits[4]={8,2,4,1};
+    for(unsigned n=0;n<2;++n)for(unsigned i=0;i<4;++i)
+        if((values[n].flags&bits[i])&&values[n].value[i]!=1.0f)return 0;
+    return 2;
+}
+static int runtime_native_hud_showing(uintptr_t base,SessionContext c) {
+    RuntimeNativeHud *q=&runtime_native_hud;uint32_t flags=0,info=0,combat=0;RuntimeHudResistances values[2];
+    return q->observed&&GetTickCount()-q->observed<=1000&&runtime_native_hud_scope(base,c)&&runtime_native_hud_owner(base,c)&&
+        read_ptr(q->handler.pointer+0x3cc)==c.pawn&&runtime_native_hud_health_allowed(base,c)&&
+        read_at(q->handler.pointer+0x8b8,&flags,4)&&read_at(q->handler.pointer+0x3ec,&info,4)&&
+        read_at(q->handler.pointer+0x3a4,values,sizeof values)&&read_at(c.pawn+0xe18,&combat,4)&&
+        runtime_native_hud_health_state(flags,info,combat,values);
 }
 static int runtime_native_hud_teammate_showing(uintptr_t base,SessionContext c) {
     if(!runtime_native_hud_showing(base,c)||!presentation_guest_valid(base))return 0;
@@ -200,6 +244,25 @@ static void runtime_native_hud_fixture_player(void *self) {
     if((uintptr_t)self==19&&GetLastError()==603)++runtime_native_hud_fixture_calls[1];SetLastError(604);
 }
 static int runtime_native_hud_selftest(void) {
+    RuntimeHudResistances values[2]={{{1,0,0,1},9},{{1,0,0,1},9}};
+    /* The recorded 0xd1c8/0x8400 native display must own presentation despite
+     * config bit 0x4000. Unknown, invalidated and hidden non-full data cannot. */
+    if(runtime_native_hud_health_state(0xd1c8,0x8400,8,values)!=1||
+       runtime_native_hud_health_state(0xd1c8,0x8600,8,values)||
+       runtime_native_hud_health_state(0xd1c8,0x8000,8,values)||
+       runtime_native_hud_health_state(0xd0c8,0x8400,8,values)||
+       runtime_native_hud_health_state(0xd1c8,0x400,8,values)||
+       runtime_native_hud_health_state(0xf1c8,0x400,8,values)!=2||
+       runtime_native_hud_health_state(0xf1d8,0x400,8,values)||
+       runtime_native_hud_health_state(0xf1c8,0x400,0,values))return 0;
+    values[1].value[3]=0.9f;
+    if(runtime_native_hud_health_state(0xf1c8,0x400,8,values))return 0;
+    values[1].value[3]=1;values[1].flags=8;
+    if(runtime_native_hud_health_state(0xd1c8,0x8400,8,values))return 0;
+    values[1].flags=9;values[0].value[0]=NAN;
+    if(runtime_native_hud_health_state(0xd1c8,0x8400,8,values))return 0;
+    values[0].value[0]=1.1f;
+    if(runtime_native_hud_health_state(0xd1c8,0x8400,8,values))return 0;
     /* Conditional unaligned display-source writes preserve adjacent fields
      * and refuse a native replacement instead of overwriting it. */
     _Alignas(8) unsigned char memory[24];memset(memory,0xa5,sizeof memory);

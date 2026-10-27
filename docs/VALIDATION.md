@@ -1,5 +1,13 @@
 # Validation status
 
+The native guest HUD fallback now follows actual member display state and
+current/displayed resistance-cache readiness, including native full-health
+auto-hide. The old config-bit proxy contradicted 49 recorded owned-Ashley
+samples with the native member displayed. The fallback also respects native
+HUD/health mode permissions. No new UI/gameplay writes or hooks are introduced;
+native policy fixtures cover the recorded state and negative conditions.
+Live visual parity and damage/recharge remain owner checks.
+
 The story-trigger candidate adds native admission and brush movement guards
 for classified Shepard story entries, plus a deferred Mars shuttle closure
 that checks every current human pawn against the authored cabin. Native
