@@ -49,7 +49,11 @@ static int guest_collision_disabled(const GuestCollisionShape *s) {
     /* Actual landing release: actor collision stays enabled, but world and
      * blocking collision are absent. Admit only the observed type/response,
      * not arbitrary partial collision states. */
-    if(s&&s->actor==0x20000000)return s->block==0&&s->component==0x12&&s->type==8&&s->replicated==8;
+    if(s&&s->actor==0x20000000)return
+        (s->block==0&&s->component==0x12&&s->type==8&&s->replicated==8)||
+        /* Measured ordinary landing return: actor collision/blocking and the
+         * healthy cylinder survive, but world collision and type are cleared. */
+        (s->block==1&&s->component==0xaa&&s->type==0&&s->replicated==0);
     /* The engine can disable Actor collision while its cylinder retains the
      * captured class-default response0xaa. Missing Actor world collision is
      * required for this fully disabled Actor case. */
@@ -251,6 +255,8 @@ static int guest_collision_selftest(void) {
     if(guest_collision_option(0,L""))return 0;
 #endif
     if(!guest_collision_option(1,L"1")||guest_collision_option(1,L"0")||guest_collision_option(7,L"invalid"))return 0;
+    GuestCollisionShape world_only_lost={0x20000000,1,0xaa,0,0};
+    if(!guest_collision_disabled(&world_only_lost))return 0;
     GuestCollisionShape real_release={0,1,0xaa,0,0};
     if(!guest_collision_disabled(&real_release))return 0;
     real_release.type=12;real_release.replicated=12;if(guest_collision_disabled(&real_release))return 0;

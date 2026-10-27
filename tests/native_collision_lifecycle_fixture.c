@@ -257,6 +257,24 @@ static int variant_cases(void) {
     }
     GuestCollisionShape unknown_type={0x40000000,0,0xaa,12,12},unknown_response={0x40000000,0,0xba,0,0};
     CHECK(!guest_collision_disabled(&unknown_type)&&!guest_collision_disabled(&unknown_response));
+    /* Ordinary landing return: only world collision is missing; retain actor
+     * collision/blocking/cylinder and require the same captured release path. */
+    for(uint32_t adjacent=0;adjacent<=2;adjacent+=2){
+        reset_fixture();use_variant();frame(1,1,100);CHECK(guest_collision_restore.tracked);
+        owned=0;guest_player_context_lease.registered=0;set_shape(address(&pawn),address(&component),0);
+        u32(address(&pawn)+0x260,0x29690100);u32(address(&pawn)+0x264,0x444001|adjacent);
+        u32(address(&component)+0x16c,0x8600aa);put_byte(address(&pawn)+0x26b,0);put_byte(address(&pawn)+0x26c,0);
+        frame(0,1,200);CHECK(!guest_collision_restore.released);
+        frame(0,1,210);CHECK(guest_collision_restore.released&&dispatches==0);
+        reacquire();frame(1,1,310);CHECK(restored());
+        uint32_t after=0;read_at(address(&pawn)+0x264,&after,4);CHECK((after&2)==adjacent);
+        int calls=dispatches;frame(1,1,320);CHECK(dispatches==calls);
+    }
+    for(unsigned int field=0;field<4;++field){
+        GuestCollisionShape bad={0x20000000,1,0xaa,0,0};
+        if(field==0)bad.block=0;if(field==1)bad.component=0xba;if(field==2)bad.type=1;if(field==3)bad.replicated=10;
+        CHECK(!guest_collision_disabled(&bad));
+    }
     /* Live landing return: the same reciprocal owned pawn/channel, role0/2,
      * type8/response12 and no world/blocking collision. The initial role0
      * baseline is still refused above. No role byte may be rewritten. */

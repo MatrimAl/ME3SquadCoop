@@ -38,6 +38,19 @@ cleanup passed. The next observer includes both Ashley replicas' movement and
 collision fields. Default activation does not broaden any repair predicate,
 and is not a claim that this newly reported fall has been diagnosed or fixed.
 
+The next ordinary pair (`9d4679a`) captured a concrete missing release shape.
+Guest collision began healthy with actor/world mask 0x60000000, block 1,
+cylinder 0xaa and type 6. During the actual scene release it changed to
+0x20000000, block 1, cylinder 0xaa and type/replicated type 0/0. This persisted
+across several unowned samples and after the second registration token, while
+the authoritative Ashley retained healthy collision. The old predicate refused
+that exact combination, so default activation alone could not repair it.
+The predicate now admits only this additional measured shape through the same
+two-sample release/new-lease/identity guards. Repair still uses native type 6
+and the captured world-collision bit; no coordinate, velocity or role write
+was added. The lifecycle fixture checks this variant, adjacent-bit preservation,
+one-attempt behavior and rejection of nearby unmeasured variants.
+
 The ordinary runtime keeps the session-lifetime gate separate from permission
 to write on a particular frame. A scene or `bPlayersOnly` interval suspends
 repair while preserving the healthy baseline and released-state observations.
