@@ -1,5 +1,15 @@
 # Validation status
 
+Power controller-cache preparation now also runs on the host's captured remote
+Ashley lease. The original guest-only path remains. It reuses native ownership/
+channel/story admission, accepts no local input object for that remote PC, and
+requires the exact detached original AI before replacing an AI cache. Conditional
+cleanup cannot block narrative release and handles an idle action's disposed-PC
+cache without dereferencing that PC. Fixtures cover host catalog identity changes,
+AI admission policy, busy/downed cleanup refusal and foreign-owner preservation.
+Live stale caches, keyboard power delivery, host effects and AI power behavior
+after release remain owner checks; no game was launched for this integration.
+
 Both peers now include a read-only teammate health/shield and downed/dead HUD.
 The host uses the current captured Ashley lease; the guest uses the validated
 remote Shepard channel. Samples bind both pawn lifetimes, controller/world,

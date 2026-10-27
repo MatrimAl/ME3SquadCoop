@@ -161,3 +161,14 @@ does not establish that Ashley retains stale caches during actual possession.
 No runtime cache write, reset, recreation or additional possession was added.
 No game or behavioral test ran. Live cache observation remains necessary
 before treating this research hypothesis as an observed gameplay fault.
+
+## Ordinary power integration candidate
+
+The ordinary runtime now conditionally initializes existing idle power-controller
+caches on both the guest and the authoritative host Ashley. This closes a static
+integration gap: the prior adapter only ran on the guest. It is not new evidence
+that a stale host cache was observed in-game. The host path is restricted to the
+exact captured guest lease, an empty PC cache, and either no AI or the detached
+captured original AI. It preserves existing nonempty PC and native replacements.
+Pre-handoff cleanup is conditional and cannot block narrative/AI release.
+See [the implemented scope and owner checks](GUEST-PLAYER-HUD.md).

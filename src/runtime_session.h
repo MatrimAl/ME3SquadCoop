@@ -106,6 +106,23 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_guest_vitals_hud.h"
 #include "runtime_team_hud.h"
 #include "runtime_power_action_context.h"
+static SessionContext runtime_host_power_context(uintptr_t engine) {
+    SessionContext c=session_context(engine);
+    c.pc=session_remote;c.pawn=session_pawn;return c;
+}
+static void runtime_host_power_context_tick(uintptr_t base,uintptr_t engine) {
+    SessionContext host=session_context(engine),remote=runtime_host_power_context(engine);
+    int enabled=runtime_control_enabled&&runtime_scope_ready;
+    int ordinary=enabled&&!session_engine_blocked(host);
+    runtime_power_action_context_retire(base,remote,ordinary,enabled,0);
+    runtime_power_action_context_prepare(base,remote,ordinary,enabled);
+}
+static void runtime_before_host_control_release(uintptr_t base,uintptr_t engine) {
+    /* Conditional cache cleanup never delays the core's story/AI handoff.
+     * Busy actions retain pending cleanup until their ordinary idle state. */
+    runtime_power_action_context_retire(base,runtime_host_power_context(engine),0,0,0);
+    if(runtime_revive_opted())runtime_revive_before_host_release(base,engine);
+}
 static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     SessionContext c=session_context(engine);
     uint32_t world_flags=0;
@@ -193,8 +210,8 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     if(g_runtime_config.role==ME3_ROLE_GUEST) {
         runtime_guest_frame(base,engine,after,now);return;
     }
-    session_before_control_release=runtime_revive_opted()?runtime_revive_before_host_release:NULL;
-    if(!after)runtime_revive_host_tick(base,engine,now);
+    session_before_control_release=runtime_before_host_control_release;
+    if(!after){runtime_host_power_context_tick(base,engine);runtime_revive_host_tick(base,engine,now);}
     /* The core must see disable/world invalidation while a lease exists.
      * Its pending native-disconnect path continues proving actual removal. */
     if(session_active&&(!runtime_control_enabled||!runtime_scope_ready)) {
@@ -204,6 +221,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     session_host_frame(base,engine,after);
     if(after) {
         runtime_scope_ready=runtime_session_scope(base,engine);
+        runtime_host_power_context_tick(base,engine);
         runtime_presentation_tick(base,engine,GetTickCount());
         runtime_revive_peer_tick(base,engine,GetTickCount());
         runtime_guest_vitals_tick(base,engine,GetTickCount());

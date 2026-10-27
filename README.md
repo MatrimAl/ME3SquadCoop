@@ -13,6 +13,8 @@ keyboard power slots/icons by default, with scoped initialization of existing
 idle power controller caches. These changes compile and pass their native
 fixtures; their visible behavior and actual casts await owner testing. See
 [guest player controls](docs/GUEST-PLAYER-HUD.md).
+The same scoped controller preparation now also covers the host's authoritative
+Ashley power instances; live power effects and AI recovery remain owner checks.
 Both peers also receive a teammate health/shield readout with native downed/dead
 status: Ashley on the host and Shepard on the guest. Replica readings can remain
 unknown; visual appearance and update behavior await owner testing.

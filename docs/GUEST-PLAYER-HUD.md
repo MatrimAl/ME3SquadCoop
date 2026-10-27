@@ -62,3 +62,30 @@ the bars appear, track damage/recharge, disappear during scenes, and that normal
 power keys display/select Ashley powers and produce native cooldown/effects.
 These implementations are progress toward LEMP/Shepard-style guest controls;
 they do not establish complete multiplayer combat or campaign support.
+
+## Authoritative power controller context
+
+The host now also prepares existing Ashley power instances for its actual remote
+player controller. This was previously a guest-only adapter. The host path uses
+the captured story/possession lease, session epoch and exact native actor channel,
+connection and driver; it does not need a local PlayerInput on that remote PC.
+It reuses read-only admission checks without depending on the revive setting or
+private animation addon. Shepard's own power instances are outside this scope.
+
+Only eligible, already owned, idle power objects with an empty PC cache are
+considered. A nonempty AI cache must be the exact captured original AI, still
+live and detached. The existing reflected field checks and conditional pointer
+writes apply on both peers. No rank, cooldown, target, manager array or action
+lifecycle is changed. Scene/disable/disconnect requests retirement before the
+core's handoff; busy cleanup stays pending and never delays story/AI restoration.
+An idle stamped action can clear the exact old PC cache after that PC is disposed,
+without dereferencing it. A different owner or native cache replacement is kept.
+The same `ME3_SQUAD_COOP_POWER_ACTION_CONTEXT=0` disables preparation for comparison.
+
+Native fixtures cover host epoch/channel/manager/power identity refusal, the
+missing-local-input contract, detached-original-AI policy, disposed-PC idle
+cleanup and foreign-owner restoration refusal. This does not establish a live
+power effect. The owner should cast an Ashley keyboard power at a valid enemy,
+check host-side impact/cooldown, then verify normal AI powers after disconnect
+and powers after reconnect. Gamepad work is deferred at the owner's request;
+its existing opt-in candidate is unchanged.
