@@ -1,5 +1,11 @@
 # Validation status
 
+The current ordinary host adds delayed-fire cancellation after a verified
+incoming guest stop RPC and completed stock script. Native fixtures pass the
+exact forwarding/order/LastError contract, refusal conditions and stock timer
+call ABI. This does not establish live cancellation or re-press behavior; those
+are recorded for the owner's in-game check. No game was launched for this build.
+
 Guest health/shield Canvas drawing and idle power-controller context binding
 are now implemented, with native keyboard power slots/icons defaulting on.
 The native harness passed fraction/unknown-value and exactly-once HUD

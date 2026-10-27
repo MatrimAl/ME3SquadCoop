@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-27: stop a queued fire start after actual guest release
+
+The ordinary host now includes a scoped delayed-fire stop correction. A real
+incoming `SFXWeapon.ServerStopFire` must finish its unchanged stock script for
+the current guest's selected weapon. Only the retained Active/pending-mode2/
+current-mode0 case then calls stock ClearTimer for that weapon's CheckBeginFire.
+Current receive frame/channel, lease epoch, reciprocal pawn/controller/weapon/
+inventory ownership, world/story and reflected/native method identities gate
+the intervention. No sampled fire flag replaces a release request, no new shot
+is requested, and no ammunition or pending-fire field is authored.
+
+Four native targets rebuilt and the native runtime harness passed the added
+forwarding/order/LastError, negative eligibility and ClearTimer parameter
+checks. No game was launched. Cancellation during weapon preparation and a
+successful fresh press afterward remain owner gameplay checks. The health/
+shield HUD and normal power-control changes remain included.
+
 ## 2026-10-27: guest health/shield display and power readiness
 
 The ordinary guest now has a Canvas health/shield HUD with numeric values,

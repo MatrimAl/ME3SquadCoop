@@ -158,3 +158,14 @@ preparation window, only this explicit experiment now waits250ms of valid
 ownership instead of the normal two seconds before its first pulse. No native
 permission or identity check is skipped. That earlier experiment still needs
 a new real-client test.
+
+The ordinary host now includes a default-on candidate for this exact delayed
+release case (`ME3_SQUAD_COOP_DELAYED_FIRE_STOP=0` disables it). Only an actual
+incoming native weapon-channel `ServerStopFire` with a validated current owned
+Ashley session can enter it: the original VM callback runs once, then the same
+world/connection/weapon/epoch must still match, its script must have completed,
+and Active/pending2/current0/default2 must remain before stock
+`ClearTimer(CheckBeginFire,self)` is dispatched. Sampled `bFire=0` never replaces
+the incoming stop, and no automatic start/re-press, ammo, pending-mode or timer
+array write is added. The existing protected experiment remains unchanged;
+ordinary cancellation and a subsequent human re-press remain live-unverified.

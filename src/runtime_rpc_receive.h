@@ -64,6 +64,7 @@ static int runtime_rpc_receive_install(uintptr_t base) {
     line("{\"runtime\":\"rpc-receive-context-installed\",\"forwarding_only\":true}\r\n");return 1;
 }
 #include "runtime_owned_optimized_receive.h"
+#include "runtime_delayed_fire_stop.h"
 static void runtime_rpc_receive_prepare(uintptr_t base) {
     /* The scalar presentation RPC uses the same forwarding-only provenance
      * frame. Reconciliation retains its separate explicit opt-in. */
@@ -72,10 +73,12 @@ static void runtime_rpc_receive_prepare(uintptr_t base) {
     if(presentation<0){wchar_t value[8]={0};DWORD n=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_REMOTE_PRESENTATION",value,8);
         presentation=!n||(n==1&&value[0]==L'1');}
     int owned=g_runtime_config.role==ME3_ROLE_GUEST&&runtime_owned_optimized_opted();
-    if(((opted||presentation||owned)&&runtime_control_enabled&&runtime_scope_ready)||
+    int delayed=g_runtime_config.role==ME3_ROLE_HOST&&runtime_delayed_fire_stop_enabled();
+    if(((opted||presentation||owned||delayed)&&runtime_control_enabled&&runtime_scope_ready)||
        (g_runtime_config.role==ME3_ROLE_GUEST&&initial_object_opted()&&runtime_control_enabled)) {
         if(runtime_rpc_receive_install(base)){initial_object_install(base);runtime_initial_reference_install(base);}
     }
     runtime_owned_optimized_prepare(base);
+    if(runtime_rpc_receive_installed)runtime_delayed_fire_stop_prepare(base);
 }
 #endif

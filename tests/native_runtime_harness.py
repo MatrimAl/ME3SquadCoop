@@ -53,6 +53,7 @@ def main():
                  "ME3RuntimeMappedPowerInputSelfTest",
                  "ME3RuntimeGuestVitalsSelfTest",
                  "ME3RuntimePowerActionContextSelfTest",
+                 "ME3RuntimeDelayedFireStopSelfTest",
                  "ME3RuntimeJoinReadinessSelfTest",
                  "ME3RuntimeJoinDiagnosticsSelfTest",
                  "ME3RuntimeJoinProgressSelfTest",
