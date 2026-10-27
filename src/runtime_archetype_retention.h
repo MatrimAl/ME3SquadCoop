@@ -152,8 +152,19 @@ static int runtime_archetype_retain(uintptr_t base,uintptr_t engine,uintptr_t wo
     memcpy(params.group,next.group,8);params.assets=(GameArray){(uintptr_t)requests,next.count,next.count};
     if(!guest_camera_stamp_matches(base,&next.engine,1)||!guest_camera_stamp_matches(base,&next.loader,1)||
        !guest_camera_stamp_matches(base,&next.world,1)||read_ptr(engine+0xd90)!=loader||runtime_asset_group_count(loader,next.group)!=0)return 0;
+    /* The retained native wrapper calls this exact four-argument method:
+     * loader, group by value, request-array reference, delegate reference.
+     * Passing the const/out array through external ProcessEvent did not
+     * establish an owned group in the observed ordinary run. Invoke the same
+     * stock method with an explicit array rather than fabricating a VM frame. */
+    static const unsigned char load_body_pin[]={0x4c,0x89,0x44,0x24,0x18,0x48,0x89,0x54,
+        0x24,0x10,0x48,0x89,0x4c,0x24,0x08,0x55,0x53,0x56,0x57,0x41,0x54,0x41,0x55,0x41};
+    unsigned char actual[sizeof load_body_pin];
+    if(!read_at(base+0xb03c10,actual,sizeof actual)||memcmp(actual,load_body_pin,sizeof actual))return 0;
+    uint64_t group_value=0;memcpy(&group_value,params.group,8);
+    typedef void (*LoadAssetsNative)(void*,uint64_t,const GameArray*,const void*);
     next.active=next.inflight=1;runtime_archetypes=next;
-    ((ProcessEvent)(base+0xf4f80))((void*)loader,(void*)fn,&params,NULL);
+    ((LoadAssetsNative)(base+0xb03c10))((void*)loader,group_value,&params.assets,params.callback);
     runtime_archetypes.inflight=0;
     int retained=runtime_archetype_group_owned(base,engine,1);char row[220];
     snprintf(row,sizeof row,"{\"runtime_archetype_retention\":\"requested\",\"templates\":%d,\"references_verified\":%s,\"travel_verified\":false}\r\n",next.count,retained?"true":"false");line(row);

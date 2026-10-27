@@ -1,5 +1,14 @@
 # Runtime integration status
 
+The first retained-template pair from `90786ee` opened the host listener but
+never joined the guest: its retention call returned without a verified owned
+group. A same-process read found no matching group record. The candidate now
+invokes the pinned stock native load body with the explicit request array;
+four targets built and the ordinary no-game harness passed. This revised call
+has not run in the game and is not a visibility fix claim. The one game run
+cleaned up with original profiles and TOC restored and no exceptions. See
+[player-template retention](PLAYER-ARCHETYPE-RETENTION.md).
+
 Ordinary guest startup now retains the loaded stock player archetypes in an
 owned native loader group through join, and releases its group on explicit
 lifecycle boundaries. Join admission checks the actual retained identities,

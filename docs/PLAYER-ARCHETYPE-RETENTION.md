@@ -52,3 +52,33 @@ ownership independent of the engine's current loader. No game was launched or
 installation changed. These checks do not establish real garbage-collection
 retention, travel survival, remote actor creation, rendered visibility or combat.
 Those outcomes remain to be checked together in a later gameplay run.
+
+## First ordinary-run result and revised dispatch
+
+The protected ordinary pair from `90786ee` opened the host listener but never
+dispatched guest join. Its retention call logged one template and false
+reference verification. A read-only snapshot of the same guest's loader found
+no record with the owned group suffix. This does not distinguish array-argument
+marshalling from later native group disposal, and is not a successful retention
+or visibility result. Both launchers ended at their limits; the audit recorded
+8210 original-file locks, unchanged original profiles, restored sandbox TOC,
+no exceptions or cleanup errors and no remaining game processes.
+
+The candidate now calls the stock native load method at RVA 0xb03c10 using the
+same four arguments shown by the retained wrapper at RVA 0xb734b0: loader,
+group by value, request-array pointer and delegate pointer. It validates the
+wrapper contract and the method's exact-build 24-byte entry before calling.
+This avoids depending on external ProcessEvent const/out-array marshalling;
+no fabricated script frame or changed function flags are used. The cause of
+the earlier absent group and the revised runtime result remain unverified.
+No second game run was performed.
+
+The paired window recorders were attached during startup and encoded 160x28
+frames in the host recording. A decoded frame did not establish rendered
+visibility. Future recording must wait for the game window's final client size
+before creating the capture, and verify encoded dimensions.
+
+The revised native call rebuilt all four targets and passed the ordinary
+no-game harness. The window recorder now rejects client areas below 640x360;
+its private coordinator waits for that size before capture. PowerShell parsing
+passed. Neither revised capture nor native dispatch was rerun in a game.

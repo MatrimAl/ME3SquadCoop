@@ -29,12 +29,19 @@ using System.Runtime.InteropServices;
 public static class ME3FeatureWindow {
  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr handle);
+ [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left, Top, Right, Bottom; }
+ [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr handle, out Rect rect);
 }
 '@
 $recordOwner=[uint32]0
 $recordHwnd=[IntPtr]::new([long]$WindowHandle)
 $null=[ME3FeatureWindow]::GetWindowThreadProcessId($recordHwnd,[ref]$recordOwner)
 if(![ME3FeatureWindow]::IsWindow($recordHwnd) -or $recordOwner -ne $GameProcessId){throw 'Window does not belong to selected PID'}
+$recordRect=[ME3FeatureWindow+Rect]::new()
+if(![ME3FeatureWindow]::GetClientRect($recordHwnd,[ref]$recordRect) -or
+   ($recordRect.Right-$recordRect.Left) -lt 640 -or ($recordRect.Bottom-$recordRect.Top) -lt 360){
+ throw 'Game client area is not ready for recording; wait for the full game window'
+}
 $recordEncoder=(Resolve-Path -LiteralPath $FFmpegPath).Path
 $null=New-Item -ItemType Directory -Path $recordOutput
 $recordStart=[Diagnostics.ProcessStartInfo]::new()
@@ -53,7 +60,8 @@ $recordInfo=[ordered]@{Status='starting';GamePID=$GameProcessId;WindowHandle=$Wi
  FFmpegPath=$recordEncoder;FFmpegSHA256=(Get-FileHash -LiteralPath $recordEncoder -Algorithm SHA256).Hash;
  StartUTC=[DateTime]::UtcNow.ToString('o');StartTimestamp=[Diagnostics.Stopwatch]::GetTimestamp();
  StopwatchFrequency=[Diagnostics.Stopwatch]::Frequency;Arguments=$recordArgs;Audio='none';
- RecordingVerified=$false;GameLaunched=$false;InputsSent=$false;StopFile='STOP';SegmentSeconds=30}
+ RecordingVerified=$false;GameLaunched=$false;InputsSent=$false;StopFile='STOP';SegmentSeconds=30;
+ ClientWidth=($recordRect.Right-$recordRect.Left);ClientHeight=($recordRect.Bottom-$recordRect.Top)}
 $recordMeta=Join-Path $recordOutput 'recording.json'
 $recordInfo|ConvertTo-Json -Depth 4|Set-Content -LiteralPath $recordMeta -Encoding utf8
 $recordProcess=[Diagnostics.Process]::Start($recordStart)
