@@ -841,3 +841,20 @@ lifecycle fixtures passed, including ownership return without UI registration,
 old/zero UI tokens, camera mismatch and native scene/input/action/death refusal.
 No new game was launched. Exact native HUD appearance, Shift interactions,
 sustained post-scene movement and the prior native crash remain owner checks.
+
+## Follow-up owner crash and receive handoff candidate
+
+The c155661 owner pair connected and installed/bound the native HUD player
+source. It then released ownership for a real conversation, and the guest
+crashed about9.7seconds later in the same native collector instruction as the
+previous owner session. A retained Windows dump identifies an invalid reference
+in the sampled Ashley at the SDK FootstepForceFeedback offset. The origin of
+the corrupting write is not directly captured. Visual HUD parity and successful
+Shift operations are not established by source binding. The physical repair
+had no eligible disabled release shape before this crash.
+
+The next candidate retains a previously captured exact owner/channel identity
+for the existing optimized-payload parser during story handoff. Native build
+and runtime fixtures pass; the next owner gameplay run is pending. Original
+profiles remained unchanged, the protected TOC was restored byte-identically,
+all temporary authored content was removed and no game process remained.

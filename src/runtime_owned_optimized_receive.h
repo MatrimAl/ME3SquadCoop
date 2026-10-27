@@ -12,7 +12,7 @@ typedef struct RuntimeOwnedOptimizedLease {
     GuestCameraStamp pawn,world;
     uintptr_t base,channel;
     uint32_t cursor;
-    int changed;
+    int changed,handoff;
 } RuntimeOwnedOptimizedLease;
 static RuntimeOwnedOptimizedOriginal runtime_owned_optimized_original;
 static int runtime_owned_optimized_installed,runtime_owned_optimized_attempted;
@@ -35,6 +35,49 @@ static int runtime_owned_optimized_clear(volatile LONG *flags,uint32_t expected)
 static void runtime_owned_optimized_restore_bit(volatile LONG *flags) {
     InterlockedOr(flags,(LONG)0x4000);
 }
+/* A scene detaches the local PC before its actor channel stops receiving
+ * owner-marked payloads. Retain only a previously proved native owner/channel
+ * identity, independently of camera/UI registration and current possession. */
+typedef struct RuntimeOwnedReceiveScope {
+    GuestCameraStamp pc,pawn,world,channel,connection,driver;
+    int active,index;
+} RuntimeOwnedReceiveScope;
+static RuntimeOwnedReceiveScope runtime_owned_receive_scope;
+static DWORD runtime_owned_receive_refused;
+static int runtime_owned_receive_permission(int direct,int captured,unsigned char role) {
+    return (direct&&role==2)||(captured&&(role==1||role==2));
+}
+static int runtime_owned_receive_scope_same(uintptr_t base,SessionContext c,uintptr_t pawn,
+        const NetworkActorIdentityEntry *entry) {
+    RuntimeOwnedReceiveScope *s=&runtime_owned_receive_scope;
+    return s->active&&s->pc.pointer==c.pc&&s->pawn.pointer==pawn&&s->world.pointer==c.world&&
+        s->channel.pointer==entry->channel&&s->connection.pointer==entry->connection&&s->driver.pointer==entry->driver&&
+        s->index==entry->index&&session_actor_live(base,c.pc)&&read_ptr(c.pc+0x198)==c.world&&
+        guest_camera_stamp_matches(base,&s->pc,0)&&guest_camera_stamp_matches(base,&s->pawn,0)&&
+        guest_camera_stamp_matches(base,&s->world,0)&&guest_camera_stamp_matches(base,&s->channel,0)&&
+        guest_camera_stamp_matches(base,&s->connection,0)&&guest_camera_stamp_matches(base,&s->driver,0);
+}
+static void runtime_owned_receive_capture(uintptr_t base) {
+    RuntimeOwnedReceiveScope *s=&runtime_owned_receive_scope;
+    if(!runtime_control_enabled||!runtime_scope_ready||g_runtime_config.role!=ME3_ROLE_GUEST||!runtime_owned_optimized_opted()) {
+        s->active=0;return;
+    }
+    SessionContext c=session_context(session_engine);NetworkActorIdentityEntry entry={0};
+    if(s->active&&(s->world.pointer!=c.world||s->pc.pointer!=c.pc||
+       !guest_camera_stamp_matches(base,&s->pawn,0)||!guest_camera_stamp_matches(base,&s->channel,0)||
+       !guest_camera_stamp_matches(base,&s->connection,0)||!guest_camera_stamp_matches(base,&s->driver,0)))s->active=0;
+    if(!guest_player_context_basic_owned(base,c.pc,c.pawn,c.world)||
+       !is_kind_of(base,c.pawn,"SFXPawn_Ashley")||read_ptr(c.pawn)!=base+0x133c3f0||
+       !guest_player_context_channel(base,c.pawn,&entry))return;
+    unsigned char role=255;
+    if(!read_at(c.pawn+0x26a,&role,1)||role!=2||runtime_owned_receive_scope_same(base,c,c.pawn,&entry))return;
+    RuntimeOwnedReceiveScope next={0};
+    uintptr_t values[]={c.pc,c.pawn,c.world,entry.channel,entry.connection,entry.driver};
+    GuestCameraStamp *stamps[]={&next.pc,&next.pawn,&next.world,&next.channel,&next.connection,&next.driver};
+    for(unsigned n=0;n<6;++n)if(!guest_camera_stamp_read(base,values[n],stamps[n],0))return;
+    next.index=entry.index;next.active=entry.index>0;*s=next;
+    if(next.active)line("{\"runtime_owned_optimized\":\"native-owner-channel-captured\",\"handoff_payloads_only\":true}\r\n");
+}
 static RuntimeOwnedOptimizedLease runtime_owned_optimized_begin(uintptr_t pawn,uintptr_t archive,
         uintptr_t shadow,uintptr_t map,uintptr_t channel,uintptr_t caller) {
     RuntimeOwnedOptimizedLease lease={0};uintptr_t base=runtime_rpc_receive_base;
@@ -44,11 +87,12 @@ static RuntimeOwnedOptimizedLease runtime_owned_optimized_begin(uintptr_t pawn,u
        !frame||frame->channel!=channel||(caller!=base+0x488aeb&&caller!=base+0x489adf))return lease;
     SessionContext c=session_context(session_engine);NetworkActorScope before,after;NetworkActorIdentityEntry entry={0};
     uint32_t flags=0,actor_flags=0,loading=0,error=1,cursor=0,bits=0;int32_t size=0;unsigned char role=255;
-    /* This is a receive correction, not gameplay input: a scene need not be
-     * ordinary, but the current reciprocal autonomous owner must still match. */
-    if(c.pawn!=pawn||local_controller(session_engine)!=c.pc||!guest_camera_actor_live(base,c.pc)||
+    /* Positive native payload framing remains required during story release.
+     * Losing reciprocal possession does not make an already consumed marker
+     * safe to skip. Retained identity grants receive parsing only, no input. */
+    if(local_controller(session_engine)!=c.pc||!guest_camera_actor_live(base,c.pc)||
        !guest_camera_actor_live(base,pawn)||read_ptr(pawn)!=base+0x133c3f0||!is_kind_of(base,pawn,"SFXPawn_Ashley")||
-       read_ptr(pawn+0x374)!=c.pc||read_ptr(c.pc+0x3bc)!=pawn||!read_at(pawn+0x26a,&role,1)||role!=2||
+       !read_at(pawn+0x26a,&role,1)||
        !read_at(pawn+0x25c,&actor_flags,4)||(actor_flags&0x04000008)||
        !network_actor_read_scope(base,pawn,&before)||before.info!=c.world||
        !network_actor_channel_valid(base,pawn,channel,before.driver,&entry)||
@@ -60,6 +104,17 @@ static RuntimeOwnedOptimizedLease runtime_owned_optimized_begin(uintptr_t pawn,u
        !read_at(pawn+0x264,&flags,4)||!runtime_owned_optimized_case(1,1,1,1,1,1,flags,error,cursor,bits)||
        !guest_camera_stamp_read(base,pawn,&lease.pawn,0)||!guest_camera_stamp_read(base,c.world,&lease.world,0)||
        !network_actor_read_scope(base,pawn,&after)||memcmp(&before,&after,sizeof before))return lease;
+    int direct=c.pawn==pawn&&read_ptr(pawn+0x374)==c.pc&&read_ptr(c.pc+0x3bc)==pawn;
+    int captured=runtime_owned_receive_scope_same(base,c,pawn,&entry);
+    if(!runtime_owned_receive_permission(direct,captured,role)) {
+        DWORD now=GetTickCount();
+        if(!runtime_owned_receive_refused||now-runtime_owned_receive_refused>=5000) {
+            runtime_owned_receive_refused=now;
+            line("{\"runtime_owned_optimized\":\"positive-payload-refused\",\"reason\":\"no-current-or-captured-owner-scope\",\"payload_written\":false}\r\n");
+        }
+        return lease;
+    }
+    lease.handoff=!direct;
     if(runtime_owned_optimized_clear((volatile LONG*)(pawn+0x264),flags)) {
         lease.base=base;lease.channel=channel;lease.cursor=cursor;lease.changed=1;runtime_owned_optimized_busy=1;
     }
@@ -86,8 +141,8 @@ static void runtime_owned_optimized_forward(void *pawn,void *archive,void *shado
     DWORD exit_error=GetLastError();int restored=runtime_owned_optimized_end(&lease);
     if(lease.changed&&runtime_owned_optimized_rows++<16) {
         uint32_t cursor=0,error=1;int valid=read_at((uintptr_t)archive+0xa0,&cursor,4)&&read_at((uintptr_t)archive+0x38,&error,4);
-        char row[420];snprintf(row,sizeof row,"{\"runtime_owned_optimized\":\"native-payload-consumed\",\"owner_bit_restored\":%s,\"archive_read_valid\":%s,\"cursor_advanced\":%s,\"archive_error\":%u,\"payload_written\":false,\"position_written\":false,\"monotonic_ms\":%lu}\r\n",
-            restored?"true":"false",valid?"true":"false",valid&&cursor>lease.cursor?"true":"false",error,GetTickCount());line(row);
+        char row[480];snprintf(row,sizeof row,"{\"runtime_owned_optimized\":\"native-payload-consumed\",\"story_handoff\":%s,\"owner_bit_restored\":%s,\"archive_read_valid\":%s,\"cursor_advanced\":%s,\"archive_error\":%u,\"payload_written\":false,\"position_written\":false,\"monotonic_ms\":%lu}\r\n",
+            lease.handoff?"true":"false",restored?"true":"false",valid?"true":"false",valid&&cursor>lease.cursor?"true":"false",error,GetTickCount());line(row);
     }
     SetLastError(exit_error);
 }
@@ -95,6 +150,7 @@ static void runtime_owned_optimized_receive(void *pawn,void *archive,void *shado
     runtime_owned_optimized_forward(pawn,archive,shadow,map,channel,(uintptr_t)__builtin_return_address(0));
 }
 static void runtime_owned_optimized_prepare(uintptr_t base) {
+    runtime_owned_receive_capture(base);
     if(runtime_owned_optimized_attempted||!runtime_owned_optimized_opted()||g_runtime_config.role!=ME3_ROLE_GUEST||
        !runtime_control_enabled||!runtime_scope_ready||!runtime_rpc_receive_installed)return;
     runtime_owned_optimized_attempted=1;

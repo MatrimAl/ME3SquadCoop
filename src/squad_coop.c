@@ -268,6 +268,10 @@ static void runtime_owned_fixture_original(void *a,void *b,void *c,void *d,void 
     SetLastError(609);
 }
 __declspec(dllexport) int ME3RuntimeOwnedOptimizedSelfTest(void) {
+    for(unsigned role=0;role<=3;++role)for(int direct=0;direct<2;++direct)for(int captured=0;captured<2;++captured) {
+        int wanted=(direct&&role==2)||(captured&&(role==1||role==2));
+        if(runtime_owned_receive_permission(direct,captured,(unsigned char)role)!=wanted)return 0;
+    }
     if(!runtime_owned_optimized_case(1,1,1,1,1,1,0x4000,0,10,15)||
        runtime_owned_optimized_case(1,1,0,1,1,1,0x4000,0,10,15)||
        runtime_owned_optimized_case(1,1,1,0,1,1,0x4000,0,10,15)||
