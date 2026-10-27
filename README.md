@@ -13,6 +13,9 @@ keyboard power slots/icons by default, with scoped initialization of existing
 idle power controller caches. These changes compile and pass their native
 fixtures; their visible behavior and actual casts await owner testing. See
 [guest player controls](docs/GUEST-PLAYER-HUD.md).
+Both peers also receive a teammate health/shield readout with native downed/dead
+status: Ashley on the host and Shepard on the guest. Replica readings can remain
+unknown; visual appearance and update behavior await owner testing.
 It also includes a scoped fix for a queued fire start surviving a real guest
 fire release during weapon preparation. Live cancellation and a fresh press
 afterward remain owner checks; see [firing scope](docs/NATIVE-FIRE-OBSERVATION.md).

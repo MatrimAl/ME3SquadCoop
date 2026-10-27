@@ -12,8 +12,9 @@ This is the intended experience, not a claim that it currently works.
 | --- | --- | --- |
 | Move, turn and use cover | Responsive local control and consistent authoritative position through sustained combat and scene return | Short replicated movement observed; sustained walking and position continuity remain unverified |
 | Aim and fire | Normal shoulder view, weapon handling, reload and reliable press/release behavior; host-confirmed enemy effects | Native firing and a prior attributed hit observed; repeatability, stopping and equipment readiness incomplete |
-| Use powers | Normal keyboard and gamepad actions, native targeting and cooldowns; authoritative effects | Native routing researched; explicit scoped request candidate compiled; actual casts and ordinary bindings unverified |
-| Get downed and recover | Native incapacitation and revival, followed by usable control without manual reconnect | Admission/camera guards implemented; inspected Ashley default lacks revive action5; actual action availability, ownership and revival continuity unverified |
+| Use powers | Normal keyboard and gamepad actions, native targeting and cooldowns; authoritative effects | Normal keyboard slots/icons and existing power controller initialization implemented; gamepad bridge opt-in; actual casts/input unverified |
+| See combat state | Own and teammate health/shields, visible downed teammate status | Guest own HUD and both-peer teammate readout implemented with unknown/stale-data handling; appearance and authoritative replication await owner checks |
+| Get downed and recover | Native incapacitation and revival, followed by usable control without manual reconnect | Native peer agreement and both-pawn action5/animation preparation implemented; private addon required; actual loading, mutual revival and continuity unverified |
 | Watch dialogue/cinematics | Native scene presentation, host story authority and automatic return to stable guest control | Limited scene handoffs observed; full conversations, collision and sustained return incomplete |
 | Change missions or reload | Reestablish the guest's campaign character without repeating per-mission configuration | Optional recovery scheduling compiled; actual campaign transitions unverified |
 

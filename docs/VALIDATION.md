@@ -1,5 +1,14 @@
 # Validation status
 
+Both peers now include a read-only teammate health/shield and downed/dead HUD.
+The host uses the current captured Ashley lease; the guest uses the validated
+remote Shepard channel. Samples bind both pawn lifetimes, controller/world,
+channel/index, connection/driver and session token, and expire after one second.
+Native fixtures reject every changed identity, expired samples and invalid
+value sources, and cover native death/downed flag priority. Existing own-HUD
+forwarding and LastError checks pass. No game was launched; appearance,
+health/shield replication and life-state transitions remain owner checks.
+
 The ordinary revive candidate now resolves Activate/CanActivate/Suspend and
 prepares canonical Shepard/Ashley slots on both peers, including the guest's
 simulated Shepard presentation. Native owner-PC readiness messages bind actual

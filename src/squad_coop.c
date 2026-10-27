@@ -167,7 +167,7 @@ __declspec(dllexport) int ME3RuntimeGuestVitalsSelfTest(void) {
     memset(&guest_vitals,0,sizeof guest_vitals);guest_vitals.original=guest_vitals_fixture_forward;guest_vitals_fixture_calls=0;
     SetLastError(411);guest_vitals_process_event((void*)1,(void*)2,(void*)3,(void*)4);
     int ok=guest_vitals_fixture_calls==1&&GetLastError()==412;
-    guest_vitals=saved;SetLastError(error);return ok;
+    guest_vitals=saved;SetLastError(error);return ok&&runtime_team_hud_selftest();
 }
 __declspec(dllexport) int ME3RuntimeNetworkStartSelfTest(void) {return runtime_network_start_selftest()&&runtime_startup_focus_selftest()&&runtime_package_preload_selftest();}
 __declspec(dllexport) int ME3RuntimeTravelIdleSelfTest(void) {return runtime_join_travel_idle_selftest();}

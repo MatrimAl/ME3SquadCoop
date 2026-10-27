@@ -18,6 +18,7 @@ static unsigned presentation_events;
 /* Additional authored gameplay admission uses these same two owner-PC RPCs.
  * Its receiver may only queue scalars; engine calls stay on the normal Tick. */
 static int (*presentation_peer_enabled)(void);
+static int (*presentation_scope_enabled)(void);
 static int (*presentation_peer_receive)(uintptr_t,uintptr_t,int,const wchar_t*,size_t,const NetworkActorIdentityEntry*);
 static uint64_t presentation_sequence,presentation_pending;
 static DWORD presentation_sent_at,presentation_scan_at,presentation_received_at;
@@ -216,13 +217,14 @@ static int presentation_default_host(uintptr_t base,uintptr_t pawn) {
 }
 static void runtime_presentation_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     SessionContext c=session_context(engine);
-    if((!presentation_opted()&&!(presentation_peer_enabled&&presentation_peer_enabled()))||
+    int rpc_needed=presentation_opted()||(presentation_peer_enabled&&presentation_peer_enabled());
+    if((!rpc_needed&&!(presentation_scope_enabled&&presentation_scope_enabled()))||
        !runtime_control_enabled||!runtime_scope_ready||session_engine_blocked(c)) {
         memset(&presentation_guest,0,sizeof presentation_guest);presentation_pending=0;presentation_received=0;
         presentation_weapon_candidate=presentation_weapon_pending=presentation_weapon_confirmed=0;
         presentation_host_request.active=0;return;
     }
-    presentation_install(base,c.pc);if(!presentation_installed)return;
+    if(rpc_needed){presentation_install(base,c.pc);if(!presentation_installed)return;}
     if(g_runtime_config.role==ME3_ROLE_HOST) {
         if(!presentation_opted()){presentation_host_request.active=0;return;}
         PresentationHostRequest r=presentation_host_request;presentation_host_request.active=0;
