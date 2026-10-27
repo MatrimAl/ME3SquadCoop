@@ -51,6 +51,17 @@ and the captured world-collision bit; no coordinate, velocity or role write
 was added. The lifecycle fixture checks this variant, adjacent-bit preservation,
 one-attempt behavior and rejection of nearby unmeasured variants.
 
+The following `ef11491` run admitted that release shape and captured two
+matching disabled snapshots. Its actual reacquired pawn remained local Role2,
+but RemoteRole became 1, which the old ordinary predicate rejected. The
+read-only samples retained the same pawn identity and reciprocal local
+possession while collision remained disabled. The retained-baseline branch
+now admits RemoteRole 1 as well as 0; initial-baseline admission still refuses
+both, and local Role2, native current channel, new lease, life and scene gates
+remain required. The fixture exercises repair without changing either role
+byte and rejects simulated/authority local roles. This latest correction still
+needs a real scene-return observation; the prior run is not a repair success.
+
 The ordinary runtime keeps the session-lifetime gate separate from permission
 to write on a particular frame. A scene or `bPlayersOnly` interval suspends
 repair while preserving the healthy baseline and released-state observations.
