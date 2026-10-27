@@ -1,5 +1,24 @@
 # Runtime integration status
 
+The ordinary pair from `4afddca` connected and retained native connection
+scope until the guest deadline. Of 43 paired channel snapshots, 41 observed
+a live skeletal mesh on the host Shepard replica in the guest. The retention
+observer recorded the owned template group in 89 samples. However, the owner
+reported that Shepard appears in T-pose from Ashley's view. Presentation is
+therefore incomplete: actor/mesh presence is not functioning animation.
+Both windows recorded at usable size; inspected frames show local characters
+but do not independently attribute a remote Shepard pose. Cleanup preserved
+original profiles, restored the sandbox TOC, and left no game processes,
+native exceptions or cleanup errors. No combat or campaign success is claimed.
+
+The next investigation is the remote player's animation initialization after
+late mesh creation. Selected exact-build script exports `UpdateBodyAppearance`
+(39924) and `PostBeginPlay` (40099) were retained privately. The former calls
+`UpdateMeshComponent` and updates child bone maps/physics; the latter delegates
+to its parent startup. `ApplyAppearance` calls `CacheCrucialAnimNodes`, but that
+alone does not prove an animation tree was initialized. Do not replay the full
+PostBeginPlay lifecycle or copy host pointers to address the reported pose.
+
 The first retained-template pair from `90786ee` opened the host listener but
 never joined the guest: its retention call returned without a verified owned
 group. A same-process read found no matching group record. The candidate now
