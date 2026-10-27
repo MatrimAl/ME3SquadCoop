@@ -1,5 +1,18 @@
 # Validation status
 
+Protected run `3ec584a`: the client-level prune correction preserved the
+authored shuttle body and both doors before normal initialization. Independent
+post-join samples retained live actors, meshes and instantiated trees, with
+the body's local-bone pose matching the host. Door animation/full outside
+appearance remain unverified: the connected interval did not exercise the
+opening action and the camera stayed inside. Remote weapon/helmet setup
+still passed its bounded checks. Ashley stayed at the landing, so this run
+did not exercise the latest scene-return collision correction. Four native
+targets, native runtime/probe harnesses and ordinary/protected collision
+lifecycle variants passed. Runner/six observers exited 0 with 8,210 locks,
+unchanged profiles/TOC, zero exceptions and clean shutdown. Full campaign
+playability remains incomplete.
+
 The owner confirmed the remote weapon/mask issue solved during the protected
 `f0fc0c7` run. Native and independent readbacks observed the existing selected
 weapon and attachment, preserving ammunition; this is bounded presentation

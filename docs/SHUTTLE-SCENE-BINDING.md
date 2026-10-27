@@ -57,3 +57,22 @@ the normal level loop continues initialization. No actor is created or revived,
 and no actor/scene/cache/role/transform field is authored. This requires live
 validation of retained actors, actual group binding, pose and teardown before
 the reported shuttle defect can be called fixed.
+
+The protected run from `3ec584a` exercised this boundary. Native logs preserved
+exactly the authored shuttle body and two doors at the selected callsite.
+Independent post-join actor-array observations retained all three alive,
+with script initialization complete, valid body meshes and instantiated trees.
+The sampled body's local-bone pose hash matched the host. One door's local
+pose hash still differed; the opening action did not run during the connected
+interval, so full door animation/late-join pose agreement is not established.
+The window frame was inspected but the camera remained inside the shuttle;
+it does not independently prove the complete outside hull appearance.
+
+This run also retained normal remote weapon/helmet initialization. Ashley
+stayed at the landing and no scene-return repair was exercised. Thus the
+latest collision predicate/role correction remains a compiled, fixture-checked
+candidate, not a preventive gameplay result. Runner and six observers exited
+0; the original profile and TOC were preserved, 8,210 locks held through cleanup,
+and there were no native exceptions, forced cleanup, cleanup errors or games
+left running. Next validation must exercise the normal opening/closing scene
+and Ashley's control return; repeating a stationary startup cannot prove it.
