@@ -116,6 +116,7 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_guest_shield_feedback.h"
 #include "runtime_power_action_context.h"
 #include "runtime_guest_movement.h"
+#include "runtime_heavy_plot_guard.h"
 #include "runtime_guest_melee.h"
 #include "runtime_guest_swap.h"
 static SessionContext runtime_host_power_context(uintptr_t engine) {

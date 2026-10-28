@@ -969,3 +969,29 @@ regression. The protected probe harness passed memory/opt-in and low-integrity
 write denial. These are native fixtures, not observed melee damage or a fixed
 ammo rebound. New drag/use, normal combos, real hits and scene/disconnect
 recovery still require owner gameplay validation.
+
+## Guarded heavy/storm melee follow-up
+
+The follow-up prepares loaded Soldier heavy and storm slots only after the
+native cosmetic plot guard is resident and the actual canonical table and
+Ashley class lease are authorized. The native exec still decodes its arguments;
+only the matching guest heavy20881/true body call is consumed. Other native
+SetBool calls forward once with their arguments and LastError. Exact method,
+caller-frame cursor, return-site and canonical getter/CDO evidence constrain
+the adapter. No global multiplayer flag, plot rollback or eager construction
+is used.
+
+Normal melee can retain the existing shoulder scalar for verified camera-free
+player actions. Deferred passive/animation cleanup now retains its ownership
+ledger across native refusals and reentry, verifies native completion, and
+preserves newly filled foreign slots.
+
+All four native targets built. The ordinary harness passed heavy native
+forwarding/consumption, nested source shadowing and LastError fixtures, normal
+melee camera refusal/retention policy, and cleanup retry/reentry fixtures.
+The protected harness passed memory/opt-in and low-integrity write denial.
+Six hook/getter byte pins matched the exact owned executable offline. A narrow
+independent review found no native ABI/frame mismatch. These checks establish
+adapter contracts, not successful gameplay or unchanged live plot state.
+The owner deferred game tests; heavy/storm hits, animations, plot behavior,
+repeated scene recovery and complete multiplayer mechanics remain unverified.

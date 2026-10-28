@@ -52,8 +52,12 @@ In `5374e7c`, the owner confirmed the Shift-to-power camera correction but
 could not move a power. The follow-up admits the separate native drag-end
 assignment path and completes the stock local FullAuto stop on a real release.
 The same candidate prepares normal guest melee combos and an Ashley-owned
-damage passive. These new controls need gameplay validation; heavy/cover melee
-and complete multiplayer mechanics remain unfinished. See
+damage passive. The follow-up adds guarded Soldier heavy/storm actions, normal
+melee shoulder retention and retryable native cleanup. Guest heavy actions
+cannot issue their specific campaign cosmetic write through the guarded path;
+Shepard's native setter path is preserved. These new controls still need
+gameplay validation; cover melee and complete multiplayer mechanics remain
+unfinished. See
 [guest melee scope](docs/GUEST-MELEE.md) and [ammo evidence](docs/AMMO-REPLICATION.md).
 
 The current build binds the guest's existing native Shepard HUD player panel

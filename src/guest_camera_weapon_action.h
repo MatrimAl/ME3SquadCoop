@@ -15,14 +15,18 @@ static int guest_camera_evade_policy(int index,int player_evade,int pc_matches,i
         int requested_roll,int active_camera_matches) {
     return index>=54&&index<=57&&player_evade&&pc_matches&&ai_empty&&requested_roll&&active_camera_matches;
 }
+static int guest_camera_melee_policy(int index,int player_melee,int canonical_class,int pc_matches,
+        int ai_empty,uintptr_t requested,uintptr_t active) {
+    return index>=75&&index<=80&&player_melee&&canonical_class&&pc_matches&&ai_empty&&!requested&&!active;
+}
 static int guest_camera_ignore_move_policy(unsigned ignore,int power,int evade,uint32_t action_flags) {
     return !ignore||(ignore==1&&(power||evade)&&(action_flags&4));
 }
-/* kind0=draw/holster/reload,1=power,2=the four native player evades. */
+/* kind0=draw/holster/reload,1=power,2=player evades,3=normal player melee. */
 static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn,int32_t index,int kind,uint32_t *flags_out) {
     GameArray classes={0},actions={0},again={0};
-    int power=kind==1,evade=kind==2;
-    if(kind<0||kind>2)return 0;
+    int power=kind==1,evade=kind==2,melee=kind==3;
+    if(kind<0||kind>3)return 0;
     uintptr_t class_field=pawn+(power?0x6bc:0x69c),action_field=pawn+(power?0x6cc:0x6ac);
     if(index<=0||index>=512||!read_at(class_field,&classes,sizeof classes)||
        !read_at(action_field,&actions,sizeof actions)||!classes.data||!actions.data||
@@ -51,6 +55,13 @@ static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn
         }
         if(!guest_camera_evade_policy(index,is_kind_of(base,action,"SFXCustomAction_PlayerEvadeBase"),
            read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),1,camera_matches))return 0;
+    } else if(melee) {
+        static const char *names[]={"SFXGameContent.SFXCustomAction_RifleMeleeOne","SFXGameContent.SFXCustomAction_RifleMeleeTwo",
+            "SFXGameContent.SFXCustomAction_RifleMeleeThree","SFXGameContent.SFXCustomAction_PistolMeleeOne",
+            "SFXGameContent.SFXCustomAction_PistolMeleeTwo","SFXGameContent.SFXCustomAction_PistolMeleeThree"};
+        if(index<75||index>80||!read_at(action+0x78,&requested_camera,8)||!read_at(action+0xb0,&active_camera,8)||
+           !guest_camera_melee_policy(index,is_kind_of(base,action,"SFXCustomAction_PlayerMeleeBase"),
+               !strcmp(type.full_name,names[index-75]),read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),requested_camera,active_camera))return 0;
     } else {
         if((strcmp(type.full_name,"SFXGame.SFXCustomAction_DrawWeapon")&&strcmp(type.full_name,"SFXGame.SFXCustomAction_HolsterWeapon")&&
             !is_kind_of(base,action,"SFXCustomAction_ReloadBase"))||
@@ -64,12 +75,13 @@ static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn
         read_ptr(classes.data+(size_t)index*8)==klass&&read_ptr(actions.data+(size_t)index*8)==action&&
         guest_camera_stamp_matches(base,&type,0)&&guest_camera_stamp_matches(base,&object,0)&&
         read_ptr(action+0x98)==pawn&&read_ptr(pawn+0x374)==pc&&read_ptr(pc+0x3bc)==pawn&&
-        (!evade||(read_ptr(action+0xa0)==pc&&!read_ptr(action+0xa8)&&
+        (!(evade||melee)||(read_ptr(action+0xa0)==pc&&!read_ptr(action+0xa8)&&
           read_ptr(action+0x78)==requested_camera&&read_ptr(action+0xb0)==active_camera&&
-          guest_camera_stamp_matches(base,&requested,0)&&(!active_camera||guest_camera_stamp_matches(base,&active,0))));
+          (melee||(guest_camera_stamp_matches(base,&requested,0)&&(!active_camera||guest_camera_stamp_matches(base,&active,0))))));
 }
 /* This only retains an existing camera scalar. The action's historical AI/PC
  * caches are not invoked or changed. Evade additionally requires stock's real
- * local-player cache and canonical Roll camera, while reload/power retention
+ * local-player cache and canonical Roll camera. Normal melee requires the real
+ * local-player cache and no requested action camera; reload/power retention
  * remains independent of their historical controller caches. */
 #endif

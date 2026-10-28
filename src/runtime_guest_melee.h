@@ -1,6 +1,6 @@
 #ifndef ME3_RUNTIME_GUEST_MELEE_H
 #define ME3_RUNTIME_GUEST_MELEE_H
-/* Prepare the six normal player melee combo slots missing from Ashley.
+/* Prepare normal player melee combos and the guarded Soldier heavy/storm slots.
  * Stock input, animation, targeting, authority damage and action replication
  * remain responsible for execution. Add the pawn's OWN melee passive through
  * PowerManager.AddPower; never borrow Shepard's power instance or stats. */
@@ -11,12 +11,14 @@ typedef struct RuntimeGuestMelee {
     GuestCameraStamp passive_class,passive_cdo,passive;
     GuestPlayerContextMethod add,remove,register_anim,unregister_anim;
     GuestCameraStamp anim_set;
-    RuntimeMeleeRow rows[6];
-    int valid,retiring,created,anim_registered,foreign;
+    RuntimeMeleeRow rows[8];
+    unsigned count;
+    int valid,retiring,created,anim_registered,foreign,dispatching;
     DWORD checked,monitor;
 } RuntimeGuestMelee;
 static RuntimeGuestMelee runtime_guest_melee;
 static unsigned runtime_melee_events;
+static const unsigned runtime_melee_indices[]={75,76,77,78,79,80,58,73};
 static int runtime_melee_power_id(uintptr_t action) {int32_t id=-1;return read_at(action+0x484,&id,4)&&id==43;}
 static const char *runtime_melee_names[]={"SFXCustomAction_RifleMeleeOne","SFXCustomAction_RifleMeleeTwo",
     "SFXCustomAction_RifleMeleeThree","SFXCustomAction_PistolMeleeOne","SFXCustomAction_PistolMeleeTwo",
@@ -35,7 +37,9 @@ static int runtime_guest_melee_enabled(void) {
 }
 static void runtime_melee_note(const char *event,unsigned slots,DWORD now) {
     if(runtime_melee_events++>=48)return;char text[360];
-    snprintf(text,sizeof text,"{\"runtime_guest_melee\":\"%s\",\"role\":%d,\"normal_combo_slots\":%u,\"heavy_melee_ready\":false,\"damage_verified\":false,\"monotonic_ms\":%lu}\r\n",event,(int)g_runtime_config.role,slots,now);line(text);
+    int heavy=runtime_guest_melee.valid&&!runtime_guest_melee.retiring&&runtime_guest_melee.count==8&&
+        runtime_guest_melee.rows[6].changed&&runtime_guest_melee.rows[7].changed;
+    snprintf(text,sizeof text,"{\"runtime_guest_melee\":\"%s\",\"role\":%d,\"changed_slots\":%u,\"heavy_melee_ready\":%s,\"damage_verified\":false,\"monotonic_ms\":%lu}\r\n",event,(int)g_runtime_config.role,slots,heavy?"true":"false",now);line(text);
 }
 static int runtime_melee_arrays(uintptr_t base,RuntimeGuestMelee *q,GameArray *pc,GameArray *pa,GameArray *powers) {
     uintptr_t pawn=q->scope.pawn.pointer,manager=q->manager.pointer;
@@ -70,6 +74,24 @@ static int runtime_melee_passive_valid(uintptr_t base,RuntimeGuestMelee *q,uintp
         read_ptr(action+0x50)==q->passive_class.pointer&&read_ptr(action+0x98)==q->scope.pawn.pointer&&
         runtime_power_action_context_layout(base,action)&&runtime_melee_power_id(action);
 }
+static void runtime_melee_heavy_source(uintptr_t base,RuntimeGuestMelee *q,const GameArray *classes) {
+    for(unsigned i=6;i<8;++i){unsigned index=runtime_melee_indices[i];RuntimeMeleeRow *row=&q->rows[i];
+        uintptr_t klass=read_ptr(classes->data+(SIZE_T)index*8);
+        if(read_ptr(q->scope.classes.data+(SIZE_T)index*8)||read_ptr(runtime_melee_cell(&q->scope.actions,index))||
+           !runtime_movement_named_class(base,klass,"SFXCustomAction_SoldierPunch",&row->klass)||
+           !guest_camera_stamp_read(base,read_ptr(klass+0x13c),&row->cdo,1)||read_ptr(row->cdo.pointer+0x50)!=klass||
+           !is_kind_of(base,row->cdo.pointer,"SFXCustomAction_PlayerHeavyMeleeBase")||
+           !runtime_power_property(base,row->cdo.pointer,"SFXCustomAction_PlayerHeavyMeleeBase","Power","ObjectProperty",0x19c,8)||
+           !runtime_power_property(base,row->cdo.pointer,"SFXCustomAction_PlayerHeavyMeleeBase","AnimInfo","ObjectProperty",0x194,8))return;
+        uintptr_t anim=read_ptr(row->cdo.pointer+0x194);GameArray sequences={0};
+        if(!narrative_probe_object(base,anim,"SFXAnimSetCookSpec")||
+           !runtime_power_property(base,anim,"SFXAnimSetCookSpec","AnimSet","ObjectProperty",0x60,8)||
+           !narrative_probe_object(base,read_ptr(anim+0x60),"AnimSet")||
+           !identity_array(read_ptr(anim+0x60)+0x60,&sequences,4096)||!sequences.count)return;
+    }
+    if(runtime_heavy_plot_prepare(base,q->scope.info.pointer,q->rows[6].klass.pointer)&&runtime_heavy_plot_authorize(base,&q->scope,q->rows[6].klass,q->rows[6].cdo)&&
+       runtime_heavy_plot_authorize(base,&q->scope,q->rows[7].klass,q->rows[7].cdo))q->count=8;
+}
 /* Only the existing live player in this world supplies loaded class refs.
  * A bounded native PawnList replaces a global object/class-name search. */
 static int runtime_melee_source(uintptr_t base,RuntimeGuestMelee *q) {
@@ -99,11 +121,13 @@ static int runtime_melee_source(uintptr_t base,RuntimeGuestMelee *q) {
         if(clips!=1)return 0;
     }
     uintptr_t klass=read_ptr(powers.data+43*8);
-    return runtime_movement_named_class(base,klass,"SFXPowerCustomAction_SoldierMeleePassive",&q->passive_class)&&
+    int valid=runtime_movement_named_class(base,klass,"SFXPowerCustomAction_SoldierMeleePassive",&q->passive_class)&&
         guest_camera_stamp_read(base,read_ptr(klass+0x13c),&q->passive_cdo,1)&&
         read_ptr(q->passive_cdo.pointer+0x50)==klass&&is_kind_of(base,q->passive_cdo.pointer,"SFXPowerCustomAction_MeleePassivePower")&&
         runtime_power_property(base,q->passive_cdo.pointer,"SFXPowerCustomActionBase","PowerCustomActionID","IntProperty",0x484,4)&&
         runtime_melee_power_id(q->passive_cdo.pointer);
+    if(valid)runtime_melee_heavy_source(base,q,&classes);
+    return valid;
 }
 static int runtime_melee_clips_loaded(uintptr_t base,RuntimeGuestMelee *q) {
     uintptr_t mesh=read_ptr(q->scope.pawn.pointer+0x3f4),sequence_class=0;GameArray sets={0},again={0};unsigned found=0,total=0;
@@ -165,10 +189,11 @@ static int runtime_melee_find_anim_set(uintptr_t base,RuntimeGuestMelee *q) {
     return 0;
 }
 static int runtime_melee_instance(uintptr_t base,RuntimeGuestMelee *q,unsigned i,uintptr_t action) {
-    return narrative_probe_object(base,action,"SFXCustomAction_PlayerMeleeBase")&&
+    uintptr_t power_field=i<6?0x1fc:0x19c;
+    return i<q->count&&narrative_probe_object(base,action,i<6?"SFXCustomAction_PlayerMeleeBase":"SFXCustomAction_PlayerHeavyMeleeBase")&&
         read_ptr(action+0x50)==q->rows[i].klass.pointer&&read_ptr(action+0x98)==q->scope.pawn.pointer&&
         runtime_power_action_context_layout(base,action)&&
-        (!read_ptr(action+0x1fc)||read_ptr(action+0x1fc)==q->passive.pointer);
+        (!read_ptr(action+power_field)||read_ptr(action+power_field)==q->passive.pointer);
 }
 static int runtime_melee_instance_idle(uintptr_t action) {
     uint32_t flags=0;return read_at(action+0x100,&flags,4)&&!(flags&0x10800000)&&!read_ptr(action+0xb8);
@@ -183,8 +208,44 @@ static int runtime_melee_owns_passive(uintptr_t base,RuntimeGuestMelee *q,GameAr
         read_ptr(runtime_melee_cell(pc,43))==q->passive_class.pointer&&
         read_ptr(runtime_melee_cell(pa,43))==q->passive.pointer&&runtime_melee_contains(powers,q->passive.pointer);
 }
+static int runtime_melee_passive_absent(const RuntimeGuestMelee *q,const GameArray *pc,const GameArray *pa,const GameArray *powers) {
+    if(read_ptr(runtime_melee_cell(pc,43))==q->passive_class.pointer||
+       (q->passive.pointer&&read_ptr(runtime_melee_cell(pa,43))==q->passive.pointer))return 0;
+    for(int i=0;i<powers->count;++i){uintptr_t power=read_ptr(powers->data+(SIZE_T)i*8);
+        if((q->passive.pointer&&power==q->passive.pointer)||
+           (!q->passive.pointer&&read_ptr(power+0x50)==q->passive_class.pointer))return 0;}
+    return 1;
+}
+static int runtime_melee_finish_remove(RuntimeGuestMelee *q,const GameArray *pc,const GameArray *pa,const GameArray *powers) {
+    if(!runtime_melee_passive_absent(q,pc,pa,powers))return 0;
+    q->created=0;return 1;
+}
+static int runtime_melee_finish_unregister(RuntimeGuestMelee *q,int before,int after) {
+    if(before<=0||after!=before-1)return 0;
+    q->anim_registered=0;return 1;
+}
+static int runtime_melee_restored_slots_empty(const RuntimeGuestMelee *q) {
+    for(unsigned i=0;i<8;++i)if(read_ptr(q->scope.classes.data+(SIZE_T)runtime_melee_indices[i]*8)||
+        read_ptr(runtime_melee_cell(&q->scope.actions,runtime_melee_indices[i])))return 0;
+    return 1;
+}
+static int runtime_melee_cleanup_scope(uintptr_t base,RuntimeGuestMelee *q,GameArray *pc,GameArray *pa,GameArray *powers) {
+    if(!runtime_melee_arrays(base,q,pc,pa,powers))return 0;
+    uintptr_t owner=read_ptr(q->scope.pawn.pointer+0x374);
+    return runtime_movement_retire_owner_policy(owner,q->scope.pc.pointer,session_handle_matches(q->scope.pc),
+        guest_camera_actor_live(base,owner)&&is_kind_of(base,owner,"SFXAI_Henchman"),
+        read_ptr(owner+0x3bc)==q->scope.pawn.pointer,read_ptr(owner+0x198)==q->scope.info.pointer);
+}
+/* Native callbacks may release ownership while a dispatch is still on the
+ * stack. Keep this ledger until the call returns, then recheck its scope. */
+static int runtime_melee_cleanup_resume(RuntimeGuestMelee *q,int same_scope) {
+    q->dispatching=0;
+    if(!same_scope){memset(q,0,sizeof *q);return 0;}
+    return 1;
+}
 static void runtime_guest_melee_retire(uintptr_t base,uintptr_t engine,DWORD now) {
-    RuntimeGuestMelee *q=&runtime_guest_melee;if(!q->valid||GetCurrentThreadId()!=session_game_thread)return;q->retiring=1;GameArray pc={0},pa={0},powers={0};
+    RuntimeGuestMelee *q=&runtime_guest_melee;if(!q->valid||GetCurrentThreadId()!=session_game_thread)return;q->retiring=1;
+    if(q->dispatching)return;GameArray pc={0},pa={0},powers={0};
     if(!runtime_melee_arrays(base,q,&pc,&pa,&powers)){runtime_melee_note("preserved-replaced-scope",0,now);memset(q,0,sizeof *q);return;}
     uintptr_t owner=read_ptr(q->scope.pawn.pointer+0x374);
     if(!runtime_movement_retire_owner_policy(owner,q->scope.pc.pointer,session_handle_matches(q->scope.pc),
@@ -193,57 +254,98 @@ static void runtime_guest_melee_retire(uintptr_t base,uintptr_t engine,DWORD now
         runtime_melee_note("preserved-new-owner",0,now);memset(q,0,sizeof *q);return;}
     if(!runtime_movement_idle(q->scope.pawn.pointer))return;
     unsigned restored=0;
-    for(unsigned i=0;i<6;++i){RuntimeMeleeRow *row=&q->rows[i];if(!row->changed)continue;
-        uintptr_t cell=runtime_melee_cell(&q->scope.actions,75+i),action=cell?read_ptr(cell):0;
-        uintptr_t class_cell=q->scope.classes.data+(SIZE_T)(75+i)*8;
+    for(unsigned i=0;i<q->count;++i){RuntimeMeleeRow *row=&q->rows[i];if(!row->changed)continue;
+        unsigned index=runtime_melee_indices[i];
+        uintptr_t cell=runtime_melee_cell(&q->scope.actions,index),action=cell?read_ptr(cell):0;
+        uintptr_t class_cell=q->scope.classes.data+(SIZE_T)index*8;
         if(read_ptr(class_cell)!=row->klass.pointer||!guest_camera_stamp_matches(base,&row->klass,1)||
            (action&&!runtime_melee_instance(base,q,i,action))){row->changed=0;q->foreign=1;continue;}
         if(action&&!runtime_melee_instance_idle(action))return;
         if(runtime_movement_restore(class_cell,cell,0,row->klass.pointer,action,0)){row->changed=0;++restored;}
     }
-    for(unsigned i=0;i<6;++i)if(q->rows[i].changed)return;
+    for(unsigned i=0;i<q->count;++i)if(q->rows[i].changed)return;
+    /* Cleanup can span ticks. A native subsystem may have filled a normal or
+     * heavy slot while our passive/animation retirement was waiting. */
+    if(!runtime_melee_restored_slots_empty(q))q->foreign=1;
     /* Foreign replacements can still refer to our passive. Preserve it rather
      * than deleting a native subsystem's live dependency. */
-    if(q->created&&!q->foreign&&runtime_melee_owns_passive(base,q,&pc,&pa,&powers)&&
-       runtime_melee_instance_idle(q->passive.pointer)&&guest_player_context_method_matches(base,&q->remove,0)&&
-       guest_equipment_dispatch_pins(base)&&read_ptr(read_ptr(q->manager.pointer)+0x230)==base+0x40d450){
-        RuntimeMeleeRemoveParms parms={q->passive_class.pointer,0};
-        ((ProcessEvent)(base+0x40d450))((void*)q->manager.pointer,(void*)q->remove.function.pointer,&parms,NULL);
-    } else if(q->created&&!q->foreign&&runtime_melee_arrays(base,q,&pc,&pa,&powers)&&
-              guest_camera_stamp_matches(base,&q->passive_class,1)&&!q->passive.pointer&&
-              read_ptr(runtime_melee_cell(&pc,43))==q->passive_class.pointer&&!read_ptr(runtime_melee_cell(&pa,43))){
-        /* AddPower may fail before returning an instance. Undo only its exact
-         * otherwise-empty class cell; never resize either native array. */
-        int conflict=0;
-        for(int i=0;i<powers.count;++i)if(read_ptr(read_ptr(powers.data+(SIZE_T)i*8)+0x50)==q->passive_class.pointer)conflict=1;
-        if(!conflict)runtime_power_action_context_pointer(runtime_melee_cell(&pc,43),q->passive_class.pointer,0);
+    if(q->created&&!q->foreign){
+        if(runtime_melee_finish_remove(q,&pc,&pa,&powers)){}
+        else if(runtime_melee_owns_passive(base,q,&pc,&pa,&powers)){
+            if(!runtime_melee_instance_idle(q->passive.pointer)||!guest_player_context_method_matches(base,&q->remove,0)||
+               !guest_equipment_dispatch_pins(base)||read_ptr(read_ptr(q->manager.pointer)+0x230)!=base+0x40d450)return;
+            RuntimeMeleeRemoveParms parms={q->passive_class.pointer,0};q->dispatching=1;
+            ((ProcessEvent)(base+0x40d450))((void*)q->manager.pointer,(void*)q->remove.function.pointer,&parms,NULL);
+            if(!runtime_melee_cleanup_resume(q,runtime_melee_cleanup_scope(base,q,&pc,&pa,&powers)))return;
+            if(!runtime_melee_restored_slots_empty(q))q->foreign=1;
+            /* A refused call remains pending. A successful native removal is
+             * recorded before animation cleanup, so a later retry cannot remove twice. */
+            if(!runtime_melee_finish_remove(q,&pc,&pa,&powers))return;
+        } else if(guest_camera_stamp_matches(base,&q->passive_class,1)&&!q->passive.pointer&&
+                  read_ptr(runtime_melee_cell(&pc,43))==q->passive_class.pointer&&!read_ptr(runtime_melee_cell(&pa,43))){
+            /* AddPower may fail before returning an instance. Undo only its exact
+             * otherwise-empty class cell; never resize either native array. */
+            int conflict=0;
+            for(int i=0;i<powers.count;++i)if(read_ptr(read_ptr(powers.data+(SIZE_T)i*8)+0x50)==q->passive_class.pointer)conflict=1;
+            if(conflict)q->foreign=1;
+            else if(!runtime_power_action_context_pointer(runtime_melee_cell(&pc,43),q->passive_class.pointer,0))return;
+            else q->created=0;
+        } else q->foreign=1;
     }
-    if(q->anim_registered&&!q->foreign&&session_handle_matches(q->scope.pawn)&&
-       guest_camera_stamp_matches(base,&q->anim_set,1)&&runtime_melee_temp_refcount(base,q)>0&&
-       guest_player_context_method_matches(base,&q->unregister_anim,0)&&guest_equipment_dispatch_pins(base)&&
-       read_ptr(read_ptr(q->scope.pawn.pointer)+0x230)==base+0x40d450){
-        RuntimeMeleeAnimParms parms={q->anim_set.pointer,0.0f,0};
-        ((ProcessEvent)(base+0x40d450))((void*)q->scope.pawn.pointer,(void*)q->unregister_anim.function.pointer,&parms,NULL);
+    if(q->anim_registered&&!q->foreign){
+        if(!runtime_movement_idle(q->scope.pawn.pointer))return;
+        if(!guest_camera_stamp_matches(base,&q->anim_set,1))q->anim_registered=0;
+        else {
+            int before=runtime_melee_temp_refcount(base,q);if(before<0)return;
+            if(!before)q->anim_registered=0;
+            else {
+                if(!guest_player_context_method_matches(base,&q->unregister_anim,0)||!guest_equipment_dispatch_pins(base)||
+                   read_ptr(read_ptr(q->scope.pawn.pointer)+0x230)!=base+0x40d450)return;
+                RuntimeMeleeAnimParms parms={q->anim_set.pointer,0.0f,0};q->dispatching=1;
+                ((ProcessEvent)(base+0x40d450))((void*)q->scope.pawn.pointer,(void*)q->unregister_anim.function.pointer,&parms,NULL);
+                if(!runtime_melee_cleanup_resume(q,runtime_melee_cleanup_scope(base,q,&pc,&pa,&powers)))return;
+                if(!runtime_melee_finish_unregister(q,before,runtime_melee_temp_refcount(base,q)))return;
+            }
+        }
     }
     runtime_melee_note("normal-melee-slots-retired",restored,now);memset(q,0,sizeof *q);(void)engine;
 }
 static void runtime_guest_melee_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     if(GetCurrentThreadId()!=session_game_thread)return;RuntimeGuestMelee *q=&runtime_guest_melee;RuntimeMovementScope scope={0};
+    if(q->dispatching)return;
     int admitted=runtime_guest_melee_enabled()&&runtime_movement_scope(base,engine,&scope);
     if(q->valid){
-        int retire=q->retiring||!admitted||!runtime_movement_scope_same(&q->scope,&scope);
+        int retire=q->retiring||!admitted||!runtime_movement_scope_same(&q->scope,&scope)||
+            (q->count==8&&!runtime_heavy_plot_ready(base));
         if(!retire&&(!q->monitor||now-q->monitor>=500)){
             q->monitor=now;GameArray pc={0},pa={0},powers={0};
             if(!runtime_melee_owns_passive(base,q,&pc,&pa,&powers))retire=1;
-            for(unsigned i=0;i<6&&!retire;++i)if(q->rows[i].changed&&
-                (read_ptr(q->scope.classes.data+(SIZE_T)(75+i)*8)!=q->rows[i].klass.pointer||
+            for(unsigned i=0;i<q->count&&!retire;++i)if(q->rows[i].changed&&
+                (read_ptr(q->scope.classes.data+(SIZE_T)runtime_melee_indices[i]*8)!=q->rows[i].klass.pointer||
                  !guest_camera_stamp_matches(base,&q->rows[i].klass,1)))retire=1;
+        }
+        if(!retire&&q->count==6&&now-q->checked>=5000&&runtime_movement_idle(q->scope.pawn.pointer)&&
+           session_handle_matches(q->source)&&read_ptr(q->source.pointer+0x198)==q->scope.info.pointer){
+            q->checked=now;GameArray source_classes={0};
+            if(identity_array(q->source.pointer+0x69c,&source_classes,512)&&source_classes.count>80){
+                runtime_melee_heavy_source(base,q,&source_classes);
+                if(q->count==8){
+                    for(unsigned i=6;i<8;++i){RuntimeMeleeRow *row=&q->rows[i];unsigned index=runtime_melee_indices[i];
+                        if(!runtime_movement_arrays_live(base,&q->scope)||!runtime_heavy_plot_ready(base)||
+                           !guest_camera_stamp_matches(base,&row->klass,1)||!guest_camera_stamp_matches(base,&row->cdo,1)||
+                           !runtime_movement_borrow(q->scope.classes.data+(SIZE_T)index*8,
+                               runtime_melee_cell(&q->scope.actions,index),0,row->klass.pointer,0)){retire=1;break;}
+                        row->changed=1;
+                    }
+                    if(!retire)runtime_melee_note("native-heavy-melee-upgraded",2,now);
+                }
+            }
         }
         if(retire)runtime_guest_melee_retire(base,engine,now);
         return;
     }
     if(!admitted||scope.classes.count<=80||(q->checked&&now-q->checked<5000)||!runtime_movement_idle(scope.pawn.pointer))return;
-    q->checked=now;RuntimeGuestMelee candidate={0};candidate.scope=scope;
+    q->checked=now;RuntimeGuestMelee candidate={0};candidate.scope=scope;candidate.count=6;
     candidate.manager=session_capture_handle(read_ptr(scope.pawn.pointer+0xc18));GameArray pc={0},pa={0},powers={0};
     if(!runtime_melee_arrays(base,&candidate,&pc,&pa,&powers)||!supported_image(base)||!guest_equipment_dispatch_pins(base))return;
     for(unsigned i=0;i<6;++i)if(read_ptr(scope.classes.data+(SIZE_T)(75+i)*8)||
@@ -262,38 +364,93 @@ static void runtime_guest_melee_tick(uintptr_t base,uintptr_t engine,DWORD now) 
     RuntimeMovementScope again={0};
     if(!runtime_movement_scope(base,engine,&again)||!runtime_movement_scope_same(&scope,&again)||
        !runtime_movement_idle(scope.pawn.pointer)||!runtime_melee_arrays(base,&candidate,&pc,&pa,&powers))return;
-    RuntimeMeleeAddParms parms={candidate.passive_class.pointer,0};
-    ((ProcessEvent)(base+0x40d450))((void*)candidate.manager.pointer,(void*)candidate.add.function.pointer,&parms,NULL);
-    candidate.valid=1;candidate.created=1;
-    if(!guest_camera_stamp_read(base,parms.result,&candidate.passive,1)||!runtime_melee_owns_passive(base,&candidate,&pc,&pa,&powers)){
-        *q=candidate;runtime_guest_melee_retire(base,engine,now);return;
+    candidate.valid=1;candidate.created=1;*q=candidate;
+    RuntimeMeleeAddParms parms={q->passive_class.pointer,0};q->dispatching=1;
+    ((ProcessEvent)(base+0x40d450))((void*)q->manager.pointer,(void*)q->add.function.pointer,&parms,NULL);
+    q->dispatching=0;
+    if(!guest_camera_stamp_read(base,parms.result,&q->passive,1)||!runtime_melee_owns_passive(base,q,&pc,&pa,&powers)){
+        runtime_guest_melee_retire(base,engine,now);return;
     }
-    *q=candidate;
-    if(!runtime_movement_scope(base,engine,&again)||!runtime_movement_scope_same(&scope,&again)||!runtime_movement_idle(scope.pawn.pointer)){
+    if(q->retiring||!runtime_movement_scope(base,engine,&again)||!runtime_movement_scope_same(&scope,&again)||!runtime_movement_idle(scope.pawn.pointer)){
         runtime_guest_melee_retire(base,engine,now);return;
     }
     if(need_anims){
-        if(!guest_camera_stamp_matches(base,&q->anim_set,1)||read_ptr(read_ptr(scope.pawn.pointer)+0x230)!=base+0x40d450){runtime_guest_melee_retire(base,engine,now);return;}
-        uintptr_t set=q->anim_set.pointer;
+        if(!guest_camera_stamp_matches(base,&q->anim_set,1)||!guest_player_context_method_matches(base,&q->register_anim,0)||
+           !guest_equipment_dispatch_pins(base)||read_ptr(read_ptr(scope.pawn.pointer)+0x230)!=base+0x40d450){runtime_guest_melee_retire(base,engine,now);return;}
+        uintptr_t set=q->anim_set.pointer;q->dispatching=1;
         ((ProcessEvent)(base+0x40d450))((void*)scope.pawn.pointer,(void*)q->register_anim.function.pointer,&set,NULL);
-        q->anim_registered=1;
-        if(runtime_melee_temp_refcount(base,q)<=0||!runtime_melee_clips_loaded(base,q)||
+        q->dispatching=0;q->anim_registered=1;
+        if(q->retiring||!runtime_melee_arrays(base,q,&pc,&pa,&powers)||
+           runtime_melee_temp_refcount(base,q)<=0||!runtime_melee_clips_loaded(base,q)||
            !runtime_movement_scope(base,engine,&again)||!runtime_movement_scope_same(&scope,&again)||!runtime_movement_idle(scope.pawn.pointer)){
             runtime_guest_melee_retire(base,engine,now);return;
         }
     }
     unsigned applied=0;
-    for(unsigned i=0;i<6;++i){RuntimeMeleeRow *row=&q->rows[i];
+    for(unsigned i=0;i<q->count;++i){RuntimeMeleeRow *row=&q->rows[i];unsigned index=runtime_melee_indices[i];
         if(!runtime_melee_arrays(base,q,&pc,&pa,&powers)||!guest_camera_stamp_matches(base,&row->klass,1)||
            !guest_camera_stamp_matches(base,&row->cdo,1)||
-           !runtime_movement_borrow(q->scope.classes.data+(SIZE_T)(75+i)*8,runtime_melee_cell(&q->scope.actions,75+i),0,row->klass.pointer,0)){
+           (i>=6&&!runtime_heavy_plot_ready(base))||
+           !runtime_movement_borrow(q->scope.classes.data+(SIZE_T)index*8,runtime_melee_cell(&q->scope.actions,index),0,row->klass.pointer,0)){
             runtime_guest_melee_retire(base,engine,now);return;
         }
         row->changed=1;++applied;
     }
-    runtime_melee_note("native-normal-melee-ready",applied,now);
+    runtime_melee_note(q->count==8?"native-normal-heavy-melee-ready":"native-normal-melee-ready",applied,now);
 }
 #ifdef ME3_RUNTIME_FIXTURE
+static int runtime_melee_fixture_remove(RuntimeGuestMelee *q,GameArray *pc,GameArray *pa,GameArray *powers,int succeeds,unsigned *calls) {
+    if(!q->created)return 1;
+    ++*calls;
+    if(succeeds){
+        memset((void*)runtime_melee_cell(pc,43),0,8);memset((void*)runtime_melee_cell(pa,43),0,8);
+        memset((void*)powers->data,0,8);
+    }
+    return runtime_melee_finish_remove(q,pc,pa,powers);
+}
+static int runtime_melee_cleanup_selftest(void) {
+    _Alignas(8) uintptr_t pc_cells[44]={0},pa_cells[44]={0},power_cells[1]={0};
+    GameArray pc={(uintptr_t)pc_cells,44,44},pa={(uintptr_t)pa_cells,44,44},powers={(uintptr_t)power_cells,1,1};
+    RuntimeGuestMelee lease={0};lease.valid=lease.retiring=lease.created=lease.anim_registered=1;
+    lease.passive_class.pointer=0x1230;lease.passive.pointer=0x4560;
+    pc_cells[43]=lease.passive_class.pointer;pa_cells[43]=power_cells[0]=lease.passive.pointer;unsigned calls=0;
+    /* RemovePower returning false without changing its native containers must
+     * leave the passive and temporary-animation cleanup pending for retry. */
+    if(runtime_melee_fixture_remove(&lease,&pc,&pa,&powers,0,&calls)||calls!=1||
+       !lease.created||!lease.anim_registered||!lease.valid)return 0;
+    /* Clearing only the two indexed cells does not remove Powers membership. */
+    pc_cells[43]=pa_cells[43]=0;
+    if(runtime_melee_finish_remove(&lease,&pc,&pa,&powers)||!lease.created)return 0;
+    pc_cells[43]=lease.passive_class.pointer;pa_cells[43]=lease.passive.pointer;
+    if(!runtime_melee_fixture_remove(&lease,&pc,&pa,&powers,1,&calls)||calls!=2||lease.created||!lease.anim_registered)return 0;
+    /* Animation retirement may defer after successful RemovePower. Its next
+     * retry must not issue the destructive class-based removal again. */
+    if(runtime_melee_finish_unregister(&lease,2,2)||!lease.anim_registered||
+       !runtime_melee_fixture_remove(&lease,&pc,&pa,&powers,1,&calls)||calls!=2||
+       !runtime_melee_finish_unregister(&lease,2,1)||lease.anim_registered)return 0;
+    /* A synchronous release during dispatch marks retirement but cannot clear
+     * the live ledger. Tick also leaves the in-flight call untouched. */
+    RuntimeGuestMelee saved=runtime_guest_melee;DWORD saved_thread=session_game_thread;
+    runtime_guest_melee=lease;runtime_guest_melee.valid=runtime_guest_melee.created=runtime_guest_melee.anim_registered=1;
+    runtime_guest_melee.retiring=0;runtime_guest_melee.dispatching=1;session_game_thread=GetCurrentThreadId();
+    runtime_guest_melee_retire(0,0,0);runtime_guest_melee_tick(0,0,0);
+    int in_flight_kept=runtime_guest_melee.valid&&runtime_guest_melee.retiring&&runtime_guest_melee.dispatching&&
+        runtime_guest_melee.created&&runtime_guest_melee.anim_registered;
+    runtime_guest_melee=saved;session_game_thread=saved_thread;if(!in_flight_kept)return 0;
+    _Alignas(8) uintptr_t restored_classes[81]={0},restored_actions[81]={0};
+    lease.scope.classes=(GameArray){(uintptr_t)restored_classes,81,81};
+    lease.scope.actions=(GameArray){(uintptr_t)restored_actions,81,81};
+    if(!runtime_melee_restored_slots_empty(&lease))return 0;
+    restored_actions[80]=0x7890;if(runtime_melee_restored_slots_empty(&lease))return 0;
+    restored_actions[80]=0;restored_classes[75]=0x7890;if(runtime_melee_restored_slots_empty(&lease))return 0;
+    /* A native world/owner replacement drops only bookkeeping; do not inspect
+     * or write the previous world's containers after the refreshed gate fails. */
+    lease.valid=lease.created=lease.anim_registered=lease.dispatching=1;
+    pc_cells[43]=0x7890;pa_cells[43]=power_cells[0]=0xabc0;
+    if(runtime_melee_cleanup_resume(&lease,0)||lease.valid||lease.created||lease.anim_registered||lease.dispatching||
+       pc_cells[43]!=0x7890||pa_cells[43]!=0xabc0||power_cells[0]!=0xabc0)return 0;
+    return 1;
+}
 static int runtime_guest_melee_selftest(void) {
     _Alignas(8) uintptr_t cell[2]={0,0};
     if(!runtime_movement_borrow((uintptr_t)&cell[0],(uintptr_t)&cell[1],0,5,0)||cell[0]!=5||cell[1])return 0;
@@ -307,7 +464,7 @@ static int runtime_guest_melee_selftest(void) {
     _Alignas(8) unsigned char object[0x500]={0};int32_t id=43;
     memcpy(object+0x4a8,&id,4);if(runtime_melee_power_id((uintptr_t)object))return 0;
     memcpy(object+0x484,&id,4);return runtime_melee_power_id((uintptr_t)object)&&
-        sizeof(RuntimeMeleeAnimParms)==16&&offsetof(RuntimeMeleeRemoveParms,result)==8;
+        sizeof(RuntimeMeleeAnimParms)==16&&offsetof(RuntimeMeleeRemoveParms,result)==8&&runtime_melee_cleanup_selftest();
 }
 #endif
 #endif

@@ -191,18 +191,19 @@ static int guest_camera_conditions_policy(uintptr_t base,uintptr_t pc,uintptr_t 
      * collision/ragdoll presentation changes. Yield the shoulder-scale
      * lease independently of action/input flags, including weapon retention. */
     if(!read_at(pawn+0xe20,&busy,4)||(busy&0x300)) return guest_camera_reject("pawn-life-state");
-    uint32_t action_flags=0;int weapon=0,power_instance=0,evade=0;
+    uint32_t action_flags=0;int weapon=0,power_instance=0,evade=0,melee=0;
     if(!read_at(pawn+0xc20,&action,4)||!read_at(pawn+0xc28,&power,4))return guest_camera_reject("custom-action-or-power");
     if(retain_weapon_action&&action>0) {
         if(action==132&&power>0)power_instance=guest_camera_native_action(base,pc,pawn,power,1,&action_flags);
         else if(!power) {
             if(action>=54&&action<=57)evade=guest_camera_native_action(base,pc,pawn,action,2,&action_flags);
+            else if(action>=75&&action<=80)melee=guest_camera_native_action(base,pc,pawn,action,3,&action_flags);
             else weapon=guest_camera_native_action(base,pc,pawn,action,0,&action_flags);
         }
     }
-    if(!guest_camera_action_policy(retain_weapon_action,action,power,weapon||evade,power_instance))return guest_camera_reject("custom-action-or-power");
+    if(!guest_camera_action_policy(retain_weapon_action,action,power,weapon||evade||melee,power_instance))return guest_camera_reject("custom-action-or-power");
     if(!read_at(pc+0x77c,&pc_flags,4)||(pc_flags&(0x800|0x20000))||!read_at(pc+0x781,&ignore,1)||
-       (!guest_camera_ignore_move_policy(ignore,power_instance,evade,action_flags)&&!(menu&&ignore==1)))return guest_camera_reject("controller-cinematic-or-move-input");
+       (!guest_camera_ignore_move_policy(ignore,power_instance,evade||melee,action_flags)&&!(menu&&ignore==1)))return guest_camera_reject("controller-cinematic-or-move-input");
     if(
        !read_at(pawn+0xe18,&pawn_flags,4)||(pawn_flags&(0x200000|0x20000000))||
        !read_at(pawn+0xe20,&busy,4)||(busy&0x40000)) return guest_camera_reject("pawn-frozen-root-motion-or-conversation");
@@ -296,7 +297,8 @@ static void guest_camera_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintpt
             }else {
                 int32_t action=0;int weapon=read_at(pawn+0xc20,&action,4)&&action>0;
                 if(weapon&&!guest_camera_lease.retained_weapon_action)
-                    guest_camera_log("retained",action>=54&&action<=57?"verified-native-player-evade":"verified-native-weapon-action",now,1,current,1);
+                    guest_camera_log("retained",action>=54&&action<=57?"verified-native-player-evade":
+                        action>=75&&action<=80?"verified-native-player-melee":"verified-native-weapon-action",now,1,current,1);
                 guest_camera_lease.retained_weapon_action=weapon;
             }
         }
@@ -350,6 +352,13 @@ static int guest_camera_adapter_selftest(void) {
        guest_camera_evade_policy(54,1,1,1,1,0)||
        !guest_camera_action_policy(1,54,0,1,0)||guest_camera_action_policy(0,54,0,1,0)||
        guest_camera_action_policy(1,54,1,1,0))return 0;
+    if(!guest_camera_melee_policy(75,1,1,1,1,0,0)||!guest_camera_melee_policy(80,1,1,1,1,0,0)||
+       guest_camera_melee_policy(74,1,1,1,1,0,0)||guest_camera_melee_policy(81,1,1,1,1,0,0)||
+       guest_camera_melee_policy(75,0,1,1,1,0,0)||guest_camera_melee_policy(75,1,0,1,1,0,0)||
+       guest_camera_melee_policy(75,1,1,0,1,0,0)||guest_camera_melee_policy(75,1,1,1,0,0,0)||
+       guest_camera_melee_policy(75,1,1,1,1,9,0)||guest_camera_melee_policy(75,1,1,1,1,0,9)||
+       !guest_camera_action_policy(1,75,0,1,0)||guest_camera_action_policy(0,75,0,1,0)||
+       guest_camera_action_policy(1,75,1,1,0))return 0;
     if(!guest_camera_ignore_move_policy(0,0,0,0)||!guest_camera_ignore_move_policy(1,0,1,4)||
        !guest_camera_ignore_move_policy(1,1,0,4)||guest_camera_ignore_move_policy(1,0,0,4)||
        guest_camera_ignore_move_policy(1,0,1,0)||guest_camera_ignore_move_policy(2,0,1,4)||
