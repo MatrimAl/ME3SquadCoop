@@ -29,6 +29,7 @@ static int runtime_startup_focus_pending(void);
 #define ME3_ORDINARY_STARTUP_FOCUS
 #include "background_focus.h"
 #undef ME3_ORDINARY_STARTUP_FOCUS
+static int runtime_hit_enabled(void);
 #include "runtime_rpc_receive.h"
 
 static int session_policy_is_host(void) {return g_runtime_config.role==ME3_ROLE_HOST;}
@@ -120,6 +121,7 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_guest_melee.h"
 #include "runtime_guest_traversal.h"
 #include "runtime_guest_reactions.h"
+#include "runtime_guest_hit_feedback.h"
 #include "runtime_guest_swap.h"
 static SessionContext runtime_host_power_context(uintptr_t engine) {
     SessionContext c=session_context(engine);
@@ -253,6 +255,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
         runtime_guest_traversal_tick(base,engine,GetTickCount());
         runtime_guest_reactions_tick(base,engine,GetTickCount());
         if(after)runtime_guest_shield_feedback_tick(base,engine,GetTickCount());
+        if(after)runtime_guest_hit_feedback_tick(base,GetTickCount());
         if(after)runtime_guest_swap_prepare(base,engine,GetTickCount());
         if(after)runtime_layout_cache_flush(GetTickCount());
         return;

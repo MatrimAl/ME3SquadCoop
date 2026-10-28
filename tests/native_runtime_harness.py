@@ -59,6 +59,7 @@ def main():
                  "ME3RuntimeGuestTraversalSelfTest",
                  "ME3RuntimeGuestReactionsSelfTest",
                  "ME3RuntimeGuestCoverKnockbackSelfTest",
+                 "ME3RuntimeGuestHitFeedbackSelfTest",
                  "ME3RuntimeHeavyPlotGuardSelfTest",
                  "ME3RuntimeReviveSelfTest",
                  "ME3RuntimeJoinReadinessSelfTest",

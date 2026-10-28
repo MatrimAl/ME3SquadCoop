@@ -1,5 +1,12 @@
 # Validation status
 
+The incoming-hit direction bridge has native fixtures for first-state and
+duplicate suppression, wrapping counters, scope changes, bounded multi-attacker
+pending entries, expiry and unchanged executor forwarding/LastError. Four
+native targets and the runtime/probe checks passed. This does not prove a
+rendered damage indicator, real receive reachability or complete MP feedback.
+No game ran this addition; see [hit direction](GUEST-HIT-DIRECTION.md).
+
 The fire reaction candidate prepares absent103/104 together from the loaded
 player class. Native fixtures cover pair failure/rollback, shorter-table
 bounds and the clip's native FName number, including refusal of invalid values.

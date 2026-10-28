@@ -76,7 +76,8 @@ static void runtime_rpc_receive_prepare(uintptr_t base) {
         revive=!n||(n==1&&value[0]==L'1');}
     int owned=g_runtime_config.role==ME3_ROLE_GUEST&&runtime_owned_optimized_opted();
     int delayed=g_runtime_config.role==ME3_ROLE_HOST&&runtime_delayed_fire_stop_enabled();
-    if(((opted||presentation||revive||owned||delayed)&&runtime_control_enabled&&runtime_scope_ready)||
+    int hit=g_runtime_config.role==ME3_ROLE_GUEST&&runtime_hit_enabled();
+    if(((opted||presentation||revive||owned||delayed||hit)&&runtime_control_enabled&&runtime_scope_ready)||
        (g_runtime_config.role==ME3_ROLE_GUEST&&initial_object_opted()&&runtime_control_enabled)) {
         if(runtime_rpc_receive_install(base)){initial_object_install(base);runtime_initial_reference_install(base);}
     }
