@@ -124,6 +124,7 @@ static int runtime_script_executor_prefix(uintptr_t,const unsigned char*,size_t)
 #include "runtime_guest_reactions.h"
 #include "runtime_guest_ammo_pickup.h"
 #include "runtime_guest_hit_feedback.h"
+#include "runtime_airlock_player.h"
 #include "runtime_guest_swap.h"
 static SessionContext runtime_host_power_context(uintptr_t engine) {
     SessionContext c=session_context(engine);
@@ -238,6 +239,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     if(!after)runtime_guest_traversal_tick(base,engine,now);
     if(!after)runtime_guest_reactions_tick(base,engine,now);
     if(!after)runtime_guest_ammo_pickup_prepare(base,now);
+    if(!after)runtime_airlock_player_prepare(base,now);
     if(!after&&runtime_guest_team_tick(base,engine,now))runtime_scope_ready=runtime_session_scope(base,engine);
     runtime_revive_peer_configure();
     runtime_team_hud_configure();

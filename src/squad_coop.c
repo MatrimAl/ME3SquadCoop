@@ -155,6 +155,7 @@ __declspec(dllexport) int ME3RuntimeGuestReactionsSelfTest(void) {return runtime
 __declspec(dllexport) int ME3RuntimeGuestCoverKnockbackSelfTest(void) {return runtime_guest_cover_knockback_selftest();}
 __declspec(dllexport) int ME3RuntimeGuestHitFeedbackSelfTest(void) {return runtime_guest_hit_feedback_selftest();}
 __declspec(dllexport) int ME3RuntimeGuestAmmoPickupSelfTest(void) {return runtime_guest_ammo_pickup_selftest();}
+__declspec(dllexport) int ME3RuntimeAirlockPlayerSelfTest(void) {return runtime_airlock_player_selftest();}
 __declspec(dllexport) int ME3RuntimeHeavyPlotGuardSelfTest(void) {return runtime_heavy_plot_guard_selftest();}
 #include "runtime_revive_pair_selftest.h"
 __declspec(dllexport) int ME3RuntimeReviveSelfTest(void) {return runtime_revive_pair_selftest()&&runtime_revive_peer_selftest();}

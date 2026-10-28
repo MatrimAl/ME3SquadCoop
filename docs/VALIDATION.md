@@ -1,5 +1,12 @@
 # Validation status
 
+The exact Mars entrance-airlock player variable now has a host-only native
+list-order guard. Native fixtures cover correct/reversed/null-peer pairs,
+foreign-pair refusal, conditional rollback, unchanged builder forwarding and
+owned/foreign native-patch guards. These do not establish the original pushback
+cause or successful gameplay. No game ran the guard; the reported progression
+rollback remains unverified as fixed. See [airlock scope](MARS-AIRLOCK-PLAYER.md).
+
 The `e915a55` owner test contradicted working guest powers/melee: the owner
 reported failures and intermittent slot moves. Retained power refusal samples
 show released drag state2; both peers repeatedly deferred the melee clip

@@ -8,6 +8,12 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 **Status: research prototype. A complete playable campaign and a validated player installation are not available yet.** This repository publishes source and test tooling so the work can continue openly, with clear limits on what has actually been demonstrated.
 
+A narrow Mars airlock guard keeps the authored transition's temporary player
+lists ordered with the host Shepard first if a native two-player list puts the
+guest first. It preserves the graph and actor transforms. This possible source
+of the reported later pushback still needs an owner check; see
+[airlock primary player](docs/MARS-AIRLOCK-PLAYER.md).
+
 The next offline candidate also supplies the owned guest's native incoming
 weapon-hit direction queue from an actual actor-channel impact notification.
 It preserves native damage/reactions and filters initial, duplicate and stale
