@@ -1,5 +1,11 @@
 # Validation status
 
+The next reaction extension prepares stagger87..91 together, including the
+player's absent88, plus direct-melee reaction96. Fixtures extend transaction
+and nullable-row policies to this family and check canonical HitReaction camera
+retention. Native damage, authority and interruption rules are preserved.
+No incoming melee, root-motion recovery, camera or peer gameplay pass is claimed.
+
 The current offline addition prepares native player light-hit reactions81..86
 as one family and independent shield-breach reaction100. Native fixtures cover
 the family preparation boundary, failed partial apply, nullable classes/instances

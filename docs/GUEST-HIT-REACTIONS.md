@@ -45,3 +45,42 @@ No game was launched for this change. Native RequestWeaponReaction internals,
 actual first-hit/first-breach animation, peer result and scene/disconnect AI
 recovery remain owner checks. Heavy knockback, fire and death reactions are
 outside this change; complete multiplayer/campaign parity remains unfinished.
+
+## Incoming melee and stagger follow-up
+
+The next extension prepares the same player's stagger family87..91 and
+independent direct-melee reaction96. The native angle selector can choose
+both87 and88 for one direction, so the whole five-entry family is prepared
+together. Ashley's NPC StaggerImpactII in88 becomes None while human-owned,
+matching the actual player table.87/96 use PlayerMeleed,89 uses
+KnockbackImpactForward, and90/91 use MeleedLeft/Right. The already matching
+knockback92..95 and melee97..99 entries remain under native ownership.
+
+All new classes inherit DamageReaction and retain its normal Start/Stop,
+stance notification, timeline and root-motion cleanup. Required clips must
+already be on the actual mesh. PlayerMeleed permits movement; the other
+authored reactions retain their own movement interruption and root-motion
+policies. The adapter does not remove stun, damage, cooldown or native input
+restrictions. The standard and stagger families each require their own complete
+preparation mask; a missing stagger clip does not disable the light-hit family.
+
+These reactions request the exact native HitReaction camera, which inherits
+Combat without its own overrides. Existing shoulder-scale retention checks the
+actual action/controller and the requested/cached camera class, target pawn
+and native flags. The native camera's transition, offset, FOV and shake remain
+unchanged. Native IgnoreMoveInput during the action is permitted only with
+that verified action's movement-disable flag; the existing scene, mode and
+ownership checks still apply.
+
+Native fixtures extend missing-mask, foreign-row partial apply/restore/retry
+and NULL alternate cases to this five-row family, with camera identity and
+negative request/target policy cases. No game ran these additions. Actual
+incoming melee/stagger, movement/aim recovery, peer animation/root motion and
+scene/disconnect AI recovery remain owner checks. Fire, explosion and death
+reaction parity remains separate work.
+
+Slot96 matches the actual player table, but the selected GetPossibleReactions
+script calls its GetMeleeReactions branch only for nonplayers. A direct native
+incoming-hit route for96 remains unproven. Likewise, borrowing classes does not
+add SFXPawn_Player's separate in-cover GetKnockbackReactions refusal to Ashley.
+This change does not establish complete incoming-reaction parity.

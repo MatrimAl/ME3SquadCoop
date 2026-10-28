@@ -34,7 +34,10 @@ static int guest_camera_traversal_policy(int index,int canonical,int pc_matches,
     return guest_traversal_row(index)>=0&&canonical&&pc_matches&&ai_empty&&requested_supported&&active_matches;
 }
 static int guest_camera_reaction_policy(int index,int canonical,int pc_matches,int ai_empty,uintptr_t requested,uintptr_t active) {
-    return guest_reaction_action(index)&&canonical&&pc_matches&&ai_empty&&!requested&&!active;
+    return guest_reaction_action(index)&&!guest_reaction_hit_camera(index)&&canonical&&pc_matches&&ai_empty&&!requested&&!active;
+}
+static int guest_camera_reaction_hit_policy(int index,int canonical,int pc_matches,int ai_empty,int requested_supported,int active_matches) {
+    return guest_reaction_hit_camera(index)&&canonical&&pc_matches&&ai_empty&&requested_supported&&active_matches;
 }
 static int guest_camera_ignore_move_policy(unsigned ignore,int power,int evade,uint32_t action_flags) {
     return !ignore||(ignore==1&&(power||evade)&&(action_flags&4));
@@ -74,9 +77,19 @@ static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn
            read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),1,camera_matches))return 0;
     } else if(reaction){
         if(!guest_reaction_action(index)||!read_at(action+0x78,&requested_camera,8)||!read_at(action+0xb0,&active_camera,8)||
-           !is_kind_of(base,action,index==100?"SFXCustomAction_SingleAnim":"SFXCustomAction_DamageReaction")||
-           !guest_camera_reaction_policy(index,!strcmp(type.full_name,guest_reaction_player_class(index)),
-                read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),requested_camera,active_camera))return 0;
+           !is_kind_of(base,action,index==100?"SFXCustomAction_SingleAnim":"SFXCustomAction_DamageReaction"))return 0;
+        int canonical=!strcmp(type.full_name,guest_reaction_player_class(index));
+        if(guest_reaction_hit_camera(index)){
+            int supported=is_live(base,requested_camera)&&is_kind_of(base,requested_camera,"Class")&&
+                guest_camera_stamp_read(base,requested_camera,&requested,1)&&
+                !strcmp(requested.full_name,"SFXGame.SFXCameraMode_HitReaction");
+            int matches=!active_camera;
+            if(supported&&active_camera){uint32_t mode_flags=0;
+                matches=guest_camera_stamp_read(base,active_camera,&active,0)&&active.klass==requested_camera&&
+                    read_ptr(active_camera+0x7c)==pawn&&read_at(active_camera+0x11c,&mode_flags,4)&&!(mode_flags&0x20)&&(mode_flags&2);
+            }
+            if(!guest_camera_reaction_hit_policy(index,canonical,read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),supported,matches))return 0;
+        }else if(!guest_camera_reaction_policy(index,canonical,read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),requested_camera,active_camera))return 0;
     } else if(traversal){
         if(guest_traversal_row(index)<0||!read_at(action+0x78,&requested_camera,8)||!read_at(action+0xb0,&active_camera,8))return 0;
         int supported=!requested_camera,camera_matches=!active_camera;

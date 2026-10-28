@@ -86,6 +86,11 @@ including the two absent player alternates, while the shield reaction remains
 independent. Native damage and reaction selection are preserved. No game has
 run these additions; see [guest hit reactions](docs/GUEST-HIT-REACTIONS.md).
 
+The same reaction lease now also prepares the player's incoming melee/stagger
+family, including its absent alternate, and keeps the native HitReaction
+camera. It preserves each action's normal interruption and root-motion rules.
+These offline additions still need owner gameplay checks.
+
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.
 Native keyboard power slots/icons remain enabled. Shift Command mode now retains
