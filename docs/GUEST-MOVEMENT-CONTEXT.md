@@ -1,9 +1,10 @@
 # Guest movement and animations
 
 The target is Shepard-like movement and animation through the normal player
-inputs. This candidate starts with the four directional evade actions. It
-does not establish parity for walking, sprinting, cover, vaulting, ladders,
-melee, transition blending or every mission.
+inputs. It prepares four directional evades plus eight player traversal slots
+for cover slips, mantle and ladders. Full movement, animation blending and
+mission parity remain unverified; gameplay confirmation is narrower than the
+prepared source features.
 
 Ashley's authored slots54..57 select HenchRoll actions. The stock player evade
 actions in the same character package use the same `CB_EvadeLeft`,
@@ -41,3 +42,37 @@ from idle and aim; check direction, distance, animation and return to movement.
 Then enter a real scene and check that human control and normal AI behavior
 return. The owner should also exercise sprint, cover and vaulting to identify
 the next actual difference. A passing slot fixture is not animation proof.
+
+## Player traversal preparation
+
+A separate lease prepares the actual loaded player's mantle-over31,
+mantle-up33, four cover slips36..39 and ladder up/down46/47. The working evade
+lease is unchanged. Every row checks the exact authored AI and player class,
+current pawn/controller/world/connection, CDOs and any existing idle instance.
+An optional missing row does not block other prepared rows. Native geometry
+queries, input, root motion, physics setters and replication execute the move;
+the adapter never dispatches a move or writes a position/physics value.
+
+Mantle and cover-slip BodyStance clips must already exist on Ashley's current
+mesh. All required clips for a row are checked in one bounded mesh traversal.
+Ladder Start/Stop instead retain their existing selected ladder-node AnimInfo
+registration/unregistration path; the adapter does not preempt that lazy loader
+or manufacture a missing asset. Normal native ladder OnUse/authority and
+ServerUseLadder routes remain intact, including their existing events.
+
+Stock VerifyCAHasBeenInstanced creates the player instance on real input.
+Native array growth and individual replacements retain their own identities.
+Retirement restores only still-owned rows, waits for running actions, and
+keeps the core's story/AI handoff independent. A disposed old instance becomes
+None so native AI can instantiate it under its current controller.
+
+Camera retention reads the actual current player action and canonical ladder
+camera request/cache. It keeps only an existing shoulder scalar under the
+normal camera/scene policy; it does not set an angle, FOV, target or mode.
+Native ladder cameras still calculate their view from the actual movement path.
+
+Set ME3_SQUAD_COOP_PLAYER_TRAVERSAL=0 to disable these traversal rows. Source
+fixtures and class/script evidence are not a movement gameplay pass. First-use
+ladder animation loading, geometry/path replication, cover slips from both
+stances, all mantle variants, camera recovery and scene/disconnect AI return
+remain future owner checks. No game was launched for this preparation.

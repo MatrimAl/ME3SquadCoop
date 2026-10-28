@@ -1021,3 +1021,30 @@ review identified the split missing-clip case; its preflight correction is
 included in the final tested source. No game was launched. Real cover hits,
 grab eligibility, mirrored animations, native victim collision recovery and
 scene/AI return remain owner checks. Full campaign/multiplayer parity is open.
+
+## Player mantle, cover slips and ladders candidate
+
+The traversal adapter prepares eight exact loaded player classes independently
+of the existing four evades. Native input, geometry queries, root-motion and
+physics setters, action replication, tutorial events and ladder OnUse routes
+retain their original execution. It never dispatches a traversal action or
+writes movement/position values. Mantle/cover BodyStance clips must be present
+on the current mesh; ladder assets retain their normal selected-node temporary
+registration and cleanup rather than an invented loader.
+
+Per-row ownership supports lazy action-array growth and conditional retirement
+after native actions finish. One replaced row cannot orphan the other borrowed
+slots. The current real player action/cache and canonical ladder camera permit
+retaining only an existing guest shoulder scalar; normal scene/camera guards
+remain. All eight mappings and selected action/input/camera script contracts
+were inspected offline. No SFXPawn_Player cast or direct campaign plot setter
+was found in those selected scripts; native query internals remain unproven.
+
+All four native targets built. The ordinary harness passed traversal row
+rollback/replacement isolation and existing idle/busy policies, plus traversal
+camera owner/class/cache refusal and retention fixtures. The protected harness
+passed memory/opt-in and low-integrity write denial. A narrow independent review
+found no contract mismatch. These checks are not rendered movement or network
+path proof. The owner deferred game tests; first-use ladders, mantle geometry,
+cover slip speed/direction, camera recovery and scene/AI return remain recorded
+owner checks. Full campaign and multiplayer movement parity remains open.

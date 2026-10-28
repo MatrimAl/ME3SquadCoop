@@ -62,6 +62,12 @@ checks and temporary animation cleanup. Complete multiplayer mechanics and
 campaign parity remain unfinished. See
 [guest melee scope](docs/GUEST-MELEE.md) and [ammo evidence](docs/AMMO-REPLICATION.md).
 
+A separate traversal lease also prepares the loaded player's mantle, four
+cover-slip and ladder actions. Real inputs and the native geometry, animation,
+physics and network routes perform these moves. Existing evades remain under
+their previous lease. The new traversal and camera outcomes still need owner
+gameplay checks; see [movement scope](docs/GUEST-MOVEMENT-CONTEXT.md).
+
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.
 Native keyboard power slots/icons remain enabled. Shift Command mode now retains

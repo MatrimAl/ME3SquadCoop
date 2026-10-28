@@ -150,6 +150,7 @@ __declspec(dllexport) int ME3RuntimePowerActionContextSelfTest(void) {return run
 __declspec(dllexport) int ME3RuntimeDelayedFireStopSelfTest(void) {return runtime_delayed_fire_stop_selftest();}
 __declspec(dllexport) int ME3RuntimeGuestFireReleaseSelfTest(void) {return runtime_guest_fire_release_selftest();}
 __declspec(dllexport) int ME3RuntimeGuestMeleeSelfTest(void) {return runtime_guest_melee_selftest();}
+__declspec(dllexport) int ME3RuntimeGuestTraversalSelfTest(void) {return runtime_guest_traversal_selftest();}
 __declspec(dllexport) int ME3RuntimeHeavyPlotGuardSelfTest(void) {return runtime_heavy_plot_guard_selftest();}
 #include "runtime_revive_pair_selftest.h"
 __declspec(dllexport) int ME3RuntimeReviveSelfTest(void) {return runtime_revive_pair_selftest()&&runtime_revive_peer_selftest();}
