@@ -1,5 +1,12 @@
 # Validation status
 
+The new cover rule selects the generic selector's existing false-return branch
+only for verified human Ashley in native cover. Exact-image executor/getter
+and VM-body/parameter guards, cursor-only mutation, cover predicates and
+unchanged forwarding/LastError have native fixtures. They do not prove a real
+hit/cover result. Damage, fallback stagger, natural cover exit and AI recovery
+remain owner checks; see [reaction scope](GUEST-HIT-REACTIONS.md).
+
 The next reaction extension prepares stagger87..91 together, including the
 player's absent88, plus direct-melee reaction96. Fixtures extend transaction
 and nullable-row policies to this family and check canonical HitReaction camera

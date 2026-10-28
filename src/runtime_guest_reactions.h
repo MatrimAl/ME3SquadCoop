@@ -110,11 +110,13 @@ static int runtime_reaction_apply_group(RuntimeGuestReactions *q,unsigned first,
 static int runtime_reaction_apply_family(RuntimeGuestReactions *q,unsigned prepared) {
     return runtime_reaction_apply_group(q,0,GUEST_REACTION_STANDARD_COUNT,prepared);
 }
+#include "runtime_guest_cover_knockback.h"
 static void runtime_guest_reactions_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     if(GetCurrentThreadId()!=session_game_thread)return;RuntimeGuestReactions *q=&runtime_guest_reactions;RuntimeMovementScope scope={0};uint32_t player=0;
     int admitted=runtime_reactions_enabled()&&runtime_movement_scope(base,engine,&scope)&&
         runtime_power_property(base,scope.pawn.pointer,"BioPawn","bIsAPlayer","BoolProperty",0xe20,4)&&
         read_at(scope.pawn.pointer+0xe20,&player,4)&&(player&0x10)&&scope.classes.count>100;
+    if(admitted)runtime_guest_cover_knockback_prepare(base,&scope,now);
     if(q->valid){
         if(q->retiring||!admitted||!runtime_movement_scope_same(&q->scope,&scope)){runtime_guest_reactions_retire(base,engine,now);return;}
         if(!runtime_reaction_arrays_live(base,q)){runtime_guest_reactions_retire(base,engine,now);return;}

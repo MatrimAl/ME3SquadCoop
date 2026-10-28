@@ -82,5 +82,40 @@ reaction parity remains separate work.
 Slot96 matches the actual player table, but the selected GetPossibleReactions
 script calls its GetMeleeReactions branch only for nonplayers. A direct native
 incoming-hit route for96 remains unproven. Likewise, borrowing classes does not
-add SFXPawn_Player's separate in-cover GetKnockbackReactions refusal to Ashley.
-This change does not establish complete incoming-reaction parity.
+add SFXPawn_Player's separate in-cover GetKnockbackReactions refusal to Ashley;
+the separate guard below handles that rule. This does not establish complete
+incoming-reaction parity.
+
+## Player cover rule
+
+Stock SFXPawn_Player.GetKnockbackReactions returns false while IsInCover is
+true, leaving its output candidate array unchanged. Ashley inherits the generic
+BioPawn selector, so matching action classes alone cannot supply that rule.
+The reaction adapter now adds a separate scoped selector guard on either peer.
+It requires the actual registered human Ashley, native player bit, current
+world/connection generation, exact function/parameter metadata and VM body,
+and the selector frame's current Node, Object and starting Code identities.
+
+The exact native IsInCover predicate is read from reflected cover fields under
+the supported getter and leaf machine-code pins. There is no extra native
+getter call. If it is true, only this call's Code cursor moves to the same
+selector's existing explicit ReturnFalse instruction. The original executor
+runs once with unchanged call arguments and result buffer. The supported
+executor consumes that cursor; it does not reset to the function start. The
+original VM supplies the return value. No candidate array, parameter, result,
+damage, cover state or animation is written by the guard.
+
+This matches the player's cover branch and allows the existing heavy-reaction
+fallback to choose stagger normally. It does not cancel damage, remove all
+stun or change the selector outside eligible human cover. Host Shepard, AI,
+another pawn, a scene/ownership loss, an unsupported body or a moved frame
+cursor continue through the original executor unchanged. The rule does not
+require an idle animation or successfully borrowed reaction clips.
+
+ME3_SQUAD_COOP_PLAYER_REACTIONS=0 disables this rule along with reaction
+preparation. Native fixtures cover cursor-only selection, negative cursor/
+opcode cases, unchanged forwarding/LastError and the exact cover predicate.
+Static exact-image cursor proof and fixtures are not gameplay validation.
+Next test: take a knockback-capable hit inside and outside cover, compare
+damage and fallback stagger, verify natural cover exit, then scene/disconnect
+and AI recovery on both peers. No game was launched for this addition.
