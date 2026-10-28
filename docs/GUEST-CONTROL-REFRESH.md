@@ -88,3 +88,15 @@ slot remain unverified. Saved Shepard definitions do not change.
    release/return control.
 5. Compare performance in the same area while the native timing log records
    its baseline and cache phases. A native fixture alone proves no FPS result.
+# Released drag state
+
+The owner reported missing power use and intermittent slot moves in the
+`e915a55` test. All48 retained hotkey refusal contexts had DoingDrag false and
+only a remembered source index (state2). Hotkey admission already accepted that
+state, but widget repaint, native slot setup, caster selection and wheel-context
+acquisition still required exactly0. They now use the same activity predicate:
+states0/2 are released; states1/3 and unknown layouts remain blocked. This also
+allows owned widget restoration after release. No native drag flags or profile
+definitions are forced. A moved power intentionally vacates its old slot;
+visual repaint must match the name map before the next move. The correction
+has native checks but still needs an owner retest.

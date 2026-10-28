@@ -46,7 +46,7 @@ static int runtime_power_caster(void *self,uintptr_t *pawn_out,uintptr_t *group_
        !session_handle_matches(lease->owner.pawn)||lease->owner.token!=guest_player_context_registration_token()||
        !runtime_power_icon_owner(base,&lease->owner,c)||
        (session_engine_blocked(c)&&!runtime_power_menu_context_held(base,c))||
-       runtime_power_wheel_drag_state(base,handler)!=0||
+       runtime_power_drag_blocks_input(runtime_power_wheel_drag_state(base,handler))||
        !runtime_power_read_membership(base,c,&catalog)||!runtime_power_catalog_same(&catalog,&lease->catalog))return 0;
     if(!runtime_power_property(base,handler,"SFXSFHandler_PowerWheel","m_nCurrentPowerIconIndex","IntProperty",0x780,4)||
        !runtime_power_property(base,handler,"SFXSFHandler_PowerWheel","m_aPowerIcons","ArrayProperty",0x45c,16)||

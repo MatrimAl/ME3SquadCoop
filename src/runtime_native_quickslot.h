@@ -55,7 +55,7 @@ static int runtime_quickslot_setup(void *self,uintptr_t pawn,uint64_t name,uintp
     if(!runtime_quickslot_installed||(uintptr_t)__builtin_return_address(0)!=base+0xc5455b||!runtime_quickslot_owner(handler))
         return runtime_original_quickslot_setup(self,pawn,name,icon);
     SessionContext c=session_context(session_engine);RuntimePowerCatalog catalog;
-    if(!runtime_quickslot_ready(base,c,&catalog)||runtime_power_wheel_drag_state(base,handler)!=0)return 0;
+    if(!runtime_quickslot_ready(base,c,&catalog)||runtime_power_drag_blocks_input(runtime_power_wheel_drag_state(base,handler)))return 0;
     RuntimeHotkeyWheel owner=runtime_power_wheel_context.owner;
     SessionHandle widget=session_capture_handle(icon);int slot=-1;
     for(unsigned n=0;n<8;++n)if(read_ptr(handler+0xbd8+n*8)==icon) {

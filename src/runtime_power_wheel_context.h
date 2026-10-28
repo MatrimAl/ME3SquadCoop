@@ -107,7 +107,7 @@ static void runtime_power_wheel_context_tick(uintptr_t base,uintptr_t engine) {
        !runtime_power_wheel_context_layout(base,&owner,c))return;
     uintptr_t squad=runtime_power_wheel_registered_squad(base,c);uint32_t flags=0;
     if(!squad||!read_at(owner.handler.pointer+0x7f8,&flags,4)||(flags&0x10)||
-       runtime_power_wheel_drag_state(base,owner.handler.pointer)!=0)return;
+       runtime_power_drag_blocks_input(runtime_power_wheel_drag_state(base,owner.handler.pointer)))return;
     RuntimePowerWheelContext next={0};next.owner=owner;next.catalog=catalog;
     next.squad=session_capture_handle(squad);
     static const int offsets[]={0x700,0x710,0x718,0x720};

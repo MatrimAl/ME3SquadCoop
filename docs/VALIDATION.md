@@ -1,5 +1,17 @@
 # Validation status
 
+The `e915a55` owner test contradicted working guest powers/melee: the owner
+reported failures and intermittent slot moves. Retained power refusal samples
+show released drag state2; both peers repeatedly deferred the melee clip
+prerequisite with no published slots. The next correction shares the existing
+released-drag predicate across every wheel consumer and prepares normal melee
+as independent complete rifle/pistol families with per-row native animation
+references. Native policy fixtures cover drag states and family masks; gameplay
+recovery remains unverified. The reported later Shepard rollback is unresolved:
+the old recorder did not record Shepard motion, and no matching late guest
+movement refusal establishes its cause. The next observer samples both peers'
+Shepard motion without attributing a cause from position changes alone.
+
 The dropped-ammo admission guard has native fixtures for eligible/negative
 policy cases, cursor-only selection, wrong cursor/opcode refusal and original
 forwarding/LastError. State-owned ABI fields, both executor filter paths and

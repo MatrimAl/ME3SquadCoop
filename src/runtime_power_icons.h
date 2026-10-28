@@ -107,7 +107,7 @@ static void runtime_power_icons_release(uintptr_t base,uintptr_t engine) {
         if(!s->changed)continue;
         s->changed=0;SessionContext c=session_context(engine);
         if(!runtime_power_icon_owner(base,&lease->owner,c)||
-           runtime_power_wheel_drag_state(base,lease->owner.handler.pointer)!=0||
+           runtime_power_drag_blocks_input(runtime_power_wheel_drag_state(base,lease->owner.handler.pointer))||
            !runtime_power_icon_layout(base,&lease->owner,n,s->icon)||
            !runtime_power_icon_matches(s->icon.pointer,s->installed,
                s->installed.pointer?lease->owner.pawn.pointer:0,s->installed_name))continue;
@@ -153,7 +153,7 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
            owner.token!=guest_player_context_registration_token()||!runtime_power_icon_owner(base,&owner,c)||
            !runtime_power_catalog_same(&catalog,&runtime_power_catalog))return;
         RuntimePowerIconLease captured={0};captured.owner=owner;captured.catalog=catalog;
-        if(runtime_power_wheel_drag_state(base,owner.handler.pointer)!=0)return;
+        if(runtime_power_drag_blocks_input(runtime_power_wheel_drag_state(base,owner.handler.pointer)))return;
         for(unsigned n=0;n<8;++n) {
             RuntimePowerIconSlot *s=&captured.slots[n];
             s->icon=session_capture_handle(read_ptr(owner.handler.pointer+0xbd8+n*8));
@@ -172,7 +172,7 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
     }
     int drag=runtime_power_wheel_drag_state(base,lease->owner.handler.pointer);
     if(drag<0) {lease->failed=1;runtime_power_icons_release(base,engine);return;}
-    if(drag) {
+    if(runtime_power_drag_blocks_input(drag)) {
         if(lease->drop_accepted)return; /* Native release cleanup may finish next Tick. */
         if(!lease->drag_observed) {
             /* Cancel pre-drag requests. They may identify the old slot map,

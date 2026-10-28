@@ -87,3 +87,18 @@ dependency on it was found in the selected input/action scripts. This candidate
 does not invent a missing animation or force a transition into that action.
 Cover animations, real hits, grab permissions, camera and scene/AI cleanup
 remain owner gameplay checks; no new game was launched.
+# Independent normal melee preparation
+
+The `e915a55` owner test reported no melee. Both peers logged repeated
+`waiting-loaded-melee-clips` with no published slots. That aggregate refusal
+does not identify which clip or method prerequisite failed. Previously a missing
+pistol animation set could stop every normal, heavy and cover melee slot.
+
+Normal rifle and pistol combos now prepare as independent complete three-action
+families. Each missing clip may use its own actual loaded player animation set;
+all three no longer have to reside in one set. References are registered and
+retired through the native per-row ledger, with readback and ownership checks.
+An unavailable family is retried while idle and does not stop ready heavy,
+cover or other normal actions. No animation is invented, no tree is replaced,
+and no action or damage is forced. Native input chooses the weapon's family.
+Full melee execution and missing-family recovery still require a game test.

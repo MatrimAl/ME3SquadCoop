@@ -278,6 +278,49 @@ static int runtime_melee_find_anim_set(uintptr_t base,RuntimeGuestMelee *q) {
     }
     return 0;
 }
+static unsigned runtime_melee_family_mask(unsigned available) {
+    return ((available&7)==7?7u:0u)|((available&56)==56?56u:0u);
+}
+/* Rifle and pistol combos are independent native families. A missing pistol
+ * set must not disable rifle, heavy and cover melee too. Resolve each clip
+ * through the actual loaded player mesh; split source sets are valid. */
+static void runtime_melee_normal_prepare(uintptr_t base,RuntimeGuestMelee *q) {
+    unsigned available=0;
+    for(unsigned i=0;i<6;++i){RuntimeMeleeRow *row=&q->rows[i];
+        if(row->changed||runtime_melee_pawn_clip(base,q->scope.pawn.pointer,row->anim,NULL)){available|=1u<<i;continue;}
+        GuestCameraStamp set={0};
+        if(runtime_melee_pawn_clip(base,q->source.pointer,row->anim,&set)&&
+           runtime_melee_anim_method(base,q->scope.pawn.pointer,1,&q->register_anim)&&
+           runtime_melee_anim_method(base,q->scope.pawn.pointer,0,&q->unregister_anim)){
+            row->anim_set=set;available|=1u<<i;
+        }
+    }
+    q->prepared=(q->prepared&~RUNTIME_MELEE_NORMAL_MASK)|runtime_melee_family_mask(available);
+}
+static int runtime_melee_normal_publish(uintptr_t base,uintptr_t engine,RuntimeGuestMelee *q,DWORD now) {
+    unsigned applied=0;GameArray pc={0},pa={0},powers={0};RuntimeMovementScope scope={0};
+    for(unsigned i=0;i<6;++i){RuntimeMeleeRow *row=&q->rows[i];unsigned index=runtime_melee_indices[i];
+        if(row->changed||!runtime_melee_row_prepared(q,i))continue;
+        if(!runtime_melee_pawn_clip(base,q->scope.pawn.pointer,row->anim,NULL)){
+            if(!guest_camera_stamp_matches(base,&row->anim_set,1)||!runtime_melee_set_has_clip(base,row->anim_set.pointer,row->anim)||
+               !runtime_melee_anim_method(base,q->scope.pawn.pointer,1,&q->register_anim)||
+               !runtime_melee_anim_method(base,q->scope.pawn.pointer,0,&q->unregister_anim)||
+               !guest_equipment_dispatch_pins(base)||read_ptr(read_ptr(q->scope.pawn.pointer)+0x230)!=base+0x40d450)return -1;
+            int before=runtime_melee_temp_refcount_at(base,q,row->anim_set.pointer);if(before<0)return -1;
+            uintptr_t set=row->anim_set.pointer;q->dispatching=1;
+            ((ProcessEvent)(base+0x40d450))((void*)q->scope.pawn.pointer,(void*)q->register_anim.function.pointer,&set,NULL);
+            q->dispatching=0;row->anim_registered=1;
+            if(q->retiring||!runtime_movement_scope(base,engine,&scope)||!runtime_movement_scope_same(&q->scope,&scope)||
+               !runtime_movement_idle(q->scope.pawn.pointer)||runtime_melee_temp_refcount_at(base,q,set)!=before+1||
+               !runtime_melee_pawn_clip(base,q->scope.pawn.pointer,row->anim,NULL))return -1;
+        }
+        if(!runtime_melee_arrays(base,q,&pc,&pa,&powers)||!guest_camera_stamp_matches(base,&row->klass,1)||
+           !guest_camera_stamp_matches(base,&row->cdo,1)||
+           !runtime_movement_borrow(q->scope.classes.data+(SIZE_T)index*8,runtime_melee_cell(&q->scope.actions,index),0,row->klass.pointer,0))return -1;
+        row->changed=1;++applied;
+    }
+    if(applied)runtime_melee_note("native-normal-melee-family-ready",applied,now);return (int)applied;
+}
 static int runtime_melee_instance(uintptr_t base,RuntimeGuestMelee *q,unsigned i,uintptr_t action) {
     uintptr_t power_field=runtime_melee_row_power_offset(i);
     return runtime_melee_row_prepared(q,i)&&narrative_probe_object(base,action,runtime_melee_row_base(i))&&
@@ -438,7 +481,7 @@ static void runtime_guest_melee_retire(uintptr_t base,uintptr_t engine,DWORD now
             }
         }
     }
-    if(!q->foreign)for(unsigned i=8;i<RUNTIME_MELEE_ROWS;++i){RuntimeMeleeRow *row=&q->rows[i];
+    if(!q->foreign)for(unsigned i=0;i<RUNTIME_MELEE_ROWS;++i){RuntimeMeleeRow *row=&q->rows[i];
         if(!row->anim_registered)continue;
         if(!guest_camera_stamp_matches(base,&row->anim_set,1)){row->anim_registered=0;continue;}
         if(!runtime_movement_idle(q->scope.pawn.pointer))return;
@@ -469,12 +512,14 @@ static void runtime_guest_melee_tick(uintptr_t base,uintptr_t engine,DWORD now) 
                 (read_ptr(q->scope.classes.data+(SIZE_T)runtime_melee_indices[i]*8)!=q->rows[i].klass.pointer||
                  !guest_camera_stamp_matches(base,&q->rows[i].klass,1)))retire=1;
         }
-        if(!retire&&((q->prepared&(RUNTIME_MELEE_HEAVY_MASK|RUNTIME_MELEE_COVER_MASK))!=
-                   (RUNTIME_MELEE_HEAVY_MASK|RUNTIME_MELEE_COVER_MASK))&&
+        if(!retire&&((q->prepared&(RUNTIME_MELEE_NORMAL_MASK|RUNTIME_MELEE_HEAVY_MASK|RUNTIME_MELEE_COVER_MASK))!=
+                   (RUNTIME_MELEE_NORMAL_MASK|RUNTIME_MELEE_HEAVY_MASK|RUNTIME_MELEE_COVER_MASK))&&
            now-q->checked>=5000&&runtime_movement_idle(q->scope.pawn.pointer)&&
            session_handle_matches(q->source)&&read_ptr(q->source.pointer+0x198)==q->scope.info.pointer){
             q->checked=now;GameArray source_classes={0};
             if(identity_array(q->source.pointer+0x69c,&source_classes,512)&&source_classes.count>80){
+                runtime_melee_normal_prepare(base,q);
+                if(runtime_melee_normal_publish(base,engine,q,now)<0){runtime_guest_melee_retire(base,engine,now);return;}
                 if(!(q->prepared&RUNTIME_MELEE_HEAVY_MASK))runtime_melee_heavy_source(base,q,&source_classes);
                 runtime_melee_cover_source(base,q,&source_classes);
                 if(q->prepared&RUNTIME_MELEE_HEAVY_MASK){
@@ -503,10 +548,10 @@ static void runtime_guest_melee_tick(uintptr_t base,uintptr_t engine,DWORD now) 
     if(read_ptr(runtime_melee_cell(&pc,43))||read_ptr(runtime_melee_cell(&pa,43)))return;
     for(int i=0;i<powers.count;++i)if(narrative_probe_object(base,read_ptr(powers.data+(SIZE_T)i*8),"SFXPowerCustomAction_MeleePassivePower"))return;
     if(!runtime_melee_source(base,&candidate))return;
-    int need_anims=!runtime_melee_clips_loaded(base,&candidate);
-    if(need_anims&&(!runtime_melee_find_anim_set(base,&candidate)||
-       !runtime_melee_anim_method(base,scope.pawn.pointer,1,&candidate.register_anim)||
-       !runtime_melee_anim_method(base,scope.pawn.pointer,0,&candidate.unregister_anim))){runtime_melee_note("waiting-loaded-melee-clips",0,now);return;}
+    runtime_melee_normal_prepare(base,&candidate);
+    if((candidate.prepared&RUNTIME_MELEE_NORMAL_MASK)!=RUNTIME_MELEE_NORMAL_MASK)
+        runtime_melee_note("waiting-optional-normal-melee-family",candidate.prepared&RUNTIME_MELEE_NORMAL_MASK,now);
+    if(!(candidate.prepared&(RUNTIME_MELEE_NORMAL_MASK|RUNTIME_MELEE_HEAVY_MASK|RUNTIME_MELEE_COVER_MASK)))return;
     if(
        !runtime_melee_method(base,candidate.manager.pointer,"AddPower",&candidate.add,1)||
        !runtime_melee_method(base,candidate.manager.pointer,"RemovePower",&candidate.remove,0)||
@@ -524,21 +569,10 @@ static void runtime_guest_melee_tick(uintptr_t base,uintptr_t engine,DWORD now) 
     if(q->retiring||!runtime_movement_scope(base,engine,&again)||!runtime_movement_scope_same(&scope,&again)||!runtime_movement_idle(scope.pawn.pointer)){
         runtime_guest_melee_retire(base,engine,now);return;
     }
-    if(need_anims){
-        if(!guest_camera_stamp_matches(base,&q->anim_set,1)||!guest_player_context_method_matches(base,&q->register_anim,0)||
-           !guest_equipment_dispatch_pins(base)||read_ptr(read_ptr(scope.pawn.pointer)+0x230)!=base+0x40d450){runtime_guest_melee_retire(base,engine,now);return;}
-        uintptr_t set=q->anim_set.pointer;q->dispatching=1;
-        ((ProcessEvent)(base+0x40d450))((void*)scope.pawn.pointer,(void*)q->register_anim.function.pointer,&set,NULL);
-        q->dispatching=0;q->anim_registered=1;
-        if(q->retiring||!runtime_melee_arrays(base,q,&pc,&pa,&powers)||
-           runtime_melee_temp_refcount(base,q)<=0||!runtime_melee_clips_loaded(base,q)||
-           !runtime_movement_scope(base,engine,&again)||!runtime_movement_scope_same(&scope,&again)||!runtime_movement_idle(scope.pawn.pointer)){
-            runtime_guest_melee_retire(base,engine,now);return;
-        }
-    }
+    if(runtime_melee_normal_publish(base,engine,q,now)<0){runtime_guest_melee_retire(base,engine,now);return;}
     unsigned applied=0;
     for(unsigned i=0;i<RUNTIME_MELEE_ROWS;++i){RuntimeMeleeRow *row=&q->rows[i];unsigned index=runtime_melee_indices[i];
-        if(i>=8)continue; /* Cover clips may need their own stock anim reference. */
+        if(i<6||i>=8)continue; /* Normal/cover rows own their individual anim references. */
         if(!runtime_melee_row_prepared(q,i))continue;
         if(!runtime_melee_arrays(base,q,&pc,&pa,&powers)||!guest_camera_stamp_matches(base,&row->klass,1)||
            !guest_camera_stamp_matches(base,&row->cdo,1)||
@@ -607,6 +641,8 @@ static int runtime_melee_cleanup_selftest(void) {
     return 1;
 }
 static int runtime_guest_melee_selftest(void) {
+    if(runtime_melee_family_mask(7)!=7||runtime_melee_family_mask(56)!=56||runtime_melee_family_mask(63)!=63||
+       runtime_melee_family_mask(3)||runtime_melee_family_mask(24)||runtime_melee_family_mask(31)!=7)return 0;
     RuntimeGuestMelee rows={0};rows.prepared=RUNTIME_MELEE_NORMAL_MASK|RUNTIME_MELEE_COVER_MASK;
     /* Optional covers must work without acquiring the plot-guarded heavy rows;
      * Hvy cover actions use normal PlayerMeleeBase.Power, unlike SoldierPunch. */
