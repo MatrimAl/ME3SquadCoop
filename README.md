@@ -14,6 +14,12 @@ It preserves native damage/reactions and filters initial, duplicate and stale
 ownership state. Rendered direction feedback still needs an owner gameplay
 check; see [hit direction](docs/GUEST-HIT-DIRECTION.md).
 
+The owned guest also has a narrow dropped-ammo admission adapter for the
+companion's disabled pickup flag. It keeps the general flag unchanged and
+uses the stock capacity, quantity and host-authoritative pickup lifecycle.
+Actual reserve gain and shared pickup behavior remain owner checks; see
+[dropped ammo](docs/GUEST-AMMO-PICKUP.md).
+
 The current ordinary build adds Shepard-only admission for classified story
 entries, guest entry warnings and a Mars shuttle close rule that waits for all
 human players to leave the cabin. Native fixtures cover the adapter contracts;

@@ -1,5 +1,14 @@
 # Validation status
 
+The dropped-ammo admission guard has native fixtures for eligible/negative
+policy cases, cursor-only selection, wrong cursor/opcode refusal and original
+forwarding/LastError. State-owned ABI fields, both executor filter paths and
+owned/foreign executor-prefix/trampoline cases also have fixtures. Its selected
+VM body and reflected operands are guarded.
+Four native targets and runtime/probe checks passed. These are not evidence of
+actual pickup, reserve gain, removal or peer replication; no game ran this
+addition. See [ammo pickup](GUEST-AMMO-PICKUP.md).
+
 The incoming-hit direction bridge has native fixtures for first-state and
 duplicate suppression, wrapping counters, scope changes, bounded multi-attacker
 pending entries, expiry and unchanged executor forwarding/LastError. Four

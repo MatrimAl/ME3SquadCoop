@@ -41,7 +41,7 @@ static int runtime_cover_knockback_native_pins(uintptr_t base) {
         0x0f,0x84,0x49,0xff,0xff,0xff,0x48,0x83,0x67,0x0c,0xfd,0xe9,0x3f,0xff,0xff,0xff,
     };
     unsigned char bytes[256];
-    return read_at(base+0xf52b0,bytes,221)&&!memcmp(bytes,entry,221)&&
+    return runtime_script_executor_prefix(base,entry,221)&&
         read_at(base+0xb3ac40,bytes,70)&&!memcmp(bytes,getter,70)&&
         read_at(base+0xa8fe70,bytes,46)&&!memcmp(bytes,predicate,46)&&
         read_at(base+0xf5389,bytes,156)&&!memcmp(bytes,cursor,156);
