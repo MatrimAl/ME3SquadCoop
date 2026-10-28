@@ -26,6 +26,12 @@ uses the stock capacity, quantity and host-authoritative pickup lifecycle.
 Actual reserve gain and shared pickup behavior remain owner checks; see
 [dropped ammo](docs/GUEST-AMMO-PICKUP.md).
 
+An offline supply timing candidate also requests the three-second shared
+respawn found in selected LEMP maps for qualifying native campaign containers.
+The stock grant and visibility lifecycle remains in place. Native fixtures
+passed; live replenishment and absolute multiplayer ammo amounts remain
+unverified. See [shared ammo supply](docs/MP-AMMO-SUPPLY.md).
+
 The current ordinary build adds Shepard-only admission for classified story
 entries, guest entry warnings and a Mars shuttle close rule that waits for all
 human players to leave the cabin. Native fixtures cover the adapter contracts;

@@ -1,5 +1,18 @@
 # Validation status
 
+The shared supply timing candidate follows selected LEMP Cerberus/Noveria
+containers with three-second respawns; the inspected Mars containers inherit
+twenty seconds. Only a qualifying authoritative host container's real native
+Sleep argument changes to three. Grant, capacity, shared visibility and state
+transitions remain native, with no ammunition, RespawnTime, global multiplayer
+state or asset writes. Standalone play, ordinary drops and other timer values
+retain their stock paths. All four targets built; ordinary runtime fixtures
+passed scalar mapping, exactly-once forwarding/LastError and owned/foreign
+entry-tail-trampoline checks. Existing protected memory/opt-in/low-integrity
+checks passed. No game ran this addition: full live admission, state expiry,
+rendered replication and absolute MP award amounts remain unverified. See
+[shared ammo supply](MP-AMMO-SUPPLY.md).
+
 The exact Mars entrance-airlock player variable now has a host-only native
 list-order guard. Native fixtures cover correct/reversed/null-peer pairs,
 foreign-pair refusal, conditional rollback, unchanged builder forwarding and
