@@ -119,6 +119,7 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_heavy_plot_guard.h"
 #include "runtime_guest_melee.h"
 #include "runtime_guest_traversal.h"
+#include "runtime_guest_reactions.h"
 #include "runtime_guest_swap.h"
 static SessionContext runtime_host_power_context(uintptr_t engine) {
     SessionContext c=session_context(engine);
@@ -137,6 +138,7 @@ static void runtime_before_host_control_release(uintptr_t base,uintptr_t engine)
     runtime_guest_weapon_retire(base,engine,GetTickCount());
     runtime_guest_melee_retire(base,engine,GetTickCount());
     runtime_guest_traversal_retire(base,engine,GetTickCount());
+    runtime_guest_reactions_retire(base,engine,GetTickCount());
     runtime_guest_movement_retire(base,engine,GetTickCount());
     runtime_power_action_context_retire(base,runtime_host_power_context(engine),0,0,0);
     if(runtime_revive_opted())runtime_revive_before_host_release(base,engine);
@@ -230,6 +232,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     if(!after)runtime_guest_movement_tick(base,engine,now);
     if(!after)runtime_guest_melee_tick(base,engine,now);
     if(!after)runtime_guest_traversal_tick(base,engine,now);
+    if(!after)runtime_guest_reactions_tick(base,engine,now);
     if(!after&&runtime_guest_team_tick(base,engine,now))runtime_scope_ready=runtime_session_scope(base,engine);
     runtime_revive_peer_configure();
     runtime_team_hud_configure();
@@ -248,6 +251,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
         runtime_guest_movement_tick(base,engine,GetTickCount());
         runtime_guest_melee_tick(base,engine,GetTickCount());
         runtime_guest_traversal_tick(base,engine,GetTickCount());
+        runtime_guest_reactions_tick(base,engine,GetTickCount());
         if(after)runtime_guest_shield_feedback_tick(base,engine,GetTickCount());
         if(after)runtime_guest_swap_prepare(base,engine,GetTickCount());
         if(after)runtime_layout_cache_flush(GetTickCount());
@@ -270,6 +274,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
         runtime_guest_movement_tick(base,engine,GetTickCount());
         runtime_guest_melee_tick(base,engine,GetTickCount());
         runtime_guest_traversal_tick(base,engine,GetTickCount());
+        runtime_guest_reactions_tick(base,engine,GetTickCount());
         runtime_host_power_context_tick(base,engine);
         runtime_presentation_tick(base,engine,GetTickCount());
         runtime_revive_peer_tick(base,engine,GetTickCount());

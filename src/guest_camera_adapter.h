@@ -198,6 +198,7 @@ static int guest_camera_conditions_policy(uintptr_t base,uintptr_t pc,uintptr_t 
         else if(!power) {
             if(action>=54&&action<=57)evade=guest_camera_native_action(base,pc,pawn,action,2,&action_flags);
             else if(guest_traversal_row(action)>=0)traversal=guest_camera_native_action(base,pc,pawn,action,4,&action_flags);
+            else if(guest_reaction_action(action))weapon=guest_camera_native_action(base,pc,pawn,action,5,&action_flags);
             else if((action>=75&&action<=80)||(action>=62&&action<=71)||action==58||action==73)melee=guest_camera_native_action(base,pc,pawn,action,3,&action_flags);
             else weapon=guest_camera_native_action(base,pc,pawn,action,0,&action_flags);
         }
@@ -300,6 +301,7 @@ static void guest_camera_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintpt
                 if(weapon&&!guest_camera_lease.retained_weapon_action)
                     guest_camera_log("retained",action>=54&&action<=57?"verified-native-player-evade":
                         guest_traversal_row(action)>=0?"verified-native-player-traversal":
+                        guest_reaction_action(action)?"verified-native-player-hit-reaction":
                         (action>=75&&action<=80)||(action>=62&&action<=71)||action==58||action==73?"verified-native-player-melee":"verified-native-weapon-action",now,1,current,1);
                 guest_camera_lease.retained_weapon_action=weapon;
             }
@@ -384,6 +386,11 @@ static int guest_camera_adapter_selftest(void) {
        !guest_camera_ignore_move_policy(1,1,0,4)||guest_camera_ignore_move_policy(1,0,0,4)||
        guest_camera_ignore_move_policy(1,0,1,0)||guest_camera_ignore_move_policy(2,0,1,4)||
        guest_camera_ignore_move_policy(255,1,1,4))return 0;
+    if(!guest_camera_reaction_policy(81,1,1,1,0,0)||!guest_camera_reaction_policy(100,1,1,1,0,0)||
+       guest_camera_reaction_policy(82,1,1,1,0,0)||guest_camera_reaction_policy(86,1,1,1,0,0)||
+       guest_camera_reaction_policy(81,0,1,1,0,0)||guest_camera_reaction_policy(81,1,0,1,0,0)||
+       guest_camera_reaction_policy(81,1,1,0,0,0)||guest_camera_reaction_policy(81,1,1,1,1,0)||
+       guest_camera_reaction_policy(81,1,1,1,0,1))return 0;
     if(!guest_camera_mode_policy(0,1,0,0,0)||guest_camera_mode_policy(0,0,1,1,1)||
        !guest_camera_mode_policy(1,0,1,1,1)||guest_camera_mode_policy(1,0,1,0,1)||
        guest_camera_mode_policy(1,0,1,1,0)||guest_camera_mode_policy(1,0,0,1,1))return 0;

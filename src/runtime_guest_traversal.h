@@ -38,17 +38,20 @@ static int runtime_traversal_action_idle(uintptr_t base,uintptr_t action,uintptr
     if(!active&&is_kind_of(base,mode,"SFXCameraMode_Interpolate"))active=read_ptr(mode+0x158)==cached||read_ptr(mode+0x160)==cached;
     return !active;
 }
-static int runtime_traversal_source(uintptr_t base,RuntimeGuestTraversal *q,GameArray *classes) {
-    uintptr_t pawn=read_ptr(q->scope.info.pointer+0x6c8),source=0,seen[256];unsigned count=0;
-    if(!runtime_power_property(base,q->scope.info.pointer,"WorldInfo","PawnList","ObjectProperty",0x6c8,8))return 0;
+static int runtime_movement_player_source(uintptr_t base,const RuntimeMovementScope *scope,SessionHandle *handle,GameArray *classes,int minimum) {
+    uintptr_t pawn=read_ptr(scope->info.pointer+0x6c8),source=0,seen[256];unsigned count=0;
+    if(!runtime_power_property(base,scope->info.pointer,"WorldInfo","PawnList","ObjectProperty",0x6c8,8))return 0;
     while(pawn&&count<256){
         for(unsigned i=0;i<count;++i)if(seen[i]==pawn)return 0;seen[count++]=pawn;
-        if(!guest_camera_actor_live(base,pawn)||!is_kind_of(base,pawn,"Pawn")||read_ptr(pawn+0x198)!=q->scope.info.pointer)return 0;
+        if(!guest_camera_actor_live(base,pawn)||!is_kind_of(base,pawn,"Pawn")||read_ptr(pawn+0x198)!=scope->info.pointer)return 0;
         if(is_kind_of(base,pawn,"SFXPawn_Player")){if(source)return 0;source=pawn;}
         pawn=read_ptr(pawn+0x37c);
     }
-    if(pawn||!source||source==q->scope.pawn.pointer)return 0;q->source=session_capture_handle(source);
-    return session_handle_matches(q->source)&&identity_array(source+0x69c,classes,512)&&classes->count>47;
+    if(pawn||!source||source==scope->pawn.pointer)return 0;*handle=session_capture_handle(source);
+    return session_handle_matches(*handle)&&identity_array(source+0x69c,classes,512)&&classes->count>minimum;
+}
+static int runtime_traversal_source(uintptr_t base,RuntimeGuestTraversal *q,GameArray *classes) {
+    return runtime_movement_player_source(base,&q->scope,&q->source,classes,47);
 }
 /* BodyStance is the native FName array used by these actions. Inspect only
  * that exact reflected struct, not unrelated same-sized arrays. */

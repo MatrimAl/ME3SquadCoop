@@ -80,6 +80,12 @@ Ashley's table. It uses the loaded player's classes and the engine's real
 input, geometry and replication paths, with independent clip and ownership
 checks. These additions are prepared for a later owner gameplay test.
 
+The next owned reaction lease also prepares the player's light-hit and
+shield-breach animation family. The six standard entries are changed together,
+including the two absent player alternates, while the shield reaction remains
+independent. Native damage and reaction selection are preserved. No game has
+run these additions; see [guest hit reactions](docs/GUEST-HIT-REACTIONS.md).
+
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.
 Native keyboard power slots/icons remain enabled. Shift Command mode now retains

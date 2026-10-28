@@ -1,5 +1,12 @@
 # Validation status
 
+The current offline addition prepares native player light-hit reactions81..86
+as one family and independent shield-breach reaction100. Native fixtures cover
+the family preparation boundary, failed partial apply, nullable classes/instances
+and camera guards. These are not real incoming-hit or animation evidence.
+Actual native selection, first-hit/breach presentation, peer result and AI
+recovery remain owner checks. See [hit reaction scope](GUEST-HIT-REACTIONS.md).
+
 The current offline movement extension adds running/standing gap jumps28/29
 and outer cover turns40..43 to the native traversal lease. Exact source class
 namespaces, current-mesh BodyStance requirements and empty authored slots are
