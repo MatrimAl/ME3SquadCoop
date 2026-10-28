@@ -74,6 +74,11 @@ static int runtime_traversal_mesh_clips(uintptr_t base,uintptr_t pawn,const uint
     uint64_t all=count==64?UINT64_MAX:(UINT64_C(1)<<count)-1;
     return found==all&&read_ptr(pawn+0x3f4)==mesh&&read_at(mesh+0x320,&again,sizeof again)&&!memcmp(&sets,&again,sizeof sets);
 }
+static int runtime_traversal_clip_name_valid(const uint32_t name[2]) {
+    /* Number3 encodes the native suffix _2. Preserve the complete FName
+     * pair: never strip that suffix or substitute an unnumbered clip. */
+    return name[0]&&name[1]<=INT_MAX;
+}
 static int runtime_traversal_clips(uintptr_t base,uintptr_t pawn,uintptr_t cdo,int native_ladder_loader) {
     uintptr_t klass=read_ptr(cdo+0x50),seen[32];unsigned count=0,stances=0,clips=0;uint32_t wanted[64][2];
     while(klass&&count<32){
@@ -89,7 +94,7 @@ static int runtime_traversal_clips(uintptr_t base,uintptr_t pawn,uintptr_t cdo,i
                        !read_at(field+0x74,&size,4)||size!=16||!read_at(field+0x70,&dim,4)||dim!=1||
                        !scene_readiness_array(cdo+(uintptr_t)offset,&array,16))return 0;
                     for(int j=0;j<array.count;++j){uint32_t clip[2];if(!read_at(array.data+(SIZE_T)j*8,clip,8))return 0;
-                        if(!clip[0])continue;if(clip[1]||clips>=64)return 0;memcpy(wanted[clips++],clip,8);
+                        if(!clip[0])continue;if(!runtime_traversal_clip_name_valid(clip)||clips>=64)return 0;memcpy(wanted[clips++],clip,8);
                     }
                     if(!read_at(cdo+(uintptr_t)offset,&again,sizeof again)||memcmp(&array,&again,sizeof array))return 0;
                 }
@@ -203,6 +208,9 @@ static void runtime_guest_traversal_tick(uintptr_t base,uintptr_t engine,DWORD n
 }
 #ifdef ME3_RUNTIME_FIXTURE
 static int runtime_guest_traversal_selftest(void) {
+    const uint32_t plain[2]={12,0},numbered[2]={12,3},invalid[2]={12,UINT32_MAX},none[2]={0,0};
+    if(!runtime_traversal_clip_name_valid(plain)||!runtime_traversal_clip_name_valid(numbered)||
+       runtime_traversal_clip_name_valid(invalid)||runtime_traversal_clip_name_valid(none))return 0;
     _Alignas(8) uintptr_t cells[16]={0};for(unsigned i=0;i<8;++i){cells[i*2]=10+i;cells[i*2+1]=30+i;}
     for(unsigned i=0;i<8;++i)if(!runtime_movement_borrow((uintptr_t)&cells[i*2],(uintptr_t)&cells[i*2+1],10+i,50+i,30+i))return 0;
     cells[6]=999; /* One foreign traversal class cannot orphan the other rows. */

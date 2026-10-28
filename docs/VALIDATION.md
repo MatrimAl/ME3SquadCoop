@@ -1,5 +1,11 @@
 # Validation status
 
+The fire reaction candidate prepares absent103/104 together from the loaded
+player class. Native fixtures cover pair failure/rollback, shorter-table
+bounds and the clip's native FName number, including refusal of invalid values.
+They do not prove fire damage, animation, timeline effects or peer recovery.
+Those outcomes remain owner checks; no game ran this addition.
+
 The new cover rule selects the generic selector's existing false-return branch
 only for verified human Ashley in native cover. Exact-image executor/getter
 and VM-body/parameter guards, cursor-only mutation, cover predicates and

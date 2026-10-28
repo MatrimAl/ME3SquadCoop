@@ -96,6 +96,11 @@ knockback refusal to human Ashley. It executes the stock false-return branch
 without changing damage or candidate arrays; ordinary stagger fallback remains.
 The rule is prepared offline and needs a later owner gameplay check.
 
+The next native reaction pair also supplies the player's missing on-fire
+actions. The exact numbered animation name is preserved and must already be
+on the current mesh. Native fire damage, cooldown and timeline rules remain
+unchanged. Actual fire-hit presentation and recovery still need owner testing.
+
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.
 Native keyboard power slots/icons remain enabled. Shift Command mode now retains

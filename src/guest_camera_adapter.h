@@ -387,10 +387,12 @@ static int guest_camera_adapter_selftest(void) {
        guest_camera_ignore_move_policy(1,0,1,0)||guest_camera_ignore_move_policy(2,0,1,4)||
        guest_camera_ignore_move_policy(255,1,1,4))return 0;
     if(!guest_camera_reaction_policy(81,1,1,1,0,0)||!guest_camera_reaction_policy(100,1,1,1,0,0)||
+       !guest_camera_reaction_policy(103,1,1,1,0,0)||!guest_camera_reaction_policy(104,1,1,1,0,0)||
        guest_camera_reaction_policy(82,1,1,1,0,0)||guest_camera_reaction_policy(86,1,1,1,0,0)||
        guest_camera_reaction_policy(81,0,1,1,0,0)||guest_camera_reaction_policy(81,1,0,1,0,0)||
        guest_camera_reaction_policy(81,1,1,0,0,0)||guest_camera_reaction_policy(81,1,1,1,1,0)||
-       guest_camera_reaction_policy(81,1,1,1,0,1)||guest_camera_reaction_policy(87,1,1,1,0,0))return 0;
+       guest_camera_reaction_policy(81,1,1,1,0,1)||guest_camera_reaction_policy(87,1,1,1,0,0)||
+       guest_camera_reaction_policy(103,1,1,1,1,0)||guest_camera_reaction_policy(104,1,1,0,0,0))return 0;
     if(!guest_camera_reaction_hit_policy(87,1,1,1,1,1)||!guest_camera_reaction_hit_policy(89,1,1,1,1,1)||
        !guest_camera_reaction_hit_policy(96,1,1,1,1,1)||guest_camera_reaction_hit_policy(88,1,1,1,1,1)||
        guest_camera_reaction_hit_policy(81,1,1,1,1,1)||guest_camera_reaction_hit_policy(87,0,1,1,1,1)||

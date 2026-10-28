@@ -119,3 +119,43 @@ Static exact-image cursor proof and fixtures are not gameplay validation.
 Next test: take a knockback-capable hit inside and outside cover, compare
 damage and fallback stagger, verify natural cover exit, then scene/disconnect
 and AI recovery on both peers. No game was launched for this addition.
+
+## Native fire reaction
+
+The next addition prepares the two absent player fire-reaction entries103/104
+as one independent pair. Both use the current world's loaded
+SFXGameContent.SFXCustomAction_PlayerOnFire class. Native GetPossibleReactions
+can select either during Reaction_Fire; no mod-generated hit, fire effect,
+damage tick or reaction request is added. Missing fire assets do not disable
+the earlier standard/stagger families. Existing native entries win.
+
+The retained authoritative FireDamageOverTime path also reaches ImpactWithPower
+and PickFireReaction directly. It requires the native resistance/large-reaction
+conditions and PowerReactionChance before selecting103/104. The adapter does
+not bypass those decisions. This is a separate route from RequestReaction;
+a direct fire-effect RequestReaction(4) caller was not established.
+
+PlayerOnFire inherits DamageReaction without its own functions. Its normal
+root motion, four-second cooldown, priority, vocalization and timeline effects
+remain authored. It has no requested camera mode; the stock timeline supplies
+its shake/rumble/blur effects. The existing retention policy only keeps an
+already-held shoulder scalar for the actual owned reaction with no action
+camera. Normal action movement/input restrictions remain unchanged.
+
+The required clip is DG_Impact_OnFire_2. Its native FName is the base
+DG_Impact_OnFire with Number3. The shared clip reader now accepts nonnegative
+native name numbers and compares the complete index/number pair with the actual
+mesh's SequenceName. It does not strip the suffix, alias another clip, load a
+new asset or replace an animation tree. All previous unnumbered checks retain
+their exact identity. Sparse BodyStance entries are not changed.
+
+Each optional row checks its source/current table bounds before preparation,
+observation and mutation. A shorter table cannot expose an out-of-range fire
+slot or prevent the older rows from working. Native fixtures cover the pair's
+complete mask, empty-slot borrowing, foreign second-row failure/rollback/retry,
+short-table refusal and numbered-name acceptance/invalid-number refusal.
+
+No game ran this addition. Actual first fire hit, timeline/animation, cooldown,
+native input/root-motion recovery, peer presentation and scene/disconnect AI
+return remain owner checks. Complete fire/damage and multiplayer/campaign
+parity is not established by borrowing these classes.
