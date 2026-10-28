@@ -22,7 +22,7 @@ world, pawn, manager and permitted owner before continuing. A synchronous
 release during native dispatch cannot erase that in-flight lease. Later
 retries do not remove a successfully removed passive twice.
 
-The normal six melee actions can retain an existing guest shoulder scale when
+The normal and Soldier heavy/storm actions can retain an existing guest shoulder scale when
 the actual player-owned action requests no camera and has no AI cache. This
 does not acquire a camera inside an action or bypass a real scene/camera mode.
 

@@ -17,12 +17,12 @@ static int guest_camera_evade_policy(int index,int player_evade,int pc_matches,i
 }
 static int guest_camera_melee_policy(int index,int player_melee,int canonical_class,int pc_matches,
         int ai_empty,uintptr_t requested,uintptr_t active) {
-    return index>=75&&index<=80&&player_melee&&canonical_class&&pc_matches&&ai_empty&&!requested&&!active;
+    return ((index>=75&&index<=80)||index==58||index==73)&&player_melee&&canonical_class&&pc_matches&&ai_empty&&!requested&&!active;
 }
 static int guest_camera_ignore_move_policy(unsigned ignore,int power,int evade,uint32_t action_flags) {
     return !ignore||(ignore==1&&(power||evade)&&(action_flags&4));
 }
-/* kind0=draw/holster/reload,1=power,2=player evades,3=normal player melee. */
+/* kind0=draw/holster/reload,1=power,2=player evades,3=player melee. */
 static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn,int32_t index,int kind,uint32_t *flags_out) {
     GameArray classes={0},actions={0},again={0};
     int power=kind==1,evade=kind==2,melee=kind==3;
@@ -59,9 +59,11 @@ static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn
         static const char *names[]={"SFXGameContent.SFXCustomAction_RifleMeleeOne","SFXGameContent.SFXCustomAction_RifleMeleeTwo",
             "SFXGameContent.SFXCustomAction_RifleMeleeThree","SFXGameContent.SFXCustomAction_PistolMeleeOne",
             "SFXGameContent.SFXCustomAction_PistolMeleeTwo","SFXGameContent.SFXCustomAction_PistolMeleeThree"};
-        if(index<75||index>80||!read_at(action+0x78,&requested_camera,8)||!read_at(action+0xb0,&active_camera,8)||
-           !guest_camera_melee_policy(index,is_kind_of(base,action,"SFXCustomAction_PlayerMeleeBase"),
-               !strcmp(type.full_name,names[index-75]),read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),requested_camera,active_camera))return 0;
+        int heavy=index==58||index==73;
+        if((!heavy&&(index<75||index>80))||!read_at(action+0x78,&requested_camera,8)||!read_at(action+0xb0,&active_camera,8)||
+           !guest_camera_melee_policy(index,is_kind_of(base,action,heavy?"SFXCustomAction_PlayerHeavyMeleeBase":"SFXCustomAction_PlayerMeleeBase"),
+               !strcmp(type.full_name,heavy?"SFXGameContent.SFXCustomAction_SoldierPunch":names[index-75]),
+               read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),requested_camera,active_camera))return 0;
     } else {
         if((strcmp(type.full_name,"SFXGame.SFXCustomAction_DrawWeapon")&&strcmp(type.full_name,"SFXGame.SFXCustomAction_HolsterWeapon")&&
             !is_kind_of(base,action,"SFXCustomAction_ReloadBase"))||
@@ -81,7 +83,7 @@ static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn
 }
 /* This only retains an existing camera scalar. The action's historical AI/PC
  * caches are not invoked or changed. Evade additionally requires stock's real
- * local-player cache and canonical Roll camera. Normal melee requires the real
+ * local-player cache and canonical Roll camera. Melee requires the real
  * local-player cache and no requested action camera; reload/power retention
  * remains independent of their historical controller caches. */
 #endif

@@ -197,7 +197,7 @@ static int guest_camera_conditions_policy(uintptr_t base,uintptr_t pc,uintptr_t 
         if(action==132&&power>0)power_instance=guest_camera_native_action(base,pc,pawn,power,1,&action_flags);
         else if(!power) {
             if(action>=54&&action<=57)evade=guest_camera_native_action(base,pc,pawn,action,2,&action_flags);
-            else if(action>=75&&action<=80)melee=guest_camera_native_action(base,pc,pawn,action,3,&action_flags);
+            else if((action>=75&&action<=80)||action==58||action==73)melee=guest_camera_native_action(base,pc,pawn,action,3,&action_flags);
             else weapon=guest_camera_native_action(base,pc,pawn,action,0,&action_flags);
         }
     }
@@ -298,7 +298,7 @@ static void guest_camera_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintpt
                 int32_t action=0;int weapon=read_at(pawn+0xc20,&action,4)&&action>0;
                 if(weapon&&!guest_camera_lease.retained_weapon_action)
                     guest_camera_log("retained",action>=54&&action<=57?"verified-native-player-evade":
-                        action>=75&&action<=80?"verified-native-player-melee":"verified-native-weapon-action",now,1,current,1);
+                        (action>=75&&action<=80)||action==58||action==73?"verified-native-player-melee":"verified-native-weapon-action",now,1,current,1);
                 guest_camera_lease.retained_weapon_action=weapon;
             }
         }
@@ -353,12 +353,14 @@ static int guest_camera_adapter_selftest(void) {
        !guest_camera_action_policy(1,54,0,1,0)||guest_camera_action_policy(0,54,0,1,0)||
        guest_camera_action_policy(1,54,1,1,0))return 0;
     if(!guest_camera_melee_policy(75,1,1,1,1,0,0)||!guest_camera_melee_policy(80,1,1,1,1,0,0)||
+       !guest_camera_melee_policy(58,1,1,1,1,0,0)||!guest_camera_melee_policy(73,1,1,1,1,0,0)||
        guest_camera_melee_policy(74,1,1,1,1,0,0)||guest_camera_melee_policy(81,1,1,1,1,0,0)||
        guest_camera_melee_policy(75,0,1,1,1,0,0)||guest_camera_melee_policy(75,1,0,1,1,0,0)||
        guest_camera_melee_policy(75,1,1,0,1,0,0)||guest_camera_melee_policy(75,1,1,1,0,0,0)||
        guest_camera_melee_policy(75,1,1,1,1,9,0)||guest_camera_melee_policy(75,1,1,1,1,0,9)||
        !guest_camera_action_policy(1,75,0,1,0)||guest_camera_action_policy(0,75,0,1,0)||
-       guest_camera_action_policy(1,75,1,1,0))return 0;
+       guest_camera_action_policy(1,75,1,1,0)||!guest_camera_action_policy(1,58,0,1,0)||
+       guest_camera_melee_policy(58,1,1,1,1,9,0)||guest_camera_melee_policy(73,1,1,0,1,0,0))return 0;
     if(!guest_camera_ignore_move_policy(0,0,0,0)||!guest_camera_ignore_move_policy(1,0,1,4)||
        !guest_camera_ignore_move_policy(1,1,0,4)||guest_camera_ignore_move_policy(1,0,0,4)||
        guest_camera_ignore_move_policy(1,0,1,0)||guest_camera_ignore_move_policy(2,0,1,4)||
