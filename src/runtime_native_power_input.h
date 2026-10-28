@@ -14,6 +14,16 @@ typedef struct RuntimeHotkeyWheel {
     int registry_observation;
 } RuntimeHotkeyWheel;
 static RuntimeHotkeyWheel runtime_hotkey_wheel;
+static void runtime_native_hotkey_rejection(uintptr_t handler,SessionContext c,int slot,unsigned scope,int drag,int index) {
+    static unsigned rows;if(rows++>=48)return;
+    int32_t action=-1,power=-1;uint32_t life=0;unsigned char ignored=255;char row[650];
+    read_at(c.pawn+0xc20,&action,4);read_at(c.pawn+0xc28,&power,4);read_at(c.pawn+0xe20,&life,4);
+    read_at(c.pc+0x782,&ignored,1);
+    snprintf(row,sizeof row,"{\"runtime_power_input\":\"native-hotkey-refusal-context\",\"slot\":%d,\"catalog_scope\":%u,\"drag_state\":%d,\"catalog_index\":%d,\"action\":%d,\"power_action\":%d,\"ignore_look\":%u,\"life_flags\":%u,\"game_mode\":%u,\"weapon\":\"0x%llx\",\"handler\":\"0x%llx\",\"slot_name_bound\":%s,\"monotonic_ms\":%lu}\r\n",
+        slot,scope,drag,index,action,power,(unsigned)ignored,life,(unsigned)c.mode,
+        (unsigned long long)read_ptr(c.pawn+0x41c),(unsigned long long)handler,
+        slot>=0&&slot<8&&runtime_power_slots[slot].bound?"true":"false",GetTickCount());line(row);
+}
 /* Native drag owns the icon's transitional state. Validate the actual boolean
  * masks as well as their shared storage offset; unreadable is not idle. */
 static int runtime_power_wheel_drag_state(uintptr_t base,uintptr_t handler) {
@@ -87,6 +97,7 @@ static void runtime_native_hotkey(void *self,int slot) {
        runtime_power_catalog_same(&runtime_power_catalog,&current))
         index=runtime_power_slot_index(&current,(unsigned)slot);
     int accepted=index>=0&&runtime_request_power(scope,(unsigned)index);
+    if(!accepted)runtime_native_hotkey_rejection(handler,c,slot,scope,drag,index);
     runtime_power_log(accepted?RUNTIME_POWER_QUEUED:RUNTIME_POWER_REJECTED,
         accepted?"native-hotkey-queued":"native-hotkey-unavailable",
         index>=0?(unsigned)index:UINT32_MAX,GetTickCount());

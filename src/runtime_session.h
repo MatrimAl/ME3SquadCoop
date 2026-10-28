@@ -114,6 +114,7 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_guest_shield_feedback.h"
 #include "runtime_power_action_context.h"
 #include "runtime_guest_movement.h"
+#include "runtime_guest_swap.h"
 static SessionContext runtime_host_power_context(uintptr_t engine) {
     SessionContext c=session_context(engine);
     c.pc=session_remote;c.pawn=session_pawn;return c;
@@ -230,6 +231,8 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
         runtime_guest_weapon_tick(base,engine,GetTickCount());
         runtime_guest_movement_tick(base,engine,GetTickCount());
         if(after)runtime_guest_shield_feedback_tick(base,engine,GetTickCount());
+        if(after)runtime_guest_swap_prepare(base,engine,GetTickCount());
+        if(after)runtime_layout_cache_flush(GetTickCount());
         return;
     }
     session_before_control_release=runtime_before_host_control_release;
@@ -250,6 +253,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
         runtime_presentation_tick(base,engine,GetTickCount());
         runtime_revive_peer_tick(base,engine,GetTickCount());
         runtime_guest_vitals_tick(base,engine,GetTickCount());
+        runtime_layout_cache_flush(GetTickCount());
     }
 }
 #endif

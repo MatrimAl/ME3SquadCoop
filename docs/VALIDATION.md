@@ -1,11 +1,23 @@
 # Validation status
 
-The latest candidate borrows the four canonical player evade actions for
-human-owned Ashley, corrects authored fire-selector validation and admits
-player-derived shields for their missing replicated low-shield cosmetic.
-These changes have not run in a game. Full movement/animation and weapon
-parity remain unproven. See [movement scope](GUEST-MOVEMENT-CONTEXT.md) and
-[weapon scope](GUEST-WEAPON-PRESENTATION.md).
+The latest candidate adds verified-evade camera retention, an owned guest
+TrySwapWeapon-to-NextWeapon bridge, guest-name-based native slot moves and
+recovery from rejected drops. It also caches successful reflected layouts
+with lifetime/layout revalidation and emits baseline/cache CPU timings.
+These additions have not run in a game. See
+[control scope](GUEST-CONTROL-REFRESH.md).
+
+In the protected manual `b515e98` session, both peers borrowed the four player
+evade classes, and actual player instances with correct controller caches
+were observed. The owner reported good evades and normal low-shield/break
+feedback, with a remaining camera-angle difference during evades. X swapping,
+powers after weapon/slot changes, a possible9-to10-to8 clip rebound and slower
+performance were reported. Sampled engine frame-delta medians were59ms host
+and52ms guest; this is not GPU timing or a mod-only cost measurement. The
+recorder used about2.9% of one logical core during that sample. Both games
+ended at their configured native-job deadlines (124), with no recorded native
+exceptions and successful isolation rollback. Full movement, animation,
+weapon and campaign parity remain unproven.
 
 Four native targets compiled. Runtime fixtures passed conditional slot
 borrowing/rollback, lazy action arrays and mutable storage, lifetime/owner

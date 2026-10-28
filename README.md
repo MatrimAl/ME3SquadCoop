@@ -27,11 +27,16 @@ power actions keep the guest shoulder distance and the early movement fence
 opens after Shepard passes. Both peers admitted the owned weapon's human
 damage multiplier. A possible one-round clip rebound was reported during
 rapid fire/reload; the cause and visible HUD result remain under review.
-The next candidate corrects authored fire-selector validation and admits the
-actual player-derived Ashley shield for its missing low-shield cosmetic.
-It also borrows the four stock player evade actions during human companion
-ownership. These new integrations need gameplay checks; complete movement,
-animation and weapon parity remain unproven. See
+In the later `b515e98` session, the owner reported good directional evades
+and normal low-shield/break feedback. The evade camera still differed, X
+weapon swapping failed, and powers stopped after weapon/slot changes.
+The next candidate retains the shoulder scale through verified evades,
+bridges owned guest swap input to stock NextWeapon, and resolves native named
+slot moves through the guest power map. A refused drop no longer disables
+the whole valid wheel. A measured reflected-layout cache and timing counters
+address repeated metadata work; a frame-rate improvement is not yet proven.
+These additions need gameplay checks; complete movement, animation and
+weapon parity remain unproven. See [control changes](docs/GUEST-CONTROL-REFRESH.md),
 [weapon and presentation scope](docs/GUEST-WEAPON-PRESENTATION.md) and
 [movement scope](docs/GUEST-MOVEMENT-CONTEXT.md).
 

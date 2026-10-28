@@ -67,6 +67,27 @@ static int runtime_movement_idle(uintptr_t pawn) {
     int32_t action=-1,power=-1;
     return read_at(pawn+0xc20,&action,4)&&!action&&read_at(pawn+0xc28,&power,4)&&!power;
 }
+static int runtime_movement_action_idle_policy(uint32_t flags,uintptr_t timeline,int camera_in_use) {
+    return !(flags&0x10800000)&&!timeline&&camera_in_use==0;
+}
+/* PlayerEvade keeps oPlayerCamera as a reusable Roll mode after it ends,
+ * exactly as Shepard does. Its non-null cache is not an active action. Wait
+ * only while that mode is actually driving the current camera/interpolation. */
+static int runtime_movement_action_idle(uintptr_t base,uintptr_t action,uintptr_t pc) {
+    uint32_t flags=0;uintptr_t roll=read_ptr(action+0xb0),timeline=read_ptr(action+0xb8);
+    if(!read_at(action+0x100,&flags,4)||!runtime_movement_action_idle_policy(flags,timeline,0))return 0;
+    if(!roll)return 1;
+    if(!narrative_probe_object(base,roll,"SFXCameraMode_Roll")||
+       !guest_camera_actor_live(base,pc)||!is_kind_of(base,pc,"SFXPlayerController"))return 0;
+    uintptr_t camera=read_ptr(pc+0x684),mode=read_ptr(camera+0x558);
+    if(!guest_camera_actor_live(base,camera)||!is_kind_of(base,camera,"SFXPlayerCamera")||
+       read_ptr(pc+0xe28)!=camera||read_ptr(camera+0x4a8)!=pc||
+       !narrative_probe_object(base,mode,"SFXCameraMode"))return 0;
+    int used=mode==roll;
+    if(!used&&is_kind_of(base,mode,"SFXCameraMode_Interpolate"))
+        used=read_ptr(mode+0x158)==roll||read_ptr(mode+0x160)==roll;
+    return runtime_movement_action_idle_policy(flags,timeline,used);
+}
 static int runtime_movement_scope(uintptr_t base,uintptr_t engine,RuntimeMovementScope *out) {
     SessionContext c=session_context(engine);NetworkActorScope world={0};NetworkActorIdentityEntry channel={0};
     memset(out,0,sizeof *out);uint32_t life=0;
@@ -223,7 +244,8 @@ static int runtime_movement_owned_instances(uintptr_t base,RuntimeGuestMovement 
                !guest_camera_stamp_read(base,action,&r->new_instance,1)) {r->changed=0;continue;}
             r->observed=1;
         }
-        ++remaining;if(idle&&!runtime_power_action_context_action_idle(action))busy=1;
+        uintptr_t view_pc=g_runtime_config.role==ME3_ROLE_GUEST?session_context(session_engine).pc:q->scope.pc.pointer;
+        ++remaining;if(idle&&!runtime_movement_action_idle(base,action,view_pc))busy=1;
     }
     return busy?-1:(int)remaining;
 }
@@ -289,7 +311,7 @@ static void runtime_guest_movement_tick(uintptr_t base,uintptr_t engine,DWORD no
             uintptr_t cached_pc=read_ptr(action+0xa0);
             if(!runtime_movement_instance(base,action,klass,scope.pawn.pointer)||(cached_pc&&cached_pc!=scope.pc.pointer)||
                (cached_pc&&ai)||
-               !runtime_power_action_context_action_idle(action)||
+               !runtime_movement_action_idle(base,action,scope.pc.pointer)||
                !runtime_power_action_context_ai(base,ai,scope.pawn.pointer,scope.info.pointer)||
                (ai&&read_ptr(ai+0x3bc))||
                (g_runtime_config.role==ME3_ROLE_HOST&&ai&&ai!=scope.ai.pointer)||
@@ -346,6 +368,12 @@ static int runtime_guest_movement_selftest(void) {
     unsigned char pawn[0xc30]={0};int32_t busy=54;
     if(!runtime_movement_idle((uintptr_t)pawn))return 0;
     memcpy(pawn+0xc20,&busy,4);if(runtime_movement_idle((uintptr_t)pawn))return 0;
+    if(!runtime_movement_action_idle_policy(0xc1457206,0,0)||
+       runtime_movement_action_idle_policy(0xd1457206,0,0)||
+       runtime_movement_action_idle_policy(0xc1c57206,0,0)||
+       runtime_movement_action_idle_policy(0xc1457206,16,0)||
+       runtime_movement_action_idle_policy(0xc1457206,0,1)||
+       runtime_movement_action_idle_policy(0xc1457206,0,-1))return 0;
     RuntimeMovementScope a={0},b={0};a.token=1;
     SessionHandle *handles[]={&a.pc,&a.pawn,&a.info,&a.world,&a.driver,&a.connection,&a.channel};
     for(unsigned i=0;i<7;++i)*handles[i]=(SessionHandle){0x100+i*8,(int32_t)i+1,i+2};

@@ -29,9 +29,14 @@ Native or external replacements keep ownership of their values.
 
 Set `ME3_SQUAD_COOP_PLAYER_DODGE=0` to disable this adapter. Native fixtures
 passed the slot mutation/rollback, missing-cell, mutable-array, owner/lifetime
-and busy-action policies. Gameplay and animation rendering are still untested.
+and busy-action policies. In `b515e98`, the owner reported good evades and
+normal animation/movement return, with a remaining camera-angle difference.
+The next candidate retains the existing shoulder scale through verified
+PlayerEvade/Roll camera actions; it does not change native FOV or camera modes.
+The reusable cached Roll mode after an ended action no longer counts as busy
+unless that mode is actually driving the current camera/interpolation.
 
-The integration needs a protected gameplay check: evade in each direction
+The camera correction needs a protected gameplay check: evade in each direction
 from idle and aim; check direction, distance, animation and return to movement.
 Then enter a real scene and check that human control and normal AI behavior
 return. The owner should also exercise sprint, cover and vaulting to identify

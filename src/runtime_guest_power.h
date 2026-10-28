@@ -220,22 +220,32 @@ static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordina
 }
 /* Reflected layout corroborates the retained SDK before invoking an order.
  * No property writes or method substitution are performed. */
-static int runtime_power_property_dim(uintptr_t base,uintptr_t object,const char *owner,const char *name,
-    const char *kind,int offset,int size,int dimensions) {
+typedef struct RuntimeLayoutResolved {
+    uintptr_t classes[48],field,owner_children;
+    unsigned count,examined;
+} RuntimeLayoutResolved;
+static int runtime_power_property_dim_uncached(uintptr_t base,uintptr_t object,const char *owner,const char *name,
+    const char *kind,int offset,int size,int dimensions,RuntimeLayoutResolved *resolved) {
+    if(resolved)memset(resolved,0,sizeof *resolved);
     uintptr_t klass=read_ptr(object+0x50),seen[48]={0};
     for(unsigned n=0;klass&&n<48;++n) {
         if(!narrative_probe_object(base,klass,"Class"))return 0;
         for(unsigned j=0;j<n;++j)if(seen[j]==klass)return 0;seen[n]=klass;
+        if(resolved)resolved->classes[resolved->count++]=klass;
         char text[96];object_name(base,klass,text,sizeof text);
         if(!strcmp(text,owner)) {
             uintptr_t field=read_ptr(klass+0x70);
+            if(resolved)resolved->owner_children=field;
             for(unsigned k=0;field&&k<1024;++k) {
+                if(resolved)++resolved->examined;
                 if(!is_live(base,field))return 0;object_name(base,field,text,sizeof text);
                 if(!strcmp(text,name)) {
                     int32_t got=-1,bytes=0,dim=0;
-                    return read_ptr(field+0x40)==klass&&narrative_probe_object(base,field,kind)&&
+                    int valid=read_ptr(field+0x40)==klass&&narrative_probe_object(base,field,kind)&&
                         read_at(field+0x94,&got,4)&&got==offset&&read_at(field+0x74,&bytes,4)&&bytes==size&&
                         read_at(field+0x70,&dim,4)&&dim==dimensions;
+                    if(valid&&resolved)resolved->field=field;
+                    return valid;
                 }
                 if(!read_at(field+0x68,&field,8))return 0;
             }
@@ -244,6 +254,11 @@ static int runtime_power_property_dim(uintptr_t base,uintptr_t object,const char
         if(!read_at(klass+0x60,&klass,8))return 0;
     }
     return 0;
+}
+#include "runtime_layout_cache.h"
+static int runtime_power_property_dim(uintptr_t base,uintptr_t object,const char *owner,const char *name,
+    const char *kind,int offset,int size,int dimensions) {
+    return runtime_layout_cache_property(base,object,owner,name,kind,offset,size,dimensions);
 }
 static int runtime_power_property(uintptr_t base,uintptr_t object,const char *owner,const char *name,
     const char *kind,int offset,int size) {
