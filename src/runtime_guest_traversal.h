@@ -7,18 +7,16 @@ typedef struct RuntimeTraversalRow {RuntimeMovementRow slot;int prepared;} Runti
 typedef struct RuntimeGuestTraversal {
     RuntimeMovementScope scope;
     SessionHandle source;
-    RuntimeTraversalRow rows[8];
+    RuntimeTraversalRow rows[GUEST_TRAVERSAL_ROW_COUNT];
     int valid,retiring;
     DWORD checked;
 } RuntimeGuestTraversal;
 static RuntimeGuestTraversal runtime_guest_traversal;
-static const unsigned runtime_traversal_indices[]={31,33,36,37,38,39,46,47};
+static int runtime_traversal_handoff_ready(uintptr_t base,uintptr_t pawn);
 static const char *runtime_traversal_old[]={"SFXCustomAction_AIMantleOverCover","SFXCustomAction_AIMantleUp",
     "SFXCustomAction_CoverSlipLeft","SFXCustomAction_CoverSlipLeftStanding","SFXCustomAction_CoverSlipRight",
-    "SFXCustomAction_CoverSlipRightStanding","SFXCustomAction_AILadderClimbUp","SFXCustomAction_AILadderClimbDown"};
-static const char *runtime_traversal_player[]={"SFXCustomAction_PlayerMantleOverCover","SFXCustomAction_PlayerMantleUp",
-    "SFXCustomAction_PlayerCoverSlipLeft","SFXCustomAction_PlayerCoverSlipLeftStanding","SFXCustomAction_PlayerCoverSlipRight",
-    "SFXCustomAction_PlayerCoverSlipRightStanding","SFXCustomAction_PlayerLadderClimbUp","SFXCustomAction_PlayerLadderClimbDown"};
+    "SFXCustomAction_CoverSlipRightStanding","SFXCustomAction_AILadderClimbUp","SFXCustomAction_AILadderClimbDown",
+    "SFXCustomAction_StandingGapJump",NULL,NULL,NULL,NULL,NULL};
 static unsigned runtime_traversal_events;
 static int runtime_traversal_enabled(void) {
     static int enabled=-1;if(enabled<0){wchar_t text[8]={0};DWORD n=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PLAYER_TRAVERSAL",text,8);
@@ -105,16 +103,31 @@ static int runtime_traversal_clips(uintptr_t base,uintptr_t pawn,uintptr_t cdo,i
 static int runtime_traversal_instance(uintptr_t base,uintptr_t action,uintptr_t klass,uintptr_t pawn) {
     return runtime_movement_instance(base,action,klass,pawn);
 }
+static int runtime_traversal_authored_policy(unsigned index,uintptr_t klass,uintptr_t action) {
+    return guest_traversal_row((int)index)>=0&&(guest_traversal_empty_authored((int)index)?!(klass||action):klass!=0);
+}
+static int runtime_traversal_player_policy(unsigned index,uint32_t flags) {
+    return (index!=28&&index!=29)||(flags&0x10)!=0;
+}
 static int runtime_traversal_prepare_row(uintptr_t base,RuntimeGuestTraversal *q,unsigned i,const GameArray *source) {
-    unsigned index=runtime_traversal_indices[i];RuntimeMovementRow *r=&q->rows[i].slot;
+    unsigned index=guest_traversal_indices[i];RuntimeMovementRow *r=&q->rows[i].slot;
     uintptr_t old=read_ptr(q->scope.classes.data+(SIZE_T)index*8),next=read_ptr(source->data+(SIZE_T)index*8);
     uintptr_t cell=runtime_movement_instance_cell(&q->scope.actions,index),action=cell?read_ptr(cell):0;
-    if(!runtime_movement_named_class(base,old,runtime_traversal_old[i],&r->old_class)||
-       !runtime_movement_named_class(base,next,runtime_traversal_player[i],&r->new_class)||
-       !guest_camera_stamp_read(base,read_ptr(old+0x13c),&r->old_cdo,1)||read_ptr(r->old_cdo.pointer+0x50)!=old||
+    if(!runtime_traversal_authored_policy(index,old,action))return 0;
+    if(index==28||index==29){uint32_t flags=0;
+        /* GapJump selects player versus AI alignment from bIsAPlayer, not
+         * merely the current controller. Never manufacture that native bit. */
+        if(!runtime_power_property(base,q->scope.pawn.pointer,"BioPawn","bIsAPlayer","BoolProperty",0xe20,4)||
+           !read_at(q->scope.pawn.pointer+0xe20,&flags,4)||!runtime_traversal_player_policy(index,flags)||
+           !runtime_traversal_handoff_ready(base,q->scope.pawn.pointer))return 0;
+    }
+    if(!guest_traversal_empty_authored((int)index)&&(!runtime_movement_named_class(base,old,runtime_traversal_old[i],&r->old_class)||
+       !guest_camera_stamp_read(base,read_ptr(old+0x13c),&r->old_cdo,1)||read_ptr(r->old_cdo.pointer+0x50)!=old))return 0;
+    if(!narrative_probe_object(base,next,"Class")||!guest_camera_stamp_read(base,next,&r->new_class,1)||
+       strcmp(r->new_class.full_name,guest_traversal_player_class((int)index))||
        !guest_camera_stamp_read(base,read_ptr(next+0x13c),&r->new_cdo,1)||read_ptr(r->new_cdo.pointer+0x50)!=next||
        !is_kind_of(base,r->new_cdo.pointer,"BioCustomAction")||
-       !runtime_traversal_clips(base,q->scope.pawn.pointer,r->new_cdo.pointer,i>=6))return 0;
+       !runtime_traversal_clips(base,q->scope.pawn.pointer,r->new_cdo.pointer,index==46||index==47))return 0;
     if(action){uintptr_t ai=read_ptr(action+0xa8),pc=read_ptr(action+0xa0);
         if(!runtime_traversal_instance(base,action,old,q->scope.pawn.pointer)||(pc&&pc!=q->scope.pc.pointer)||(pc&&ai)||
            !runtime_traversal_action_idle(base,action,q->scope.pc.pointer)||
@@ -125,9 +138,9 @@ static int runtime_traversal_prepare_row(uintptr_t base,RuntimeGuestTraversal *q
     q->rows[i].prepared=1;return 1;
 }
 static int runtime_traversal_observe_row(uintptr_t base,RuntimeGuestTraversal *q,unsigned i,int idle) {
-    RuntimeMovementRow *r=&q->rows[i].slot;unsigned index=runtime_traversal_indices[i];
+    RuntimeMovementRow *r=&q->rows[i].slot;unsigned index=guest_traversal_indices[i];
     uintptr_t cell=runtime_movement_instance_cell(&q->scope.actions,index),action=cell?read_ptr(cell):0;
-    if(!guest_camera_stamp_matches(base,&r->old_class,1)||!guest_camera_stamp_matches(base,&r->new_class,1)||
+    if((r->old_class.pointer&&!guest_camera_stamp_matches(base,&r->old_class,1))||!guest_camera_stamp_matches(base,&r->new_class,1)||
        read_ptr(q->scope.classes.data+(SIZE_T)index*8)!=r->new_class.pointer)return 0;
     if(!action){r->observed=0;memset(&r->new_instance,0,sizeof r->new_instance);return 1;}
     if(r->observed){if(action!=r->new_instance.pointer||!guest_camera_stamp_matches(base,&r->new_instance,1))return 0;}
@@ -139,6 +152,7 @@ static int runtime_traversal_observe_row(uintptr_t base,RuntimeGuestTraversal *q
     uintptr_t pc=g_runtime_config.role==ME3_ROLE_GUEST?session_context(session_engine).pc:q->scope.pc.pointer;
     return idle&&!runtime_traversal_action_idle(base,action,pc)?-1:1;
 }
+#include "runtime_guest_traversal_handoff.h"
 static void runtime_guest_traversal_retire(uintptr_t base,uintptr_t engine,DWORD now) {
     RuntimeGuestTraversal *q=&runtime_guest_traversal;if(!q->valid||GetCurrentThreadId()!=session_game_thread)return;q->retiring=1;
     if(!runtime_movement_arrays_live(base,&q->scope)){runtime_traversal_note("preserved-replaced-scope",0,now);memset(q,0,sizeof *q);return;}
@@ -148,18 +162,18 @@ static void runtime_guest_traversal_retire(uintptr_t base,uintptr_t engine,DWORD
        read_ptr(owner+0x3bc)==q->scope.pawn.pointer,read_ptr(owner+0x198)==q->scope.info.pointer)){
         runtime_traversal_note("preserved-new-owner",0,now);memset(q,0,sizeof *q);return;}
     if(!runtime_movement_idle(q->scope.pawn.pointer))return;unsigned restored=0;
-    for(unsigned i=0;i<8;++i){RuntimeMovementRow *r=&q->rows[i].slot;if(!r->changed)continue;
+    for(unsigned i=0;i<GUEST_TRAVERSAL_ROW_COUNT;++i){RuntimeMovementRow *r=&q->rows[i].slot;if(!r->changed)continue;
         int owned=runtime_traversal_observe_row(base,q,i,1);if(owned<0)continue;if(!owned){r->changed=0;continue;}
         uintptr_t old=0;
         if(r->old_instance.pointer&&guest_camera_stamp_matches(base,&r->old_instance,1)&&
            runtime_traversal_instance(base,r->old_instance.pointer,r->old_class.pointer,q->scope.pawn.pointer)&&
            !read_ptr(r->old_instance.pointer+0xa0)&&read_ptr(r->old_instance.pointer+0xa8)==r->old_ai.pointer&&
            (!r->old_ai.pointer||(session_handle_matches(r->old_ai)&&(!owner||owner==r->old_ai.pointer))))old=r->old_instance.pointer;
-        unsigned index=runtime_traversal_indices[i];
+        unsigned index=guest_traversal_indices[i];
         if(runtime_movement_restore(q->scope.classes.data+(SIZE_T)index*8,runtime_movement_instance_cell(&q->scope.actions,index),
            r->old_class.pointer,r->new_class.pointer,r->observed?r->new_instance.pointer:0,old)){r->changed=0;++restored;}
     }
-    for(unsigned i=0;i<8;++i)if(q->rows[i].slot.changed)return;
+    for(unsigned i=0;i<GUEST_TRAVERSAL_ROW_COUNT;++i)if(q->rows[i].slot.changed)return;
     runtime_traversal_note("native-ai-traversal-slots-restored",restored,now);memset(q,0,sizeof *q);(void)engine;
 }
 static void runtime_guest_traversal_tick(uintptr_t base,uintptr_t engine,DWORD now) {
@@ -168,17 +182,17 @@ static void runtime_guest_traversal_tick(uintptr_t base,uintptr_t engine,DWORD n
     if(q->valid){
         if(q->retiring||!admitted||!runtime_movement_scope_same(&q->scope,&scope)){runtime_guest_traversal_retire(base,engine,now);return;}
         if(!runtime_movement_arrays_live(base,&q->scope)){runtime_guest_traversal_retire(base,engine,now);return;}
-        for(unsigned i=0;i<8;++i)if(q->rows[i].slot.changed&&!runtime_traversal_observe_row(base,q,i,0))q->rows[i].slot.changed=0;
+        for(unsigned i=0;i<GUEST_TRAVERSAL_ROW_COUNT;++i)if(q->rows[i].slot.changed&&!runtime_traversal_observe_row(base,q,i,0))q->rows[i].slot.changed=0;
     }
     if(!admitted||(q->checked&&now-q->checked<5000)||!runtime_movement_idle(scope.pawn.pointer))return;
     q->checked=now;if(!q->valid){q->scope=scope;q->valid=1;}else q->scope=scope;
     GameArray source={0};if(!runtime_traversal_source(base,q,&source))return;unsigned applied=0;
-    for(unsigned i=0;i<8;++i){RuntimeMovementRow *r=&q->rows[i].slot;if(r->changed)continue;
+    for(unsigned i=0;i<GUEST_TRAVERSAL_ROW_COUNT;++i){RuntimeMovementRow *r=&q->rows[i].slot;if(r->changed)continue;
         /* A native replacement wins. Preparing only accepts the known authored
-         * AI class, never a slot replaced by another player subsystem. */
+         * AI class or an authored empty slot, never another subsystem's slot. */
         memset(&q->rows[i],0,sizeof q->rows[i]);
         if(!runtime_movement_arrays_live(base,&q->scope)||!runtime_traversal_prepare_row(base,q,i,&source))continue;
-        unsigned index=runtime_traversal_indices[i];
+        unsigned index=guest_traversal_indices[i];
         if(runtime_movement_borrow(q->scope.classes.data+(SIZE_T)index*8,runtime_movement_instance_cell(&q->scope.actions,index),
            r->old_class.pointer,r->new_class.pointer,r->old_instance.pointer)){r->changed=1;++applied;}
     }
@@ -192,8 +206,32 @@ static int runtime_guest_traversal_selftest(void) {
     for(unsigned i=0;i<8;++i){int restored=runtime_movement_restore((uintptr_t)&cells[i*2],(uintptr_t)&cells[i*2+1],10+i,50+i,0,30+i);
         if(i==3){if(restored||cells[i*2]!=999)return 0;}else if(!restored||cells[i*2]!=10+i||cells[i*2+1]!=30+i)return 0;
     }
-    return runtime_traversal_indices[0]==31&&runtime_traversal_indices[7]==47&&
-        !runtime_movement_action_idle_policy(0x10000000,0,0)&&!runtime_movement_action_idle_policy(0,1,0);
+    /* Empty authored slots must return to None after stock lazy instancing. */
+    _Alignas(8) uintptr_t empty[2]={0,0};
+    if(!runtime_movement_borrow((uintptr_t)&empty[0],0,0,80,0)||empty[0]!=80)return 0;
+    empty[1]=90;
+    if(!runtime_movement_restore((uintptr_t)&empty[0],(uintptr_t)&empty[1],0,80,90,0)||empty[0]||empty[1])return 0;
+    if(!runtime_movement_borrow((uintptr_t)&empty[0],(uintptr_t)&empty[1],0,80,0))return 0;
+    empty[1]=999; /* A foreign cached instance prevents class rollback. */
+    if(runtime_movement_restore((uintptr_t)&empty[0],(uintptr_t)&empty[1],0,80,90,0)||empty[0]!=80||empty[1]!=999)return 0;
+    return guest_traversal_indices[0]==31&&guest_traversal_indices[7]==47&&
+        guest_traversal_row(28)==8&&guest_traversal_row(29)==9&&guest_traversal_row(40)==10&&guest_traversal_row(43)==13&&
+        guest_traversal_row(30)<0&&guest_traversal_row(44)<0&&guest_traversal_row(54)<0&&
+        guest_traversal_empty_authored(29)&&guest_traversal_empty_authored(40)&&guest_traversal_empty_authored(43)&&
+        !guest_traversal_empty_authored(28)&&!guest_traversal_empty_authored(46)&&
+        runtime_traversal_authored_policy(29,0,0)&&runtime_traversal_authored_policy(43,0,0)&&
+        !runtime_traversal_authored_policy(29,10,0)&&!runtime_traversal_authored_policy(40,0,20)&&
+        runtime_traversal_authored_policy(28,10,20)&&!runtime_traversal_authored_policy(28,0,0)&&
+        !runtime_traversal_authored_policy(30,10,0)&&
+        runtime_traversal_player_policy(28,0x10)&&runtime_traversal_player_policy(29,0x30)&&
+        !runtime_traversal_player_policy(28,0)&&!runtime_traversal_player_policy(29,8)&&runtime_traversal_player_policy(40,0)&&
+        !strcmp(guest_traversal_player_class(28),"SFXGameContent.SFXCustomAction_GapJump")&&
+        !strcmp(guest_traversal_player_class(29),"SFXGameContent.SFXCustomAction_StandingGapJump")&&
+        !strcmp(guest_traversal_player_class(40),"SFXGame.SFXCustomAction_Cover90TurnRight")&&
+        !strcmp(guest_traversal_player_class(41),"SFXGame.SFXCustomAction_Cover90TurnRightStanding")&&
+        !strcmp(guest_traversal_player_class(42),"SFXGame.SFXCustomAction_Cover90TurnLeft")&&
+        !strcmp(guest_traversal_player_class(43),"SFXGame.SFXCustomAction_Cover90TurnLeftStanding")&&
+        !runtime_movement_action_idle_policy(0x10000000,0,0)&&!runtime_movement_action_idle_policy(0,1,0)&&runtime_traversal_handoff_selftest();
 }
 #endif
 #endif

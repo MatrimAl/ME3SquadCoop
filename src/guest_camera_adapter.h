@@ -371,10 +371,15 @@ static int guest_camera_adapter_selftest(void) {
        !guest_camera_cover_mode_name("SFXGame.SFXCameraMode_CoverSyncMelee")||
        guest_camera_cover_mode_name("SFXGame.SFXCameraMode_Cinematic"))return 0;
     if(!guest_camera_traversal_policy(31,1,1,1,1,1)||!guest_camera_traversal_policy(47,1,1,1,1,1)||
+       !guest_camera_traversal_policy(28,1,1,1,1,1)||!guest_camera_traversal_policy(29,1,1,1,1,1)||
+       !guest_camera_traversal_policy(40,1,1,1,1,1)||!guest_camera_traversal_policy(43,1,1,1,1,1)||
        guest_camera_traversal_policy(32,1,1,1,1,1)||guest_camera_traversal_policy(31,0,1,1,1,1)||
        guest_camera_traversal_policy(31,1,0,1,1,1)||guest_camera_traversal_policy(31,1,1,0,1,1)||
        guest_camera_traversal_policy(31,1,1,1,0,1)||guest_camera_traversal_policy(31,1,1,1,1,0)||
-       !guest_traversal_camera_name("SFXGame.SFXCameraMode_LadderDown")||guest_traversal_camera_name("SFXGame.SFXCameraMode_Cinematic"))return 0;
+       !guest_traversal_camera_name("SFXGame.SFXCameraMode_LadderDown")||
+       !guest_traversal_camera_name("SFXGame.SFXCameraMode_JumpStart")||
+       guest_camera_traversal_policy(29,0,1,1,1,1)||
+       guest_traversal_camera_name("SFXGame.SFXCameraMode_Cinematic"))return 0;
     if(!guest_camera_ignore_move_policy(0,0,0,0)||!guest_camera_ignore_move_policy(1,0,1,4)||
        !guest_camera_ignore_move_policy(1,1,0,4)||guest_camera_ignore_move_policy(1,0,0,4)||
        guest_camera_ignore_move_policy(1,0,1,0)||guest_camera_ignore_move_policy(2,0,1,4)||

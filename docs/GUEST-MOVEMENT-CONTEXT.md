@@ -76,3 +76,48 @@ fixtures and class/script evidence are not a movement gameplay pass. First-use
 ladder animation loading, geometry/path replication, cover slips from both
 stances, all mantle variants, camera recovery and scene/disconnect AI return
 remain future owner checks. No game was launched for this preparation.
+
+## Gap jumps and cover corners
+
+The same lease now also prepares running gap jump28, standing gap jump29 and
+the four outer 90-degree cover turns40..43 from the current world's actual
+Shepard table. Ashley's authored28 incorrectly selects StandingGapJump for
+the running path;29 and40..43 are absent. Native storm auto-use selects28,
+the stock TryStandingJump exec selects29, and TryCoverTurn chooses
+the appropriate left/right and standing/mid-cover turn. The adapter leaves
+their geometry tests, path selection, collision, root motion and network
+prediction to those native routes.
+
+Standing jump keeps the native JumpStart camera. It is a Combat-derived
+mode using a generic pawn target. The retention guard now recognizes only its
+exact canonical name alongside the existing ladder cameras; it retains the
+existing scalar and leaves the authored FOV, target and transitions intact.
+
+Each added row still requires all of its BodyStance clips on the current mesh.
+The two jump rows additionally require the native bIsAPlayer flag: their scripts
+branch on that flag independently of possession. The adapter only reads it.
+They also require the exact BioPawn.UnPossessed guard to be resident. On either
+peer, before that callback clears the player flag, an actually leased current
+jump finishes through stock EndCustomAction. This lets its normal Stop restore
+the collision exception and remove temporary endpoint blockers. A client can
+consume one buffered replicated action during End; a second End is allowed
+only after the same scope/token and owned jump are verified again. Other actions
+are preserved. The original callback runs once with unchanged arguments and
+LastError; story handoff is never delayed. This is local ordering protection,
+not evidence of cross-peer callback delivery or a successful scene in play.
+The canonical gap classes are SFXGameContent classes; the four cover turns are
+SFXGame classes. Both namespaces are checked explicitly against the loaded
+player table. An authored empty row is admitted only while both its class
+and cached instance are empty. Retirement returns a still-owned row to None,
+including an instance created by the normal lazy native path. A foreign class
+or instance is preserved. Existing mantle, slip, ladder and evade contracts
+remain unchanged.
+
+Native fixtures cover empty-to-player borrowing, lazy instance cleanup,
+foreign-instance refusal and exact mapping/namespace boundaries. They do not
+prove jump landing, animation, cover camera or peer movement. Native handoff
+fixtures cover pre-callback order/LastError, one buffered jump, the two-call
+bound and refusal after a foreign action takes over. The next owner
+test must check input availability, both gap-jump routes and all four cover corners, then check
+normal movement/camera recovery and scene/disconnect AI return. These additions
+were prepared without launching a game.

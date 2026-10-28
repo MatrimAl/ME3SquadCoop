@@ -74,6 +74,12 @@ It supports an as-yet-empty native inventory pending entry and rechecks the
 owned scope after the native timer call. This follows the same multiplayer-like
 press/hold/release target; it is not a gameplay-confirmed ammo fix.
 
+The offline movement extension also separates running and standing gap jumps
+and supplies the four native 90-degree cover corner actions missing from
+Ashley's table. It uses the loaded player's classes and the engine's real
+input, geometry and replication paths, with independent clip and ownership
+checks. These additions are prepared for a later owner gameplay test.
+
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.
 Native keyboard power slots/icons remain enabled. Shift Command mode now retains

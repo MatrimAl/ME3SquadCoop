@@ -1,5 +1,13 @@
 # Validation status
 
+The current offline movement extension adds running/standing gap jumps28/29
+and outer cover turns40..43 to the native traversal lease. Exact source class
+namespaces, current-mesh BodyStance requirements and empty authored slots are
+checked per row. Empty-slot borrowing, lazy restoration and foreign replacement
+policies have dedicated native fixtures. No game was launched for these
+changes; jump/cover animation, camera, landing, peer motion and scene recovery
+remain owner checks. See [movement scope](GUEST-MOVEMENT-CONTEXT.md).
+
 The next candidate handles owned decoded slot drops before NewSet clears
 their destination and keeps an existing shoulder scale through a verified
 guest Command/PowerWheel menu. It does not acquire a camera lease inside a
