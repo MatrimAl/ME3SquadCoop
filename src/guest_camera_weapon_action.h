@@ -1,5 +1,6 @@
 #ifndef ME3_GUEST_CAMERA_WEAPON_ACTION_H
 #define ME3_GUEST_CAMERA_WEAPON_ACTION_H
+#include "guest_cover_melee_layout.h"
 /* Presentation-only retention during real native weapon, power and evade actions.
  * Read the current pawn's actual action tables, not a global numeric ID.
  * Supported-build BioPawn arrays69c/6ac and BioCustomAction links98/a0/a8,
@@ -19,13 +20,21 @@ static int guest_camera_melee_policy(int index,int player_melee,int canonical_cl
         int ai_empty,uintptr_t requested,uintptr_t active) {
     return ((index>=75&&index<=80)||index==58||index==73)&&player_melee&&canonical_class&&pc_matches&&ai_empty&&!requested&&!active;
 }
+static int guest_camera_cover_policy(int index,int canonical,int player_melee,int pc_matches,int ai_empty,
+        int requested_supported,int active_matches) {
+    return index>=62&&index<=71&&canonical&&player_melee&&pc_matches&&ai_empty&&requested_supported&&active_matches;
+}
+static int guest_camera_cover_mode_name(const char *name) {
+    return !strcmp(name,"SFXGame.SFXCameraMode_CoverMeleeLeft")||!strcmp(name,"SFXGame.SFXCameraMode_CoverMeleeRight")||
+        !strcmp(name,"SFXGame.SFXCameraMode_CoverSyncMelee")||!strcmp(name,"SFXGame.SFXCameraMode_CoverSyncMeleeLeft");
+}
 static int guest_camera_ignore_move_policy(unsigned ignore,int power,int evade,uint32_t action_flags) {
     return !ignore||(ignore==1&&(power||evade)&&(action_flags&4));
 }
 /* kind0=draw/holster/reload,1=power,2=player evades,3=player melee. */
 static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn,int32_t index,int kind,uint32_t *flags_out) {
     GameArray classes={0},actions={0},again={0};
-    int power=kind==1,evade=kind==2,melee=kind==3;
+    int power=kind==1,evade=kind==2,melee=kind==3,cover=melee&&index>=62&&index<=71;
     if(kind<0||kind>3)return 0;
     uintptr_t class_field=pawn+(power?0x6bc:0x69c),action_field=pawn+(power?0x6cc:0x6ac);
     if(index<=0||index>=512||!read_at(class_field,&classes,sizeof classes)||
@@ -55,6 +64,20 @@ static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn
         }
         if(!guest_camera_evade_policy(index,is_kind_of(base,action,"SFXCustomAction_PlayerEvadeBase"),
            read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),1,camera_matches))return 0;
+    } else if(cover) {
+        if(!read_at(action+0x78,&requested_camera,8)||!read_at(action+0xb0,&active_camera,8))return 0;
+        int requested_supported=!requested_camera,active_matches=!active_camera;
+        if(requested_camera){
+            requested_supported=is_live(base,requested_camera)&&is_kind_of(base,requested_camera,"Class")&&
+                guest_camera_stamp_read(base,requested_camera,&requested,1)&&guest_camera_cover_mode_name(requested.full_name);
+            if(active_camera){uint32_t camera_flags=0;
+                active_matches=guest_camera_stamp_read(base,active_camera,&active,0)&&active.klass==requested_camera&&
+                    read_ptr(active_camera+0x7c)==pawn&&read_at(active_camera+0x11c,&camera_flags,4)&&!(camera_flags&0x20)&&(camera_flags&2);
+            }
+        }
+        if(!guest_camera_cover_policy(index,!strcmp(type.full_name,guest_cover_melee_class(index)),
+            is_kind_of(base,action,guest_cover_melee_synced(index)?"SFXCustomAction_ClassMelee":"SFXCustomAction_PlayerMeleeBase"),
+            read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),requested_supported,active_matches))return 0;
     } else if(melee) {
         static const char *names[]={"SFXGameContent.SFXCustomAction_RifleMeleeOne","SFXGameContent.SFXCustomAction_RifleMeleeTwo",
             "SFXGameContent.SFXCustomAction_RifleMeleeThree","SFXGameContent.SFXCustomAction_PistolMeleeOne",
@@ -79,7 +102,8 @@ static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn
         read_ptr(action+0x98)==pawn&&read_ptr(pawn+0x374)==pc&&read_ptr(pc+0x3bc)==pawn&&
         (!(evade||melee)||(read_ptr(action+0xa0)==pc&&!read_ptr(action+0xa8)&&
           read_ptr(action+0x78)==requested_camera&&read_ptr(action+0xb0)==active_camera&&
-          (melee||(guest_camera_stamp_matches(base,&requested,0)&&(!active_camera||guest_camera_stamp_matches(base,&active,0))))));
+          ((melee&&!cover)||(!requested_camera?(!active_camera):
+           guest_camera_stamp_matches(base,&requested,0)&&(!active_camera||guest_camera_stamp_matches(base,&active,0))))));
 }
 /* This only retains an existing camera scalar. The action's historical AI/PC
  * caches are not invoked or changed. Evade additionally requires stock's real

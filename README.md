@@ -56,8 +56,10 @@ damage passive. The follow-up adds guarded Soldier heavy/storm actions, normal
 melee shoulder retention and retryable native cleanup. Guest heavy actions
 cannot issue their specific campaign cosmetic write through the guarded path;
 Shepard's native setter path is preserved. These new controls still need
-gameplay validation; cover melee and complete multiplayer mechanics remain
-unfinished. See
+gameplay validation. Cover grab and left/right normal/heavy edge actions are
+also prepared from the loaded player's native classes, with independent asset
+checks and temporary animation cleanup. Complete multiplayer mechanics and
+campaign parity remain unfinished. See
 [guest melee scope](docs/GUEST-MELEE.md) and [ammo evidence](docs/AMMO-REPLICATION.md).
 
 The current build binds the guest's existing native Shepard HUD player panel

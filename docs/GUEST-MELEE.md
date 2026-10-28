@@ -2,7 +2,7 @@
 
 The guest currently lacks Ashley's player melee slots and the passive that
 provides real melee damage. The candidate prepares the six normal rifle and
-pistol combo actions, plus Soldier heavy and storm melee, using the actual
+pistol combo actions, Soldier heavy/storm and cover melee, using the actual
 loaded player's class references. It
 adds an Ashley-owned Soldier melee passive through stock PowerManager.AddPower,
 with its own native initialization and default damage data. It never uses
@@ -54,5 +54,36 @@ required loaded assets cannot be proved; normal melee stays independent.
 
 Native fixtures and exact owned-executable pins pass. Real heavy/storm
 animation, damage, host plot behavior and scene/AI recovery are not yet gameplay
-verified. Cover melee, complete multiplayer mechanics and movement parity
-remain open. No game test was run for this candidate.
+verified. Complete multiplayer mechanics and movement parity remain open.
+No game test was run for this candidate.
+
+## Cover melee
+
+The candidate prepares the actual loaded player's cover grab and left/right
+edge actions in slots62 through71. Slot63 includes its alternate pistol stance.
+The classes whose names contain Hvy still inherit PlayerMeleeBase and use the
+same normal melee passive/impact path; they are not SoldierPunch heavy actions.
+
+The grab in62 uses the existing synced ClassMelee path. Its stock damage amount
+and target eligibility remain intact; the mod does not replace its configured
+damage with the normal passive value or replay a hit. The attacker/victim
+temporary animations, melee-over-cover sequence event and targeting/permission
+checks execute through the original action.
+
+Each optional slot is admitted independently after exact source class, base,
+power layout and animation checks. Missing clips use an already-loaded player
+AnimSet through the stock reference-counted temporary animation API. Slot63
+must have both its rifle and pistol clips; a source-set gap defers that slot
+before native mutation and preserves the working core. Extra references are
+released after the borrowed actions have finished and their cells are restored.
+
+Verified cover actions can keep the existing guest shoulder scale through their
+own canonical Combat-derived cover camera. The native action selects that
+camera; the adapter does not replace its angle, FOV or target. Unknown camera
+classes, other owners, AI caches and scene modes retain the prior refusal path.
+
+Slot72 is observed but not prepared: its authored AnimInfo is absent, and no
+dependency on it was found in the selected input/action scripts. This candidate
+does not invent a missing animation or force a transition into that action.
+Cover animations, real hits, grab permissions, camera and scene/AI cleanup
+remain owner gameplay checks; no new game was launched.

@@ -995,3 +995,29 @@ independent review found no native ABI/frame mismatch. These checks establish
 adapter contracts, not successful gameplay or unchanged live plot state.
 The owner deferred game tests; heavy/storm hits, animations, plot behavior,
 repeated scene recovery and complete multiplayer mechanics remain unverified.
+
+## Cover melee candidate
+
+The cover follow-up prepares the loaded player's slots62 through71 by exact
+class and declaring-base layouts. Each optional row is independent of the
+normal and plot-guarded heavy groups. Hvy cover actions use the normal
+PlayerMeleeBase power field; grab62 uses the original ClassMelee synced damage,
+victim selection, animations and sequence event. Damage values and native
+permissions are unchanged. Slot72 is observed but not borrowed because its
+authored animation-info prerequisite is absent.
+
+Existing-mesh clips are required. Missing cover clips can borrow an existing
+loaded source AnimSet through stock temporary registration and verified
+reference-count cleanup. Slot63 checks both its rifle and pistol stance; a
+split missing-set gap defers that optional row before mutation. Canonical cover
+cameras retain their native selection and can keep the existing guest shoulder
+scale only with the current human action/owner/cache guards.
+
+All four native targets built. The ordinary harness passed cover slot/base
+field, optional-group isolation, foreign restored-slot dependency and camera
+refusal/retention fixtures alongside the prior melee/release checks. The
+protected harness passed memory/opt-in and low-integrity write denial. A narrow
+review identified the split missing-clip case; its preflight correction is
+included in the final tested source. No game was launched. Real cover hits,
+grab eligibility, mirrored animations, native victim collision recovery and
+scene/AI return remain owner checks. Full campaign/multiplayer parity is open.
