@@ -64,6 +64,19 @@ In `4ff0a2d`, the owner reported smoother play and the host's measured layout
 helper averaged about136us before caching versus17us after. Whole-frame
 measurements still varied; a stable frame budget is not established.
 
+## Native drag completion follow-up
+
+The owner confirmed normal Shift-to-power camera distance in `5374e7c`, but
+could not move a power at all. The native drag-end handler calls the assignment
+virtual directly, bypassing the destination-clear bridge. Repeated indexed
+caller refusals are consistent with this unsupported path; its actual return
+address was not captured in that live log.
+
+The follow-up admits only that pinned caller with matching source, destination,
+drag kind and active DoingDrag bit. Existing owner/catalog/icon checks and the
+guest name map remain required. A real successful drag and use from the new
+slot remain unverified. Saved Shepard definitions do not change.
+
 ## Gameplay checks
 
 1. Use X repeatedly from idle and aim; verify both equipped weapons and normal

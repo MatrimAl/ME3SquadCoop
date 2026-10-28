@@ -313,3 +313,19 @@ outside coverage. Missing rows establish neither refusal nor absent firing.
 The owner's ammo rebound remains unresolved. Current live weapon AIController
 caches were null on both peers and Shepard; clearing an AI cache is therefore
 not a supported fix for this run.
+
+## Real local release candidate
+
+The protected manual `5374e7c` run captured five selected guest FullAuto calls
+with local `bFire` already zero. Each unchanged native call consumed one round;
+later calls exposed decreases between samples, including used5 to3. This
+supports a local release-order correction without matching individual packets
+or establishing the cause of every rebound.
+
+After the exact stock `StopFiringWeapon` changes the owned guest's input from1
+to0, the candidate immediately dispatches stock `Pawn.StopFire(2)` for an
+authored FullAuto weapon still in `WeaponFiring` with that inventory request
+pending. The same owner, weapon, world, connection and Default game mode must
+remain valid across the original call. SemiAuto, Burst and changed contexts
+keep their original path. There is no ammo write, native shot suppression or
+replayed input. Owner gameplay validation remains pending.

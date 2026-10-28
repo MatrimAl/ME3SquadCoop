@@ -64,7 +64,9 @@ static int runtime_guest_fire_scope_same(const RuntimeGuestFireScope *a,const Ru
 }
 static int runtime_guest_fire_scope(uintptr_t base,uintptr_t engine,RuntimeGuestFireScope *out) {
     memset(out,0,sizeof *out);RuntimeGuestWeapon *q=&runtime_guest_weapon;SessionContext c;
-    if(GetCurrentThreadId()!=session_game_thread||!runtime_guest_fire_enabled()||!q->valid||
+    /* Shared read-only owned-fire scope. Observation opt-out is enforced by
+     * prepare, independently of the real-release adapter using this scope. */
+    if(GetCurrentThreadId()!=session_game_thread||!q->valid||
        g_config_status!=ME3_CONFIG_READY||!runtime_control_enabled||!runtime_scope_ready||
        !InterlockedCompareExchange(&g_enable_requested,0,0)||
        !runtime_guest_weapon_context(base,engine,&c,&out->world,&out->pawn_channel)||

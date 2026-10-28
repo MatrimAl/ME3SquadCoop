@@ -48,6 +48,14 @@ the actual DoingDrag bit as the key-input blocker. An existing shoulder scale
 survives a verified unpaused Command/PowerWheel menu. A bounded native firing
 observer will correlate the remaining ammo issue; it does not repair counters.
 
+In `5374e7c`, the owner confirmed the Shift-to-power camera correction but
+could not move a power. The follow-up admits the separate native drag-end
+assignment path and completes the stock local FullAuto stop on a real release.
+The same candidate prepares normal guest melee combos and an Ashley-owned
+damage passive. These new controls need gameplay validation; heavy/cover melee
+and complete multiplayer mechanics remain unfinished. See
+[guest melee scope](docs/GUEST-MELEE.md) and [ammo evidence](docs/AMMO-REPLICATION.md).
+
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.
 Native keyboard power slots/icons remain enabled. Shift Command mode now retains

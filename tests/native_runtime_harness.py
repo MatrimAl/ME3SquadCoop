@@ -54,6 +54,8 @@ def main():
                  "ME3RuntimeGuestVitalsSelfTest",
                  "ME3RuntimePowerActionContextSelfTest",
                  "ME3RuntimeDelayedFireStopSelfTest",
+                 "ME3RuntimeGuestFireReleaseSelfTest",
+                 "ME3RuntimeGuestMeleeSelfTest",
                  "ME3RuntimeReviveSelfTest",
                  "ME3RuntimeJoinReadinessSelfTest",
                  "ME3RuntimeJoinDiagnosticsSelfTest",

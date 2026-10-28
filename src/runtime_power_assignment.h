@@ -18,6 +18,26 @@ static unsigned char runtime_new_assignment_entry[16];
 static int runtime_power_assignment_reject_policy(int destination,int structural,int expected) {
     return destination>=0&&destination<8&&structural&&expected;
 }
+/* The native EndDrag virtual calls the assignment slot directly, bypassing
+ * NewSetQuickSlotPower and its pre-clear bridge. Match its actual decoded
+ * gesture, not a source index from saved Shepard quickslot definitions. */
+static int runtime_power_assignment_drag_policy(int destination,int source,uint32_t from_power,uint32_t silent,
+        int target,int dragging,uint32_t flags) {
+    return destination>=0&&destination<8&&source>=0&&destination==target&&source==dragging&&
+        !silent&&from_power<=1&&(flags&8)&&
+        (from_power?((flags&2)&&!(flags&4)):((flags&4)&&!(flags&2)));
+}
+static int runtime_power_assignment_native_drag(uintptr_t base,uintptr_t handler,uintptr_t caller,
+        int destination,int source,uint32_t from_power,uint32_t silent) {
+    static const unsigned char call[]={0xff,0x90,0x48,0x05,0x00,0x00};
+    unsigned char bytes[sizeof call];int32_t target=-1,dragging=-1;uint32_t flags=0;
+    if(caller!=base+0xc56b06||!read_at(base+0xc56b00,bytes,sizeof bytes)||memcmp(bytes,call,sizeof call)||
+       !runtime_power_property(base,handler,"SFXSFHandler_PCPowerWheel","m_nCurrentDropTarget","IntProperty",0xc3c,4)||
+       !runtime_power_property(base,handler,"SFXSFHandler_PCPowerWheel","m_nDraggingIcon","IntProperty",0xc38,4)||
+       !read_at(handler+0xc3c,&target,4)||!read_at(handler+0xc38,&dragging,4)||
+       !read_at(handler+0xc54,&flags,4))return 0;
+    return runtime_power_assignment_drag_policy(destination,source,from_power,silent,target,dragging,flags);
+}
 /* A valid native clear belongs to the existing lease even if the requested
  * drop cannot be resolved. Keep the last name map and repaint next idle Tick;
  * an unsupported drop must not disable every otherwise valid hotkey. */
@@ -61,11 +81,13 @@ static void runtime_power_assignment(void *self,int destination,int source,uint3
     } else if(!runtime_power_icon_expected(target,lease->owner.pawn.pointer)) {
         lease->failed=1;return;
     }
-    /* The verified NewSet exec calls the wrapper, which tail-jumps here.
-     * MoveByName instead derives a source from saved Shepard definitions. */
+    /* NewSet and its pre-clear bridge are decoded indexed requests. Native
+     * EndDrag is a separate direct virtual caller with the captured gesture.
+     * MoveByName's saved source still cannot enter through this path. */
     RuntimePowerCatalog catalog;
     const char *rejection=NULL;
-    if(caller!=base+0xb68c55&&!runtime_assignment_decoded)rejection="indexed-caller";
+    int native_drag=runtime_power_assignment_native_drag(base,handler,caller,destination,source,from_power,silent);
+    if(caller!=base+0xb68c55&&!runtime_assignment_decoded&&!native_drag)rejection="indexed-caller";
     else if(from_power>1||silent>1)rejection="indexed-booleans";
     else if(lease->failed)rejection="prior-widget-failure";
     else if(!runtime_power_ui_allowed(base,c))rejection="ui-mode";
@@ -103,7 +125,8 @@ static void runtime_power_assignment(void *self,int destination,int source,uint3
     /* Keep the icon baseline, repaint on the first idle Tick, and invalidate
      * commands/list selections accepted against the previous assignment. */
     lease->drop_accepted=1;lease->drag_observed=0;runtime_power_invalidate();
-    line("{\"runtime_power_input\":\"guest-slot-assigned\",\"profile_write\":false,\"gameplay_verified\":false}\r\n");
+    if(native_drag)line("{\"runtime_power_input\":\"guest-native-drag-slot-assigned\",\"profile_write\":false,\"gameplay_verified\":false}\r\n");
+    else line("{\"runtime_power_input\":\"guest-slot-assigned\",\"profile_write\":false,\"gameplay_verified\":false}\r\n");
 }
 /* NewSet's native body clears the destination before calling the assignment
  * virtual. Observe its decoded request BEFORE that clear for the owned guest
@@ -242,7 +265,21 @@ static int runtime_power_assignment_selftest(void) {
     runtime_control_enabled=enabled;runtime_original_new_assignment=original;SetLastError(error);
     RuntimePowerSlot saved[9];memcpy(saved,runtime_power_slots,sizeof saved);memset(runtime_power_slots,0,sizeof runtime_power_slots);
     uint32_t first[2]={41,0},second[2]={42,0};
-    int ok=forwarded&&runtime_power_drag_blocks_input(-1)&&!runtime_power_drag_blocks_input(0)&&
+    int ok=forwarded&&
+        runtime_power_assignment_drag_policy(1,0,0,0,1,0,12)&&
+        runtime_power_assignment_drag_policy(7,13,1,0,7,13,10)&&
+        !runtime_power_assignment_drag_policy(1,0,0,0,2,0,12)&&
+        !runtime_power_assignment_drag_policy(1,0,0,0,1,2,12)&&
+        !runtime_power_assignment_drag_policy(1,0,0,0,1,0,4)&&
+        !runtime_power_assignment_drag_policy(1,0,0,0,1,0,10)&&
+        !runtime_power_assignment_drag_policy(1,0,1,0,1,0,12)&&
+        !runtime_power_assignment_drag_policy(1,0,1,0,1,0,14)&&
+        !runtime_power_assignment_drag_policy(1,0,0,1,1,0,12)&&
+        !runtime_power_assignment_drag_policy(-1,0,0,0,-1,0,12)&&
+        !runtime_power_assignment_drag_policy(8,0,0,0,8,0,12)&&
+        !runtime_power_assignment_drag_policy(1,-1,0,0,1,-1,12)&&
+        !runtime_power_assignment_drag_policy(1,0,2,0,1,0,12)&&
+        runtime_power_drag_blocks_input(-1)&&!runtime_power_drag_blocks_input(0)&&
         runtime_power_drag_blocks_input(1)&&!runtime_power_drag_blocks_input(2)&&runtime_power_drag_blocks_input(3)&&
         runtime_power_assign_slot(0,first)&&runtime_power_assign_slot(1,second)&&runtime_power_assign_slot(1,first)&&
         !memcmp(runtime_power_slots[1].name,first,8)&&!memcmp(runtime_power_slots[0].name,second,8)&&

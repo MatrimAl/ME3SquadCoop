@@ -948,3 +948,24 @@ for the existing optimized-payload parser during story handoff. Native build
 and runtime fixtures pass; the next owner gameplay run is pending. Original
 profiles remained unchanged, the protected TOC was restored byte-identically,
 all temporary authored content was removed and no game process remained.
+
+## Normal guest melee and local fire release candidate
+
+The owner confirmed normal Shift-to-power camera distance in `5374e7c`, but
+could not move a power; the ammo rebound also continued. Its bounded native
+trace captured five guest FullAuto consumption calls after local input had
+already cleared. The candidate completes stock Pawn.StopFire on that exact
+real release and admits the separate pinned native drag-end assignment path.
+
+Normal guest melee now has six player combo class leases, its own native
+damage passive and reference-counted stock temporary pistol animations.
+Native methods, current owner/world/channel and changed cells are checked;
+unrelated replacements are preserved. Heavy/cover melee remains unfinished.
+
+All four native targets built. The ordinary runtime harness passed, including
+the release forwarding/LastError and eligibility checks, drag gesture policy,
+conditional melee cell restoration and the actual PowerCustomActionID offset
+regression. The protected probe harness passed memory/opt-in and low-integrity
+write denial. These are native fixtures, not observed melee damage or a fixed
+ammo rebound. New drag/use, normal combos, real hits and scene/disconnect
+recovery still require owner gameplay validation.
