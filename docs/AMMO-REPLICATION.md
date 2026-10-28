@@ -295,3 +295,21 @@ frame restoration, disabled-source shadowing and original LastError behavior.
 Three compiled context mutants were rejected: foreign-thread inheritance,
 null-channel inheritance and loss of the outer frame. No game ran and no real
 packet, source authentication or gameplay correction was demonstrated here.
+## Ordinary owned-weapon fire observation
+
+The current candidate adds a bounded observer to the existing ordinary
+runtime. It forwards the exact native FireAmmunition virtual once and records
+the selected human-owned weapon's pre/post consumed/reserve counts, pawn
+ShotCount, input/fire modes, native weapon state and control/channel lifetime.
+Only the first64 selected calls are recorded; other weapons and later calls
+take the unchanged stock path. Set `ME3_SQUAD_COOP_FIRE_AUDIT=0` to disable
+this observation.
+
+The observer reuses the protected trace's exact bridge/body pins. It does
+not start firing, change counters, parse a network payload or replay input.
+Any receive frame is labelled context only. A virtual dispatch is not itself
+proof of ammo consumption or damage, and callers bypassing this virtual are
+outside coverage. Missing rows establish neither refusal nor absent firing.
+The owner's ammo rebound remains unresolved. Current live weapon AIController
+caches were null on both peers and Shepard; clearing an AI cache is therefore
+not a supported fix for this run.

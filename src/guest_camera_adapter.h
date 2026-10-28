@@ -146,6 +146,12 @@ static int guest_camera_cached_channel(uintptr_t base,uintptr_t pawn) {
     return channel&&index>0;
 }
 #include "guest_camera_weapon_action.h"
+/* Ordinary entry can prove an existing human lease survives an unpaused
+ * Command/PowerWheel menu. Protected probes keep their original policy. */
+static int (*guest_camera_menu_context_held)(uintptr_t,uintptr_t,uintptr_t,uintptr_t);
+static int guest_camera_menu_policy(int holding,int enabled,int approved,int mode) {
+    return holding&&enabled&&approved&&(mode==3||mode==5);
+}
 static int guest_camera_combat_mode(uintptr_t base,uintptr_t mode,uintptr_t pawn) {
     uint32_t flags=0;
     return is_live(base,mode)&&is_kind_of(base,mode,"SFXCameraMode_Combat")&&read_ptr(mode+0x7c)==pawn&&
@@ -168,9 +174,14 @@ static int guest_camera_conditions_policy(uintptr_t base,uintptr_t pc,uintptr_t 
                                     int ordinary_mode,int enabled,uintptr_t *camera_out,uintptr_t *mode_out,int retain_weapon_action) {
     unsigned char net=255,current_mode=255,ignore=255;uint32_t disable=0,pc_flags=0,pawn_flags=0,busy=0;
     int32_t action=-1,power=-1;
+    uintptr_t menu_manager=read_ptr(pc+0xc38);unsigned char menu_mode=255;
+    int menu=retain_weapon_action&&enabled&&guest_camera_menu_context_held&&
+        read_at(menu_manager+0xa8,&menu_mode,1)&&(menu_mode==3||menu_mode==5)&&
+        guest_camera_menu_policy(retain_weapon_action,enabled,
+            guest_camera_menu_context_held(base,pc,pawn,world),menu_mode);
     guest_camera_eligibility_reason="eligible";
     if(!enabled) return guest_camera_reject("disabled");
-    if(!ordinary_mode) return guest_camera_reject("not-ordinary-scene-gate");
+    if(!ordinary_mode&&!menu) return guest_camera_reject("not-ordinary-scene-gate");
     if(!guest_camera_actor_live(base,pc)||!is_kind_of(base,pc,"SFXPlayerController")||
        !guest_camera_actor_live(base,pawn)||!is_kind_of(base,pawn,"SFXPawn_Ashley")||!is_kind_of(base,pawn,"BioPawn")||
        !guest_camera_actor_live(base,world)||!is_kind_of(base,world,"WorldInfo")) return guest_camera_reject("actor-identity-or-class");
@@ -191,14 +202,15 @@ static int guest_camera_conditions_policy(uintptr_t base,uintptr_t pc,uintptr_t 
     }
     if(!guest_camera_action_policy(retain_weapon_action,action,power,weapon||evade,power_instance))return guest_camera_reject("custom-action-or-power");
     if(!read_at(pc+0x77c,&pc_flags,4)||(pc_flags&(0x800|0x20000))||!read_at(pc+0x781,&ignore,1)||
-       !guest_camera_ignore_move_policy(ignore,power_instance,evade,action_flags))return guest_camera_reject("controller-cinematic-or-move-input");
+       (!guest_camera_ignore_move_policy(ignore,power_instance,evade,action_flags)&&!(menu&&ignore==1)))return guest_camera_reject("controller-cinematic-or-move-input");
     if(
        !read_at(pawn+0xe18,&pawn_flags,4)||(pawn_flags&(0x200000|0x20000000))||
        !read_at(pawn+0xe20,&busy,4)||(busy&0x40000)) return guest_camera_reject("pawn-frozen-root-motion-or-conversation");
     uintptr_t player=read_ptr(pc+0x67c),manager=read_ptr(pc+0xc38);
     if(!is_live(base,player)||!is_kind_of(base,player,"LocalPlayer")||read_ptr(player+0x68)!=pc||
        !is_live(base,manager)||!is_kind_of(base,manager,"SFXGameModeManager")||
-       !read_at(manager+0xa8,&current_mode,1)||current_mode!=0||!read_at(manager+0xa4,&disable,4)||(disable&1)) return guest_camera_reject("local-player-or-manager-state");
+       !read_at(manager+0xa8,&current_mode,1)||(current_mode!=0&&!(menu&&current_mode==menu_mode))||
+       !read_at(manager+0xa4,&disable,4)||(disable&1)) return guest_camera_reject("local-player-or-manager-state");
     GameArray modes={0};uint32_t permissions=0;
     if(!read_at(manager+0x70,&modes,sizeof modes)||!modes.data||modes.count<1||modes.count>64||modes.max<modes.count||modes.max>128) return guest_camera_reject("manager-mode-array");
     uintptr_t default_mode=read_ptr(modes.data);
@@ -322,6 +334,10 @@ static void guest_camera_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintpt
  * compare-before-restore policy. Main may expose this via its native runner.
  */
 static int guest_camera_adapter_selftest(void) {
+    if(!guest_camera_menu_policy(1,1,1,3)||!guest_camera_menu_policy(1,1,1,5)||
+       guest_camera_menu_policy(0,1,1,5)||guest_camera_menu_policy(1,0,1,5)||
+       guest_camera_menu_policy(1,1,0,5)||guest_camera_menu_policy(1,1,1,8)||
+       guest_camera_menu_policy(1,1,1,0))return 0;
     if(!guest_camera_action_policy(0,0,0,0,0)||guest_camera_action_policy(0,9,0,1,0)||
        !guest_camera_action_policy(1,9,0,1,0)||guest_camera_action_policy(1,9,0,0,0)||
        !guest_camera_action_policy(1,132,27,0,1)||guest_camera_action_policy(0,132,27,0,1)||

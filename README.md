@@ -40,6 +40,14 @@ weapon parity remain unproven. See [control changes](docs/GUEST-CONTROL-REFRESH.
 [weapon and presentation scope](docs/GUEST-WEAPON-PRESENTATION.md) and
 [movement scope](docs/GUEST-MOVEMENT-CONTEXT.md).
 
+The owner subsequently confirmed X and power use after weapon switching in
+`4ff0a2d`, with smoother play. Slot moves still failed, a rare power-camera
+close-up remained and the ammunition rebound continued. The next correction
+handles owned slot requests before their native destination clear and treats
+the actual DoingDrag bit as the key-input blocker. An existing shoulder scale
+survives a verified unpaused Command/PowerWheel menu. A bounded native firing
+observer will correlate the remaining ammo issue; it does not repair counters.
+
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.
 Native keyboard power slots/icons remain enabled. Shift Command mode now retains

@@ -12,6 +12,9 @@ typedef void (*RuntimePowerNamedAssignment)(void*,int,uint64_t);
 static RuntimePowerNamedAssignment runtime_original_named_assignment;
 static int runtime_named_assignment_installed;
 static unsigned char runtime_named_assignment_entry[16];
+static RuntimePowerAssignment runtime_original_new_assignment;
+static int runtime_new_assignment_installed,runtime_assignment_decoded;
+static unsigned char runtime_new_assignment_entry[16];
 static int runtime_power_assignment_reject_policy(int destination,int structural,int expected) {
     return destination>=0&&destination<8&&structural&&expected;
 }
@@ -61,11 +64,15 @@ static void runtime_power_assignment(void *self,int destination,int source,uint3
     /* The verified NewSet exec calls the wrapper, which tail-jumps here.
      * MoveByName instead derives a source from saved Shepard definitions. */
     RuntimePowerCatalog catalog;
-    if(caller!=base+0xb68c55||from_power>1||silent>1||lease->failed||!runtime_power_ui_allowed(base,c)||
-       runtime_power_wheel_drag_state(base,handler)<0||
-       !runtime_power_read_membership(base,c,&catalog)||!runtime_power_catalog_same(&catalog,&lease->catalog)) {
-        runtime_power_assignment_reject(lease,"caller-or-current-catalog");return;
-    }
+    const char *rejection=NULL;
+    if(caller!=base+0xb68c55&&!runtime_assignment_decoded)rejection="indexed-caller";
+    else if(from_power>1||silent>1)rejection="indexed-booleans";
+    else if(lease->failed)rejection="prior-widget-failure";
+    else if(!runtime_power_ui_allowed(base,c))rejection="ui-mode";
+    else if(runtime_power_wheel_drag_state(base,handler)<0)rejection="drag-layout";
+    else if(!runtime_power_read_membership(base,c,&catalog))rejection="membership";
+    else if(!runtime_power_catalog_same(&catalog,&lease->catalog))rejection="catalog-changed";
+    if(rejection){runtime_power_assignment_reject(lease,rejection);return;}
     int index=-1;
     if(!from_power) {
         if(source<0||source>=8) {runtime_power_assignment_reject(lease,"source-slot");return;}
@@ -97,6 +104,46 @@ static void runtime_power_assignment(void *self,int destination,int source,uint3
      * commands/list selections accepted against the previous assignment. */
     lease->drop_accepted=1;lease->drag_observed=0;runtime_power_invalidate();
     line("{\"runtime_power_input\":\"guest-slot-assigned\",\"profile_write\":false,\"gameplay_verified\":false}\r\n");
+}
+/* NewSet's native body clears the destination before calling the assignment
+ * virtual. Observe its decoded request BEFORE that clear for the owned guest
+ * wheel. The map supplies both slot identities; the idle painter performs the
+ * final UI setters, without an intermediate empty icon invalidating the lease. */
+static void runtime_power_new_assignment(void *self,int destination,int source,uint32_t from_power,uint32_t silent) {
+    DWORD error=GetLastError();RuntimePowerIconLease *lease=&runtime_power_icons;
+    if(GetCurrentThreadId()!=session_game_thread||!runtime_power_icons_enabled()||
+       !runtime_control_enabled||!runtime_scope_ready||g_runtime_config.role!=ME3_ROLE_GUEST||
+       !InterlockedCompareExchange(&g_enable_requested,0,0)||!lease->active||
+       lease->owner.handler.pointer!=(uintptr_t)self||runtime_assignment_decoded) {
+        SetLastError(error);runtime_original_new_assignment(self,destination,source,from_power,silent);return;
+    }
+    SessionContext c=session_context(session_engine);
+    if(c.pc!=lease->owner.pc.pointer||c.pawn!=lease->owner.pawn.pointer||
+       !guest_player_context_registered_for(c.pc,c.pawn)||
+       !guest_player_context_basic_owned(runtime_assignment_base,c.pc,c.pawn,c.world)||
+       !runtime_power_icon_owner(runtime_assignment_base,&lease->owner,c)) {
+        SetLastError(error);runtime_original_new_assignment(self,destination,source,from_power,silent);return;
+    }
+    runtime_assignment_decoded=1;
+    runtime_power_assignment(self,destination,source,from_power,silent);
+    runtime_assignment_decoded=0;SetLastError(error);
+}
+static int runtime_power_new_assignment_active(uintptr_t base) {
+    unsigned char got[16];return runtime_new_assignment_installed&&base==runtime_assignment_base&&
+        read_at(base+0xc505e0,got,sizeof got)&&!memcmp(got,runtime_new_assignment_entry,sizeof got);
+}
+static int runtime_power_new_assignment_install(uintptr_t base) {
+    if(runtime_new_assignment_installed)return runtime_power_new_assignment_active(base);
+    static const unsigned char entry[]={0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x74,0x24,0x10,0x48,0x89,0x7c,0x24,0x18,0x41};
+    unsigned char got[16];if(!read_at(base+0xc505e0,got,sizeof got)||memcmp(got,entry,sizeof got))return 0;
+    MH_STATUS status=MH_Initialize();if(status!=MH_OK&&status!=MH_ERROR_ALREADY_INITIALIZED)return 0;
+    LPVOID original=NULL;
+    if(MH_CreateHook((LPVOID)(base+0xc505e0),(LPVOID)runtime_power_new_assignment,&original)!=MH_OK)return 0;
+    runtime_original_new_assignment=(RuntimePowerAssignment)original;
+    if(MH_EnableHook((LPVOID)(base+0xc505e0))!=MH_OK)return 0;
+    if(!read_at(base+0xc505e0,runtime_new_assignment_entry,sizeof runtime_new_assignment_entry))return 0;
+    runtime_new_assignment_installed=1;
+    line("{\"runtime_power_input\":\"guest-preclear-slot-bridge-installed\",\"profile_write\":false}\r\n");return 1;
 }
 static void runtime_power_named_assignment(void *self,int destination,uint64_t packed) {
     DWORD error=GetLastError();uintptr_t handler=(uintptr_t)self,base=runtime_assignment_base;
@@ -160,11 +207,12 @@ static int runtime_power_named_assignment_install(uintptr_t base) {
 }
 static int runtime_power_assignment_active(uintptr_t base) {
     return runtime_assignment_installed&&read_ptr(base+0x14f6700+0x548)==(uintptr_t)runtime_power_assignment&&
-        runtime_power_named_assignment_active(base);
+        runtime_power_named_assignment_active(base)&&runtime_power_new_assignment_active(base);
 }
 static int runtime_power_assignment_install(uintptr_t base) {
     uintptr_t slot=base+0x14f6700+0x548,expected=base+0xc52eb0;
-    if(runtime_assignment_installed)return runtime_power_named_assignment_install(base)&&runtime_power_assignment_active(base);
+    if(runtime_assignment_installed)return runtime_power_named_assignment_install(base)&&
+        runtime_power_new_assignment_install(base)&&runtime_power_assignment_active(base);
     static const unsigned char want[]={0x48,0x8b,0xc4,0x55,0x41,0x54,0x41,0x55,0x41,0x56,0x41,0x57,0x48,0x8b,0xec};
     unsigned char got[sizeof want];DWORD old=0;
     if(read_ptr(slot)!=expected||!read_at(expected,got,sizeof got)||memcmp(got,want,sizeof want)||
@@ -173,13 +221,30 @@ static int runtime_power_assignment_install(uintptr_t base) {
     PVOID previous=InterlockedCompareExchangePointer((PVOID volatile*)slot,(PVOID)runtime_power_assignment,(PVOID)expected);
     VirtualProtect((void*)slot,8,old,&old);
     runtime_assignment_installed=(uintptr_t)previous==expected;
-    return runtime_assignment_installed&&runtime_power_named_assignment_install(base);
+    return runtime_assignment_installed&&runtime_power_named_assignment_install(base)&&runtime_power_new_assignment_install(base);
 }
 #ifdef ME3_RUNTIME_FIXTURE
+static unsigned runtime_assignment_fixture_calls;
+static int runtime_assignment_fixture_bad;
+static void runtime_assignment_fixture_stock(void *self,int destination,int source,uint32_t from_power,uint32_t silent) {
+    ++runtime_assignment_fixture_calls;
+    if(self!=(void*)16||destination!=3||source!=7||from_power!=1||silent||GetLastError()!=111)
+        runtime_assignment_fixture_bad=1;
+    SetLastError(222);
+}
 static int runtime_power_assignment_selftest(void) {
+    DWORD error=GetLastError();int enabled=runtime_control_enabled;
+    RuntimePowerAssignment original=runtime_original_new_assignment;
+    runtime_control_enabled=0;runtime_original_new_assignment=runtime_assignment_fixture_stock;
+    runtime_assignment_fixture_calls=0;runtime_assignment_fixture_bad=0;
+    SetLastError(111);runtime_power_new_assignment((void*)16,3,7,1,0);
+    int forwarded=runtime_assignment_fixture_calls==1&&!runtime_assignment_fixture_bad&&GetLastError()==222;
+    runtime_control_enabled=enabled;runtime_original_new_assignment=original;SetLastError(error);
     RuntimePowerSlot saved[9];memcpy(saved,runtime_power_slots,sizeof saved);memset(runtime_power_slots,0,sizeof runtime_power_slots);
     uint32_t first[2]={41,0},second[2]={42,0};
-    int ok=runtime_power_assign_slot(0,first)&&runtime_power_assign_slot(1,second)&&runtime_power_assign_slot(1,first)&&
+    int ok=forwarded&&runtime_power_drag_blocks_input(-1)&&!runtime_power_drag_blocks_input(0)&&
+        runtime_power_drag_blocks_input(1)&&!runtime_power_drag_blocks_input(2)&&runtime_power_drag_blocks_input(3)&&
+        runtime_power_assign_slot(0,first)&&runtime_power_assign_slot(1,second)&&runtime_power_assign_slot(1,first)&&
         !memcmp(runtime_power_slots[1].name,first,8)&&!memcmp(runtime_power_slots[0].name,second,8)&&
         runtime_power_assign_slot(7,first)&&!memcmp(runtime_power_slots[7].name,first,8)&&
         !runtime_power_slots[1].bound&&!runtime_power_assign_slot(8,first)&&

@@ -1,10 +1,34 @@
 # Validation status
 
+The next candidate handles owned decoded slot drops before NewSet clears
+their destination and keeps an existing shoulder scale through a verified
+guest Command/PowerWheel menu. It does not acquire a camera lease inside a
+menu. These corrections have not run in a game.
+
+Four native targets, the ordinary runtime harness and probe memory/opt-in/
+low-integrity checks passed for this candidate. Fixtures include unchanged
+forwarding/LastError, slot-map swaps, remembered-index versus active-drag
+policy, and retention-only menu admission with negative scene/acquisition
+cases. These checks are not a gameplay result.
+
+A bounded owned-weapon native fire observer is included to correlate the
+remaining ammunition rebound. Its exact-slot forwarding fixture passed in
+isolation; it does not change counters or prove consumption/damage merely
+from dispatch. Current live AIController caches were null; the candidate
+does not clear them. See [ammunition scope](AMMO-REPLICATION.md).
+
+The owner confirmed X weapon swapping and subsequent power use in the
+protected `4ff0a2d` session, and reported smoother play. Slot relocation
+still failed, a rare close power camera remained, and ammunition rebound
+continued. Native drop refusals and a mode5 camera restoration were recorded.
+The layout helper's host mean decreased from about136us to17us; whole-frame
+timing remained variable. See [controls](GUEST-CONTROL-REFRESH.md).
+
 The latest candidate adds verified-evade camera retention, an owned guest
 TrySwapWeapon-to-NextWeapon bridge, guest-name-based native slot moves and
 recovery from rejected drops. It also caches successful reflected layouts
 with lifetime/layout revalidation and emits baseline/cache CPU timings.
-These additions have not run in a game. See
+These additions ran in `4ff0a2d` with the bounded owner results above. See
 [control scope](GUEST-CONTROL-REFRESH.md).
 
 In the protected manual `b515e98` session, both peers borrowed the four player

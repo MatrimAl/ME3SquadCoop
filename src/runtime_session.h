@@ -111,6 +111,8 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_ambient_conversation.h"
 #include "runtime_guest_team.h"
 #include "runtime_guest_weapon.h"
+#include "runtime_guest_fire_audit.h"
+#include "runtime_guest_fire_audit.h"
 #include "runtime_guest_shield_feedback.h"
 #include "runtime_power_action_context.h"
 #include "runtime_guest_movement.h"
@@ -133,6 +135,10 @@ static void runtime_before_host_control_release(uintptr_t base,uintptr_t engine)
     runtime_guest_movement_retire(base,engine,GetTickCount());
     runtime_power_action_context_retire(base,runtime_host_power_context(engine),0,0,0);
     if(runtime_revive_opted())runtime_revive_before_host_release(base,engine);
+}
+static int runtime_camera_menu_held(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world) {
+    SessionContext c=session_context(session_engine);
+    return c.pc==pc&&c.pawn==pawn&&c.world==world&&runtime_power_menu_context_held(base,c);
 }
 static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD now) {
     SessionContext c=session_context(engine);
@@ -163,6 +169,7 @@ static void runtime_guest_frame(uintptr_t base,uintptr_t engine,int after,DWORD 
         if(session_actor_live(base,c.pawn))network_actor_channel_id(base,c.pawn);
     }
     if(!after)guest_cinematic_registration_adapt(base,engine,c.pc,c.world,enabled,now);
+    guest_camera_menu_context_held=runtime_camera_menu_held;
     guest_camera_adapt(base,c.pc,c.pawn,c.world,ordinary,enabled,now);
     runtime_power_action_context_retire(base,c,ordinary,enabled,runtime_power_menu_context_held(base,c));
     /* Context retention is independent of optional icon initialization.
@@ -229,6 +236,8 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
         runtime_guest_frame(base,engine,after,now);
         runtime_scope_ready=runtime_session_scope(base,engine);
         runtime_guest_weapon_tick(base,engine,GetTickCount());
+        if(after)runtime_guest_fire_audit_prepare(base,engine,GetTickCount());
+        if(after)runtime_guest_fire_audit_prepare(base,engine,GetTickCount());
         runtime_guest_movement_tick(base,engine,GetTickCount());
         if(after)runtime_guest_shield_feedback_tick(base,engine,GetTickCount());
         if(after)runtime_guest_swap_prepare(base,engine,GetTickCount());
@@ -248,6 +257,8 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
         runtime_scope_ready=runtime_session_scope(base,engine);
         if(runtime_guest_team_tick(base,engine,GetTickCount()))runtime_scope_ready=runtime_session_scope(base,engine);
         runtime_guest_weapon_tick(base,engine,GetTickCount());
+        runtime_guest_fire_audit_prepare(base,engine,GetTickCount());
+        runtime_guest_fire_audit_prepare(base,engine,GetTickCount());
         runtime_guest_movement_tick(base,engine,GetTickCount());
         runtime_host_power_context_tick(base,engine);
         runtime_presentation_tick(base,engine,GetTickCount());

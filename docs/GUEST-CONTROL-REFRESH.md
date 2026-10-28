@@ -19,11 +19,30 @@ their verified source-icon checks. A structurally valid rejected drop keeps
 the last good map instead of invalidating every hotkey; foreign/replaced
 widgets still retire their own lease.
 
-The report that powers stop after weapon switching remains a required
-gameplay check. Catalog identity does not include the weapon. The change
+The owner confirmed X and power use after weapon switching in `4ff0a2d`.
+Moving the power still failed: four indexed requests were refused and the
+new slot remained unbound. The next candidate handles decoded `NewSet`
+requests before their native destination clear, leaving the final icon update
+to the existing idle painter. It records individual refusal conditions rather
+than combining caller, flags, menu and catalog failures. This correction has
+not been checked in gameplay.
+
+The normal key queue now uses native `DoingDrag` as its drag blocker. A stored
+source index with that bit clear is permitted by stock MouseUp and hotkey
+handling; it no longer indefinitely blocks queued numbered input. Actual
+dragging and unreadable state still block. No native drag field is cleared.
+
+Catalog identity does not include the weapon. The change
 does not invent a cause or bypass native cooldown, rank, ammunition, action
 or targeting restrictions. Bounded hotkey refusal context now records the
 actual slot, current action, native drag state, scope and equipped weapon.
+
+A rare close camera during a power was also reported. Command mode5 was
+restoring the existing shoulder lease; an immediate power after leaving the
+menu then prevented idle-only acquisition. The next candidate retains an
+already-held scale only through the existing verified, unpaused guest
+PowerWheel/Command context. It still cannot acquire there or bypass an
+actual scene, life/ownership change or native camera policy.
 
 ## Metadata cost
 
@@ -41,6 +60,9 @@ not an editor/hot-reload metadata cache. Set
 time every five seconds, with bounded output. Frame-delta samples from
 WorldInfo are CPU-side observations, not GPU or Present timing. No FPS gain
 is claimed until the new code is measured during comparable gameplay.
+In `4ff0a2d`, the owner reported smoother play and the host's measured layout
+helper averaged about136us before caching versus17us after. Whole-frame
+measurements still varied; a stable frame budget is not established.
 
 ## Gameplay checks
 

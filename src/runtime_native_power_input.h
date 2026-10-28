@@ -14,6 +14,12 @@ typedef struct RuntimeHotkeyWheel {
     int registry_observation;
 } RuntimeHotkeyWheel;
 static RuntimeHotkeyWheel runtime_hotkey_wheel;
+static int runtime_power_drag_blocks_input(int state) {
+    /* Native MouseUp permits doHotKey while its source index is still set.
+     * DoingDrag is the actual activity bit; a remembered index alone is not
+     * a drag and must not indefinitely disable normal numbered inputs. */
+    return state<0||(state&1)!=0;
+}
 static void runtime_native_hotkey_rejection(uintptr_t handler,SessionContext c,int slot,unsigned scope,int drag,int index) {
     static unsigned rows;if(rows++>=48)return;
     int32_t action=-1,power=-1;uint32_t life=0;unsigned char ignored=255;char row[650];
@@ -63,7 +69,7 @@ static int runtime_power_wheel_input_blocked(uintptr_t base,SessionContext c) {
        !session_handle_matches(owner->pc)||!session_handle_matches(owner->pawn)||
        !session_handle_matches(owner->world)||!session_handle_matches(owner->handler))return 0;
     if(read_ptr(owner->handler.pointer+0x6f8)!=c.pc)return 0;
-    return runtime_power_wheel_drag_state(base,owner->handler.pointer)!=0;
+    return runtime_power_drag_blocks_input(runtime_power_wheel_drag_state(base,owner->handler.pointer));
 }
 static void runtime_native_hotkey(void *self,int slot) {
     RuntimeNativeHotkey original=runtime_original_hotkey;
@@ -92,7 +98,7 @@ static void runtime_native_hotkey(void *self,int slot) {
     int index=-1,drag=runtime_power_wheel_drag_state(base,handler);
     /* Mouse-up calls doHotKey before clearing the pending source index.
      * It may enqueue then; Tick still waits for the released/idle state. */
-    if(slot>=0&&slot<8&&scope&&drag>=0&&!(drag&1)&&!session_engine_blocked(c)&&
+    if(slot>=0&&slot<8&&scope&&!runtime_power_drag_blocks_input(drag)&&!session_engine_blocked(c)&&
        runtime_power_read_catalog(base,c,1,&current)&&
        runtime_power_catalog_same(&runtime_power_catalog,&current))
         index=runtime_power_slot_index(&current,(unsigned)slot);

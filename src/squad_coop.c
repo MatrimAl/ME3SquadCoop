@@ -242,7 +242,7 @@ __declspec(dllexport) int ME3RuntimeTickForwardingSelfTest(void) {
 }
 __declspec(dllexport) int ME3RuntimeCoreCleanupSelfTest(void) {return runtime_core_cleanup_selftest();}
 __declspec(dllexport) int ME3RuntimePolicySelfTest(void) {
-    Me3RuntimeConfig saved=g_runtime_config;int enabled=runtime_control_enabled,ready=runtime_scope_ready,ok=runtime_command_menu_mode_selftest()&&runtime_story_gate_policy_selftest()&&runtime_story_warning_selftest()&&runtime_story_gate_selftest()&&runtime_ambient_conversation_selftest()&&runtime_guest_team_selftest()&&runtime_guest_weapon_selftest()&&runtime_guest_shield_feedback_selftest()&&runtime_guest_movement_selftest()&&runtime_guest_swap_selftest()&&runtime_power_assignment_selftest()&&runtime_layout_cache_selftest();
+    Me3RuntimeConfig saved=g_runtime_config;int enabled=runtime_control_enabled,ready=runtime_scope_ready,ok=runtime_command_menu_mode_selftest()&&runtime_story_gate_policy_selftest()&&runtime_story_warning_selftest()&&runtime_story_gate_selftest()&&runtime_ambient_conversation_selftest()&&runtime_guest_team_selftest()&&runtime_guest_weapon_selftest()&&runtime_guest_shield_feedback_selftest()&&runtime_guest_movement_selftest()&&runtime_guest_swap_selftest()&&runtime_power_assignment_selftest()&&runtime_layout_cache_selftest()&&runtime_guest_fire_audit_selftest();
     g_runtime_config.role=ME3_ROLE_GUEST;ok=ok&&native_session_role()==5&&!session_policy_is_host();
     g_runtime_config.role=ME3_ROLE_HOST;ok=ok&&native_session_role()==6&&session_policy_is_host();
     runtime_control_enabled=0;runtime_scope_ready=0;
