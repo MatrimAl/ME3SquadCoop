@@ -22,13 +22,18 @@ and that the small Ashley interaction no longer forcibly moves her. See
 [team registration](docs/GUEST-TEAM-REGISTRATION.md) and
 [ambient control](docs/AMBIENT-COMPANION-CONTROL.md).
 
-The latest candidate opens a movement fence after observed Shepard passage,
-retains the guest shoulder camera through reload/power actions, adapts verified
-NPC weapon defaults for human ownership and supplies stock low-shield/break
-cosmetics from actual replicated shield decreases. These additions passed
-the native build and runtime/probe fixtures; they have not run in a game.
-Their gameplay checks remain pending, and full weapon parity remains
-unproven. See [weapon and presentation scope](docs/GUEST-WEAPON-PRESENTATION.md).
+In the protected manual `af2880c` session, the owner confirmed that reload/
+power actions keep the guest shoulder distance and the early movement fence
+opens after Shepard passes. Both peers admitted the owned weapon's human
+damage multiplier. A possible one-round clip rebound was reported during
+rapid fire/reload; the cause and visible HUD result remain under review.
+The next candidate corrects authored fire-selector validation and admits the
+actual player-derived Ashley shield for its missing low-shield cosmetic.
+It also borrows the four stock player evade actions during human companion
+ownership. These new integrations need gameplay checks; complete movement,
+animation and weapon parity remain unproven. See
+[weapon and presentation scope](docs/GUEST-WEAPON-PRESENTATION.md) and
+[movement scope](docs/GUEST-MOVEMENT-CONTEXT.md).
 
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.

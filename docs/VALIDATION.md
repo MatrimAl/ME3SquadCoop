@@ -1,11 +1,27 @@
 # Validation status
 
-The latest candidate adds Shepard-passage movement-fence retirement, reload/
-power shoulder-camera retention, scoped human weapon defaults and genuine
-shield-RepNotify-driven critical/break cosmetics. The native build and runtime/
-probe fixtures passed; this candidate has not run in a game. Its rendering,
-fire behavior and early walkway follow-through remain owner checks. See
-[scope and checks](GUEST-WEAPON-PRESENTATION.md).
+The latest candidate borrows the four canonical player evade actions for
+human-owned Ashley, corrects authored fire-selector validation and admits
+player-derived shields for their missing replicated low-shield cosmetic.
+These changes have not run in a game. Full movement/animation and weapon
+parity remain unproven. See [movement scope](GUEST-MOVEMENT-CONTEXT.md) and
+[weapon scope](GUEST-WEAPON-PRESENTATION.md).
+
+Four native targets compiled. Runtime fixtures passed conditional slot
+borrowing/rollback, lazy action arrays and mutable storage, lifetime/owner
+policy, busy refusal, fire-selector bounds and player-shield notification
+policy. Probe memory/opt-in and low-integrity denial checks also passed.
+These fixtures do not prove rendered movement or shield effects.
+
+In the protected manual `af2880c` session, the owner confirmed that reload/
+power actions retain the camera distance and the early fence opens after
+Shepard passes. Native paired passage events and camera scale1 during reload
+and a power were recorded. Both owned weapon multipliers reached1. A possible
+one-round clip rebound was reported; paired used-ammo samples fit a reload/
+prediction correction, but the rendered count and receive cause were not
+captured. The run ended with launcher exits0/0, no recorded native exceptions
+and successful original-profile/TOC/temporary-install cleanup. These are
+bounded results, not full campaign or weapon-parity evidence.
 
 In the preceding protected manual `dbd7265` session, the owner confirmed enemy
 damage works in both directions and the small Ashley interaction no longer

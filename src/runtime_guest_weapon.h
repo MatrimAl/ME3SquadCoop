@@ -1,9 +1,10 @@
 #ifndef ME3_RUNTIME_GUEST_WEAPON_H
 #define ME3_RUNTIME_GUEST_WEAPON_H
 /* An owned campaign companion still takes SFXWeapon.GetFireModeBaseDamage's
- * unconditional Henchman multiplier. InitializeWeapon also assigns mode2 to
- * non-human instigators, but does not undo it on possession. Borrow only these
- * two verified fields. Never replay initialization or change live fire/ammo. */
+ * unconditional Henchman multiplier. InitializeWeapon also selects FullAuto2
+ * for non-human instigators, but humans may legitimately use FullAuto too.
+ * Borrow only these two verified fields. Never replay initialization or
+ * change live fire/ammo. */
 typedef struct RuntimeGuestWeapon {
     SessionHandle pc,pawn,weapon,inventory,world,root,klass,cdo,damage_field,mode_field;
     SessionHandle pawn_channel,weapon_channel,connection,driver;
@@ -36,8 +37,16 @@ static int runtime_guest_weapon_damage_valid(uint32_t bits) {
 static uint32_t runtime_guest_weapon_mode_word(uint32_t word,unsigned char mode) {
     return (word&UINT32_C(0xff00ffff))|((uint32_t)mode<<16);
 }
-static int runtime_guest_weapon_mode_policy(unsigned current,unsigned authored,int count) {
-    return current==2&&authored!=2&&authored<256&&count>0&&count<=32&&authored<(unsigned)count;
+static int runtime_guest_weapon_mode_policy(unsigned current,unsigned authored) {
+    /* SFXWeapon.FireModes: None0, SemiAuto1, FullAuto2, Burst3, Reload4.
+     * FullAuto is a valid human default, not a marker of AI ownership. */
+    return current==2&&(authored==1||authored==3);
+}
+static int runtime_guest_weapon_firing_entry(unsigned mode,int state_count,int type_count,
+        uint32_t name_index,uint32_t name_number,unsigned type) {
+    return runtime_guest_weapon_mode_policy(2,mode)&&state_count>0&&state_count<=32&&
+        type_count>0&&type_count<=32&&mode<(unsigned)state_count&&mode<(unsigned)type_count&&
+        name_index&&name_number<=4096&&type<3; /* Stock SendToFiringState rejects EWFT_None3. */
 }
 static int runtime_guest_weapon_handles(const RuntimeGuestWeapon *q) {
     return session_handle_matches(q->pc)&&session_handle_matches(q->pawn)&&session_handle_matches(q->weapon)&&
@@ -54,8 +63,7 @@ static int runtime_guest_weapon_layout(uintptr_t base,uintptr_t weapon,uintptr_t
         runtime_guest_team_field(base,weapon,"SFXWeapon","PendingFireMode","ByteProperty",0x10c2,1,0x2000)&&
         runtime_guest_team_field(base,weapon,"Weapon","CurrentFireMode","ByteProperty",0x3b0,1,0)&&
         runtime_guest_team_field(base,weapon,"Weapon","FiringStatesArray","ArrayProperty",0x2e4,16,0x400000)&&
-        runtime_guest_team_field(base,weapon,"Weapon","WeaponFireTypes","ArrayProperty",0x2f4,16,0x400000)&&
-        runtime_guest_team_field(base,weapon,"Weapon","FireInterval","ArrayProperty",0x314,16,0x400001);
+        runtime_guest_team_field(base,weapon,"Weapon","WeaponFireTypes","ArrayProperty",0x2f4,16,0x400000);
 }
 static int runtime_guest_weapon_chain(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t weapon,uintptr_t inventory,uintptr_t world,int equipped) {
     return guest_camera_actor_live(base,pc)&&is_kind_of(base,pc,"SFXPlayerController")&&
@@ -68,7 +76,7 @@ static int runtime_guest_weapon_chain(uintptr_t base,uintptr_t pc,uintptr_t pawn
         (!equipped||(read_ptr(pawn+0x41c)==weapon&&read_ptr(pc+0x3bc)==pawn&&read_ptr(pawn+0x374)==pc));
 }
 /* Zero pending mode is proven by Active.CheckBeginFire's native script. An
- * outstanding mode2 request is allowed to complete/cancel through stock code. */
+ * outstanding FullAuto2 request completes/cancels through stock code. */
 static int runtime_guest_weapon_idle(uintptr_t base,const RuntimeGuestWeapon *q) {
     unsigned char fire=255,pending=255,current=255;int32_t action=-1,power=-1;uint32_t busy=0;GameArray requests={0};char state[96];
     if(!read_at(q->pc.pointer+0x480,&fire,1)||fire||
@@ -82,12 +90,15 @@ static int runtime_guest_weapon_idle(uintptr_t base,const RuntimeGuestWeapon *q)
     return 1;
 }
 static int runtime_guest_weapon_modes(uintptr_t weapon,unsigned char mode) {
-    GameArray states={0},types={0},intervals={0};uint32_t name[2];unsigned char type=255;float interval=0;
-    return identity_array(weapon+0x2e4,&states,32)&&identity_array(weapon+0x2f4,&types,32)&&identity_array(weapon+0x314,&intervals,32)&&
-        mode<states.count&&mode<types.count&&mode<intervals.count&&
-        read_at(states.data+(SIZE_T)mode*8,name,8)&&name[0]&&name[1]<=4096&&
-        read_at(types.data+mode,&type,1)&&type<4&&
-        read_at(intervals.data+(SIZE_T)mode*4,&interval,4)&&isfinite(interval)&&interval>0;
+    /* SendToFiringState indexes both arrays with this same SFX selector;
+     * CurrentFireMode0 is None/idle, not a distinct primary input channel.
+     * SFXWeapon.GetFireInterval uses 60/GetRateOfFire(), not Engine.FireInterval. */
+    GameArray states={0},types={0};uint32_t name[2];unsigned char type=255;
+    return runtime_guest_weapon_mode_policy(2,mode)&&
+        identity_array(weapon+0x2e4,&states,32)&&identity_array(weapon+0x2f4,&types,32)&&
+        mode<states.count&&mode<types.count&&
+        read_at(states.data+(SIZE_T)mode*8,name,8)&&read_at(types.data+mode,&type,1)&&
+        runtime_guest_weapon_firing_entry(mode,states.count,types.count,name[0],name[1],type);
 }
 /* Cleanup is independent of enable/scene admission, so the core calls this
  * BEFORE native AI handoff. Ownership or class replacement always wins. */
@@ -163,7 +174,7 @@ static void runtime_guest_weapon_tick(uintptr_t base,uintptr_t engine,DWORD now)
         if(q->damage_bits!=guest_camera_float_bits(1.0f))q->damage_changed=runtime_guest_weapon_cas(weapon+0xf80,q->damage_bits,guest_camera_float_bits(1.0f));
         runtime_guest_weapon_log("player-damage-scale",q,now);}
     if(q->mode_attempted)return;
-    if(!read_at(weapon+0x10bc,&word,4)||!runtime_guest_weapon_mode_policy((word>>16)&255,q->human_mode,32)){
+    if(!read_at(weapon+0x10bc,&word,4)||!runtime_guest_weapon_mode_policy((word>>16)&255,q->human_mode)){
         q->mode_attempted=1;runtime_guest_weapon_log("preserved-authored-or-native-mode",q,now);return;}
     if(!runtime_guest_weapon_idle(base,q)){
         if(!q->wait_reported){q->wait_reported=1;runtime_guest_weapon_log("waiting-stock-fire-idle",q,now);}return;}
@@ -189,8 +200,23 @@ static int runtime_guest_weapon_selftest(void) {
         runtime_guest_weapon_damage_valid(guest_camera_float_bits(1.0f))&&
         !runtime_guest_weapon_damage_valid(guest_camera_float_bits(-0.3f))&&
         !runtime_guest_weapon_damage_valid(guest_camera_float_bits(NAN))&&
-        runtime_guest_weapon_mode_policy(2,0,3)&&runtime_guest_weapon_mode_policy(2,1,3)&&
-        !runtime_guest_weapon_mode_policy(2,2,3)&&!runtime_guest_weapon_mode_policy(0,1,3)&&
-        !runtime_guest_weapon_mode_policy(2,3,3)&&!runtime_guest_weapon_mode_policy(2,0,0);
+        runtime_guest_weapon_mode_policy(2,1)&&runtime_guest_weapon_mode_policy(2,3)&&
+        !runtime_guest_weapon_mode_policy(2,0)&&!runtime_guest_weapon_mode_policy(2,2)&&
+        !runtime_guest_weapon_mode_policy(2,4)&&!runtime_guest_weapon_mode_policy(2,5)&&
+        !runtime_guest_weapon_mode_policy(2,255)&&!runtime_guest_weapon_mode_policy(0,1)&&
+        !runtime_guest_weapon_mode_policy(1,3)&&!runtime_guest_weapon_mode_policy(3,1)&&
+        runtime_guest_weapon_firing_entry(1,5,5,42,0,0)&&
+        runtime_guest_weapon_firing_entry(3,5,5,42,0,1)&&
+        runtime_guest_weapon_firing_entry(1,5,5,42,0,2)&&
+        !runtime_guest_weapon_firing_entry(0,5,5,42,0,0)&&
+        !runtime_guest_weapon_firing_entry(4,5,5,42,0,0)&&
+        !runtime_guest_weapon_firing_entry(1,5,5,42,0,3)&&
+        !runtime_guest_weapon_firing_entry(1,5,5,0,0,0)&&
+        !runtime_guest_weapon_firing_entry(1,5,5,42,4097,0)&&
+        !runtime_guest_weapon_firing_entry(3,3,5,42,0,0)&&
+        !runtime_guest_weapon_firing_entry(3,5,3,42,0,0)&&
+        !runtime_guest_weapon_firing_entry(1,0,5,42,0,0)&&
+        !runtime_guest_weapon_firing_entry(1,5,0,42,0,0)&&
+        !runtime_guest_weapon_firing_entry(1,33,5,42,0,0);
 }
 #endif
