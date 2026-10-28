@@ -113,6 +113,7 @@ static int ordinary_fire_qa_allowed(void) {
 #include "runtime_guest_team.h"
 #include "runtime_guest_weapon.h"
 #include "runtime_guest_fire_audit.h"
+#include "runtime_ammo_receive_observer.h"
 #include "runtime_guest_fire_release.h"
 #include "runtime_guest_shield_feedback.h"
 #include "runtime_power_action_context.h"
@@ -244,6 +245,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     if(!after)runtime_airlock_player_prepare(base,now);
     if(!after)runtime_supply_sleep_prepare(base,now);
     if(!after)runtime_ammo_award_prepare(base,now);
+    if(!after)runtime_ammo_receive_prepare(base,engine,now);
     if(!after&&runtime_guest_team_tick(base,engine,now))runtime_scope_ready=runtime_session_scope(base,engine);
     runtime_revive_peer_configure();
     runtime_team_hud_configure();

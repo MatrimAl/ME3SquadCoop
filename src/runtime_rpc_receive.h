@@ -2,6 +2,7 @@
 #define ME3_RUNTIME_RPC_RECEIVE_H
 #include "native_rpc_receive_context.h"
 #include "native_actor_receive_pins.h"
+#include "runtime_ammo_observation_context.h"
 /* Forwarding-only ordinary entry. No bunch decoding, message consumption,
  * counter write, synthetic input or package/engine validation replacement. */
 typedef void (*RuntimeRpcReceive)(void*,void*);
@@ -37,8 +38,12 @@ static void runtime_rpc_receive(void *self,void *bunch) {
     if(initial_thread){initial.previous=initial_object_frame;initial_object_frame=&initial;}
     native_rpc_receive_begin(&frame,runtime_rpc_receive_thread,
         runtime_control_enabled&&runtime_scope_ready?(uintptr_t)self:0);
+    RuntimeAmmoReceiveFrame ammo_frame={0};
+    void (*ammo_begin)(RuntimeAmmoReceiveFrame*,uintptr_t)=runtime_ammo_receive_begin_observer;
+    void (*ammo_end)(RuntimeAmmoReceiveFrame*)=runtime_ammo_receive_end_observer;
+    if(ammo_begin&&ammo_end)ammo_begin(&ammo_frame,(uintptr_t)self);
     SetLastError(error);runtime_rpc_receive_original(self,bunch);
-    error=GetLastError();native_rpc_receive_end(&frame);
+    error=GetLastError();if(ammo_begin&&ammo_end)ammo_end(&ammo_frame);native_rpc_receive_end(&frame);
     if(initial_thread)initial_object_frame=initial.previous;
     if(initial.active) {
         uint32_t flags_after=0;read_at(channel+0x68,&flags_after,4);

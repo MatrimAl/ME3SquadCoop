@@ -36,36 +36,7 @@ static int ammo_wire_take(void) {
 static int ammo_wire_scope_valid(void) {
     return has_marker(root)&&native_ammo_scope_valid(&ammo_wire_scope,test_action==6);
 }
-static int ammo_wire_property(uintptr_t base,uintptr_t prop,int field,GuestCameraStamp *stamp) {
-    int32_t offset=-1,dim=0,size=0;uint64_t flags=0;uint16_t rep[2]={0};
-    const char *path=field?"SFXGame.SFXWeapon_NativeBase.CurrentSpareAmmo":"SFXGame.SFXWeapon_NativeBase.AmmoUsedCount";
-    return guest_camera_stamp_read(base,prop,stamp,1)&&is_kind_of(base,prop,"IntProperty")&&
-        !strcmp(stamp->full_name,path)&&read_ptr(prop)==base+0x108dfb0&&
-        read_at(prop+0x70,&dim,4)&&dim==1&&read_at(prop+0x74,&size,4)&&size==4&&
-        read_at(prop+0x78,&flags,8)&&flags==0x20&&read_at(prop+0x80,rep,4)&&rep[0]==66&&rep[1]==(field?22:23)&&
-        read_at(prop+0x94,&offset,4)&&offset==(field?0x3b4:0x3b8);
-}
-static int ammo_wire_properties(uintptr_t base,uintptr_t weapon,GuestCameraStamp out[2]) {
-    uintptr_t klass=read_ptr(weapon+0x50);int found=0;
-    for(int depth=0;klass&&depth<32;++depth){
-        if(!is_live(base,klass))return 0;
-        char name[96];object_name(base,klass,name,sizeof name);
-        if(!strcmp(name,"SFXWeapon_NativeBase")){
-            uintptr_t child=read_ptr(klass+0x70),seen[512];int n=0;
-            while(child&&n<512){
-                if(!is_live(base,child))return 0;
-                for(int i=0;i<n;++i)if(seen[i]==child)return 0;
-                seen[n++]=child;object_name(base,child,name,sizeof name);
-                int field=!strcmp(name,"AmmoUsedCount")?0:!strcmp(name,"CurrentSpareAmmo")?1:-1;
-                if(field>=0){if((found&(1<<field))||read_ptr(child+0x40)!=klass||!ammo_wire_property(base,child,field,&out[field]))return 0;found|=1<<field;}
-                child=read_ptr(child+0x68);
-            }
-            return !child&&found==3;
-        }
-        klass=read_ptr(klass+0x60);
-    }
-    return 0;
-}
+#include "native_ammo_wire_pins.h"
 static void ammo_wire_prepare(uintptr_t base) {
     if(!ammo_wire_installed||GetCurrentThreadId()!=ammo_wire_thread)return;
     AmmoChangeTrace *t=&ammo_change_trace;AmmoWireScope *s=&ammo_wire_scope;
@@ -77,7 +48,7 @@ static void ammo_wire_prepare(uintptr_t base) {
     int index=network_weapon_channel_id(base,t->weapon.pointer);if(index<0)return;
     NetworkActorIdentityEntry ch={0};
     for(unsigned i=0;i<4;++i)if(network_actor_identity_cache[i].base==base&&network_actor_identity_cache[i].pawn==t->weapon.pointer)ch=network_actor_identity_cache[i];
-    if(!ch.channel||!ammo_wire_properties(base,t->weapon.pointer,s->properties))return;
+    if(!ch.channel||!native_ammo_wire_properties(base,t->weapon.pointer,s->properties))return;
     uintptr_t map=read_ptr(ch.connection+0xf0);if(!is_live(base,map)||!is_kind_of(base,map,"PackageMap"))return;
     if(!guest_camera_stamp_read(base,ch.driver,&s->driver,0)||
        !guest_camera_stamp_read(base,ch.connection,&s->connection,0)||
@@ -128,19 +99,10 @@ static int ammo_wire_serialize(void *property,void *archive,void *map,void *data
     }
     SetLastError(after_error);return result;
 }
-static int ammo_wire_pins(uintptr_t base) {
-    static const unsigned char fn[]={0x48,0x83,0xec,0x28,0x48,0x8b,0xca,0x41,0xb8,0x04,0x00,0x00,0x00,0x49,0x8b,0xd1,0xe8,0xdb,0xd9,0xf3,0xff,0xb8,0x01,0x00,0x00,0x00,0x48,0x83,0xc4,0x28,0xc3};
-    static const unsigned char send[]={0x48,0x8b,0x03,0x4c,0x8b,0x90,0xf8,0x02,0x00,0x00,0x48,0x63,0xf6,0x4d,0x8b,0x8f,0xa0,0x00,0x00,0x00,0x4c,0x03,0xce,0x4d,0x8b,0x47,0x60,0x4d,0x8b,0x80,0xf0,0x00,0x00,0x00,0x48,0x8d,0x55,0x10,0x48,0x8b,0xcb,0x41,0xff,0xd2,0x83,0x7d,0x48,0x00};
-    static const unsigned char receive[]={0x48,0x8b,0x07,0x4c,0x8b,0xad,0xf0,0x00,0x00,0x00,0x4d,0x8b,0x45,0x60,0x4c,0x8b,0xcb,0x4d,0x8b,0x80,0xf0,0x00,0x00,0x00,0x48,0x8b,0x95,0xf8,0x00,0x00,0x00,0x48,0x8b,0xcf,0xff,0x90,0xf8,0x02,0x00,0x00};
-    unsigned char a[sizeof fn],b[sizeof receive],c[sizeof send];
-    return read_at(base+0x146f40,a,sizeof a)&&!memcmp(a,fn,sizeof a)&&
-        read_at(base+0x488eac,b,sizeof b)&&!memcmp(b,receive,sizeof b)&&
-        read_at(base+0x48d407,c,sizeof c)&&!memcmp(c,send,sizeof c);
-}
 static void ammo_wire_install(uintptr_t base) {
     if(!ammo_wire_opted_in()||ammo_wire_attempted||!has_marker(root))return;
     ammo_wire_attempted=1;uintptr_t slot=base+0x108dfb0+0x2f8,expected=base+0x146f40;DWORD protection;
-    if(!supported_image(base)||read_ptr(slot)!=expected||!ammo_wire_pins(base)||
+    if(!supported_image(base)||read_ptr(slot)!=expected||!native_ammo_wire_pins(base)||
        !VirtualProtect((void*)slot,8,PAGE_READWRITE,&protection)){
         line("{\"ammo_wire\":\"not-installed\",\"reason\":\"native-pins-or-slot\"}\r\n");return;
     }

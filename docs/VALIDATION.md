@@ -1,5 +1,18 @@
 # Validation status
 
+The ordinary guest ammo receive observer now binds exact native integer decodes
+and completed selected-weapon receive storage to a shared game-thread event
+sequence and a native fire counter that continues beyond64 detailed fire rows.
+It reserves up to128 combined completion rows. Failed reads, duplicate decodes,
+nested receives, changed scope or missing fire coverage refuse a qualified
+counter-change match. Shared protected helper bodies passed source-text
+equivalence. All four targets built; ordinary forwarding/LastError, nested
+context, failed/duplicate decode and coverage policy fixtures passed. The
+protected probe, including its existing wire observer checks, also passed. No game ran this addition.
+It changes no ammunition, payload or transport and establishes neither packet
+pairing nor per-shot acknowledgement. The existing owner checks are unchanged.
+See [ammo observation](AMMO-REPLICATION.md).
+
 The shared supply timing candidate follows selected LEMP Cerberus/Noveria
 containers with three-second respawns; the inspected Mars containers inherit
 twenty seconds. Only a qualifying authoritative host container's real native

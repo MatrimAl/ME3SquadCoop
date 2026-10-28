@@ -27,6 +27,7 @@ typedef struct RuntimeGuestFireCapture {
     uintptr_t receive_frame,receive_channel;
     int valid,receive_index,receive_selected;
     unsigned id,generation;
+    uint64_t observation_before,observation_fire;
 } RuntimeGuestFireCapture;
 static RuntimeGuestFireCall runtime_guest_fire_original;
 static GuestPlayerContextMethod runtime_guest_fire_method;
@@ -128,6 +129,7 @@ static RuntimeGuestFireCapture runtime_guest_fire_capture(void *self) {
             c.receive_selected=r->channel==c.scope.weapon_channel.channel;
         }
     }
+    c.observation_before=runtime_ammo_observation_next();c.observation_fire=runtime_ammo_observation_fire_calls;
     c.before=runtime_guest_fire_sample(&c.scope);c.valid=1;return c;
 }
 static void runtime_guest_fire_after(RuntimeGuestFireCapture *c) {
@@ -142,6 +144,7 @@ static void runtime_guest_fire_after(RuntimeGuestFireCapture *c) {
     int same_receive=c->receive_frame&&r&&(uintptr_t)r==c->receive_frame&&r->channel==c->receive_channel;
     RuntimeGuestFireSample *b=&c->before;char before_state[200],after_state[200],row[2600];
     identity_quote(b->state,before_state,sizeof before_state);identity_quote(after.state,after_state,sizeof after_state);
+    uint64_t observation_after=runtime_ammo_observation_next();
     snprintf(row,sizeof row,"{\"runtime_guest_fire_audit\":\"native-call\",\"side\":\"%s\",\"call\":%u,\"scope_generation\":%u,\"registration_token\":%lu,\"weapon_index\":%d,\"pawn_index\":%d,\"channel_index\":%d,\"scope_stable\":%s,\"before_valid\":%s,\"after_valid\":%s,\"used_before\":%d,\"used_after\":%d,\"spare_before\":%d,\"spare_after\":%d,\"shot_count_before\":%d,\"shot_count_after\":%d,\"fire_input_before\":%u,\"fire_input_after\":%u,\"current_mode_before\":%u,\"current_mode_after\":%u,\"pending_mode_before\":%u,\"pending_mode_after\":%u,\"default_mode_before\":%u,\"default_mode_after\":%u,\"weapon_role\":%u,\"pawn_role\":%u,\"no_ammo_use_chance_value_before\":%.9g,\"no_ammo_use_chance_value_after\":%.9g,\"ammo_per_shot_before\":%.9g,\"ammo_per_shot_after\":%.9g,\"state_before_known\":%s,\"state_after_known\":%s,\"state_before\":\"%s\",\"state_after\":\"%s\",\"native_receive_frame\":\"0x%llx\",\"native_receive_channel_index\":%d,\"selected_weapon_receive_context\":%s,\"same_receive_after\":%s,\"receive_context_only\":true,\"original_forwarded_once\":true,\"ammo_written\":false,\"damage_verified\":false,\"before_monotonic_ms\":%lu,\"after_monotonic_ms\":%lu}\r\n",
         c->scope.side==ME3_ROLE_HOST?"host":"guest",c->id,c->generation,c->scope.token,
         c->scope.lease.weapon.index,c->scope.lease.pawn.index,c->scope.weapon_channel.index,
@@ -152,6 +155,10 @@ static void runtime_guest_fire_after(RuntimeGuestFireCapture *c) {
         b->valid?(double)b->chance:0,after.valid?(double)after.chance:0,b->valid?(double)b->per_shot:0,after.valid?(double)after.per_shot:0,
         b->state_known?"true":"false",after.state_known?"true":"false",before_state,after_state,
         (unsigned long long)c->receive_frame,c->receive_index,c->receive_selected?"true":"false",same_receive?"true":"false",b->tick,after.tick);
+    /* Keep the existing row shape stable and append ordering before its close. */
+    size_t length=strlen(row);
+    if(length>=3&&!strcmp(row+length-3,"}\r\n"))snprintf(row+length-3,sizeof row-(length-3),",\"native_event_before\":%llu,\"native_event_after\":%llu,\"selected_native_fire_serial\":%llu}\r\n",
+        (unsigned long long)c->observation_before,(unsigned long long)observation_after,(unsigned long long)c->observation_fire);
     line(row);
 }
 static void runtime_guest_fire_forward(void *self,RuntimeGuestFireCall original,
@@ -162,12 +169,16 @@ static void runtime_guest_fire_forward(void *self,RuntimeGuestFireCall original,
 }
 static void runtime_guest_fire_audit_exec(void *self) {
     DWORD incoming=GetLastError();RuntimeGuestWeapon *q=&runtime_guest_weapon;
+    int observing=runtime_ammo_observation_enabled&&runtime_guest_fire_installed&&q->valid&&self&&
+        (uintptr_t)self==q->weapon.pointer&&session_game_thread&&GetCurrentThreadId()==session_game_thread;
+    if(observing){++runtime_ammo_observation_fire_calls;runtime_ammo_observation_next();}
     if(!runtime_guest_fire_selected((uintptr_t)self,q->weapon.pointer,q->valid,GetCurrentThreadId(),
             session_game_thread,runtime_guest_fire_calls,runtime_guest_fire_installed)) {
-        SetLastError(incoming);runtime_guest_fire_original(self);return;
+        SetLastError(incoming);runtime_guest_fire_original(self);if(observing)runtime_ammo_observation_next();return;
     }
     SetLastError(incoming);
     runtime_guest_fire_forward(self,runtime_guest_fire_original,runtime_guest_fire_capture,runtime_guest_fire_after);
+    if(observing)runtime_ammo_observation_next();
 }
 static void runtime_guest_fire_audit_prepare(uintptr_t base,uintptr_t engine,DWORD now) {
     (void)now;

@@ -349,3 +349,37 @@ candidate fixes every live rebound. Fast tap, release before preparation ends,
 hold, immediate repress, reload and weapon-switch transitions are recorded for
 the next owner test. A stale pending selector is left to the normal next
 BeginFire/state lifecycle rather than being forcibly reset.
+
+## Ordinary native ammo receive observation
+
+The ordinary guest now observes the selected owned weapon's actual integer
+property decode and storage before/after the unchanged native ReceivedBunch.
+It reuses the exact protected serializer/caller/property pins and binds the
+decode to the current weapon, owner, world, connection, channel and PackageMap.
+There is no research marker or QA-action dependency. Observation is enabled by
+default; `ME3_SQUAD_COOP_AMMO_RECEIVE_AUDIT=0` disables it.
+
+A shared process-local game-thread sequence orders receive entry, field decode,
+receive completion and the existing native FireAmmunition observations. The
+selected native fire counter continues after the first64 detailed fire rows;
+its coverage remains limited to the verified virtual slot. At most128 combined
+receive completion rows are emitted, with a slot reserved before observing a
+selected receive. Each row combines both fields, native archive results,
+before/after storage, decode counts and the intervening fire count. Nested
+receives push their own frame, including invalid/foreign channels.
+
+The qualified counter-change match requires stable scope, one accepted used-count
+decode, matching final storage, live fire-counter coverage and no nested receive
+or intervening counted fire. Failed reads, duplicate decodes, missing coverage
+and changed identities refuse that match. Callers bypassing the observed fire
+slot remain outside coverage; missing rows do not establish absent activity.
+This guest-only observer does not pair host packets or identify which predicted
+shots an authoritative absolute value acknowledges. It writes no counters,
+payloads or game state and adds no transport or input.
+
+The shared helper extraction passed a source-text equivalence check, with the
+protected observer's policy and forwarding unchanged. All four native targets built. Ordinary fixtures passed unchanged serializer
+arguments/result/LastError, wrong-caller forwarding, nested context, failed-read/
+duplicate decode and fire-coverage policy checks. The protected harness passed
+its existing wire observer and memory/opt-in checks. No game was run for it, and the existing
+owner gameplay checks remain unchanged; the clip rebound is still unresolved.

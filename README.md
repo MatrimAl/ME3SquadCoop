@@ -8,6 +8,14 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 **Status: research prototype. A complete playable campaign and a validated player installation are not available yet.** This repository publishes source and test tooling so the work can continue openly, with clear limits on what has actually been demonstrated.
 
+The ordinary guest now has a bounded ammo receive observer to investigate the
+remaining clip rebound. It orders the selected weapon's native integer decode
+and completed receive storage against local native firing, without changing
+ammunition or transport. It is enabled by default;
+`ME3_SQUAD_COOP_AMMO_RECEIVE_AUDIT=0` disables it. Native fixtures passed;
+no gameplay fix or per-shot acknowledgement is claimed; see
+[ammo observation](docs/AMMO-REPLICATION.md).
+
 A narrow Mars airlock guard keeps the authored transition's temporary player
 lists ordered with the host Shepard first if a native two-player list puts the
 guest first. It preserves the graph and actor transforms. This possible source
