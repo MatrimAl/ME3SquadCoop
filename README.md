@@ -28,9 +28,11 @@ Actual reserve gain and shared pickup behavior remain owner checks; see
 
 An offline supply timing candidate also requests the three-second shared
 respawn found in selected LEMP maps for qualifying native campaign containers.
-The stock grant and visibility lifecycle remains in place. Native fixtures
-passed; live replenishment and absolute multiplayer ammo amounts remain
-unverified. See [shared ammo supply](docs/MP-AMMO-SUPPLY.md).
+The stock visibility lifecycle remains in place. A separate quantity candidate
+supplies LEMP's 0.5 award fraction for verified stock campaign difficulty
+ordinals zero through two, preserving other/custom values and stock weapon
+capacity handling. Timing fixtures passed; quantity fixtures and all live
+replenishment checks are pending. See [shared ammo supply](docs/MP-AMMO-SUPPLY.md).
 
 The current ordinary build adds Shepard-only admission for classified story
 entries, guest entry warnings and a Mars shuttle close rule that waits for all

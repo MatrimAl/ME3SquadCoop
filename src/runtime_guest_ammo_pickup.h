@@ -20,6 +20,8 @@ typedef struct RuntimeAmmoPickup {
     int installed;
 } RuntimeAmmoPickup;
 static RuntimeAmmoPickup runtime_ammo_pickup;
+static uintptr_t runtime_ammo_award_node;
+static void runtime_ammo_award_before(void*,void*);
 static void runtime_ammo_pickup_exec(void*,void*,void*);
 static int runtime_script_executor_prefix(uintptr_t base,const unsigned char *expected,size_t size) {
     RuntimeAmmoPickup *s=&runtime_ammo_pickup;unsigned char actual[256],prefix[16],trampoline[64];
@@ -148,6 +150,8 @@ static void runtime_ammo_pickup_exec(void *self,void *frame,void *result) {
      * only a direct node comparison and the unchanged trampoline call. */
     if(s->installed&&frame&&*(uintptr_t*)((unsigned char*)frame+0x18)==s->valid.function.pointer)
         runtime_ammo_pickup_forward(self,frame,result,s->original,runtime_ammo_pickup_before);
+    else if(s->installed&&frame&&runtime_ammo_award_node&&*(uintptr_t*)((unsigned char*)frame+0x18)==runtime_ammo_award_node)
+        runtime_ammo_pickup_forward(self,frame,result,s->original,runtime_ammo_award_before);
     else s->original(self,frame,result);
 }
 static uintptr_t runtime_ammo_pickup_find(uintptr_t base,uintptr_t owner,const char *kind,const char *name) {

@@ -13,6 +13,17 @@ checks passed. No game ran this addition: full live admission, state expiry,
 rendered replication and absolute MP award amounts remain unverified. See
 [shared ammo supply](MP-AMMO-SUPPLY.md).
 
+The quantity follow-up uses actual installed LEMP configuration: raw difficulty
+ordinals zero through two have AmmoPct 0.5, compared with campaign 0.75/0.6/0.4;
+ordinal three already agrees at 0.25. It supplies only a frame-local 0.5 for an
+admitted authoritative human Shepard/Ashley award when the corresponding stock
+base value is still present. Ordinal four, unknown/custom values and other
+awards retain stock behavior. The existing script executor hook and original
+inventory loop preserve heavy-weapon exclusion, reserve caps and inactive
+magazine replenishment. No global AmmoPct, counter, asset or MP-sound flag is
+written. All four targets built; native quantity fixtures passed ordinal/value selection, local-frame P/Weapon/canary preservation, layout/cursor refusal, rollback and selected/unselected forwarding/LastError. The protected probe checks passed. No game ran;
+per-weapon capacity parity and actual awarded rounds remain unverified.
+
 The exact Mars entrance-airlock player variable now has a host-only native
 list-order guard. Native fixtures cover correct/reversed/null-peer pairs,
 foreign-pair refusal, conditional rollback, unchanged builder forwarding and

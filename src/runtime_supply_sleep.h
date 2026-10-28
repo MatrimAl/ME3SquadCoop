@@ -36,9 +36,9 @@ static int runtime_supply_sleep_enabled(void) {
 static float runtime_supply_sleep_seconds(int eligible,float seconds) {
     return eligible&&seconds==20.0f?3.0f:seconds;
 }
-static int runtime_supply_sleep_coop(uintptr_t base,SessionContext *out) {
+static int runtime_shared_supply_coop(uintptr_t base,SessionContext *out) {
     SessionContext c=session_context(session_engine);NetworkActorScope world={0};GameArray peers={0},again={0};
-    if(!runtime_supply_sleep_enabled()||g_runtime_config.role!=ME3_ROLE_HOST||GetCurrentThreadId()!=session_game_thread||
+    if(g_runtime_config.role!=ME3_ROLE_HOST||GetCurrentThreadId()!=session_game_thread||
        !runtime_control_enabled||!runtime_scope_ready||!InterlockedCompareExchange(&g_enable_requested,0,0)||
        !guest_camera_actor_live(base,c.pc)||!is_kind_of(base,c.pc,"SFXPlayerController")||
        !guest_camera_actor_live(base,c.pawn)||!is_kind_of(base,c.pawn,"SFXPawn_Player")||
@@ -89,7 +89,7 @@ static RuntimeSupplySleepCapture runtime_supply_sleep_capture(void *self,float s
     RuntimeSupplySleep *s=&runtime_supply_sleep;RuntimeSupplySleepCapture capture={0};SessionContext c={0};
     uintptr_t actor=(uintptr_t)self,state=0,world=0;uint32_t state_name[2],flags=0;unsigned char role=0;float current=0,default_seconds=0;
     GameArray script={0};GuestCameraStamp archetype={0};
-    if(!s->installed||caller!=s->base+0x4b9ef1||seconds!=20.0f||!runtime_supply_sleep_coop(s->base,&c)||
+    if(!s->installed||!runtime_supply_sleep_enabled()||caller!=s->base+0x4b9ef1||seconds!=20.0f||!runtime_shared_supply_coop(s->base,&c)||
        !runtime_supply_sleep_contract(s->base)||!guest_camera_actor_live(s->base,actor)||read_ptr(actor+0x50)!=s->klass.pointer||
        read_ptr(actor+0x198)!=c.world||!runtime_story_graph_level(s->base,actor,&world)||world!=read_ptr(s->base+0x18b6638)||
        !runtime_power_property(s->base,actor,"Actor","Role","ByteProperty",0x26a,1)||!read_at(actor+0x26a,&role,1)||role!=3||

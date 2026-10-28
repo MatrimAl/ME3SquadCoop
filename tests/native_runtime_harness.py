@@ -63,6 +63,7 @@ def main():
                  "ME3RuntimeGuestAmmoPickupSelfTest",
                  "ME3RuntimeAirlockPlayerSelfTest",
                  "ME3RuntimeSupplySleepSelfTest",
+                 "ME3RuntimeAmmoAwardSelfTest",
                  "ME3RuntimeHeavyPlotGuardSelfTest",
                  "ME3RuntimeReviveSelfTest",
                  "ME3RuntimeJoinReadinessSelfTest",
