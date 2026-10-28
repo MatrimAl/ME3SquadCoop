@@ -329,3 +329,23 @@ pending. The same owner, weapon, world, connection and Default game mode must
 remain valid across the original call. SemiAuto, Burst and changed contexts
 keep their original path. There is no ammo write, native shot suppression or
 replayed input. Owner gameplay validation remains pending.
+
+The follow-up also covers the stock Active port-arms branch: it sets weapon
+PendingFireMode2 and schedules CheckBeginFire before reaching the inventory
+BeginFire path. A release can therefore occur with CurrentFireMode0 and an
+empty/zero inventory pending entry. The previous guest guard accepted only
+WeaponFiring and could not cancel this still-pending local start.
+
+For the same exact real1-to0 release and authored/default FullAuto2 weapon,
+the candidate uses stock Actor.ClearTimer for the existing CheckBeginFire
+name, then refreshes the entire owned scope, input and pending-state evidence
+before stock Pawn.StopFire(2). The host's existing incoming-release adapter is
+unchanged. No pending-mode field, timer storage, input or ammunition is written.
+SemiAuto/Burst, reload, unknown mode, state transitions and changed identities
+remain refused. Ordinary native calls and LastError still forward unchanged.
+
+This closes a source-level coverage gap; it does not establish that the new
+candidate fixes every live rebound. Fast tap, release before preparation ends,
+hold, immediate repress, reload and weapon-switch transitions are recorded for
+the next owner test. A stale pending selector is left to the normal next
+BeginFire/state lifecycle rather than being forcibly reset.

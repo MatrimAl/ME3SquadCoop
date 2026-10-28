@@ -1048,3 +1048,24 @@ found no contract mismatch. These checks are not rendered movement or network
 path proof. The owner deferred game tests; first-use ladders, mantle geometry,
 cover slip speed/direction, camera recovery and scene/AI return remain recorded
 owner checks. Full campaign and multiplayer movement parity remains open.
+
+## Local release during weapon preparation
+
+The previous guest release path accepted only native WeaponFiring. Exact
+retained Active.BeginFire script shows a separate port-arms branch that stores
+weapon PendingFireMode2 and schedules CheckBeginFire before inventory BeginFire.
+The follow-up admits this precise pending state on the same real1-to0 release,
+including an empty/short native inventory request array whose missing entry is0.
+It invokes the existing stock named timer cancellation, refreshes the complete
+owner/weapon/world/channel context and input/state evidence, then invokes the
+ordinary Pawn.StopFire(2). Host behavior and SemiAuto/Burst are unchanged.
+
+All four targets built. The ordinary harness passed both release-kind policies,
+wrong-state/mode/owner and false-release refusals, actual empty/short/populated
+array reads, and the existing native forwarding/LastError and timer-dispatch
+fixtures. The protected harness passed memory/opt-in and low-integrity write
+denial. A narrow independent review found the initially retained empty-array
+refusal; the final tested reader removes it and rechecks scope after ClearTimer.
+No game was launched. This is a source coverage correction, not a gameplay
+confirmation that ammo rebound is solved. Rapid tap/hold/repress, reload and
+weapon switching remain recorded owner checks toward multiplayer-like controls.

@@ -4,14 +4,16 @@
  * Tick clears inventory pending fire. On the exact local human FullAuto2
  * release, complete that same stock Pawn.StopFire path before another weapon
  * timer can consume a round. Preserve semi/burst and unrelated controllers.
- * No ammo, fire input, pending mode, timer or network-role field is written. */
+ * A real release while Active has a deferred port-arms CheckBeginFire timer;
+ * cancel only that named stock timer before the same ordinary stop. No ammo,
+ * fire input, pending mode, timer-array or network-role field is written. */
 typedef void (*RuntimeGuestReleaseExec)(void*,void*,void*);
 typedef struct RuntimeGuestReleaseScope {
     RuntimeGuestFireScope fire;
     SessionHandle manager,mode;
     GameArray modes;
 } RuntimeGuestReleaseScope;
-typedef struct RuntimeGuestReleaseCapture {RuntimeGuestReleaseScope scope;uintptr_t frame;int valid;} RuntimeGuestReleaseCapture;
+typedef struct RuntimeGuestReleaseCapture {RuntimeGuestReleaseScope scope;uintptr_t frame;int valid,kind;} RuntimeGuestReleaseCapture;
 typedef struct RuntimeGuestRelease {
     uintptr_t base;GuestPlayerContextMethod release,stop;
     RuntimeGuestReleaseExec original;DWORD checked;
@@ -23,9 +25,22 @@ static int runtime_guest_fire_release_enabled(void) {
     if(enabled<0){wchar_t value[8]={0};DWORD n=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_FIRE_RELEASE",value,8);
         enabled=!n||(n==1&&value[0]==L'1');}return enabled;
 }
-static int runtime_guest_release_decision(int captured,int same,int cursor,unsigned before,unsigned after,
-        unsigned authored,unsigned current,unsigned mode,int pending,int firing_state) {
-    return captured&&same&&cursor==35&&before==1&&!after&&authored==2&&current==2&&mode==2&&pending==1&&firing_state;
+/* Active.BeginFire's port-arms branch sets weapon PendingFireMode before it
+ * calls the normal inventory BeginFire path. Inventory pending may still be0. */
+static int runtime_guest_release_kind(unsigned authored,unsigned current,unsigned mode,int pending,
+        unsigned weapon_pending,int state) {
+    if(authored!=2||mode!=2)return 0;
+    if(state==1&&current==2&&pending==1)return 1;
+    if(state==2&&!current&&weapon_pending==2&&(pending==0||pending==1))return 2;
+    return 0;
+}
+static int runtime_guest_release_completed(int captured,int same,int cursor,unsigned before,unsigned after,int old_kind,int kind) {
+    return captured&&same&&cursor==35&&before==1&&!after&&old_kind>0&&old_kind<=2&&old_kind==kind;
+}
+static int runtime_guest_release_pending(const GameArray *requests,int32_t *pending) {
+    if(requests->count<0||requests->count>32)return 0;
+    *pending=0;
+    return requests->count<=2||read_at(requests->data+8,pending,4);
 }
 static int runtime_guest_release_method(uintptr_t base,const GuestPlayerContextMethod *method,uintptr_t expected,
         int release) {
@@ -58,19 +73,23 @@ static int runtime_guest_release_bodies(uintptr_t base,uintptr_t release,uintptr
     return guest_equipment_body(base,release,36,release_code,sizeof release_code,release_ops,none)&&
         guest_equipment_body(base,stop,57,stop_code,sizeof stop_code,stop_ops,stop_names);
 }
-static int runtime_guest_release_held(uintptr_t base,const RuntimeGuestReleaseScope *s,unsigned *fire) {
+static int runtime_guest_release_held(uintptr_t base,const RuntimeGuestReleaseScope *s,unsigned *fire,int *kind) {
     uintptr_t weapon=s->fire.lease.weapon.pointer,pc=s->fire.lease.pc.pointer;
-    unsigned char current=0,mode=0,authored=0,input=255;int32_t pending=0,action=-1,power=-1;
+    unsigned char current=0,mode=0,authored=0,input=255,weapon_pending=255;int32_t pending=0,action=-1,power=-1;
     GameArray requests={0};uintptr_t state=0;uint32_t name[2];GuestCameraStamp stamp;
     if(!read_at(pc+0x480,&input,1)||!read_at(weapon+0x3b0,&current,1)||!read_at(weapon+0x10be,&mode,1)||
+       !read_at(weapon+0x10c2,&weapon_pending,1)||
        !read_at(s->fire.lease.cdo.pointer+0x10be,&authored,1)||
        !runtime_guest_team_field(base,s->fire.lease.inventory.pointer,"InventoryManager","PendingFire","ArrayProperty",0x270,16,0x400000)||
-       !scene_readiness_array(s->fire.lease.inventory.pointer+0x270,&requests,32)||requests.count<=2||
-       !read_at(requests.data+8,&pending,4)||!read_at(s->fire.lease.pawn.pointer+0xc20,&action,4)||action||
+       !scene_readiness_array(s->fire.lease.inventory.pointer+0x270,&requests,32)||
+       !runtime_guest_release_pending(&requests,&pending)||
+       !read_at(s->fire.lease.pawn.pointer+0xc20,&action,4)||action||
        !read_at(s->fire.lease.pawn.pointer+0xc28,&power,4)||power||
        !native_state_fields(weapon,&state,name)||!guest_camera_stamp_read(base,state,&stamp,1)||
-       !narrative_probe_object(base,state,"State")||strcmp(stamp.full_name,"SFXGame.SFXWeapon.WeaponFiring"))return 0;
-    *fire=input;return authored==2&&current==2&&mode==2&&pending==1;
+       !narrative_probe_object(base,state,"State"))return 0;
+    int state_kind=!strcmp(stamp.full_name,"SFXGame.SFXWeapon.WeaponFiring")?1:
+        !strcmp(stamp.full_name,"SFXGame.SFXWeapon.Active")?2:0;
+    *fire=input;*kind=runtime_guest_release_kind(authored,current,mode,pending,weapon_pending,state_kind);return *kind!=0;
 }
 static int runtime_guest_release_scope(uintptr_t base,uintptr_t receiver,RuntimeGuestReleaseScope *out) {
     memset(out,0,sizeof *out);SessionContext c=session_context(session_engine);unsigned char mode=255;GameArray again={0};
@@ -101,7 +120,7 @@ static RuntimeGuestReleaseCapture runtime_guest_release_capture(void *self,void 
        read_ptr((uintptr_t)frame+0x18)!=s->release.function.pointer||read_ptr((uintptr_t)frame+0x20)!=(uintptr_t)self||
        !read_at(s->release.function.pointer+0x7c,&script,sizeof script)||read_ptr((uintptr_t)frame+0x28)!=script.data||
        !runtime_guest_release_scope(s->base,(uintptr_t)self,&c.scope)||
-       !runtime_guest_release_held(s->base,&c.scope,&fire)||fire!=1)return c;
+       !runtime_guest_release_held(s->base,&c.scope,&fire,&c.kind)||fire!=1)return c;
     c.valid=1;c.frame=(uintptr_t)frame;return c;
 }
 static int runtime_guest_release_dispatch(int eligible,ProcessEvent pe,uintptr_t pawn,uintptr_t method,unsigned mode) {
@@ -112,19 +131,36 @@ static int runtime_guest_release_dispatch(int eligible,ProcessEvent pe,uintptr_t
     SetLastError(error);return called;
 }
 static void runtime_guest_release_after(RuntimeGuestReleaseCapture *capture) {
-    RuntimeGuestRelease *s=&runtime_guest_release;RuntimeGuestReleaseScope current;GameArray script={0};unsigned fire=255;
+    RuntimeGuestRelease *s=&runtime_guest_release;RuntimeGuestReleaseScope current;GameArray script={0};unsigned fire=255;int kind=0;
     if(!capture->valid||s->busy||!runtime_guest_release_method(s->base,&s->release,(uintptr_t)runtime_guest_fire_release_exec,1)||
        !runtime_guest_release_method(s->base,&s->stop,s->base+0xf52b0,0)||
        read_ptr(capture->frame+0x18)!=s->release.function.pointer||read_ptr(capture->frame+0x20)!=capture->scope.mode.pointer||
        !runtime_guest_release_scope(s->base,capture->scope.mode.pointer,&current)||
-       !runtime_guest_release_same(&capture->scope,&current)||!runtime_guest_release_held(s->base,&current,&fire)||
+       !runtime_guest_release_same(&capture->scope,&current)||!runtime_guest_release_held(s->base,&current,&fire,&kind)||
        !read_at(s->release.function.pointer+0x7c,&script,sizeof script)||
-       !runtime_guest_release_decision(1,1,runtime_delayed_fire_offset(read_ptr(capture->frame+0x28),script.data,36),
-           1,fire,2,2,2,1,1)||
+       !runtime_guest_release_completed(1,1,runtime_delayed_fire_offset(read_ptr(capture->frame+0x28),script.data,36),
+           1,fire,capture->kind,kind)||
        guest_equipment_find_first(s->base,read_ptr(current.fire.lease.pawn.pointer+0x50),"StopFire")!=s->stop.function.pointer||
        !guest_equipment_dispatch_pins(s->base))return;
     uintptr_t pawn=current.fire.lease.pawn.pointer,pe=read_ptr(read_ptr(pawn)+0x230);
     if(pe!=s->base+0x40d450)return;
+    if(kind==2){
+        uintptr_t weapon=current.fire.lease.weapon.pointer,state=0,weapon_pe=read_ptr(read_ptr(weapon)+0x230);uint32_t state_name[2],timer_name[2];
+        GuestCameraStamp stamp;GuestPlayerContextMethod clear,check;
+        if(!native_state_fields(weapon,&state,state_name)||!guest_camera_stamp_read(s->base,state,&stamp,1)||
+           strcmp(stamp.full_name,"SFXGame.SFXWeapon.Active")||!runtime_delayed_fire_pins(s->base)||
+           !guest_equipment_weapon_pe_valid(s->base,weapon,weapon_pe)||
+           !runtime_delayed_fire_timer(s->base,weapon,state,&clear,&check,timer_name)||
+           !guest_player_context_method_matches(s->base,&clear,1)||!guest_player_context_method_matches(s->base,&check,1)||
+           !guest_camera_stamp_matches(s->base,&stamp,1))return;
+        s->busy=1;int cleared=runtime_delayed_fire_dispatch(1,(ProcessEvent)weapon_pe,weapon,clear.function.pointer,timer_name);s->busy=0;
+        RuntimeGuestReleaseScope refreshed;
+        if(!cleared||!runtime_guest_release_scope(s->base,capture->scope.mode.pointer,&refreshed)||
+           !runtime_guest_release_same(&capture->scope,&refreshed)||!runtime_guest_release_held(s->base,&refreshed,&fire,&kind)||
+           fire||kind!=2||guest_equipment_find_first(s->base,read_ptr(pawn+0x50),"StopFire")!=s->stop.function.pointer||
+           !runtime_guest_release_method(s->base,&s->stop,s->base+0xf52b0,0)||read_ptr(read_ptr(pawn)+0x230)!=pe)return;
+        if(s->rows++<32)line("{\"runtime_guest_fire_release\":\"stock-local-pending-timer-clear-dispatched\",\"real_input_release_forwarded\":true,\"pending_mode_written\":false,\"ammo_written\":false,\"gameplay_verified\":false}\r\n");
+    }
     s->busy=1;int called=runtime_guest_release_dispatch(1,(ProcessEvent)pe,pawn,s->stop.function.pointer,2);s->busy=0;
     if(called&&s->rows++<32)
         line("{\"runtime_guest_fire_release\":\"stock-pawn-stop-dispatched\",\"real_input_release_forwarded\":true,\"fire_mode\":2,\"ammo_written\":false,\"gameplay_verified\":false}\r\n");
@@ -190,13 +226,27 @@ static int runtime_guest_fire_release_selftest(void) {
         runtime_guest_release_forward(&a,&b,&c,runtime_release_fixture_stock,runtime_release_fixture_capture,runtime_release_fixture_after);
         ok=ok&&runtime_release_fixture_calls==1&&runtime_release_fixture_order==3&&!runtime_release_fixture_bad&&GetLastError()==53;
     }
-    ok=ok&&runtime_guest_release_decision(1,1,35,1,0,2,2,2,1,1)&&
-        !runtime_guest_release_decision(0,1,35,1,0,2,2,2,1,1)&&!runtime_guest_release_decision(1,0,35,1,0,2,2,2,1,1)&&
-        !runtime_guest_release_decision(1,1,34,1,0,2,2,2,1,1)&&!runtime_guest_release_decision(1,1,35,0,0,2,2,2,1,1)&&
-        !runtime_guest_release_decision(1,1,35,1,1,2,2,2,1,1)&&!runtime_guest_release_decision(1,1,35,1,0,1,2,2,1,1)&&
-        !runtime_guest_release_decision(1,1,35,1,0,3,2,2,1,1)&&!runtime_guest_release_decision(1,1,35,1,0,2,1,2,1,1)&&
-        !runtime_guest_release_decision(1,1,35,1,0,2,2,3,1,1)&&!runtime_guest_release_decision(1,1,35,1,0,2,2,2,0,1)&&
-        !runtime_guest_release_decision(1,1,35,1,0,2,2,2,1,0);
+    ok=ok&&runtime_guest_release_kind(2,2,2,1,0,1)==1&&
+        runtime_guest_release_kind(2,0,2,0,2,2)==2&&runtime_guest_release_kind(2,0,2,1,2,2)==2&&
+        !runtime_guest_release_kind(1,0,2,0,2,2)&&!runtime_guest_release_kind(3,0,2,0,2,2)&&
+        !runtime_guest_release_kind(2,0,1,0,2,2)&&!runtime_guest_release_kind(2,2,2,0,0,1)&&
+        !runtime_guest_release_kind(2,1,2,0,2,2)&&!runtime_guest_release_kind(2,0,2,-1,2,2)&&
+        !runtime_guest_release_kind(2,0,2,2,2,2)&&!runtime_guest_release_kind(2,0,2,0,0,2)&&
+        !runtime_guest_release_kind(2,0,2,0,1,2)&&!runtime_guest_release_kind(2,0,2,0,3,2)&&
+        !runtime_guest_release_kind(2,0,2,0,4,2)&&!runtime_guest_release_kind(2,0,2,0,2,0)&&
+        runtime_guest_release_completed(1,1,35,1,0,1,1)&&runtime_guest_release_completed(1,1,35,1,0,2,2)&&
+        !runtime_guest_release_completed(1,1,35,1,0,1,2)&&!runtime_guest_release_completed(1,1,35,1,0,2,1)&&
+        !runtime_guest_release_completed(0,1,35,1,0,2,2)&&!runtime_guest_release_completed(1,0,35,1,0,2,2)&&
+        !runtime_guest_release_completed(1,1,34,1,0,2,2)&&!runtime_guest_release_completed(1,1,35,0,0,2,2)&&
+        !runtime_guest_release_completed(1,1,35,1,1,2,2)&&!runtime_guest_release_completed(1,1,35,1,0,0,0)&&
+        !runtime_guest_release_completed(1,1,35,1,0,3,3);
+    int32_t pending=-1,pending_cells[3]={0,0,1};GameArray pending_array={0,0,0};
+    ok=ok&&runtime_guest_release_pending(&pending_array,&pending)&&!pending;
+    pending_array=(GameArray){(uintptr_t)pending_cells,2,3};pending=7;
+    ok=ok&&runtime_guest_release_pending(&pending_array,&pending)&&!pending;
+    pending_array.count=3;
+    ok=ok&&runtime_guest_release_pending(&pending_array,&pending)&&pending==1;
+    pending_array.count=-1;ok=ok&&!runtime_guest_release_pending(&pending_array,&pending);
     runtime_release_fixture_calls=0;SetLastError(43);
     ok=ok&&!runtime_guest_release_dispatch(0,runtime_release_fixture_dispatch,123,456,2)&&!runtime_release_fixture_calls&&
         runtime_guest_release_dispatch(1,runtime_release_fixture_dispatch,123,456,2)&&runtime_release_fixture_calls==1&&GetLastError()==43&&

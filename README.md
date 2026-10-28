@@ -68,6 +68,12 @@ physics and network routes perform these moves. Existing evades remain under
 their previous lease. The new traversal and camera outcomes still need owner
 gameplay checks; see [movement scope](docs/GUEST-MOVEMENT-CONTEXT.md).
 
+The local FullAuto release adapter also cancels the exact named stock deferred
+start during port-arms preparation, before completing the ordinary pawn stop.
+It supports an as-yet-empty native inventory pending entry and rechecks the
+owned scope after the native timer call. This follows the same multiplayer-like
+press/hold/release target; it is not a gameplay-confirmed ammo fix.
+
 The current build binds the guest's existing native Shepard HUD player panel
 to owned Ashley, with the previous health/shield display retained as fallback.
 Native keyboard power slots/icons remain enabled. Shift Command mode now retains
