@@ -1,5 +1,18 @@
 # Validation status
 
+The scene-weapon candidate adds a conditional native selection continuation
+only for an actual null selected weapon after an authenticated host scene.
+The received inventory index must resolve the same prior weapon through its
+complete reciprocal chain. Four native targets built; ordinary runtime and
+protected probe harnesses passed. Guard fixtures cover null/read failures,
+pending selection, index bounds, foreign identities and the return window.
+They do not prove the reported post-dialogue defect is this precise case.
+See [weapon return](GUEST-SCENE-WEAPON.md).
+
+Dialogue advice has a tested bounded catalog/fragment/vote protocol, including
+localized UTF-16, invalid slots and stale advice. It is not connected to the
+native UI or RPCs yet; see [remaining integration](DIALOGUE-ADVICE.md).
+
 The protected `0b8c6fe` owner test confirmed guest melee execution and correct
 host scene camera angles, but contradicted complete scene recovery: character
 animations did not play on the guest, and Ashley could not fire afterwards.

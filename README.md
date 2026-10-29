@@ -13,6 +13,11 @@ the guest's scene character animations were absent and firing failed afterwards.
 These remain active defects, along with dialogue-choice presentation. The next
 camera correction retains the guest shoulder scale through the exact native
 Melee camera requested by the stock actions; its rendered result needs checking.
+The conditional [weapon-return candidate](docs/GUEST-SCENE-WEAPON.md) can resume
+the native replicated selection only when a real null selection still matches
+the same existing inventory weapon. It does not establish complete scene recovery.
+The [dialogue advice protocol](docs/DIALOGUE-ADVICE.md) is prepared; native panel
+and input integration remain incomplete.
 
 The scene spectator adds automatic guest viewing of the host camera during full
 dialogue and cinematic intervals, including released companion possession.
