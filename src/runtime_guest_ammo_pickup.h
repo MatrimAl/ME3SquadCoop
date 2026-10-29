@@ -5,6 +5,8 @@
  * capacity, quantity, Touch and authority rules. Never enable general pickups,
  * synthesize a touch, call GiveTo/AddAmmo or modify ammunition/return values. */
 typedef void (*RuntimeAmmoPickupExec)(void*,void*,void*);
+static int runtime_dialogue_node_match(uintptr_t);
+static void runtime_dialogue_forward(void*,void*,void*,RuntimeAmmoPickupExec);
 typedef struct RuntimeAmmoPickupScope {
     RuntimeMovementScope owner;
     GuestCameraStamp pickup,state,cdo;
@@ -160,6 +162,8 @@ static void runtime_ammo_pickup_exec(void *self,void *frame,void *result) {
         runtime_scene_camera_forward(self,frame,result,s->original);
     else if(s->installed&&frame&&runtime_scene_camera_fov_node&&*(uintptr_t*)((unsigned char*)frame+0x18)==runtime_scene_camera_fov_node)
         runtime_scene_camera_fov_forward(self,frame,result,s->original);
+    else if(s->installed&&frame&&runtime_dialogue_node_match(*(uintptr_t*)((unsigned char*)frame+0x18)))
+        runtime_dialogue_forward(self,frame,result,s->original);
     else s->original(self,frame,result);
 }
 static uintptr_t runtime_ammo_pickup_find(uintptr_t base,uintptr_t owner,const char *kind,const char *name) {

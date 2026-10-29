@@ -16,8 +16,10 @@ Melee camera requested by the stock actions; its rendered result needs checking.
 The conditional [weapon-return candidate](docs/GUEST-SCENE-WEAPON.md) can resume
 the native replicated selection only when a real null selection still matches
 the same existing inventory weapon. It does not establish complete scene recovery.
-The [dialogue advice protocol](docs/DIALOGUE-ADVICE.md) is prepared; native panel
-and input integration remain incomplete.
+The [dialogue advice candidate](docs/DIALOGUE-ADVICE.md) mirrors the real six
+native options and sends a guest preference, marked on the host's wheel without
+selecting it. Native panel input and scene-exit restoration remain gameplay
+checks; cinematic character animation parity remains incomplete.
 
 The scene spectator adds automatic guest viewing of the host camera during full
 dialogue and cinematic intervals, including released companion possession.

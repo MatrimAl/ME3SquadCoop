@@ -1,5 +1,22 @@
 # Validation status
 
+The dialogue advice candidate connects the six-row protocol to the native host
+options boundary and existing guest PC conversation panel, with authenticated
+owner-PC reception during unpossession. Guest confirmations are advisory;
+validated early script returns exclude reply, skip and interruption story code.
+Native display-only arrow updates supplement the absent local full conversation.
+The panel borrows native UI state and key handling, and the host marks accepted
+advice without submitting it. The previous startup's panel/ABI capture and
+selected shipped native/script bodies support these guards. Rendered choices,
+real confirmation reachability and restoration remain unverified. Character
+animation, audio and subtitle parity are separate outstanding requirements.
+
+All four auxiliary native targets built. The ordinary runtime harness passed
+the dialogue protocol, fragment progression, close/new-generation, selected
+Boolean/void return, refusal and ordinary exactly-once/LastError fixtures,
+alongside the existing runtime checks. The protected probe harness passed.
+These are local checks; no dialogue-advice game run has yet been performed.
+
 The scene-weapon candidate adds a conditional native selection continuation
 only for an actual null selected weapon after an authenticated host scene.
 The received inventory index must resolve the same prior weapon through its
@@ -10,8 +27,8 @@ They do not prove the reported post-dialogue defect is this precise case.
 See [weapon return](GUEST-SCENE-WEAPON.md).
 
 Dialogue advice has a tested bounded catalog/fragment/vote protocol, including
-localized UTF-16, invalid slots and stale advice. It is not connected to the
-native UI or RPCs yet; see [remaining integration](DIALOGUE-ADVICE.md).
+localized UTF-16, invalid slots and stale advice. The later native integration
+is described above; see [candidate scope](DIALOGUE-ADVICE.md).
 
 The protected `0b8c6fe` owner test confirmed guest melee execution and correct
 host scene camera angles, but contradicted complete scene recovery: character
