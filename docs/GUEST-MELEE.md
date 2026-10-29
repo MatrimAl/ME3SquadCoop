@@ -102,3 +102,22 @@ An unavailable family is retried while idle and does not stop ready heavy,
 cover or other normal actions. No animation is invented, no tree is replaced,
 and no action or damage is forced. Native input chooses the weapon's family.
 Full melee execution and missing-family recovery still require a game test.
+
+
+## PowerManager native dispatch correction
+
+The `aa7b1d9` run prepared a normal family but published no melee slots. Its
+captured melee lease remained unassigned. The supported executable provides
+a concrete blocker: SFXPowerManager is a UObject, whose ProcessEvent slot
+points to RVA0xf4f80. The adapter incorrectly required Actor ProcessEvent
+0x40d450, so this manager could not pass admission.
+
+The correction validates the exact manager vtable, native GetPower slot and
+UObject ProcessEvent entry, then uses that same validated native address for
+AddPower and RemovePower. Actor/pawn animation dispatch remains unchanged.
+Existing owner, action, class, method, asset and cleanup checks remain required;
+there is no forced power, damage, animation or input. Native pin fixtures cover
+the supported manager and reject the old Actor address, changed native entry,
+wrong lookup slot and foreign vtable. The native harnesses passed. Actual
+passive creation, ready attack families and melee damage still need an owner
+check; this correction does not prove complete melee playback.

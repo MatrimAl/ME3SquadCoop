@@ -1,5 +1,16 @@
 # Validation status
 
+The `aa7b1d9` protected run ended with guest exit1 and one access violation in
+the retained Bink library. Original profile/TOC and temporary cleanup checks
+passed. Its captured melee lease was unassigned; the native manager vtable
+proves a wrong Actor ProcessEvent gate. The next candidate uses the pinned
+UObject manager dispatch and, only for the exact missing-worker/zero-job movie
+case, the original synchronous Bink decoder. Four targets built; ordinary
+pin/refusal/forwarding/LastError and protected probe checks passed. Independent
+reviews confirmed the owned native contracts. No game ran these corrections;
+real melee damage, movie recovery and campaign progression remain open. See
+[melee scope](GUEST-MELEE.md) and [movie scope](BINK-MOVIE-RECOVERY.md).
+
 The ordinary guest ammo receive observer now binds exact native integer decodes
 and completed selected-weapon receive storage to a shared game-thread event
 sequence and a native fire counter that continues beyond64 detailed fire rows.

@@ -8,6 +8,12 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 **Status: research prototype. A complete playable campaign and a validated player installation are not available yet.** This repository publishes source and test tooling so the work can continue openly, with clear limits on what has actually been demonstrated.
 
+The next candidate corrects the melee adapter's UObject PowerManager dispatch
+and adds a narrow native synchronous movie path for the observed guest Bink
+worker failure. Native fixtures pass; neither melee execution nor rendered
+movie recovery is yet gameplay verified. See [melee](docs/GUEST-MELEE.md) and
+[movie recovery](docs/BINK-MOVIE-RECOVERY.md).
+
 The ordinary guest now has a bounded ammo receive observer to investigate the
 remaining clip rebound. It orders the selected weapon's native integer decode
 and completed receive storage against local native firing, without changing

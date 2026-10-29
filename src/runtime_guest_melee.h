@@ -1,5 +1,6 @@
 #ifndef ME3_RUNTIME_GUEST_MELEE_H
 #define ME3_RUNTIME_GUEST_MELEE_H
+#include "native_power_manager_event_pins.h"
 /* Prepare normal player melee combos and the guarded Soldier heavy/storm slots.
  * Stock input, animation, targeting, authority damage and action replication
  * remain responsible for execution. Add the pawn's OWN melee passive through
@@ -445,10 +446,11 @@ static void runtime_guest_melee_retire(uintptr_t base,uintptr_t engine,DWORD now
     if(q->created&&!q->foreign){
         if(runtime_melee_finish_remove(q,&pc,&pa,&powers)){}
         else if(runtime_melee_owns_passive(base,q,&pc,&pa,&powers)){
+            uintptr_t manager_event=runtime_melee_manager_event(base,q->manager.pointer);
             if(!runtime_melee_instance_idle(q->passive.pointer)||!guest_player_context_method_matches(base,&q->remove,0)||
-               !guest_equipment_dispatch_pins(base)||read_ptr(read_ptr(q->manager.pointer)+0x230)!=base+0x40d450)return;
+               !guest_equipment_dispatch_pins(base)||!manager_event)return;
             RuntimeMeleeRemoveParms parms={q->passive_class.pointer,0};q->dispatching=1;
-            ((ProcessEvent)(base+0x40d450))((void*)q->manager.pointer,(void*)q->remove.function.pointer,&parms,NULL);
+            ((ProcessEvent)manager_event)((void*)q->manager.pointer,(void*)q->remove.function.pointer,&parms,NULL);
             if(!runtime_melee_cleanup_resume(q,runtime_melee_cleanup_scope(base,q,&pc,&pa,&powers)))return;
             if(!runtime_melee_restored_slots_empty(q))q->foreign=1;
             /* A refused call remains pending. A successful native removal is
@@ -552,16 +554,18 @@ static void runtime_guest_melee_tick(uintptr_t base,uintptr_t engine,DWORD now) 
     if((candidate.prepared&RUNTIME_MELEE_NORMAL_MASK)!=RUNTIME_MELEE_NORMAL_MASK)
         runtime_melee_note("waiting-optional-normal-melee-family",candidate.prepared&RUNTIME_MELEE_NORMAL_MASK,now);
     if(!(candidate.prepared&(RUNTIME_MELEE_NORMAL_MASK|RUNTIME_MELEE_HEAVY_MASK|RUNTIME_MELEE_COVER_MASK)))return;
+    uintptr_t manager_event=runtime_melee_manager_event(base,candidate.manager.pointer);
     if(
        !runtime_melee_method(base,candidate.manager.pointer,"AddPower",&candidate.add,1)||
        !runtime_melee_method(base,candidate.manager.pointer,"RemovePower",&candidate.remove,0)||
-       read_ptr(read_ptr(candidate.manager.pointer)+0x230)!=base+0x40d450)return;
+       !manager_event)return;
     RuntimeMovementScope again={0};
     if(!runtime_movement_scope(base,engine,&again)||!runtime_movement_scope_same(&scope,&again)||
-       !runtime_movement_idle(scope.pawn.pointer)||!runtime_melee_arrays(base,&candidate,&pc,&pa,&powers))return;
+       !runtime_movement_idle(scope.pawn.pointer)||!runtime_melee_arrays(base,&candidate,&pc,&pa,&powers)||
+       runtime_melee_manager_event(base,candidate.manager.pointer)!=manager_event)return;
     candidate.valid=1;candidate.created=1;*q=candidate;
     RuntimeMeleeAddParms parms={q->passive_class.pointer,0};q->dispatching=1;
-    ((ProcessEvent)(base+0x40d450))((void*)q->manager.pointer,(void*)q->add.function.pointer,&parms,NULL);
+    ((ProcessEvent)manager_event)((void*)q->manager.pointer,(void*)q->add.function.pointer,&parms,NULL);
     q->dispatching=0;
     if(!guest_camera_stamp_read(base,parms.result,&q->passive,1)||!runtime_melee_owns_passive(base,q,&pc,&pa,&powers)){
         runtime_guest_melee_retire(base,engine,now);return;
@@ -665,7 +669,7 @@ static int runtime_guest_melee_selftest(void) {
     _Alignas(8) unsigned char object[0x500]={0};int32_t id=43;
     memcpy(object+0x4a8,&id,4);if(runtime_melee_power_id((uintptr_t)object))return 0;
     memcpy(object+0x484,&id,4);return runtime_melee_power_id((uintptr_t)object)&&
-        sizeof(RuntimeMeleeAnimParms)==16&&offsetof(RuntimeMeleeRemoveParms,result)==8&&runtime_melee_cleanup_selftest();
+        sizeof(RuntimeMeleeAnimParms)==16&&offsetof(RuntimeMeleeRemoveParms,result)==8&&runtime_melee_cleanup_selftest()&&runtime_melee_manager_event_selftest();
 }
 #endif
 #endif
