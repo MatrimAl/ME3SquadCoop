@@ -15,7 +15,19 @@ All four auxiliary native targets built. The ordinary runtime harness passed
 the dialogue protocol, fragment progression, close/new-generation, selected
 Boolean/void return, refusal and ordinary exactly-once/LastError fixtures,
 alongside the existing runtime checks. The protected probe harness passed.
-These are local checks; no dialogue-advice game run has yet been performed.
+In the protected `6ad7b08` startup, both peers reached
+`native-wheel-methods-prepared` with no preparation deferrals and established
+a native connection interval. The guest's existing panel and key-handling
+method ABI were captured read-only; its ordinary panel flags were unchanged.
+Both bounded jobs exited124 with no native exceptions, and profile, original
+file locks, TOC restoration and temporary cleanup passed. No full conversation,
+catalog publication, physical input or advice marker occurred in this startup.
+
+The catalog lifecycle follow-up closes a catalog on an explicit inactive host
+scene and requires a newer generation when the same native choices resume.
+Old commit heartbeats cannot reopen it in a later scene. All four auxiliary
+targets and ordinary runtime/probe harnesses passed after this change; its
+gameplay path has not run.
 
 The scene-weapon candidate adds a conditional native selection continuation
 only for an actual null selected weapon after an authenticated host scene.

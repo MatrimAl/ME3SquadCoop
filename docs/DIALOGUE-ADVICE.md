@@ -23,6 +23,10 @@ The existing owner-PC RPCs authenticate the native actor channel, connection,
 world and controller even while companion possession is released. The guest
 publishes only complete catalogs during fresh host scene viewing. Reliable
 close messages and scene/scope expiry retire the panel.
+An explicit inactive scene closes that catalog on both peers. If native scene
+mode briefly changes while the same real options remain current, the host
+revalidates and publishes a newer generation. Old heartbeats cannot reopen the
+closed wheel during a subsequent scene.
 
 Only the guest's existing registered PC conversation panel is used. Native
 visibility, enabled state, input, focus and key handling are borrowed, with

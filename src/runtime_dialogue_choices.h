@@ -34,7 +34,7 @@ typedef struct RuntimeDialogueChoices {
     DWORD prepared_at,guest_received,sent_at,vote_sent,panel_scanned;
     uint64_t generation,suppressed_generation;
     unsigned row,offset,events,vote_attempts;
-    int prepared,installed,busy,active_host,active_guest,send_catalog,send_close;
+    int prepared,installed,busy,active_host,active_guest,send_catalog,send_close,scene_suspended;
     int pending_host_valid,advice_slot,vote_pending,vote_acked,host_marked;
     const char *prepare_step;
     char last_refused[180];
@@ -309,7 +309,7 @@ static void runtime_dialogue_host_capture(uintptr_t self,uintptr_t frame) {
     if(same){if(q->advice_slot>=0)q->host_marked=0;return;}
     if(q->generation==UINT64_MAX)return;
     catalog.generation=++q->generation;q->host=catalog;q->controller=cc;q->data=dd;q->host_panel=pp;
-    q->active_host=1;q->send_catalog=1;q->send_close=0;q->row=q->offset=0;q->advice_slot=-1;q->host_marked=0;
+    q->active_host=1;q->scene_suspended=0;q->send_catalog=1;q->send_close=0;q->row=q->offset=0;q->advice_slot=-1;q->host_marked=0;
     runtime_dialogue_note("host-native-options-captured");
 }
 static int runtime_dialogue_send(const RuntimeSceneScope *scope,const DialogueChoicePacket *packet,int direction) {
@@ -526,15 +526,34 @@ static int runtime_dialogue_advance_fragment(unsigned *row,unsigned *offset,cons
     *offset+=p->count;
     if(*offset==p->length){++*row;*offset=0;}return 1;
 }
+static void runtime_dialogue_host_marker_retire(void);
 static void runtime_dialogue_host_tick(DWORD now) {
     RuntimeDialogueChoices *q=&runtime_dialogue;
     if(!runtime_scene_scope_live(q->base,&q->host_scope)) {
-        q->active_host=q->send_catalog=q->send_close=q->pending_host_valid=q->host_marked=0;q->advice_slot=-1;return;
+        q->active_host=q->send_catalog=q->send_close=q->pending_host_valid=q->host_marked=q->scene_suspended=0;q->advice_slot=-1;return;
+    }
+    if(dialogue_choice_catalog_valid(&q->host)&&!runtime_scene_host_active&&!q->scene_suspended) {
+        /* Scene inactivity is authenticated on the same owner-PC stream.
+         * Old commit heartbeats must not reopen its wheel in a later scene. */
+        runtime_dialogue_host_marker_retire();q->active_host=0;q->send_catalog=0;
+        q->send_close=1;q->scene_suspended=1;q->pending_host_valid=0;q->advice_slot=-1;
+    }
+    if(runtime_scene_host_active&&q->scene_suspended) {
+        q->active_host=1;
+        if(!runtime_dialogue_catalog_native_current(q->base)||q->generation==UINT64_MAX){q->active_host=0;return;}
+        /* A brief native scene-mode transition may leave the very same
+         * real options visible. Revalidate them and publish a new generation,
+         * rather than reviving the closed catalog. All native option writes
+         * continue through the host capture boundary. */
+        q->host.generation=++q->generation;q->send_catalog=1;q->send_close=0;
+        q->row=q->offset=0;q->scene_suspended=0;q->host_marked=0;q->sent_at=0;
+        runtime_dialogue_note("host-catalog-resumed-new-generation");
     }
     if(q->send_close) {
         DialogueChoicePacket close=dialogue_choice_packet(&q->host,L'Z',0,0);
         if(runtime_dialogue_send(&q->host_scope,&close,1)){q->send_close=0;q->sent_at=now;}return;
     }
+    if(q->scene_suspended)return;
     if(!q->active_host)return;
     if(!runtime_dialogue_catalog_native_current(q->base))return;
     if(q->pending_host_valid) {
@@ -570,6 +589,12 @@ static void runtime_dialogue_host_tick(DWORD now) {
 }
 static void runtime_dialogue_guest_tick(uintptr_t engine,DWORD now) {
     RuntimeDialogueChoices *q=&runtime_dialogue;
+    if(q->active_guest&&runtime_scene_view.valid&&
+       runtime_scene_view.message.nonce==q->guest.nonce&&!runtime_scene_view.message.active&&
+       runtime_scene_scope_live(q->base,&runtime_scene_view.scope)&&runtime_scene_scope_live(q->base,&q->guest_scope)&&
+       runtime_scene_view.scope.channel.pointer==q->guest_scope.channel.pointer) {
+        q->active_guest=0;q->stage.failed=1;q->vote_pending=0;
+    }
     if(!runtime_dialogue_guest_fresh(now)) {
         q->vote_pending=0;runtime_dialogue_lease_retire();return;
     }
