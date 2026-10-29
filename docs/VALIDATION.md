@@ -1,5 +1,14 @@
 # Validation status
 
+The ordinary settled-ammunition adapter reuses the protected request/snapshot
+state with a distinct wire prefix, current owner-PC/weapon scope and normal
+Tick application. It extends operational sequences past the protected
+experiment's 64-request budget without reusing IDs. Native fire cancellation
+runs before stock independently of diagnostic capture. The new fixtures cover
+namespace separation, stale/ABA state, sequence exhaustion, conditional counter
+cells and the real fire wrapper after its diagnostic budget. Ordinary gameplay
+is unverified; this adapter does not establish a fix for the rapid-fire rebound.
+
 Optional quickslot painting can now reacquire inside an already-retained
 native menu after its previous paint lease retires. It uses fresh membership
 and the existing validated wheel context, independently of the ordinary-only

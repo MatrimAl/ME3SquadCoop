@@ -3,7 +3,8 @@
 #include "remote_presentation_protocol.h"
 /* Ordinary-entry presentation snapshots over the existing native owner-PC
  * RPCs. The native receive frame, current connection and actor channel are
- * checked separately from the scalar parser. No ammo/story/role writes. */
+ * checked separately from the scalar parser. This receiver writes no
+ * ammo/story/role state; settled-ammo replies queue a separate Tick adapter. */
 typedef void (*PresentationRpcExec)(void*,void*,void*);
 typedef struct PresentationGuestScope {
     GuestCameraStamp objects[7]; /* pc, local pawn, replica, info, connection, driver, channel */
@@ -25,6 +26,8 @@ static int (*presentation_peer_receive)(uintptr_t,uintptr_t,int,const wchar_t*,s
 static int (*presentation_scene_receive)(uintptr_t,uintptr_t,const wchar_t*,size_t);
 /* A mirrored conversation may have released companion possession. */
 static int (*presentation_dialogue_receive)(uintptr_t,uintptr_t,const wchar_t*,size_t);
+/* Settled ammunition has a separate namespace and current weapon scope. */
+static int (*presentation_ammo_receive)(uintptr_t,uintptr_t,const wchar_t*,size_t);
 static uint64_t presentation_sequence,presentation_pending;
 static DWORD presentation_sent_at,presentation_scan_at,presentation_received_at;
 static unsigned char presentation_helmet[4];
@@ -132,6 +135,8 @@ static int presentation_receive(uintptr_t self,uintptr_t frame) {
         presentation_scene_receive(self,frame,text,(size_t)string.count):1;
     if(!wcsncmp(text,L"ME3DC1 ",7))return presentation_dialogue_receive?
         presentation_dialogue_receive(self,frame,text,(size_t)string.count):1;
+    if(!wcsncmp(text,L"ME3AM1 ",7))return presentation_ammo_receive?
+        presentation_ammo_receive(self,frame,text,(size_t)string.count):1;
     int peer=!wcsncmp(text,L"ME3RV1 ",7);
     if(!peer&&(wcsncmp(text,L"ME3PR2 ",7)||!presentation_opted()))return 0;
     NetworkActorIdentityEntry source={0};

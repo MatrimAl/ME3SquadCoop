@@ -26,6 +26,12 @@ retains its existing native wheel context. Assignment callbacks in that gap
 preserve the guest map and saved Shepard definitions. Repeated slot dragging
 and casting from the new key still require a gameplay check.
 
+The [settled ammunition candidate](docs/SETTLED-AMMUNITION.md) requests actual
+host counts after firing has stopped and both peers are idle. Pending replies
+are cancelled by new activity. This carries a protected-route mechanism into
+ordinary co-op; ordinary gameplay and the rapid-fire counter rebound remain
+unverified.
+
 The [scene boundary observer](docs/SCENE_ACTOR_BOUNDARY_OBSERVER.md) captures
 weapon and gesture state around real native animation-control events. Its
 bounded read-only records distinguish failed reads from null selection; it

@@ -35,6 +35,9 @@ static RuntimeGuestFireScope runtime_guest_fire_last_scope;
 static uintptr_t runtime_guest_fire_base,runtime_guest_fire_engine;
 static int runtime_guest_fire_installed,runtime_guest_fire_attempted;
 static unsigned runtime_guest_fire_calls,runtime_guest_fire_generation;
+/* Operational cancellation remains independent of diagnostic row limits. */
+static void (*runtime_ammo_fire_activity)(uintptr_t);
+static int runtime_ammo_settle_enabled(void);
 static int runtime_guest_fire_enabled(void) {
     static int enabled=-1;
     if(enabled<0){wchar_t value[8]={0};DWORD n=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_FIRE_AUDIT",value,8);
@@ -107,6 +110,7 @@ static RuntimeGuestFireSample runtime_guest_fire_sample(const RuntimeGuestFireSc
 }
 static RuntimeGuestFireCapture runtime_guest_fire_capture(void *self) {
     RuntimeGuestFireCapture c={0};RuntimeGuestWeapon *q=&runtime_guest_weapon;
+    if(!runtime_guest_fire_enabled())return c;
     /* Every unrelated NPC/weapon and every exhausted capture takes this cheap
      * pointer/thread/budget exit before object, class or network discovery. */
     if(!runtime_guest_fire_selected((uintptr_t)self,q->weapon.pointer,q->valid,GetCurrentThreadId(),
@@ -169,6 +173,9 @@ static void runtime_guest_fire_forward(void *self,RuntimeGuestFireCall original,
 }
 static void runtime_guest_fire_audit_exec(void *self) {
     DWORD incoming=GetLastError();RuntimeGuestWeapon *q=&runtime_guest_weapon;
+    if(runtime_ammo_fire_activity&&runtime_guest_fire_installed&&q->valid&&self&&
+       (uintptr_t)self==q->weapon.pointer&&session_game_thread&&GetCurrentThreadId()==session_game_thread)
+        runtime_ammo_fire_activity((uintptr_t)self);
     int observing=runtime_ammo_observation_enabled&&runtime_guest_fire_installed&&q->valid&&self&&
         (uintptr_t)self==q->weapon.pointer&&session_game_thread&&GetCurrentThreadId()==session_game_thread;
     if(observing){++runtime_ammo_observation_fire_calls;runtime_ammo_observation_next();}
@@ -182,7 +189,7 @@ static void runtime_guest_fire_audit_exec(void *self) {
 }
 static void runtime_guest_fire_audit_prepare(uintptr_t base,uintptr_t engine,DWORD now) {
     (void)now;
-    if(runtime_guest_fire_installed||runtime_guest_fire_attempted||!runtime_guest_fire_enabled()||
+    if(runtime_guest_fire_installed||runtime_guest_fire_attempted||(!runtime_guest_fire_enabled()&&!runtime_ammo_settle_enabled())||
        GetCurrentThreadId()!=session_game_thread||!runtime_guest_weapon.valid)return;
     RuntimeGuestFireScope scope;
     if(!runtime_guest_fire_scope(base,engine,&scope))return;
