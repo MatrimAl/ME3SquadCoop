@@ -1,5 +1,14 @@
 # Validation status
 
+The Liara scene candidate addresses a specific authored transport gate: native
+activation skips MatineeActor creation when bClientSideOnly is true. A scoped
+host flag lease permits ordinary creation only after the guest advertises its
+resident event/output guards. Level-owned and current conversation-owned line
+actions are checked separately. Fixtures exercise capability/parser boundaries,
+flag preservation and native argument/return/error forwarding or guest output
+refusal. These local checks do not establish actor binding, animation/audio
+playback, effect parity, line synchronization or postscene control recovery.
+
 The ordinary settled-ammunition adapter reuses the protected request/snapshot
 state with a distinct wire prefix, current owner-PC/weapon scope and normal
 Tick application. It extends operational sequences past the protected

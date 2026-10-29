@@ -43,6 +43,12 @@ Scene exit, timeout and connection/world changes yield to the native camera.
 Actual later Mars/Liara visibility, audio and control recovery remain owner
 checks; see [scene spectator](docs/GUEST-SCENE-SPECTATOR.md).
 
+The [Liara native scene candidate](docs/LIARA-NATIVE-SCENES.md) enables normal
+Matinee transport for selected authored client-only scenes after the guest's
+resident story-output guard is ready. Native activation is preserved. Complete
+body/face animation, audio, subtitles and effects remain gameplay checks;
+camera parity alone does not establish them.
+
 Melee preparation can also follow a mesh animation set's existing, verified
 global source to find a missing clip, then use the stock temporary-animation
 registration. Guest rifle-family recovery remains a runtime check; see

@@ -71,6 +71,7 @@ def main():
                  "ME3RuntimeDialogueSelfTest",
                  "ME3RuntimeSceneActorObserverSelfTest",
                  "ME3RuntimeAmmoSettleSelfTest",
+                 "ME3RuntimeSceneInterpSelfTest",
                  "ME3RuntimeGuestSceneWeaponSelfTest",
                  "ME3RuntimeHeavyPlotGuardSelfTest",
                  "ME3RuntimeReviveSelfTest",

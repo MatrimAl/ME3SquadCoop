@@ -165,6 +165,7 @@ __declspec(dllexport) int ME3RuntimeDialogueProtocolSelfTest(void) {return dialo
 __declspec(dllexport) int ME3RuntimeDialogueSelfTest(void) {return runtime_dialogue_selftest();}
 __declspec(dllexport) int ME3RuntimeSceneActorObserverSelfTest(void) {return runtime_scene_actor_observer_selftest();}
 __declspec(dllexport) int ME3RuntimeAmmoSettleSelfTest(void) {return runtime_ammo_settle_selftest();}
+__declspec(dllexport) int ME3RuntimeSceneInterpSelfTest(void) {return runtime_scene_interp_selftest();}
 __declspec(dllexport) int ME3RuntimeGuestSceneWeaponSelfTest(void) {return runtime_guest_scene_weapon_selftest();}
 __declspec(dllexport) int ME3RuntimeHeavyPlotGuardSelfTest(void) {return runtime_heavy_plot_guard_selftest();}
 #include "runtime_revive_pair_selftest.h"
