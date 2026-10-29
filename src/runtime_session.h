@@ -134,6 +134,7 @@ static int runtime_script_executor_prefix(uintptr_t,const unsigned char*,size_t)
 #include "runtime_scene_spectator.h"
 #include "runtime_guest_scene_weapon.h"
 #include "runtime_dialogue_choices.h"
+#include "runtime_scene_actor_observer.h"
 static SessionContext runtime_host_power_context(uintptr_t engine) {
     SessionContext c=session_context(engine);
     c.pc=session_remote;c.pawn=session_pawn;return c;
@@ -244,6 +245,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     runtime_scene_spectator_tick(base,engine,after,now);
     runtime_dialogue_tick(base,engine,after,now);
     runtime_scope_ready=runtime_session_scope(base,engine);
+    if(!after)runtime_scene_actor_observer_prepare(base,engine,now);
     if(!after)runtime_guest_scene_weapon_tick(base,engine,now);
     if(!after)runtime_guest_weapon_tick(base,engine,now);
     if(!after)runtime_guest_movement_tick(base,engine,now);

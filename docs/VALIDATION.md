@@ -1,5 +1,15 @@
 # Validation status
 
+The scene actor boundary observer checks the exact relocated BeginAnimControl
+and FinishAnimControl bodies and sole parameter ABI. It records raw weapon
+links, gesture manager state and bounded animation-set membership around real
+stock events. All four auxiliary targets and ordinary runtime/probe harnesses
+passed. Fixtures cover original arguments, exactly-once forwarding, error
+preservation, nesting, relevant-actor budget and array failures/truncation.
+No game was launched for this addition. Native preparation, actual scene
+callbacks, cinematic animation and postscene firing remain gameplay checks;
+the observer does not implement a scene repair.
+
 The dialogue advice candidate connects the six-row protocol to the native host
 options boundary and existing guest PC conversation panel, with authenticated
 owner-PC reception during unpossession. Guest confirmations are advisory;

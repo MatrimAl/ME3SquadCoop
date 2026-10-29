@@ -21,6 +21,11 @@ native options and sends a guest preference, marked on the host's wheel without
 selecting it. Native panel input and scene-exit restoration remain gameplay
 checks; cinematic character animation parity remains incomplete.
 
+The [scene boundary observer](docs/SCENE_ACTOR_BOUNDARY_OBSERVER.md) captures
+weapon and gesture state around real native animation-control events. Its
+bounded read-only records distinguish failed reads from null selection; it
+does not claim to repair the reported scene defects.
+
 The scene spectator adds automatic guest viewing of the host camera during full
 dialogue and cinematic intervals, including released companion possession.
 Scene exit, timeout and connection/world changes yield to the native camera.
