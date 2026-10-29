@@ -205,14 +205,11 @@ static int runtime_scene_interp_event_owned(uintptr_t action,uintptr_t track,int
      * exact native table before any ownership/world/class traversal. */
     if(read_ptr(action)!=s->base+0x11e9d18||!narrative_probe_object(s->base,action,"SeqAct_Interp")||
        !guest_camera_stamp_read(s->base,action,&stamp,1)||!runtime_scene_interp_path(stamp.full_name))return 0;
-    SessionContext c=session_context(s->engine);NetworkActorScope world={0};
-    uintptr_t connection=0;
-    /* The resident authority guard outlives opt-out/control release. Otherwise
-     * disabling during a replicated line could re-enable its story outputs. */
-    if(!session_actor_live(s->base,c.pc)||!is_kind_of(s->base,c.pc,"SFXPlayerController")||
-       !network_actor_read_scope(s->base,c.pc,&world)||world.info!=c.world||world.mode!=3||
-       !(connection=read_ptr(world.driver+0x80))||
-       !network_actor_connection_in_scope(s->base,world.driver,connection)||read_ptr(connection+0x68)!=c.pc)return 0;
+    /* Installed only in a verified guest network session, the resident
+     * authority refusal outlives opt-out, camera/control loss and disconnect.
+     * A disappearing PC/channel must not grant story authority during native
+     * teardown. Exact selected object identity is still required above; this
+     * refusal grants no playback, binding, event replay or memory write. */
     (void)track;(void)key;
     /* All EventTrack outputs for this exact selected action are host-owned,
      * including malformed keys. Other track methods and assets stay native. */

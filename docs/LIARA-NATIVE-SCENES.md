@@ -33,8 +33,9 @@ helper for these exact selected scene actions. EventTrack.UpdateTrack itself
 remains unchanged, including its native last-position bookkeeping. The output
 helper returns false without setting a guest impulse. Host and unrelated
 actions retain their original calls, arguments, return values and LastError.
-The guest guard survives presentation opt-out, camera loss and temporary
-unpossession in the same native guest network world. It does not grant a guest
+The guest guard survives presentation opt-out, camera loss, temporary
+unpossession and disappearing connection state during teardown. It still
+requires the exact live selected action identity. It does not grant a guest
 authority to start or progress the scene. Presentation effects whose Kismet
 events are withheld may still require separate host-originated presentation.
 
