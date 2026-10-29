@@ -26,6 +26,7 @@ typedef struct RuntimeSceneInterp {
     int capability_valid,attempted,busy;
 } RuntimeSceneInterp;
 static RuntimeSceneInterp runtime_scene_interp;
+static int (*runtime_scene_interp_player_ready)(void);
 static void runtime_scene_interp_activated(void*);
 static void runtime_scene_interp_start(void*);
 static void runtime_scene_interp_event(void*,void*,int);
@@ -161,25 +162,60 @@ static int runtime_scene_interp_lease_live(const RuntimeSceneInterpLease *l) {
         (!l->level.pointer||guest_camera_stamp_matches(s->base,&l->level,0))&&read_ptr(s->base+0x18b6638)==l->root.pointer&&
         (!l->level.pointer||runtime_story_graph_same_level(s->base,l->action.pointer,l->level.pointer,l->root.pointer));
 }
+/* Native Activated/start accepts previously initialized groups. Validate the
+ * current bounded collection rather than inventing an empty-array gate. */
+static int runtime_scene_interp_groups(uintptr_t base,uintptr_t action,int *count_out) {
+    GameArray groups={0},after={0};uintptr_t values[128]={0};SessionHandle identities[128];
+    if(!scene_readiness_array(action+0x12c,&groups,128)||
+       (groups.count&&!read_at(groups.data,values,(SIZE_T)groups.count*8)))return 0;
+    for(int i=0;i<groups.count;++i){
+        for(int j=0;j<i;++j)if(values[j]==values[i])return 0;
+        if(!narrative_probe_object(base,values[i],"InterpGroupInst")||read_ptr(values[i]+0x40)!=action)return 0;
+        identities[i]=session_capture_handle(values[i]);if(!session_handle_matches(identities[i]))return 0;
+    }
+    if(!read_at(action+0x12c,&after,sizeof after)||memcmp(&groups,&after,sizeof groups))return 0;
+    for(int i=0;i<groups.count;++i)if(read_ptr(groups.data+(SIZE_T)i*8)!=values[i]||
+        !session_handle_matches(identities[i])||!narrative_probe_object(base,values[i],"InterpGroupInst")||
+        read_ptr(values[i]+0x40)!=action)return 0;
+    *count_out=groups.count;return 1;
+}
+static int runtime_scene_interp_admit_policy(uint32_t flags,int groups_valid,int group_count,
+        int actor_present,int actor_identity,uint32_t actor_flags,int state_readable,uint32_t state) {
+    return (flags&0x2000)&&!(flags&1)&&groups_valid&&group_count>=0&&group_count<=128&&
+        (!actor_present||(actor_identity&&((actor_flags&8)||(state_readable&&!(state&1)))));
+}
+/* A pending-deletion actor is still a live UObject identity. The selected
+ * native creation gate deliberately replaces it; ordinary actor-live helpers
+ * reject that bit and therefore cannot classify this native branch. */
+static int runtime_scene_interp_actor(uintptr_t base,uintptr_t actor,uintptr_t action,uintptr_t world,
+        uint32_t *actor_flags,int *state_readable,uint32_t *state) {
+    GuestCameraStamp stamp={0};
+    if(!is_live(base,actor)||!narrative_probe_object(base,actor,"MatineeActor")||
+       !guest_camera_stamp_read(base,actor,&stamp,1)||read_ptr(actor+0x270)!=action||read_ptr(actor+0x198)!=world||
+       !read_at(actor+0x25c,actor_flags,4))return 0;
+    if(!(*actor_flags&8)&&!guest_camera_actor_live(base,actor))return 0;
+    *state_readable=read_at(actor+0x284,state,4);
+    return guest_camera_stamp_matches(base,&stamp,1)&&read_ptr(actor+0x270)==action&&read_ptr(actor+0x198)==world;
+}
 static void runtime_scene_interp_admit(uintptr_t action) {
     RuntimeSceneInterp *s=&runtime_scene_interp;DWORD now=GetTickCount();
     if(!runtime_scene_interp_capability_live(now)||GetCurrentThreadId()!=session_game_thread||s->busy)return;
     GuestCameraStamp stamp={0};uintptr_t level=0,root=0;
     if(!runtime_scene_interp_action(s->base,action,s->capability.world.pointer,&stamp,&level,&root))return;
     for(unsigned i=0;i<64;++i)if(s->leases[i].used&&s->leases[i].action.pointer==action)return;
-    uint32_t flags=0,actor_flags=0;uintptr_t actor=1;GameArray groups={0};
-    if(!read_at(action+0x180,&flags,4)||!(flags&0x2000)||(flags&0x400000)||
-       !read_at(action+0x15c,&actor,8)||!scene_readiness_array(action+0x12c,&groups,128)||groups.count)return;
-    /* Native actions may retain and reuse a finished transport actor. */
-    if(actor&&(!guest_camera_actor_live(s->base,actor)||!is_kind_of(s->base,actor,"MatineeActor")||
-       read_ptr(actor+0x270)!=action||read_ptr(actor+0x198)!=s->capability.world.pointer||
-       !read_at(actor+0x284,&actor_flags,4)||(actor_flags&1)))return;
+    uint32_t flags=0,actor_flags=0,actor_state=0;uintptr_t actor=1;int group_count=-1,state_readable=0,actor_identity=0;
+    if(!read_at(action+0x180,&flags,4)||!read_at(action+0x15c,&actor,8)||
+       !runtime_scene_interp_groups(s->base,action,&group_count))return;
+    if(actor)actor_identity=runtime_scene_interp_actor(s->base,actor,action,s->capability.world.pointer,
+        &actor_flags,&state_readable,&actor_state);
+    if(!runtime_scene_interp_admit_policy(flags,1,group_count,actor!=0,actor_identity,actor_flags,state_readable,actor_state))return;
     RuntimeSceneInterpLease next={0};next.action=stamp;
     if(!guest_camera_stamp_read(s->base,s->capability.world.pointer,&next.world,0)||
        !guest_camera_stamp_read(s->base,root,&next.root,0)||(level&&!guest_camera_stamp_read(s->base,level,&next.level,0)))return;
     unsigned slot=64;for(unsigned i=0;i<64;++i)if(!s->leases[i].used){slot=i;break;}if(slot==64)return;
     next.used=1;
     if(!runtime_scene_interp_capability_live(GetTickCount())||!guest_camera_stamp_matches(s->base,&stamp,1)||
+       !runtime_scene_interp_groups(s->base,action,&group_count)||
        !runtime_scene_interp_bit(action+0x180,0))return;
     s->leases[slot]=next;runtime_scene_interp_note("native-scene-transport-admitted",action);
 }
@@ -244,13 +280,14 @@ static void runtime_scene_interp_retire(DWORD now) {
             if(!guest_camera_stamp_matches(s->base,&l->action,0)||!guest_camera_stamp_matches(s->base,&l->root,0))memset(l,0,sizeof *l);
             continue;
         }
-        uint32_t flags=0,actor_flags=0;uintptr_t actor=0;GameArray groups={0},latent={0};
-        if(!read_at(l->action.pointer+0x180,&flags,4)||(flags&(2|0x400000))||
+        uint32_t flags=0,actor_flags=0,actor_state=0;uintptr_t actor=0;GameArray groups={0},latent={0};int state_readable=0;
+        if(!read_at(l->action.pointer+0x180,&flags,4)||(flags&2)||
            !scene_readiness_array(l->action.pointer+0x12c,&groups,128)||groups.count||
            !scene_readiness_array(l->action.pointer+0xf8,&latent,256)||latent.count||
            !read_at(l->action.pointer+0x15c,&actor,8))continue;
-        if(actor&&(!guest_camera_actor_live(s->base,actor)||!is_kind_of(s->base,actor,"MatineeActor")||
-           read_ptr(actor+0x270)!=l->action.pointer||!read_at(actor+0x284,&actor_flags,4)||(actor_flags&1)))continue;
+        if(actor&&(!runtime_scene_interp_actor(s->base,actor,l->action.pointer,l->world.pointer,
+                &actor_flags,&state_readable,&actor_state)||
+           (!(actor_flags&8)&&(!state_readable||(actor_state&1)))))continue;
         if((flags&0x2000)||runtime_scene_interp_bit(l->action.pointer+0x180,1)){
             runtime_scene_interp_note("native-scene-flag-retired",l->action.pointer);memset(l,0,sizeof *l);
         }
@@ -278,6 +315,7 @@ static void runtime_scene_interp_tick(uintptr_t base,uintptr_t engine,DWORD now)
         runtime_scene_interp_note(prepared?"native-transport-boundary-prepared":"native-transport-boundary-refused",0);
     }
     if(g_runtime_config.role!=ME3_ROLE_GUEST||!runtime_scene_interp_hook_live(&s->event)||!runtime_scene_interp_hook_live(&s->output)||
+       !runtime_scene_interp_player_ready||!runtime_scene_interp_player_ready()||
        (s->sent&&now-s->sent<500))goto done;
     RuntimeSceneScope scope={0};wchar_t text[SCENE_INTERP_CAPABILITY_CAPACITY];
     if(!runtime_scene_actor_observer_scope(base,engine,&scope))goto done;
@@ -305,6 +343,21 @@ static int runtime_scene_interp_selftest(void) {
         !runtime_scene_interp_path("Other.TheWorld.Action")&&
         runtime_scene_interp_cap_fresh(1,100,2100)&&!runtime_scene_interp_cap_fresh(1,100,2101)&&
         !runtime_scene_interp_cap_fresh(0,100,100)&&runtime_scene_interp_cap_fresh(1,UINT32_MAX-9,0);
+    /* Normal native starts allow current groups and either playing state.
+     * Priming alone is excluded; activation's transient bit is not a veto. */
+    ok=ok&&runtime_scene_interp_admit_policy(0x2000,1,0,0,0,0,0,0)&&
+        runtime_scene_interp_admit_policy(0x2000|2|0x400000,1,3,0,0,0,0,0)&&
+        runtime_scene_interp_admit_policy(0x2000,1,128,1,1,0,1,0)&&
+        runtime_scene_interp_admit_policy(0x2000,1,3,1,1,8,1,1)&&
+        runtime_scene_interp_admit_policy(0x2000,1,3,1,1,8,0,0)&&
+        !runtime_scene_interp_admit_policy(0x2000|1,1,0,0,0,0,0,0)&&
+        !runtime_scene_interp_admit_policy(0x2000,0,3,0,0,0,0,0)&&
+        !runtime_scene_interp_admit_policy(0x2000,1,-1,0,0,0,0,0)&&
+        !runtime_scene_interp_admit_policy(0x2000,1,129,0,0,0,0,0)&&
+        !runtime_scene_interp_admit_policy(0x2000,1,3,1,0,8,1,0)&&
+        !runtime_scene_interp_admit_policy(0x2000,1,3,1,1,0,1,1)&&
+        !runtime_scene_interp_admit_policy(0x2000,1,3,1,1,0,0,0)&&
+        !runtime_scene_interp_admit_policy(0,1,0,0,0,0,0,0);
     runtime_scene_interp_fixture_calls=runtime_scene_interp_fixture_admits=0;runtime_scene_interp_fixture_bad=0;
     SetLastError(37);runtime_scene_interp_start_forward((void*)16,runtime_scene_interp_fixture_start,runtime_scene_interp_fixture_admit);
     ok=ok&&runtime_scene_interp_fixture_calls==1&&runtime_scene_interp_fixture_admits==1&&!runtime_scene_interp_fixture_bad&&GetLastError()==53;

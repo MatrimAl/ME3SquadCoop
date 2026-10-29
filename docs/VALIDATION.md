@@ -1,5 +1,15 @@
 # Validation status
 
+The cinematic Player binding follows the exact native selector, which reads
+WorldInfo.Squad.PlayerPawn. It captures the existing authenticated host-Shepard
+channel into a scene identity lease and supplements natural track/group Player
+resolution only in the current selected native scene. A narrow original-null
+Owner fallback uses the authored later-Liara tag. Capability version 2 requires
+both resolver hooks and the current identity. Argument/return/LastError and
+selector refusal fixtures cover the adapters; native initialization order is
+established by the retained group/track bodies. The prior version 1 startup
+does not prove these new hooks or actual actor/animation/audio parity.
+
 The Liara scene candidate addresses a specific authored transport gate: native
 activation skips MatineeActor creation when bClientSideOnly is true. A scoped
 host flag lease permits ordinary creation only after the guest advertises its

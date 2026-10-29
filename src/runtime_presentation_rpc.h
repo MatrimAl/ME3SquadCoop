@@ -11,6 +11,11 @@ typedef struct PresentationGuestScope {
     int valid,index;
 } PresentationGuestScope;
 static PresentationGuestScope presentation_guest;
+/* A valid ordinary host-Shepard reply can establish an independent scene
+ * identity lease before the ordinary presentation context is released. */
+static void (*presentation_player_confirmed)(const PresentationGuestScope*,const NetworkActorIdentityEntry*);
+static int (*presentation_player_identity_enabled)(void);
+static int presentation_identity_needed(void) {return presentation_player_identity_enabled&&presentation_player_identity_enabled();}
 static GuestPlayerContextMethod presentation_methods[2];
 static PresentationRpcExec presentation_original;
 static uintptr_t presentation_base;
@@ -141,7 +146,7 @@ static int presentation_receive(uintptr_t self,uintptr_t frame) {
     if(!wcsncmp(text,L"ME3CI1 ",7))return presentation_interp_receive?
         presentation_interp_receive(self,frame,text,(size_t)string.count):1;
     int peer=!wcsncmp(text,L"ME3RV1 ",7);
-    if(!peer&&(wcsncmp(text,L"ME3PR2 ",7)||!presentation_opted()))return 0;
+    if(!peer&&(wcsncmp(text,L"ME3PR2 ",7)||(!presentation_opted()&&!presentation_identity_needed())))return 0;
     NetworkActorIdentityEntry source={0};
     if(!presentation_source(self,frame,k,&source))return 0;
     if(peer)return presentation_peer_receive?
@@ -163,6 +168,7 @@ static int presentation_receive(uintptr_t self,uintptr_t frame) {
     }
     if(!remote_presentation_reply_matches(&m,presentation_pending,(unsigned)presentation_guest.index,presentation_sent_at,now))return 1;
     memcpy(presentation_helmet,m.helmet,4);presentation_received=1;presentation_received_at=now;
+    if(presentation_player_confirmed)presentation_player_confirmed(&presentation_guest,&source);
     if(presentation_weapon_pending&&m.weapon_channel==presentation_weapon_index&&presentation_weapon_valid(presentation_base))
         presentation_weapon_confirmed=1;
     else presentation_weapon_capture(presentation_base,m.weapon_channel);
@@ -234,7 +240,8 @@ static int presentation_default_host(uintptr_t base,uintptr_t pawn) {
 }
 static void runtime_presentation_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     SessionContext c=session_context(engine);
-    int rpc_needed=presentation_opted()||(presentation_peer_enabled&&presentation_peer_enabled());
+    int identity=presentation_identity_needed();
+    int rpc_needed=presentation_opted()||identity||(presentation_peer_enabled&&presentation_peer_enabled());
     if((!rpc_needed&&!(presentation_scope_enabled&&presentation_scope_enabled()))||
        !runtime_control_enabled||!runtime_scope_ready||session_engine_blocked(c)) {
         memset(&presentation_guest,0,sizeof presentation_guest);presentation_pending=0;presentation_received=0;
@@ -243,14 +250,14 @@ static void runtime_presentation_tick(uintptr_t base,uintptr_t engine,DWORD now)
     }
     if(rpc_needed){presentation_install(base,c.pc);if(!presentation_installed)return;}
     if(g_runtime_config.role==ME3_ROLE_HOST) {
-        if(!presentation_opted()){presentation_host_request.active=0;return;}
+        if(!presentation_opted()&&!identity){presentation_host_request.active=0;return;}
         PresentationHostRequest r=presentation_host_request;presentation_host_request.active=0;
         if(!r.active||now-r.received_at>3000||r.epoch!=session_epoch||!session_active||session_releasing||
            !session_story_valid(base)||c.pawn!=r.pawn.pointer||session_remote!=r.pc.pointer||
            session_connection!=r.connection.pointer||c.world!=r.world.pointer||
            !guest_camera_stamp_matches(base,&r.pc,1)||!guest_camera_stamp_matches(base,&r.pawn,1)||
            !guest_camera_stamp_matches(base,&r.world,1)||!guest_camera_stamp_matches(base,&r.connection,1)||
-           !presentation_default_host(base,c.pawn))return;
+           (!identity&&!presentation_default_host(base,c.pawn)))return;
         NetworkActorIdentityEntry target={0};unsigned char check[4];
         if(network_actor_scan_driver(base,c.pawn,identity_host_driver,&target)<0||target.connection!=session_connection||
            target.index!=(int)r.message.channel||!read_at(c.pawn+0x105c,r.message.helmet,4))return;
@@ -276,7 +283,7 @@ static void runtime_presentation_tick(uintptr_t base,uintptr_t engine,DWORD now)
             PresentationGuestScope candidate;
             if(presentation_capture_guest(base,c,&candidate))presentation_guest=candidate;
         }
-        if(presentation_opted()&&presentation_guest_valid(base)&&(!presentation_pending||now-presentation_sent_at>3000)&&presentation_sequence!=UINT64_MAX) {
+        if((presentation_opted()||identity)&&presentation_guest_valid(base)&&(!presentation_pending||now-presentation_sent_at>3000)&&presentation_sequence!=UINT64_MAX) {
             RemotePresentationMessage request={L'Q',++presentation_sequence,(unsigned)presentation_guest.index,{0}};
             presentation_pending=request.request;presentation_sent_at=now;
             presentation_weapon_pending=presentation_weapon_valid(base);

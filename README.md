@@ -49,6 +49,11 @@ resident story-output guard is ready. Native activation is preserved. Complete
 body/face animation, audio, subtitles and effects remain gameplay checks;
 camera parity alone does not establish them.
 
+The [cinematic Player binding candidate](docs/CINEMATIC-PLAYER-BINDING.md)
+uses the host's authenticated existing Shepard actor for native Player track
+and group queries. It avoids selecting Ashley through the guest squad context
+and retains the normal native initialization and content-validation sequence.
+
 Melee preparation can also follow a mesh animation set's existing, verified
 global source to find a missing clip, then use the stock temporary-animation
 registration. Guest rifle-family recovery remains a runtime check; see
