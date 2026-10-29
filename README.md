@@ -21,6 +21,11 @@ native options and sends a guest preference, marked on the host's wheel without
 selecting it. Native panel input and scene-exit restoration remain gameplay
 checks; cinematic character animation parity remains incomplete.
 
+Guest quickslot painting can recover from a retired icon lease while Shift
+retains its existing native wheel context. Assignment callbacks in that gap
+preserve the guest map and saved Shepard definitions. Repeated slot dragging
+and casting from the new key still require a gameplay check.
+
 The [scene boundary observer](docs/SCENE_ACTOR_BOUNDARY_OBSERVER.md) captures
 weapon and gesture state around real native animation-control events. Its
 bounded read-only records distinguish failed reads from null selection; it

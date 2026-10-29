@@ -56,6 +56,7 @@ static int runtime_power_menu_held(uintptr_t base,SessionContext c) {
         runtime_power_read_membership(base,c,&current)&&runtime_power_catalog_same(&current,&lease->catalog);
 }
 static int runtime_power_ui_allowed(uintptr_t base,SessionContext c) {
-    return !session_engine_blocked(c)||runtime_power_menu_held(base,c);
+    return !session_engine_blocked(c)||runtime_power_menu_held(base,c)||
+        runtime_power_icon_menu_owner(base,c,NULL,NULL);
 }
 #endif

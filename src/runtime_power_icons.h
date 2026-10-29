@@ -21,6 +21,7 @@ static int runtime_power_caster_install(uintptr_t base);
 static int runtime_power_caster_active(uintptr_t base);
 static int runtime_native_quickslot_install(uintptr_t base);
 static int runtime_native_quickslot_active(uintptr_t base);
+static int runtime_power_icon_menu_owner(uintptr_t base,SessionContext c,RuntimeHotkeyWheel *owner,RuntimePowerCatalog *catalog);
 static int runtime_power_icons_enabled(void) {
     static int configured,opted;
     if(!configured) {
@@ -143,15 +144,22 @@ static void runtime_power_icons_tick(uintptr_t base,uintptr_t engine,int ordinar
     }
     if(!ready)return;
     if(!lease->active) {
+        RuntimeHotkeyWheel owner={0};
+        /* Optional painting can retire while the native wheel/context stays
+         * alive. Re-capture its current widgets in a retained menu; do not
+         * require the ordinary-only discovery/catalog publication to recur. */
+        int retained=runtime_power_icon_menu_owner(base,c,&owner,&catalog);
         /* A registry observation is usable only on the Tick that rechecked
          * its lists. A genuine hotkey invocation keeps its existing window. */
-        if(runtime_hotkey_wheel.registry_observation)runtime_hotkey_wheel.observed=0;
-        runtime_power_wheel_discover(base,c,ordinary);
-        RuntimeHotkeyWheel owner=runtime_hotkey_wheel;ULONGLONG now=GetTickCount64();
-        if(!owner.observed||now<owner.observed||now-owner.observed>1000||
-           c.pc!=owner.pc.pointer||c.pawn!=owner.pawn.pointer||!session_handle_matches(owner.pawn)||
-           owner.token!=guest_player_context_registration_token()||!runtime_power_icon_owner(base,&owner,c)||
-           !runtime_power_catalog_same(&catalog,&runtime_power_catalog))return;
+        if(!retained) {
+            if(runtime_hotkey_wheel.registry_observation)runtime_hotkey_wheel.observed=0;
+            runtime_power_wheel_discover(base,c,ordinary);
+            owner=runtime_hotkey_wheel;ULONGLONG now=GetTickCount64();
+            if(!owner.observed||now<owner.observed||now-owner.observed>1000||
+               c.pc!=owner.pc.pointer||c.pawn!=owner.pawn.pointer||!session_handle_matches(owner.pawn)||
+               owner.token!=guest_player_context_registration_token()||!runtime_power_icon_owner(base,&owner,c)||
+               !runtime_power_catalog_same(&catalog,&runtime_power_catalog))return;
+        }
         RuntimePowerIconLease captured={0};captured.owner=owner;captured.catalog=catalog;
         if(runtime_power_drag_blocks_input(runtime_power_wheel_drag_state(base,owner.handler.pointer)))return;
         for(unsigned n=0;n<8;++n) {

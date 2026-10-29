@@ -18,6 +18,10 @@ static unsigned char runtime_new_assignment_entry[16];
 static int runtime_power_assignment_reject_policy(int destination,int structural,int expected) {
     return destination>=0&&destination<8&&structural&&expected;
 }
+static int runtime_power_assignment_retained_guest(uintptr_t base,uintptr_t handler,SessionContext c) {
+    RuntimeHotkeyWheel owner={0};
+    return runtime_power_icon_menu_owner(base,c,&owner,NULL)&&handler==owner.handler.pointer;
+}
 /* The native EndDrag virtual calls the assignment slot directly, bypassing
  * NewSetQuickSlotPower and its pre-clear bridge. Match its actual decoded
  * gesture, not a source index from saved Shepard quickslot definitions. */
@@ -48,6 +52,7 @@ static void runtime_power_assignment_reject(RuntimePowerIconLease *lease,const c
         "{\"runtime_power_input\":\"guest-slot-drop-refused\",\"reason\":\"%s\",\"map_preserved\":true,\"profile_write\":false}\r\n",reason);line(row);}
 }
 static void runtime_power_assignment(void *self,int destination,int source,uint32_t from_power,uint32_t silent) {
+    DWORD entry_error=GetLastError();
     uintptr_t caller=(uintptr_t)__builtin_return_address(0);
     uintptr_t base=runtime_assignment_base,handler=(uintptr_t)self;
     RuntimePowerAssignment original=runtime_original_assignment;
@@ -55,16 +60,22 @@ static void runtime_power_assignment(void *self,int destination,int source,uint3
     if(GetCurrentThreadId()!=session_game_thread||!runtime_power_icons_enabled()||
        !runtime_control_enabled||!runtime_scope_ready||g_runtime_config.role!=ME3_ROLE_GUEST||
        !InterlockedCompareExchange(&g_enable_requested,0,0)) {
-        original(self,destination,source,from_power,silent);return;
+        SetLastError(entry_error);original(self,destination,source,from_power,silent);return;
     }
     SessionContext c=session_context(session_engine);
+    if(!lease->active&&runtime_power_assignment_retained_guest(base,handler,c)) {
+        /* A retired paint lease is not permission to edit saved Shepard
+         * definitions. A later idle Tick can capture the existing widgets;
+         * this drop is not delayed or replayed. Other wheels stay stock. */
+        SetLastError(entry_error);return;
+    }
     if(!lease->active||handler!=lease->owner.handler.pointer||
        c.pc!=lease->owner.pc.pointer||c.pawn!=lease->owner.pawn.pointer||
        !session_handle_matches(lease->owner.pawn)||lease->owner.token!=guest_player_context_registration_token()||
        !guest_player_context_registered_for(c.pc,c.pawn)||
        !guest_player_context_basic_owned(base,c.pc,c.pawn,c.world)||
        !runtime_power_icon_owner(base,&lease->owner,c)) {
-        original(self,destination,source,from_power,silent);return;
+        SetLastError(entry_error);original(self,destination,source,from_power,silent);return;
     }
     /* A leased guest wheel must not fall through to saved-definition writes
      * when a source, caller or layout is unavailable. */
@@ -136,11 +147,17 @@ static void runtime_power_new_assignment(void *self,int destination,int source,u
     DWORD error=GetLastError();RuntimePowerIconLease *lease=&runtime_power_icons;
     if(GetCurrentThreadId()!=session_game_thread||!runtime_power_icons_enabled()||
        !runtime_control_enabled||!runtime_scope_ready||g_runtime_config.role!=ME3_ROLE_GUEST||
-       !InterlockedCompareExchange(&g_enable_requested,0,0)||!lease->active||
-       lease->owner.handler.pointer!=(uintptr_t)self||runtime_assignment_decoded) {
+       !InterlockedCompareExchange(&g_enable_requested,0,0)||
+       (lease->active&&lease->owner.handler.pointer!=(uintptr_t)self)||runtime_assignment_decoded) {
         SetLastError(error);runtime_original_new_assignment(self,destination,source,from_power,silent);return;
     }
     SessionContext c=session_context(session_engine);
+    if(!lease->active) {
+        if(!runtime_power_assignment_retained_guest(runtime_assignment_base,(uintptr_t)self,c)) {
+            SetLastError(error);runtime_original_new_assignment(self,destination,source,from_power,silent);return;
+        }
+        SetLastError(error);return;
+    }
     if(c.pc!=lease->owner.pc.pointer||c.pawn!=lease->owner.pawn.pointer||
        !guest_player_context_registered_for(c.pc,c.pawn)||
        !guest_player_context_basic_owned(runtime_assignment_base,c.pc,c.pawn,c.world)||
@@ -174,10 +191,16 @@ static void runtime_power_named_assignment(void *self,int destination,uint64_t p
     if(GetCurrentThreadId()!=session_game_thread||!runtime_named_assignment_installed||
        !runtime_power_icons_enabled()||!runtime_control_enabled||!runtime_scope_ready||
        g_runtime_config.role!=ME3_ROLE_GUEST||!InterlockedCompareExchange(&g_enable_requested,0,0)||
-       !lease->active||handler!=lease->owner.handler.pointer) {
+       (lease->active&&handler!=lease->owner.handler.pointer)) {
         SetLastError(error);runtime_original_named_assignment(self,destination,packed);return;
     }
     SessionContext c=session_context(session_engine);RuntimePowerCatalog catalog;uint32_t name[2];memcpy(name,&packed,8);
+    if(!lease->active) {
+        if(!runtime_power_assignment_retained_guest(base,handler,c)) {
+            SetLastError(error);runtime_original_named_assignment(self,destination,packed);return;
+        }
+        SetLastError(error);return;
+    }
     int owned=c.pc==lease->owner.pc.pointer&&c.pawn==lease->owner.pawn.pointer&&
         session_handle_matches(lease->owner.pawn)&&lease->owner.token==guest_player_context_registration_token()&&
         guest_player_context_registered_for(c.pc,c.pawn)&&guest_player_context_basic_owned(base,c.pc,c.pawn,c.world)&&
@@ -255,6 +278,12 @@ static void runtime_assignment_fixture_stock(void *self,int destination,int sour
         runtime_assignment_fixture_bad=1;
     SetLastError(222);
 }
+static void runtime_assignment_fixture_named_stock(void *self,int destination,uint64_t packed) {
+    ++runtime_assignment_fixture_calls;
+    if(self!=(void*)16||destination!=3||packed!=UINT64_C(0x200000041)||GetLastError()!=111)
+        runtime_assignment_fixture_bad=1;
+    SetLastError(222);
+}
 static int runtime_power_assignment_selftest(void) {
     DWORD error=GetLastError();int enabled=runtime_control_enabled;
     RuntimePowerAssignment original=runtime_original_new_assignment;
@@ -263,6 +292,20 @@ static int runtime_power_assignment_selftest(void) {
     SetLastError(111);runtime_power_new_assignment((void*)16,3,7,1,0);
     int forwarded=runtime_assignment_fixture_calls==1&&!runtime_assignment_fixture_bad&&GetLastError()==222;
     runtime_control_enabled=enabled;runtime_original_new_assignment=original;SetLastError(error);
+    /* Outside the owner game thread, the newly broadened menu interception
+     * must still preserve every stock call, argument and result error. */
+    DWORD thread=session_game_thread;session_game_thread=0;
+    RuntimePowerAssignment direct=runtime_original_assignment;
+    RuntimePowerNamedAssignment named=runtime_original_named_assignment;
+    runtime_original_assignment=runtime_assignment_fixture_stock;
+    runtime_original_named_assignment=runtime_assignment_fixture_named_stock;
+    runtime_assignment_fixture_calls=runtime_assignment_fixture_bad=0;
+    SetLastError(111);runtime_power_assignment((void*)16,3,7,1,0);
+    forwarded=forwarded&&runtime_assignment_fixture_calls==1&&!runtime_assignment_fixture_bad&&GetLastError()==222;
+    runtime_assignment_fixture_calls=0;
+    SetLastError(111);runtime_power_named_assignment((void*)16,3,UINT64_C(0x200000041));
+    forwarded=forwarded&&runtime_assignment_fixture_calls==1&&!runtime_assignment_fixture_bad&&GetLastError()==222;
+    runtime_original_assignment=direct;runtime_original_named_assignment=named;session_game_thread=thread;SetLastError(error);
     RuntimePowerSlot saved[9];memcpy(saved,runtime_power_slots,sizeof saved);memset(runtime_power_slots,0,sizeof runtime_power_slots);
     uint32_t first[2]={41,0},second[2]={42,0};
     int ok=forwarded&&

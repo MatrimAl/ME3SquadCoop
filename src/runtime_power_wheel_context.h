@@ -83,6 +83,22 @@ static int runtime_power_wheel_context_valid(uintptr_t base,SessionContext c) {
         read_at(lease->owner.handler.pointer+0x718,&hench1,8)&&!hench1&&
         read_at(lease->owner.handler.pointer+0x720,&hench2,8)&&!hench2;
 }
+/* Reacquire only optional widget painting from an already-held gameplay/UI
+ * context. A menu cannot discover a wheel, register a pawn, or create a squad.
+ * The ordinary power queue deliberately clears its public catalog in menus;
+ * the retained context and fresh membership remain the authority here. */
+static int runtime_power_icon_menu_owner(uintptr_t base,SessionContext c,RuntimeHotkeyWheel *owner,RuntimePowerCatalog *catalog) {
+    RuntimePowerCatalog current;
+    if(GetCurrentThreadId()!=session_game_thread||!runtime_power_icons_enabled()||
+       !runtime_native_power_input_active()||!runtime_power_assignment_active(base)||
+       !runtime_native_quickslot_active(base)||!runtime_power_caster_active(base)||
+       !runtime_power_menu_context_held(base,c)||!runtime_power_wheel_context_valid(base,c)||
+       !runtime_power_read_membership(base,c,&current)||
+       !runtime_power_catalog_same(&current,&runtime_power_wheel_context.catalog))return 0;
+    if(owner)*owner=runtime_power_wheel_context.owner;
+    if(catalog)*catalog=current;
+    return 1;
+}
 static void runtime_power_wheel_context_tick(uintptr_t base,uintptr_t engine) {
     RuntimePowerWheelContext *lease=&runtime_power_wheel_context;
     if(GetCurrentThreadId()!=session_game_thread||(!lease->active&&!runtime_power_icons_enabled()))return;

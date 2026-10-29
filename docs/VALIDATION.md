@@ -1,5 +1,17 @@
 # Validation status
 
+Optional quickslot painting can now reacquire inside an already-retained
+native menu after its previous paint lease retires. It uses fresh membership
+and the existing validated wheel context, independently of the ordinary-only
+published command catalog. Acquisition still validates all eight widgets;
+no gameplay context or wheel is discovered inside a menu. Owned assignment
+callbacks during the gap do not fall through to saved Shepard definitions.
+All four auxiliary native targets, ordinary runtime and protected probe
+harnesses passed. Assignment fixtures also preserve direct and named stock
+forwarding outside the owner thread. The circular gate is established by
+source inspection; an actual widget replacement and repeated drag/new-key
+casting have not been exercised in the game.
+
 The scene actor boundary observer checks the exact relocated BeginAnimControl
 and FinishAnimControl bodies and sole parameter ABI. It records raw weapon
 links, gesture manager state and bounded animation-set membership around real

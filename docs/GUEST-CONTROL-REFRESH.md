@@ -100,3 +100,21 @@ allows owned widget restoration after release. No native drag flags or profile
 definitions are forced. A moved power intentionally vacates its old slot;
 visual repaint must match the name map before the next move. The correction
 has native checks but still needs an owner retest.
+
+## Recover optional painting inside an already-held menu
+
+An icon paint lease can retire while the separate native wheel context remains
+valid. The old UI gate required that same paint lease to be active in Shift,
+while rediscovery and the published power catalog were ordinary-mode only.
+This prevented painting from reacquiring until the menu closed. An assignment
+in that interval could fall through to native saved Shepard definitions.
+
+The recovery path captures all eight current widgets only from an already-held,
+validated native wheel context and retained menu registration. It uses fresh
+matching power membership instead of the deliberately cleared ordinary command
+catalog. It does not discover a wheel, register gameplay context or replay a
+drop inside the menu. Original widget/name/pawn checks and native setters remain
+required. During that short interval, assignment callbacks for the exact owned
+retained wheel are consumed instead of editing saved definitions; unrelated
+wheels keep stock forwarding. Actual drag/reopen/new-slot casting remains a
+gameplay check.
