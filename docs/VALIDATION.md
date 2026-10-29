@@ -1,5 +1,20 @@
 # Validation status
 
+The protected `0b8c6fe` owner test confirmed guest melee execution and correct
+host scene camera angles, but contradicted complete scene recovery: character
+animations did not play on the guest, and Ashley could not fire afterwards.
+Her post-scene location was correct. The sampled guest selected-weapon chain
+failed its ownership filter after the scene; the raw failed link was not
+recorded, so this does not identify which inventory link changed. Full scene
+animation, weapon recovery and dialogue-choice presentation remain incomplete.
+
+The melee camera correction admits the exact stock Melee camera requested by
+the observed canonical action defaults. The previous null-only condition
+released the existing shoulder scale during these attacks. Four native targets
+built and the ordinary runtime and protected probe harnesses passed, including
+canonical/foreign camera, target, flag and action refusal fixtures. No game ran
+this correction; its rendered melee camera remains an owner check.
+
 The protected `3df9b60` readiness run established native preparation of all six
 normal and ten cover melee slots on both peers, with three actual rifle clips
 present on each owned Ashley mesh. It also exposed a different, precise scene

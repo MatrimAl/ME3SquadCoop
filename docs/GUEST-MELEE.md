@@ -1,5 +1,9 @@
 # Guest melee preparation
 
+The later protected `0b8c6fe` owner test confirmed that guest melee executes,
+and reported an incorrect camera position during the attacks. This confirms
+the owner's observed attacks, not every combo stage or damage case.
+
 In the later protected `3df9b60` readiness run, all six normal melee slots and
 ten cover slots were published on both peers. A bounded read-only inspection
 also found all three rifle clips on both owned Ashley meshes. Existing-global
@@ -50,9 +54,23 @@ world, pawn, manager and permitted owner before continuing. A synchronous
 release during native dispatch cannot erase that in-flight lease. Later
 retries do not remove a successfully removed passive twice.
 
-The normal and Soldier heavy/storm actions can retain an existing guest shoulder scale when
-the actual player-owned action requests no camera and has no AI cache. This
-does not acquire a camera inside an action or bypass a real scene/camera mode.
+The normal and Soldier heavy/storm actions can retain an existing guest shoulder
+scale through their exact stock Melee camera. The observed canonical defaults
+request `SFXGame.SFXCameraMode_Melee`; the earlier null-only camera condition
+incorrectly released that scale during melee. The retained SDK declares Melee
+as Combat-derived, so the existing gameplay-camera gate already accepts it.
+
+The correction accepts only that exact requested class. Any existing action
+camera must have the same class, target the current owned pawn, enable
+collision and remain out of first-person mode. Class/instance identities,
+camera links and target/flags are rechecked before retaining the scale.
+Canonical action, current action, reciprocal player ownership and empty AI
+cache checks still apply. An actual action with neither requested nor active
+camera retains its previous path. Native code continues to choose the camera,
+angle and FOV; scene and cinematic gates remain in force. Added native fixtures
+cover the canonical camera and refuse foreign requested classes, active
+classes, targets and flags. This correction has not been built or game-tested
+in this auxiliary checkout yet.
 
 Stock melee input, action permissions, animations, targeting, impact damage on
 the authority and action replication retain their existing paths. Neither input nor

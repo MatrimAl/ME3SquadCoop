@@ -8,7 +8,13 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 **Status: research prototype. A complete playable campaign and a validated player installation are not available yet.** This repository publishes source and test tooling so the work can continue openly, with clear limits on what has actually been demonstrated.
 
-The next candidate adds automatic guest viewing of the host camera during full
+The latest owner test confirmed guest melee and host scene camera angles, but
+the guest's scene character animations were absent and firing failed afterwards.
+These remain active defects, along with dialogue-choice presentation. The next
+camera correction retains the guest shoulder scale through the exact native
+Melee camera requested by the stock actions; its rendered result needs checking.
+
+The scene spectator adds automatic guest viewing of the host camera during full
 dialogue and cinematic intervals, including released companion possession.
 Scene exit, timeout and connection/world changes yield to the native camera.
 Actual later Mars/Liara visibility, audio and control recovery remain owner

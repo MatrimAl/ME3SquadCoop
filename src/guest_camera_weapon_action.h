@@ -19,8 +19,31 @@ static int guest_camera_evade_policy(int index,int player_evade,int pc_matches,i
     return index>=54&&index<=57&&player_evade&&pc_matches&&ai_empty&&requested_roll&&active_camera_matches;
 }
 static int guest_camera_melee_policy(int index,int player_melee,int canonical_class,int pc_matches,
-        int ai_empty,uintptr_t requested,uintptr_t active) {
-    return ((index>=75&&index<=80)||index==58||index==73)&&player_melee&&canonical_class&&pc_matches&&ai_empty&&!requested&&!active;
+        int ai_empty,int requested_supported,int active_matches) {
+    return ((index>=75&&index<=80)||index==58||index==73)&&player_melee&&canonical_class&&pc_matches&&ai_empty&&requested_supported&&active_matches;
+}
+static int guest_camera_melee_mode_name(const char *name) {
+    return !strcmp(name,"SFXGame.SFXCameraMode_Melee");
+}
+static int guest_camera_melee_camera_policy(uintptr_t requested,uintptr_t active,int canonical,
+        int class_matches,int target_matches,uint32_t flags) {
+    if(!requested)return !active;
+    return canonical&&(!active||(class_matches&&target_matches&&!(flags&0x20)&&(flags&2)));
+}
+/* Stock normal/Soldier melee requests this Combat-derived camera. Retain the
+ * existing scale while native code creates/selects it, without selecting a
+ * mode or accepting another action's camera. A real zero-camera action keeps
+ * its previous path. Every nonzero instance must still belong to this pawn. */
+static int guest_camera_melee_camera_matches(uintptr_t base,uintptr_t pawn,uintptr_t requested_camera,
+        uintptr_t active_camera,const GuestCameraStamp *requested,const GuestCameraStamp *active) {
+    if(!requested_camera)return !active_camera;
+    if(!is_kind_of(base,requested_camera,"Class")||!guest_camera_stamp_matches(base,requested,1)||
+       !guest_camera_melee_mode_name(requested->full_name))return 0;
+    if(!active_camera)return 1;
+    uint32_t flags=0;
+    return guest_camera_stamp_matches(base,active,0)&&is_kind_of(base,active_camera,"SFXCameraMode_Melee")&&
+        read_at(active_camera+0x11c,&flags,4)&&guest_camera_melee_camera_policy(requested_camera,active_camera,1,
+            active->klass==requested_camera,read_ptr(active_camera+0x7c)==pawn,flags);
 }
 static int guest_camera_cover_policy(int index,int canonical,int player_melee,int pc_matches,int ai_empty,
         int requested_supported,int active_matches) {
@@ -120,10 +143,15 @@ static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn
             "SFXGameContent.SFXCustomAction_RifleMeleeThree","SFXGameContent.SFXCustomAction_PistolMeleeOne",
             "SFXGameContent.SFXCustomAction_PistolMeleeTwo","SFXGameContent.SFXCustomAction_PistolMeleeThree"};
         int heavy=index==58||index==73;
-        if((!heavy&&(index<75||index>80))||!read_at(action+0x78,&requested_camera,8)||!read_at(action+0xb0,&active_camera,8)||
-           !guest_camera_melee_policy(index,is_kind_of(base,action,heavy?"SFXCustomAction_PlayerHeavyMeleeBase":"SFXCustomAction_PlayerMeleeBase"),
+        if((!heavy&&(index<75||index>80))||!read_at(action+0x78,&requested_camera,8)||!read_at(action+0xb0,&active_camera,8))return 0;
+        int requested_supported=!requested_camera||
+            (guest_camera_stamp_read(base,requested_camera,&requested,1)&&is_kind_of(base,requested_camera,"Class")&&
+             guest_camera_melee_mode_name(requested.full_name));
+        if(active_camera&&!guest_camera_stamp_read(base,active_camera,&active,0))return 0;
+        if(!guest_camera_melee_policy(index,is_kind_of(base,action,heavy?"SFXCustomAction_PlayerHeavyMeleeBase":"SFXCustomAction_PlayerMeleeBase"),
                !strcmp(type.full_name,heavy?"SFXGameContent.SFXCustomAction_SoldierPunch":names[index-75]),
-               read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),requested_camera,active_camera))return 0;
+               read_ptr(action+0xa0)==pc,!read_ptr(action+0xa8),requested_supported,
+               guest_camera_melee_camera_matches(base,pawn,requested_camera,active_camera,&requested,&active)))return 0;
     } else {
         if((strcmp(type.full_name,"SFXGame.SFXCustomAction_DrawWeapon")&&strcmp(type.full_name,"SFXGame.SFXCustomAction_HolsterWeapon")&&
             !is_kind_of(base,action,"SFXCustomAction_ReloadBase"))||
@@ -139,12 +167,13 @@ static int guest_camera_native_action(uintptr_t base,uintptr_t pc,uintptr_t pawn
         read_ptr(action+0x98)==pawn&&read_ptr(pawn+0x374)==pc&&read_ptr(pc+0x3bc)==pawn&&
         (!(evade||melee||traversal||reaction)||(read_ptr(action+0xa0)==pc&&!read_ptr(action+0xa8)&&
           read_ptr(action+0x78)==requested_camera&&read_ptr(action+0xb0)==active_camera&&
-          ((melee&&!cover)||(!requested_camera?(!active_camera):
-           guest_camera_stamp_matches(base,&requested,0)&&(!active_camera||guest_camera_stamp_matches(base,&active,0))))));
+          (!requested_camera?(!active_camera):
+           guest_camera_stamp_matches(base,&requested,0)&&(!active_camera||guest_camera_stamp_matches(base,&active,0)))&&
+          (!(melee&&!cover)||guest_camera_melee_camera_matches(base,pawn,requested_camera,active_camera,&requested,&active))));
 }
 /* This only retains an existing camera scalar. The action's historical AI/PC
  * caches are not invoked or changed. Evade additionally requires stock's real
  * local-player cache and canonical Roll camera. Melee requires the real
- * local-player cache and no requested action camera; reload/power retention
+ * local-player cache and its exact stock Melee camera (or no camera); reload/power retention
  * remains independent of their historical controller caches. */
 #endif

@@ -356,15 +356,32 @@ static int guest_camera_adapter_selftest(void) {
        guest_camera_evade_policy(54,1,1,1,1,0)||
        !guest_camera_action_policy(1,54,0,1,0)||guest_camera_action_policy(0,54,0,1,0)||
        guest_camera_action_policy(1,54,1,1,0))return 0;
-    if(!guest_camera_melee_policy(75,1,1,1,1,0,0)||!guest_camera_melee_policy(80,1,1,1,1,0,0)||
-       !guest_camera_melee_policy(58,1,1,1,1,0,0)||!guest_camera_melee_policy(73,1,1,1,1,0,0)||
-       guest_camera_melee_policy(74,1,1,1,1,0,0)||guest_camera_melee_policy(81,1,1,1,1,0,0)||
-       guest_camera_melee_policy(75,0,1,1,1,0,0)||guest_camera_melee_policy(75,1,0,1,1,0,0)||
-       guest_camera_melee_policy(75,1,1,0,1,0,0)||guest_camera_melee_policy(75,1,1,1,0,0,0)||
-       guest_camera_melee_policy(75,1,1,1,1,9,0)||guest_camera_melee_policy(75,1,1,1,1,0,9)||
+    if(!guest_camera_melee_policy(75,1,1,1,1,1,1)||!guest_camera_melee_policy(80,1,1,1,1,1,1)||
+       !guest_camera_melee_policy(58,1,1,1,1,1,1)||!guest_camera_melee_policy(73,1,1,1,1,1,1)||
+       guest_camera_melee_policy(74,1,1,1,1,1,1)||guest_camera_melee_policy(81,1,1,1,1,1,1)||
+       guest_camera_melee_policy(75,0,1,1,1,1,1)||guest_camera_melee_policy(75,1,0,1,1,1,1)||
+       guest_camera_melee_policy(75,1,1,0,1,1,1)||guest_camera_melee_policy(75,1,1,1,0,1,1)||
+       guest_camera_melee_policy(75,1,1,1,1,0,1)||guest_camera_melee_policy(75,1,1,1,1,1,0)||
        !guest_camera_action_policy(1,75,0,1,0)||guest_camera_action_policy(0,75,0,1,0)||
        guest_camera_action_policy(1,75,1,1,0)||!guest_camera_action_policy(1,58,0,1,0)||
-       guest_camera_melee_policy(58,1,1,1,1,9,0)||guest_camera_melee_policy(73,1,1,0,1,0,0))return 0;
+       guest_camera_melee_policy(58,1,1,1,1,0,1)||guest_camera_melee_policy(73,1,1,0,1,1,1))return 0;
+    /* The owned canonical melee defaults request Melee, not a null camera.
+     * Preserve the prior truly-null path; reject foreign requests, modes,
+     * targets, first-person flags and cameras without collision enabled. */
+    if(!guest_camera_melee_mode_name("SFXGame.SFXCameraMode_Melee")||
+       guest_camera_melee_mode_name("SFXGame.SFXCameraMode_Combat")||
+       guest_camera_melee_mode_name("SFXGame.SFXCameraMode_Cinematic")||
+       guest_camera_melee_mode_name("Other.SFXCameraMode_Melee")||
+       !guest_camera_melee_camera_policy(0,0,0,0,0,0)||
+       guest_camera_melee_camera_policy(0,11,1,1,1,2)||
+       !guest_camera_melee_camera_policy(9,0,1,0,0,0)||
+       !guest_camera_melee_camera_policy(9,11,1,1,1,0xc3)||
+       guest_camera_melee_camera_policy(9,0,0,0,0,0)||
+       guest_camera_melee_camera_policy(9,11,0,1,1,2)||
+       guest_camera_melee_camera_policy(9,11,1,0,1,2)||
+       guest_camera_melee_camera_policy(9,11,1,1,0,2)||
+       guest_camera_melee_camera_policy(9,11,1,1,1,0x22)||
+       guest_camera_melee_camera_policy(9,11,1,1,1,0xc1))return 0;
     if(!guest_camera_cover_policy(62,1,1,1,1,1,1)||!guest_camera_cover_policy(71,1,1,1,1,1,1)||
        guest_camera_cover_policy(61,1,1,1,1,1,1)||guest_camera_cover_policy(72,1,1,1,1,1,1)||
        guest_camera_cover_policy(62,0,1,1,1,1,1)||guest_camera_cover_policy(62,1,0,1,1,1,1)||
