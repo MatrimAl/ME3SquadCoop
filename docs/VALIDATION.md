@@ -1,5 +1,20 @@
 # Validation status
 
+The protected `3df9b60` readiness run established native preparation of all six
+normal and ten cover melee slots on both peers, with three actual rifle clips
+present on each owned Ashley mesh. It also exposed a different, precise scene
+camera guard failure: Core.Object.TPOV.FOV has property flags1, not the pin's0.
+The next candidate changes only that metadata constant. Complete relocated
+GetFOVAngle bytes and the inspected method/cache ABI agree with the live
+contract. Corrected camera admission, actual scene viewing and melee combat
+remain unverified; the running primary checkout was kept frozen.
+
+The corrected auxiliary checkout built all four native targets and passed the
+ordinary runtime harness, including existing scene protocol, camera cleanup,
+nested forwarding and FOV output fixtures. These fixtures do not independently
+prove native scene admission; the owned metadata capture establishes the one
+incorrect flag that was changed.
+
 The melee source follow-up can resolve an absent clip through the existing
 global set of a mesh's BioDynamicAnimSet. Exact original FName, shared animation
 data, sequence data and captured identities must agree before normal temporary

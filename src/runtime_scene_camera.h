@@ -54,7 +54,7 @@ static int runtime_scene_camera_fov_body(uintptr_t base,uintptr_t fn) {
     static const GuestEquipmentOperand ops[]={
         {1,"BoolProperty","Engine.Camera.bLockedFOV",0x504,UINT64_C(0)},
         {14,"FloatProperty","Engine.Camera.LockedFOV",0x4d4,UINT64_C(0)},
-        {24,"FloatProperty","Core.Object.TPOV.FOV",24,UINT64_C(0)},
+        {24,"FloatProperty","Core.Object.TPOV.FOV",24,UINT64_C(1)},
         {32,"ScriptStruct","Core.Object.TPOV",-1,UINT64_C(0)},
         {43,"StructProperty","Engine.Camera.TCameraCache.POV",0,UINT64_C(0)},
         {51,"ScriptStruct","Engine.Camera.TCameraCache",-1,UINT64_C(0)},

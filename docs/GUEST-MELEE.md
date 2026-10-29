@@ -1,5 +1,11 @@
 # Guest melee preparation
 
+In the later protected `3df9b60` readiness run, all six normal melee slots and
+ten cover slots were published on both peers. A bounded read-only inspection
+also found all three rifle clips on both owned Ashley meshes. Existing-global
+source admission was observed. No input was automated, so actual attacks,
+combo transitions, damage and subsequent handoff are still owner checks.
+
 The protected `790d685` run published all six normal slots on the host but
 only pistol slots78..80 on the guest; rifle slots75..77 and optional cover63
 remained absent. Both own Soldier melee passives were present. This proves

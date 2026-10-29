@@ -1,5 +1,13 @@
 # Guest viewing during host scenes
 
+The protected `3df9b60` readiness run exposed an admission error before any
+scene camera could be prepared: the exact GetFOVAngle body contract expected
+property flags0 for Core.Object.TPOV.FOV. The current owned property is Edit1.
+The next correction changes that one metadata pin to1. The retained live
+function ABI, cache layout and complete81-byte relocated VM body matched.
+This fixes a proven guard mismatch; it does not yet establish live camera
+preparation or rendered scene viewing on the corrected build.
+
 The scene spectator candidate lets the guest follow the host camera during a
 full conversation or cinematic, including intervals when native story control
 has released the human companion. Shepard retains story and dialogue authority.
