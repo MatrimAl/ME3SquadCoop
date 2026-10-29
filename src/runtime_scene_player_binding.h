@@ -14,6 +14,7 @@ typedef struct RuntimeScenePlayerBinding {
     GuestCameraStamp actor,channel;
     int index,valid,attempted,busy;
     unsigned rows;
+    DWORD checked;
 } RuntimeScenePlayerBinding;
 static RuntimeScenePlayerBinding runtime_scene_player_binding;
 static uintptr_t runtime_scene_player_resolve(void*,void*);
@@ -176,6 +177,10 @@ static void runtime_scene_player_tick(uintptr_t base,uintptr_t engine) {
     presentation_player_confirmed=runtime_scene_player_confirmed;runtime_scene_interp_player_ready=runtime_scene_player_ready;
     presentation_player_identity_enabled=runtime_scene_interp_enabled;
     if(GetCurrentThreadId()!=session_game_thread||g_runtime_config.role!=ME3_ROLE_GUEST)return;
+    /* Tick maintenance can wait; every native use and readiness publication
+     * independently revalidates the complete actor/connection scope. */
+    DWORD now=GetTickCount();
+    if(s->attempted&&s->checked&&now-s->checked<250)return;s->checked=now;
     if(s->valid&&!runtime_scene_player_live())s->valid=0;
     if(s->valid){NetworkActorScope world={0};
         if(network_actor_read_scope(base,s->scope.pc.pointer,&world))runtime_scene_owner_prepare(base,s->scope.world.pointer,&world);

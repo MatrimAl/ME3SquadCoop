@@ -314,9 +314,10 @@ static void runtime_scene_interp_tick(uintptr_t base,uintptr_t engine,DWORD now)
             runtime_scene_interp_hook_install(base,&s->start,0x564c00,start,(void*)runtime_scene_interp_start);
         runtime_scene_interp_note(prepared?"native-transport-boundary-prepared":"native-transport-boundary-refused",0);
     }
-    if(g_runtime_config.role!=ME3_ROLE_GUEST||!runtime_scene_interp_hook_live(&s->event)||!runtime_scene_interp_hook_live(&s->output)||
+    if(g_runtime_config.role!=ME3_ROLE_GUEST||(s->sent&&now-s->sent<500)||
+       !runtime_scene_interp_hook_live(&s->event)||!runtime_scene_interp_hook_live(&s->output)||
        !runtime_scene_interp_player_ready||!runtime_scene_interp_player_ready()||
-       (s->sent&&now-s->sent<500))goto done;
+       !runtime_scene_interp_enabled())goto done;
     RuntimeSceneScope scope={0};wchar_t text[SCENE_INTERP_CAPABILITY_CAPACITY];
     if(!runtime_scene_actor_observer_scope(base,engine,&scope))goto done;
     int count=scene_interp_capability_format(text);
