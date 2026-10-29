@@ -20,6 +20,9 @@ static unsigned presentation_events;
 static int (*presentation_peer_enabled)(void);
 static int (*presentation_scope_enabled)(void);
 static int (*presentation_peer_receive)(uintptr_t,uintptr_t,int,const wchar_t*,size_t,const NetworkActorIdentityEntry*);
+/* Scene viewing has its own native owner-PC provenance check: a full scene
+ * may legitimately release the companion and ordinary presentation scope. */
+static int (*presentation_scene_receive)(uintptr_t,uintptr_t,const wchar_t*,size_t);
 static uint64_t presentation_sequence,presentation_pending;
 static DWORD presentation_sent_at,presentation_scan_at,presentation_received_at;
 static unsigned char presentation_helmet[4];
@@ -123,6 +126,8 @@ static int presentation_receive(uintptr_t self,uintptr_t frame) {
     if(!read_at(locals,&string,sizeof string)||!string.data||string.count<8||string.count>192||
        string.max<string.count||string.max>256||!read_at(string.data,text,(SIZE_T)string.count*sizeof(wchar_t))||
        text[string.count-1])return 0;
+    if(!wcsncmp(text,L"ME3SC1 ",7))return presentation_scene_receive?
+        presentation_scene_receive(self,frame,text,(size_t)string.count):1;
     int peer=!wcsncmp(text,L"ME3RV1 ",7);
     if(!peer&&(wcsncmp(text,L"ME3PR2 ",7)||!presentation_opted()))return 0;
     NetworkActorIdentityEntry source={0};

@@ -1,5 +1,28 @@
 # Validation status
 
+The scene spectator addition uses native host conversation/cinematic state and
+the current owner-PC connection, independently of companion possession. It
+publishes camera output at the completed stock Camera.UpdateCamera boundary
+and preserves native story/control authority. Later Mars/Liara rendering,
+audio, physical progression and control restoration remain gameplay checks;
+see [scene spectator scope](GUEST-SCENE-SPECTATOR.md).
+
+All four native targets built. The ordinary runtime harness passed the new
+strict protocol/order/expiry, whole-POV/timestamp/foreign-value cleanup,
+nested-forwarding, FOV output canary and LastError fixtures alongside existing
+runtime checks. The protected probe harness and its low-integrity child check
+passed. Independent source review found no remaining concrete blocker after
+the camera layout, cleanup and shared-executor preparation corrections. No
+game ran this scene-viewing addition.
+
+The protected `790d685` run ended with host exit0, guest exit1 and one write
+access violation at a separate image RVA0x1a12d. No matching dump/module map is
+retained, so its cause is unresolved. Original profile, 8210 original-file
+locks, byte-identical TOC restoration and temporary cleanup passed; both
+recorders stopped. Melee families/passives were published, but attacks were
+not demonstrated. This recording contains no active full conversation or
+later Liara scene and cannot identify that reported barrier's cause.
+
 The `aa7b1d9` protected run ended with guest exit1 and one access violation in
 the retained Bink library. Original profile/TOC and temporary cleanup checks
 passed. Its captured melee lease was unassigned; the native manager vtable
@@ -7,8 +30,8 @@ proves a wrong Actor ProcessEvent gate. The next candidate uses the pinned
 UObject manager dispatch and, only for the exact missing-worker/zero-job movie
 case, the original synchronous Bink decoder. Four targets built; ordinary
 pin/refusal/forwarding/LastError and protected probe checks passed. Independent
-reviews confirmed the owned native contracts. No game ran these corrections;
-real melee damage, movie recovery and campaign progression remain open. See
+reviews confirmed the owned native contracts. The later `790d685` observation
+is recorded above; real melee damage, movie recovery and campaign progression remain open. See
 [melee scope](GUEST-MELEE.md) and [movie scope](BINK-MOVIE-RECOVERY.md).
 
 The ordinary guest ammo receive observer now binds exact native integer decodes

@@ -17,10 +17,14 @@ typedef struct RuntimeAmmoPickup {
     unsigned char original_entry[16],hook_entry[16],trampoline_entry[64];
     DWORD checked;
     unsigned rows;
-    int installed;
+    int installed,prepared;
 } RuntimeAmmoPickup;
 static RuntimeAmmoPickup runtime_ammo_pickup;
 static uintptr_t runtime_ammo_award_node;
+static uintptr_t runtime_scene_camera_node;
+static uintptr_t runtime_scene_camera_fov_node;
+static void runtime_scene_camera_forward(void*,void*,void*,RuntimeAmmoPickupExec);
+static void runtime_scene_camera_fov_forward(void*,void*,void*,RuntimeAmmoPickupExec);
 static void runtime_ammo_award_before(void*,void*);
 static void runtime_ammo_pickup_exec(void*,void*,void*);
 static int runtime_script_executor_prefix(uintptr_t base,const unsigned char *expected,size_t size) {
@@ -148,10 +152,14 @@ static void runtime_ammo_pickup_exec(void *self,void *frame,void *result) {
     RuntimeAmmoPickup *s=&runtime_ammo_pickup;
     /* The real executor ABI guarantees this frame. All other scripts take
      * only a direct node comparison and the unchanged trampoline call. */
-    if(s->installed&&frame&&*(uintptr_t*)((unsigned char*)frame+0x18)==s->valid.function.pointer)
+    if(s->installed&&s->prepared&&frame&&*(uintptr_t*)((unsigned char*)frame+0x18)==s->valid.function.pointer)
         runtime_ammo_pickup_forward(self,frame,result,s->original,runtime_ammo_pickup_before);
     else if(s->installed&&frame&&runtime_ammo_award_node&&*(uintptr_t*)((unsigned char*)frame+0x18)==runtime_ammo_award_node)
         runtime_ammo_pickup_forward(self,frame,result,s->original,runtime_ammo_award_before);
+    else if(s->installed&&frame&&runtime_scene_camera_node&&*(uintptr_t*)((unsigned char*)frame+0x18)==runtime_scene_camera_node)
+        runtime_scene_camera_forward(self,frame,result,s->original);
+    else if(s->installed&&frame&&runtime_scene_camera_fov_node&&*(uintptr_t*)((unsigned char*)frame+0x18)==runtime_scene_camera_fov_node)
+        runtime_scene_camera_fov_forward(self,frame,result,s->original);
     else s->original(self,frame,result);
 }
 static uintptr_t runtime_ammo_pickup_find(uintptr_t base,uintptr_t owner,const char *kind,const char *name) {
@@ -169,9 +177,27 @@ static int runtime_ammo_pickup_params(uintptr_t base,uintptr_t fn,const char *na
            (i&&(!read_at(prop+0xd0,&mask,8)||mask!=1)))return 0;prop=read_ptr(prop+0x68);}
     return !prop;
 }
+/* One existing script executor hook is shared by exact function-node filters.
+ * Camera viewing can need it while no companion is possessed. Predicate
+ * preparation remains independent, so early installation cannot skip ammo. */
+static int runtime_script_executor_prepare(uintptr_t base) {
+    RuntimeAmmoPickup *s=&runtime_ammo_pickup;
+    if(s->installed)return s->base==base&&runtime_ammo_pickup_executor_pins(base);
+    if(GetCurrentThreadId()!=session_game_thread||!supported_image(base)||!guest_equipment_dispatch_pins(base)||
+       !runtime_ammo_pickup_executor_pins(base)||!read_at(base+0xf52b0,s->original_entry,16))return 0;
+    MH_STATUS status=MH_Initialize();if(status!=MH_OK&&status!=MH_ERROR_ALREADY_INITIALIZED)return 0;
+    LPVOID original=NULL;s->base=base;
+    if(MH_CreateHook((void*)(base+0xf52b0),(void*)runtime_ammo_pickup_exec,&original)!=MH_OK)return 0;
+    s->original=(RuntimeAmmoPickupExec)original;
+    if(!original||!read_at((uintptr_t)original,s->trampoline_entry,sizeof s->trampoline_entry)||MH_EnableHook((void*)(base+0xf52b0))!=MH_OK||
+       !read_at(base+0xf52b0,s->hook_entry,16)) {
+        MH_DisableHook((void*)(base+0xf52b0));MH_RemoveHook((void*)(base+0xf52b0));s->original=NULL;return 0;
+    }
+    s->installed=1;return 1;
+}
 static void runtime_guest_ammo_pickup_prepare(uintptr_t base,DWORD now) {
     RuntimeAmmoPickup *s=&runtime_ammo_pickup;RuntimeMovementScope scope={0};
-    if(s->installed||GetCurrentThreadId()!=session_game_thread||!runtime_ammo_pickup_owner(base,&scope)||
+    if(s->prepared||GetCurrentThreadId()!=session_game_thread||!runtime_ammo_pickup_owner(base,&scope)||
        (s->checked&&now-s->checked<2000))return;s->checked=now;
     uintptr_t can=function_named(base,"SFXDroppedAmmo","CanPickUpAmmo"),klass=read_ptr(can+0x40),
         state=runtime_ammo_pickup_find(base,klass,"State","Pickup"),valid=runtime_ammo_pickup_find(base,state,"Function","ValidTouch"),
@@ -181,16 +207,8 @@ static void runtime_guest_ammo_pickup_prepare(uintptr_t base,DWORD now) {
        !guest_camera_stamp_read(base,player,&s->player_class,1)||strcmp(s->player_class.full_name,"SFXGame.SFXPawn_Player")||
        !guest_camera_stamp_read(base,cdo,&s->player_cdo,1)||!narrative_probe_object(base,cdo,"SFXPawn_Player")||read_ptr(cdo+0x50)!=player||
        !runtime_ammo_pickup_methods(base,base+0xf52b0)||!runtime_ammo_pickup_params(base,valid,"Other")||
-       !read_at(base+0xf52b0,s->original_entry,16))return;
-    MH_STATUS status=MH_Initialize();if(status!=MH_OK&&status!=MH_ERROR_ALREADY_INITIALIZED)return;
-    LPVOID original=NULL;s->base=base;
-    if(MH_CreateHook((void*)(base+0xf52b0),(void*)runtime_ammo_pickup_exec,&original)!=MH_OK)return;
-    s->original=(RuntimeAmmoPickupExec)original;
-    if(!original||!read_at((uintptr_t)original,s->trampoline_entry,sizeof s->trampoline_entry)||MH_EnableHook((void*)(base+0xf52b0))!=MH_OK||
-       !read_at(base+0xf52b0,s->hook_entry,16)) {
-        MH_DisableHook((void*)(base+0xf52b0));MH_RemoveHook((void*)(base+0xf52b0));s->original=NULL;return;
-    }
-    s->installed=1;line("{\"runtime_guest_ammo_pickup\":\"stock-ammo-predicate-guard-installed\",\"general_pickup_flag_written\":false,\"gameplay_verified\":false}\r\n");
+       !runtime_script_executor_prepare(base))return;
+    s->prepared=1;line("{\"runtime_guest_ammo_pickup\":\"stock-ammo-predicate-guard-installed\",\"general_pickup_flag_written\":false,\"gameplay_verified\":false}\r\n");
 }
 #ifdef ME3_RUNTIME_FIXTURE
 static void *runtime_ammo_pickup_args[3];static int runtime_ammo_pickup_order,runtime_ammo_pickup_bad;

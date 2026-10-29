@@ -30,6 +30,7 @@ static int runtime_startup_focus_pending(void);
 #include "background_focus.h"
 #undef ME3_ORDINARY_STARTUP_FOCUS
 static int runtime_hit_enabled(void);
+static int runtime_scene_spectator_opted(void);
 #include "runtime_rpc_receive.h"
 
 static int session_policy_is_host(void) {return g_runtime_config.role==ME3_ROLE_HOST;}
@@ -130,6 +131,7 @@ static int runtime_script_executor_prefix(uintptr_t,const unsigned char*,size_t)
 #include "runtime_ammo_award.h"
 #include "runtime_bink_movie.h"
 #include "runtime_guest_swap.h"
+#include "runtime_scene_spectator.h"
 static SessionContext runtime_host_power_context(uintptr_t engine) {
     SessionContext c=session_context(engine);
     c.pc=session_remote;c.pawn=session_pawn;return c;
@@ -237,6 +239,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     session_engine=engine;session_game_thread=GetCurrentThreadId();
     runtime_scope_ready=runtime_session_scope(base,engine);
     runtime_ambient_conversation_configure(base);
+    runtime_scene_spectator_tick(base,engine,after,now);
     if(!after)runtime_guest_weapon_tick(base,engine,now);
     if(!after)runtime_guest_movement_tick(base,engine,now);
     if(!after)runtime_guest_melee_tick(base,engine,now);

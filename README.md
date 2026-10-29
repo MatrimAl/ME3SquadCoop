@@ -8,10 +8,17 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 **Status: research prototype. A complete playable campaign and a validated player installation are not available yet.** This repository publishes source and test tooling so the work can continue openly, with clear limits on what has actually been demonstrated.
 
-The next candidate corrects the melee adapter's UObject PowerManager dispatch
+The next candidate adds automatic guest viewing of the host camera during full
+dialogue and cinematic intervals, including released companion possession.
+Scene exit, timeout and connection/world changes yield to the native camera.
+Actual later Mars/Liara visibility, audio and control recovery remain owner
+checks; see [scene spectator](docs/GUEST-SCENE-SPECTATOR.md).
+
+The current implementation corrects the melee adapter's UObject PowerManager dispatch
 and adds a narrow native synchronous movie path for the observed guest Bink
-worker failure. Native fixtures pass; neither melee execution nor rendered
-movie recovery is yet gameplay verified. See [melee](docs/GUEST-MELEE.md) and
+worker failure. The protected `790d685` run published native melee families,
+but did not prove attacks or rendered movie recovery and ended with a different
+guest access violation whose module remains unresolved. See [melee](docs/GUEST-MELEE.md) and
 [movie recovery](docs/BINK-MOVIE-RECOVERY.md).
 
 The ordinary guest now has a bounded ammo receive observer to investigate the
