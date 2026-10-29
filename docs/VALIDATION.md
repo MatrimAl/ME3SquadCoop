@@ -1,5 +1,13 @@
 # Validation status
 
+The melee source follow-up can resolve an absent clip through the existing
+global set of a mesh's BioDynamicAnimSet. Exact original FName, shared animation
+data, sequence data and captured identities must agree before normal temporary
+registration. Four native targets built and the ordinary runtime harness
+passed, including negative source-link cases. No game ran this addition;
+guest rifle slots, actual normal/cover attacks and damage remain unverified.
+See [melee preparation](GUEST-MELEE.md).
+
 The scene spectator addition uses native host conversation/cinematic state and
 the current owner-PC connection, independently of companion possession. It
 publishes camera output at the completed stock Camera.UpdateCamera boundary

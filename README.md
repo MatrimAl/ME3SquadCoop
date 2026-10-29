@@ -14,6 +14,11 @@ Scene exit, timeout and connection/world changes yield to the native camera.
 Actual later Mars/Liara visibility, audio and control recovery remain owner
 checks; see [scene spectator](docs/GUEST-SCENE-SPECTATOR.md).
 
+Melee preparation can also follow a mesh animation set's existing, verified
+global source to find a missing clip, then use the stock temporary-animation
+registration. Guest rifle-family recovery remains a runtime check; see
+[melee preparation](docs/GUEST-MELEE.md).
+
 The current implementation corrects the melee adapter's UObject PowerManager dispatch
 and adds a narrow native synchronous movie path for the observed guest Bink
 worker failure. The protected `790d685` run published native melee families,

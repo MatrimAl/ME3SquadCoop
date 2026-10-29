@@ -242,7 +242,7 @@ static int runtime_melee_temp_refcount_at(uintptr_t base,RuntimeGuestMelee *q,ui
 static int runtime_melee_temp_refcount(uintptr_t base,RuntimeGuestMelee *q) {
     return runtime_melee_temp_refcount_at(base,q,q->anim_set.pointer);
 }
-static int runtime_melee_set_has_clip(uintptr_t base,uintptr_t set,const uint32_t name[2]) {
+static int runtime_melee_set_has_clip_data(uintptr_t base,uintptr_t set,const uint32_t name[2],uintptr_t data) {
     GameArray sequences={0},again={0};int found=0;
     if(!name[0]||name[1]||!narrative_probe_object(base,set,"AnimSet")||
        !runtime_power_property(base,set,"AnimSet","Sequences","ArrayProperty",0x60,16)||
@@ -250,9 +250,48 @@ static int runtime_melee_set_has_clip(uintptr_t base,uintptr_t set,const uint32_
     for(int n=0;n<sequences.count;++n){uintptr_t sequence=read_ptr(sequences.data+(SIZE_T)n*8);uint32_t actual[2];
         if(!sequence)continue;
         if(!narrative_probe_object(base,sequence,"AnimSequence")||!read_at(sequence+0xf4,actual,8))return 0;
-        if(!memcmp(name,actual,8))found=1;
+        if(!memcmp(name,actual,8)&&(!data||
+           (runtime_power_property(base,sequence,"AnimSequence","m_pBioAnimSetData","ObjectProperty",0xfc,8)&&
+            read_ptr(sequence+0xfc)==data)))found=1;
     }
     return found&&read_at(set+0x60,&again,sizeof again)&&!memcmp(&sequences,&again,sizeof sequences);
+}
+static int runtime_melee_set_has_clip(uintptr_t base,uintptr_t set,const uint32_t name[2]) {
+    return runtime_melee_set_has_clip_data(base,set,name,0);
+}
+/* A BioDynamicAnimSet on a mesh may contain only that mesh's currently
+ * referenced sequences. Its native global set can already own a required
+ * sequence from the same loaded animation source. Follow only that reflected
+ * source link; never enumerate unrelated assets or create a set. */
+static int runtime_melee_global_link(uintptr_t local,uintptr_t global,uintptr_t local_data,uintptr_t global_data,
+        const uint32_t local_name[2],const uint32_t global_name[2]) {
+    return local&&global&&local!=global&&local_data&&local_data==global_data&&
+        local_name[0]&&!local_name[1]&&!memcmp(local_name,global_name,8);
+}
+static int runtime_melee_global_clip(uintptr_t base,uintptr_t local,const uint32_t name[2],GuestCameraStamp *out) {
+    GuestCameraStamp first={0},global_stamp={0};uint32_t local_name[2]={0},global_name[2]={0};
+    if(!narrative_probe_object(base,local,"BioDynamicAnimSet")||
+       !runtime_power_property(base,local,"BioDynamicAnimSet","m_pGlobalAnimSet","ObjectProperty",0xc8,8)||
+       !runtime_power_property(base,local,"BioDynamicAnimSet","m_nmOrigSetName","NameProperty",0xd0,8)||
+       !runtime_power_property(base,local,"AnimSet","m_pBioAnimSetData","ObjectProperty",0x78,8)||
+       !guest_camera_stamp_read(base,local,&first,0))return 0;
+    uintptr_t global=read_ptr(local+0xc8),data=read_ptr(local+0x78),global_data=read_ptr(global+0x78);
+    if(!narrative_probe_object(base,global,"BioDynamicAnimSet")||!narrative_probe_object(base,data,"BioAnimSetData")||
+       !read_at(local+0xd0,local_name,8)||!read_at(global+0xd0,global_name,8)||
+       !runtime_melee_global_link(local,global,data,global_data,local_name,global_name)||
+       !runtime_melee_set_has_clip_data(base,global,name,data)||!guest_camera_stamp_read(base,global,&global_stamp,1)||
+       !guest_camera_stamp_matches(base,&first,0)||read_ptr(local+0xc8)!=global||read_ptr(local+0x78)!=data||
+       read_ptr(global+0x78)!=data)return 0;
+    uint32_t local_after[2],global_after[2];
+    if(!read_at(local+0xd0,local_after,8)||!read_at(global+0xd0,global_after,8)||
+       memcmp(local_after,local_name,8)||memcmp(global_after,global_name,8)||
+       !guest_camera_stamp_matches(base,&global_stamp,1))return 0;
+    static GuestCameraStamp reported;static unsigned reports;
+    if(reports<16&&!guest_camera_stamp_core_equal(&reported,&global_stamp)){
+        reported=global_stamp;++reports;
+        line("{\"runtime_guest_melee\":\"existing-global-clip-source\",\"source_data_matches\":true,\"clip_verified\":true,\"animation_created\":false,\"gameplay_verified\":false}\r\n");
+    }
+    *out=global_stamp;return 1;
 }
 static int runtime_melee_pawn_clip(uintptr_t base,uintptr_t pawn,const uint32_t name[2],GuestCameraStamp *out) {
     uintptr_t mesh=read_ptr(pawn+0x3f4);GameArray sets={0},again={0};GuestCameraStamp matched={0};
@@ -261,6 +300,12 @@ static int runtime_melee_pawn_clip(uintptr_t base,uintptr_t pawn,const uint32_t 
        !identity_array(mesh+0x320,&sets,64))return 0;
     for(int i=0;i<sets.count&&!matched.pointer;++i){uintptr_t set=read_ptr(sets.data+(SIZE_T)i*8);
         if(set&&runtime_melee_set_has_clip(base,set,name)&&!guest_camera_stamp_read(base,set,&matched,1))return 0;
+    }
+    /* A NULL output asks whether the clip is already usable on this mesh.
+     * A global reference is only a source candidate: callers must register
+     * it through the existing native temporary-animation ledger first. */
+    if(out)for(int i=0;i<sets.count&&!matched.pointer;++i){uintptr_t set=read_ptr(sets.data+(SIZE_T)i*8);
+        if(set)runtime_melee_global_clip(base,set,name,&matched);
     }
     if(!matched.pointer||read_ptr(pawn+0x3f4)!=mesh||!read_at(mesh+0x320,&again,sizeof again)||memcmp(&sets,&again,sizeof sets))return 0;
     if(out)*out=matched;return 1;
@@ -290,7 +335,8 @@ static void runtime_melee_normal_prepare(uintptr_t base,RuntimeGuestMelee *q) {
     for(unsigned i=0;i<6;++i){RuntimeMeleeRow *row=&q->rows[i];
         if(row->changed||runtime_melee_pawn_clip(base,q->scope.pawn.pointer,row->anim,NULL)){available|=1u<<i;continue;}
         GuestCameraStamp set={0};
-        if(runtime_melee_pawn_clip(base,q->source.pointer,row->anim,&set)&&
+        if((runtime_melee_pawn_clip(base,q->scope.pawn.pointer,row->anim,&set)||
+            runtime_melee_pawn_clip(base,q->source.pointer,row->anim,&set))&&
            runtime_melee_anim_method(base,q->scope.pawn.pointer,1,&q->register_anim)&&
            runtime_melee_anim_method(base,q->scope.pawn.pointer,0,&q->unregister_anim)){
             row->anim_set=set;available|=1u<<i;
@@ -342,7 +388,9 @@ static int runtime_melee_cover_publish(uintptr_t base,uintptr_t engine,RuntimeGu
         int main_loaded=runtime_melee_row_is_sync(i)||runtime_melee_pawn_clip(base,q->scope.pawn.pointer,row->anim,NULL);
         int alternate_loaded=!row->anim_alt[0]||runtime_melee_pawn_clip(base,q->scope.pawn.pointer,row->anim_alt,NULL);
         if(!main_loaded||!alternate_loaded){const uint32_t *missing=main_loaded?row->anim_alt:row->anim;
-            if(!session_handle_matches(q->source)||!runtime_melee_pawn_clip(base,q->source.pointer,missing,&row->anim_set)||
+            if(!session_handle_matches(q->source)||
+               !(runtime_melee_pawn_clip(base,q->scope.pawn.pointer,missing,&row->anim_set)||
+                 runtime_melee_pawn_clip(base,q->source.pointer,missing,&row->anim_set))||
                !runtime_melee_anim_method(base,q->scope.pawn.pointer,1,&q->register_anim)||
                !runtime_melee_anim_method(base,q->scope.pawn.pointer,0,&q->unregister_anim)){
                 q->prepared&=~(UINT32_C(1)<<i);continue;
@@ -645,6 +693,12 @@ static int runtime_melee_cleanup_selftest(void) {
     return 1;
 }
 static int runtime_guest_melee_selftest(void) {
+    uint32_t origin[2]={11,0},other[2]={12,0},numbered[2]={11,1};
+    if(!runtime_melee_global_link(1,2,3,3,origin,origin)||
+       runtime_melee_global_link(1,1,3,3,origin,origin)||runtime_melee_global_link(0,2,3,3,origin,origin)||
+       runtime_melee_global_link(1,0,3,3,origin,origin)||runtime_melee_global_link(1,2,0,0,origin,origin)||
+       runtime_melee_global_link(1,2,3,4,origin,origin)||runtime_melee_global_link(1,2,3,3,origin,other)||
+       runtime_melee_global_link(1,2,3,3,numbered,numbered))return 0;
     if(runtime_melee_family_mask(7)!=7||runtime_melee_family_mask(56)!=56||runtime_melee_family_mask(63)!=63||
        runtime_melee_family_mask(3)||runtime_melee_family_mask(24)||runtime_melee_family_mask(31)!=7)return 0;
     RuntimeGuestMelee rows={0};rows.prepared=RUNTIME_MELEE_NORMAL_MASK|RUNTIME_MELEE_COVER_MASK;

@@ -1,6 +1,28 @@
 # Guest melee preparation
 
-The guest currently lacks Ashley's player melee slots and the passive that
+The protected `790d685` run published all six normal slots on the host but
+only pistol slots78..80 on the guest; rifle slots75..77 and optional cover63
+remained absent. Both own Soldier melee passives were present. This proves
+preparation, not actual melee execution or damage.
+
+The next candidate also searches the existing native global animation set
+referenced by a mesh's BioDynamicAnimSet when its local sequence list lacks
+a required clip. The reflected global pointer, same BioAnimSetData and exact
+original-set FName must match; the actual requested sequence must be present.
+It never searches unrelated assets, creates an animation set or treats a
+global source as already registered on Ashley. The existing native temporary
+animation ledger must still register it and confirm the clip on the mesh
+before publishing a slot. Known loaded sequences and all cleanup/ownership
+checks remain mandatory. Missing global references still defer the family.
+
+Static owned-package inspection found the actual CB_RifleAtk1/2/3 sequence
+exports and their animation data in the existing Soldier/Ashley packages;
+no new asset or redistribution is needed. Whether the guest's current dynamic
+set exposes the matching global reference still needs the next owned runtime
+observation. The recorder retains `existing-global-clip-source` separately
+from family publication and actual gameplay.
+
+The native companion defaults lack Ashley's player melee slots and the passive that
 provides real melee damage. The candidate prepares the six normal rifle and
 pistol combo actions, Soldier heavy/storm and cover melee, using the actual
 loaded player's class references. It
