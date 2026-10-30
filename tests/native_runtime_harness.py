@@ -72,6 +72,7 @@ def main():
                  "ME3RuntimeSceneActorObserverSelfTest",
                  "ME3RuntimePowerStartObserverSelfTest",
                  "ME3RuntimePowerApplySelfTest",
+                 "ME3RuntimePowerReloadSelfTest",
                  "ME3RuntimeAmmoSettleSelfTest",
                  "ME3RuntimeSceneInterpSelfTest",
                  "ME3RuntimeScenePlayerSelfTest",

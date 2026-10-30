@@ -23,7 +23,7 @@ static ULONGLONG runtime_power_submitted_at;
 static LONG runtime_power_generation;
 static DWORD runtime_power_last_order;
 enum {RUNTIME_POWER_IDLE=0,RUNTIME_POWER_QUEUED=1,RUNTIME_POWER_REJECTED=2,
-    RUNTIME_POWER_NATIVE_ACCEPTED=3,RUNTIME_POWER_NATIVE_REFUSED=4};
+    RUNTIME_POWER_NATIVE_ACCEPTED=3,RUNTIME_POWER_NATIVE_REFUSED=4,RUNTIME_POWER_NATIVE_DISPATCHED=5};
 static int runtime_power_same_handle(SessionHandle a,SessionHandle b) {
     return a.pointer&&a.pointer==b.pointer&&a.index==b.index&&a.name==b.name;
 }
@@ -212,11 +212,12 @@ static int runtime_power_dispatch_idle(SessionContext c) {
     return read_at(c.pawn+0xc20,&action,4)&&!action&&read_at(c.pawn+0xc28,&power,4)&&!power&&
         read_at(c.pc+0x782,&ignored,1)&&!ignored;
 }
+#include "runtime_power_reload_admission.h"
 static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordinary,RuntimePowerCatalog *out) {
-    /* The command queue keeps the original restrictive admission policy.
-     * No UI membership consumer can use this split to bypass native gates. */
-    return ordinary&&runtime_power_dispatch_idle(c)&&runtime_power_read_membership(base,c,out)&&
-        runtime_power_dispatch_idle(c);
+    /* A typed native reload may reach stock UsePower, which owns cancellation.
+     * Other busy actions retain the restrictive command admission policy. */
+    return ordinary&&runtime_power_input_ready(base,c)&&runtime_power_read_membership(base,c,out)&&
+        runtime_power_input_ready(base,c);
 }
 /* Reflected layout corroborates the retained SDK before invoking an order.
  * No property writes or method substitution are performed. */
@@ -291,6 +292,7 @@ static void runtime_power_log(int status,const char *reason,unsigned index,DWORD
 #include "runtime_native_power_input.h"
 #include "runtime_mapped_power_input.h"
 #include "runtime_power_order_apply.h"
+#include "runtime_power_reload.h"
 static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionContext c,int ordinary,int after,DWORD now) {
     RuntimePowerCatalog current;
     if(!runtime_control_enabled||!runtime_scope_ready||!runtime_power_read_catalog(base,c,ordinary,&current)) {
@@ -346,6 +348,14 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
        !read_at(item+0xa8,&ai,8)||ai||!read_at(item+0x488,&rank,4)||!isfinite(rank)||rank<=0||
        !read_at(item+0x46c,name,8)||!name[0]||memcmp(name,current.names[index],8)) {
         reason="power-rank-or-cached-controller-not-ready";goto rejected;
+    }
+    if(runtime_power_reload_instance(base,c)) {
+        if(runtime_power_request_expired(submitted)){reason="power-request-expired";goto rejected;}
+        runtime_power_last_order=now;
+        int sent=runtime_power_reload_use(base,engine,&current,index,mapped,requested,submitted);
+        status=sent?RUNTIME_POWER_NATIVE_DISPATCHED:RUNTIME_POWER_REJECTED;
+        reason=sent?"native-reload-usepower-dispatched":"reload-usepower-context-or-method-not-ready";
+        goto rejected;
     }
     uintptr_t method=guest_player_context_find_method(base,read_ptr(c.pc+0x50),"BioPlayerController","SquadOrderUsePower");
     NetworkActorIdentityEntry channel={0};CombatContextChain chain;

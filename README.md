@@ -73,6 +73,12 @@ and pending-order checks prevent replaying a consumed or replaced order.
 Actual casting and host effect visibility remain gameplay checks; see
 [power order continuation](docs/GUEST-POWER-ORDER-APPLY.md).
 
+Power keys may also reach the stock `UsePower` event during a verified native
+reload. This lets the normal game path cancel reload before checking and
+starting the power. Other busy actions remain restricted. Actual interruption,
+ammunition, camera and host effects require a gameplay check; see
+[reload power input](docs/GUEST-RELOAD-POWER.md).
+
 The ordinary guest now has a bounded ammo receive observer to investigate the
 remaining clip rebound. It orders the selected weapon's native integer decode
 and completed receive storage against local native firing, without changing

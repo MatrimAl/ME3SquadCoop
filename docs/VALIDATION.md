@@ -1,5 +1,13 @@
 # Validation status
 
+The guest power catalog admits an owned, matching native ReloadBase instance
+in addition to idle state. That specific input uses the existing default mode's
+complete UsePower event; it does not manually cancel reload or repeat the idle
+order continuation. Offline checks cover the production event arguments/error
+forwarding, request expiry/refusal and restricted admission states. Actual
+reload interruption, native cooldowns, ammunition and host effects remain
+gameplay checks.
+
 The guest power-order continuation restores the second call in the retained
 stock `GameModeDefault.UsePower` sequence. Native own-pawn queue acceptance
 does not itself activate a power. The continuation checks fresh control,

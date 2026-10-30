@@ -150,7 +150,8 @@ STARTUP = {0: "Idle", 1: "Waiting for player control", 2: "Join dispatched", 3: 
            12: "Waiting to retry", 13: "Retry refused", 14: "Retry expired",
            15: "Waiting for new-mission listener", 16: "New-mission listener refused", 17: "New-mission listener expired",
            18: "Pending connection request cancelled", 19: "Join not confirmed - check the game"}
-POWER = {0: "Idle", 1: "Queued", 2: "Rejected", 3: "Native order accepted", 4: "Native order refused"}
+POWER = {0: "Idle", 1: "Queued", 2: "Rejected", 3: "Native order accepted", 4: "Native order refused",
+         5: "Native power input dispatched"}
 CONTROL = {0: "Waiting for companion", 1: "Companion controlled", 2: "Scene / control suspended",
            3: "Waiting for mission transition", 4: "Control fault — restart required",
            5: "Companion downed", 6: "Companion dead", 7: "Companion life state unavailable"}
