@@ -139,6 +139,7 @@ static int runtime_script_executor_prefix(uintptr_t,const unsigned char*,size_t)
 #include "runtime_scene_interp.h"
 #include "runtime_scene_player_binding.h"
 #include "runtime_scene_effects.h"
+#include "runtime_scene_voice.h"
 static SessionContext runtime_host_power_context(uintptr_t engine) {
     SessionContext c=session_context(engine);
     c.pc=session_remote;c.pawn=session_pawn;return c;
@@ -252,6 +253,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     if(!after)runtime_scene_actor_observer_prepare(base,engine,now);
     if(!after)runtime_scene_player_tick(base,engine);
     if(!after)runtime_scene_effects_tick(base,engine,now);
+    if(!after)runtime_scene_voice_tick(base,engine,now);
     if(!after)runtime_scene_interp_tick(base,engine,now);
     if(!after)runtime_guest_scene_weapon_tick(base,engine,now);
     if(!after)runtime_guest_weapon_tick(base,engine,now);

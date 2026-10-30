@@ -34,6 +34,7 @@ static int (*presentation_dialogue_receive)(uintptr_t,uintptr_t,const wchar_t*,s
 /* Settled ammunition has a separate namespace and current weapon scope. */
 static int (*presentation_ammo_receive)(uintptr_t,uintptr_t,const wchar_t*,size_t);
 static int (*presentation_interp_receive)(uintptr_t,uintptr_t,const wchar_t*,size_t);
+static int (*presentation_voice_receive)(uintptr_t,uintptr_t,const wchar_t*,size_t);
 static uint64_t presentation_sequence,presentation_pending;
 static DWORD presentation_sent_at,presentation_scan_at,presentation_received_at;
 static unsigned char presentation_helmet[4];
@@ -145,6 +146,8 @@ static int presentation_receive(uintptr_t self,uintptr_t frame) {
         presentation_ammo_receive(self,frame,text,(size_t)string.count):1;
     if(!wcsncmp(text,L"ME3CI1 ",7))return presentation_interp_receive?
         presentation_interp_receive(self,frame,text,(size_t)string.count):1;
+    if(!wcsncmp(text,L"ME3VO1 ",7))return presentation_voice_receive?
+        presentation_voice_receive(self,frame,text,(size_t)string.count):1;
     int peer=!wcsncmp(text,L"ME3RV1 ",7);
     if(!peer&&(wcsncmp(text,L"ME3PR2 ",7)||(!presentation_opted()&&!presentation_identity_needed())))return 0;
     NetworkActorIdentityEntry source={0};

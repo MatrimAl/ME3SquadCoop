@@ -20,6 +20,7 @@ typedef struct RuntimeSceneInterp {
     uintptr_t base,engine;
     RuntimeSceneInterpHook activated,start,event,output;
     RuntimeSceneScope capability;
+    RuntimeSceneScope voice_capability;DWORD voice_received;int voice_capability_valid;
     RuntimeSceneInterpLease leases[64];
     DWORD received,sent,checked,retired;
     unsigned rows;
@@ -28,6 +29,8 @@ typedef struct RuntimeSceneInterp {
 static RuntimeSceneInterp runtime_scene_interp;
 static int (*runtime_scene_interp_player_ready)(void);
 static int (*runtime_scene_interp_effects_ready)(void);
+static int (*runtime_scene_interp_voice_ready)(void);
+static int (*runtime_scene_interp_voice_bootstrap_ready)(void);
 static void (*runtime_scene_interp_effect_event)(uintptr_t,uintptr_t,int);
 static void runtime_scene_interp_activated(void*);
 static void runtime_scene_interp_start(void*);
@@ -140,12 +143,16 @@ static int runtime_scene_interp_capability_live(DWORD now) {
 static int runtime_scene_interp_receive(uintptr_t self,uintptr_t frame,const wchar_t *text,size_t count) {
     RuntimeSceneInterp *s=&runtime_scene_interp;NativeRpcReceiveFrame *r=native_rpc_receive_current(session_game_thread);
     NetworkActorIdentityEntry source={0};RuntimeSceneScope scope={0};SessionContext c=session_context(s->engine);
-    if(!runtime_scene_interp_enabled()||g_runtime_config.role!=ME3_ROLE_HOST||!scene_interp_capability_parse(text,count)||
+    int bootstrap=scene_interp_bootstrap_parse(text,count);
+    if(!runtime_scene_interp_enabled()||g_runtime_config.role!=ME3_ROLE_HOST||(!bootstrap&&!scene_interp_capability_parse(text,count))||
        !r||!r->channel||!presentation_method_valid(0)||read_ptr(frame+0x18)!=presentation_methods[0].function.pointer||
        read_ptr(frame+0x20)!=self||!runtime_scene_host_peer(s->base,c,&scope)||self!=scope.peer.pointer||
        r->channel!=scope.channel.pointer||
        !network_actor_channel_valid(s->base,self,r->channel,scope.driver.pointer,&source)||
        source.connection!=scope.connection.pointer||read_ptr(source.connection+0x68)!=self)return 1;
+    s->voice_capability=scope;s->voice_received=GetTickCount();
+    if(!s->voice_capability_valid)runtime_scene_interp_note("guest-speech-bootstrap-ready",0);s->voice_capability_valid=1;
+    if(bootstrap)return 1; /* Announces speech methods only, never scene admission. */
     s->capability=scope;s->received=GetTickCount();
     if(!s->capability_valid)runtime_scene_interp_note("guest-event-guard-ready",0);
     s->capability_valid=1;return 1;
@@ -323,10 +330,12 @@ static void runtime_scene_interp_tick(uintptr_t base,uintptr_t engine,DWORD now)
        !runtime_scene_interp_hook_live(&s->event)||!runtime_scene_interp_hook_live(&s->output)||
        !runtime_scene_interp_player_ready||!runtime_scene_interp_player_ready()||
        !runtime_scene_interp_effects_ready||!runtime_scene_interp_effects_ready()||
+       !runtime_scene_interp_voice_bootstrap_ready||!runtime_scene_interp_voice_bootstrap_ready()||
        !runtime_scene_interp_enabled())goto done;
     RuntimeSceneScope scope={0};wchar_t text[SCENE_INTERP_CAPABILITY_CAPACITY];
     if(!runtime_scene_actor_observer_scope(base,engine,&scope))goto done;
-    int count=scene_interp_capability_format(text);
+    int count=runtime_scene_interp_voice_ready&&runtime_scene_interp_voice_ready()?
+        scene_interp_capability_format(text):scene_interp_bootstrap_format(text);
     if(count&&runtime_scene_scope_live(base,&scope)&&presentation_send_text(scope.pc.pointer,0,text,count))s->sent=now;
  done:SetLastError(error);
 }

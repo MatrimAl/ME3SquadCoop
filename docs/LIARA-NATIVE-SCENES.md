@@ -40,7 +40,7 @@ authority to start or progress the scene. Three exact Liara presentation keys
 can queue validated local client effects without executing their Kismet
 outputs; see [local effects](LIARA-SCENE-EFFECTS.md).
 
-The capability uses `ME3CI1 R 3` through the existing native owner-controller
+The capability uses `ME3CI1 R 4` through the existing native owner-controller
 RPC and actual ReceivedBunch channel. Its lifetime is local and bounded to two
 seconds, and the exact controller, world, driver, connection and channel are
 rechecked before admission. Native hooks check supported image, selected entry
@@ -83,6 +83,7 @@ a later native replacement rather than retaining an obsolete admission lease.
 
 The capability requires the guest's native Player track/group resolver hooks,
 a current authenticated host-Shepard identity lease, and prepared local effect
-methods. An earlier version 2 startup verified the resolver preparation and
+methods and the isolated [speech adapter](CINEMATIC-SPEECH.md). An earlier version 2 startup verified the resolver preparation and
 host identity capture. It did not play a Liara scene or verify version 3 effect
-preparation. See [Player binding](CINEMATIC-PLAYER-BINDING.md).
+preparation. A later version 3 startup prepared the effect methods; it did not
+play a Liara scene or prepare version 4 speech. See [Player binding](CINEMATIC-PLAYER-BINDING.md).
