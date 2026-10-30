@@ -195,9 +195,11 @@ static void runtime_dialogue_lease_retire(void) {
         if(found!=p->panel.pointer||!guest_camera_stamp_matches(q->base,&p->panel,0))return;
         p->record=record;if(!runtime_dialogue_panel_current(q->base,p))return;
     }
-    if(p->options&&runtime_dialogue_method_live(q->base,&q->script[6],0xf52b0)&&
-       runtime_dialogue_body(q->base,q->script[6].function.pointer,6)) {
+    if(p->options) {
+        if(!runtime_dialogue_method_live(q->base,&q->script[6],0xf52b0)||
+           !runtime_dialogue_body(q->base,q->script[6].function.pointer,6))return;
         ++q->busy;((ProcessEvent)(q->base+0xf4f80))((void*)p->panel.pointer,(void*)q->script[6].function.pointer,NULL,NULL);--q->busy;
+        p->options=0;
     }
     for(int i=4;i>=0;--i)if(p->owned&(1u<<i)) {
         if(!runtime_dialogue_panel_current(q->base,p)||!runtime_dialogue_guest_local_free())return;

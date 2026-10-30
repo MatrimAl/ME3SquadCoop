@@ -30,6 +30,12 @@ baseline presentation, delayed identity recovery, native conversation takeover,
 foreign panel replacement and failure before dispatch. Three broken variants
 are rejected. No native conversation or foreign panel is hidden by this repair.
 
+Retirement also retains that obligation when the HideWheel method or body
+cannot be verified. A successful hide consumes it immediately, before later
+flag cleanup can become uncertain. The extended fixture rejects five broken
+variants and covers unavailable metadata, eventual recovery and no repeated
+hide during deferred cleanup. Real local conversation takeover still wins.
+
 The latest owner test still failed full guest cinematic/dialogue presentation
 and post-dialogue firing. Cached POV equality and completed option transport
 did not establish the rendered result. The inactive-only weapon continuation

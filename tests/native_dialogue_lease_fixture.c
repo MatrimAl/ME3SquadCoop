@@ -14,11 +14,13 @@ typedef struct RuntimeDialogueChoices {
 static RuntimeDialogueChoices runtime_dialogue;
 static struct {
     uintptr_t panel;int unknown,full,fail_set,fail_options,options_make_unknown,values[5];
+    int hide_method_unknown,hide_body_unknown,hide_makes_flag_read_unknown,flag_read_unknown;
     unsigned set_calls[5],option_calls,option_applied,hide_calls,shown,refusals;
 } engine;
 typedef void (*ProcessEvent)(void*,void*,void*,void*);
 static void fixture_process_event(void *self,void *fn,void *parameters,void *result) {
     (void)self;(void)fn;(void)parameters;(void)result;++engine.hide_calls;
+    if(engine.hide_makes_flag_read_unknown)engine.flag_read_unknown=1;
 }
 static int guest_camera_stamp_read(uintptr_t base,uintptr_t object,GuestCameraStamp *out,int full) {
     (void)base;(void)full;out->pointer=object;return object!=0;
@@ -40,17 +42,18 @@ static int runtime_dialogue_panel_current(uintptr_t base,const RuntimeDialoguePa
     (void)base;return !engine.unknown&&p->active&&p->panel.pointer==engine.panel;
 }
 static int runtime_dialogue_method_live(uintptr_t base,const GuestPlayerContextMethod *method,uintptr_t entry) {
-    (void)base;(void)method;(void)entry;return 1;
+    (void)base;(void)entry;
+    return method!=&runtime_dialogue.script[6]||!engine.hide_method_unknown;
 }
 static int runtime_dialogue_body(uintptr_t base,uintptr_t function,unsigned kind) {
-    (void)base;(void)function;(void)kind;return 1;
+    (void)base;(void)function;return kind!=6||!engine.hide_body_unknown;
 }
 static int runtime_dialogue_ui_value(uintptr_t panel,unsigned bit,int set,uint32_t *value) {
     (void)panel;if(bit>=5)return 0;
     if(set){++engine.set_calls[bit];
         if((int)bit==engine.fail_set){engine.unknown=1;return 0;}
         engine.values[bit]=!!*value;
-    }else *value=(uint32_t)engine.values[bit];
+    }else {if(engine.flag_read_unknown)return 0;*value=(uint32_t)engine.values[bit];}
     return 1;
 }
 static int runtime_dialogue_options(uintptr_t panel,const DialogueChoiceCatalog *catalog,int marker) {
@@ -154,5 +157,39 @@ int main(void) {
     for(unsigned i=0;i<5;++i)engine.values[i]=1;
     CHECK(!runtime_dialogue_lease_begin(24,32,&c));
     CHECK(engine.option_calls==1&&engine.option_applied==0&&engine.hide_calls==0&&!runtime_dialogue.lease.active);
+    /* Missing HideWheel proof is an uncompleted widget obligation, not
+     * permission to restore flags and erase the ledger. Test both proof
+     * boundaries with no owned flags and with all five flags owned. */
+    for(unsigned failure=0;failure<2;++failure)for(unsigned baseline=0;baseline<2;++baseline){
+        reset();c.generation=1;
+        for(unsigned i=0;i<5;++i)engine.values[i]=(int)baseline;
+        CHECK(runtime_dialogue_lease_begin(24,32,&c));
+        unsigned before_sets[5];memcpy(before_sets,engine.set_calls,sizeof before_sets);
+        unsigned before_owned=runtime_dialogue.lease.owned;
+        engine.hide_method_unknown=failure==0;engine.hide_body_unknown=failure==1;
+        runtime_dialogue_lease_retire();
+        CHECK(runtime_dialogue.lease.active&&runtime_dialogue.lease.options&&runtime_dialogue.lease.retiring);
+        CHECK(!runtime_dialogue.lease.ready&&runtime_dialogue.lease.owned==before_owned);
+        CHECK(engine.hide_calls==0&&!memcmp(before_sets,engine.set_calls,sizeof before_sets));
+        c.generation=2;CHECK(!runtime_dialogue_lease_begin(24,32,&c)&&engine.option_applied==1);
+        engine.hide_method_unknown=engine.hide_body_unknown=0;runtime_dialogue_lease_retire();
+        CHECK(!runtime_dialogue.lease.active&&engine.hide_calls==1);
+        for(unsigned i=0;i<5;++i)CHECK(engine.values[i]==(int)baseline);
+    }
+    /* A successful hide is consumed before later flag cleanup can defer.
+     * Otherwise every retry would invoke HideWheel on the same old catalog. */
+    reset();c.generation=1;CHECK(runtime_dialogue_lease_begin(24,32,&c));
+    engine.hide_makes_flag_read_unknown=1;runtime_dialogue_lease_retire();
+    CHECK(engine.hide_calls==1&&runtime_dialogue.lease.active&&!runtime_dialogue.lease.options);
+    CHECK(runtime_dialogue.lease.retiring&&!runtime_dialogue.lease.ready&&runtime_dialogue.lease.owned==31);
+    engine.hide_makes_flag_read_unknown=0;engine.flag_read_unknown=0;runtime_dialogue_lease_retire();
+    CHECK(engine.hide_calls==1&&!runtime_dialogue.lease.active);
+    for(unsigned i=0;i<5;++i)CHECK(engine.values[i]==0);
+    /* Native conversation takeover remains earlier than unavailable hide
+     * proof: its real panel/input must be left to the engine. */
+    reset();c.generation=1;CHECK(runtime_dialogue_lease_begin(24,32,&c));
+    engine.hide_method_unknown=engine.hide_body_unknown=1;engine.full=1;runtime_dialogue_lease_retire();
+    CHECK(!runtime_dialogue.lease.active&&engine.hide_calls==0);
+    for(unsigned i=0;i<5;++i)CHECK(engine.values[i]==1);
     return 0;
 }
