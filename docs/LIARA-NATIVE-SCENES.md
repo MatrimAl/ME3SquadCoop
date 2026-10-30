@@ -1,5 +1,14 @@
 # Native Liara scene transport
 
+A retained paired scene captured another incomplete boundary: guest native
+Matinee actors arrived while selected scene-action references remained null.
+The host admitted the selected localized actions; guest snapshots showed no
+localized action reference for those transports. Host flag admission alone
+therefore does not prove a usable guest timeline. Native static-object mapping,
+package residency and streamed-level visibility remain distinct possibilities;
+null output does not identify which rejected the reference. This evidence does
+not justify assigning InterpAction manually or replaying guest Kismet.
+
 The owner observed correct guest camera angles but absent cinematic character
 animation. Offline inspection of the selected Liara packages found the main
 intro scene, its 17 localized line actions and 97 later dialogue actions marked

@@ -223,7 +223,9 @@ static int runtime_dialogue_lease_begin(uintptr_t pc,uintptr_t info,const Dialog
     }
     if(p->active){if(!runtime_dialogue_panel_current(q->base,p)||!runtime_dialogue_guest_local_free()){
             runtime_dialogue_lease_retire();return 0;}
-        if(!runtime_dialogue_options(p->panel.pointer,catalog,-1)||!runtime_dialogue_panel_current(q->base,p)||
+        int applied=runtime_dialogue_options(p->panel.pointer,catalog,-1);
+        if(applied)p->options=1;
+        if(!applied||!runtime_dialogue_panel_current(q->base,p)||
            !runtime_dialogue_guest_local_free()){runtime_dialogue_lease_retire();return 0;}
         p->options=1;p->generation=catalog->generation;return 1;}
     RuntimeDialogueRecord record={0};uintptr_t panel=runtime_dialogue_find_panel(q->base,pc,info,&record),full=0;
@@ -246,8 +248,14 @@ static int runtime_dialogue_lease_begin(uintptr_t pc,uintptr_t info,const Dialog
            !runtime_dialogue_ui_value(panel,i,1,&desired)||!runtime_dialogue_panel_current(q->base,p)||
            !runtime_dialogue_guest_local_free()||!runtime_dialogue_ui_value(panel,i,0,&current)||current!=1){
             runtime_dialogue_panel_refused(4,"guest-wheel-native-presentation-not-admitted",catalog);runtime_dialogue_lease_retire();return 0;}}
-    if(!runtime_dialogue_panel_current(q->base,p)||!runtime_dialogue_guest_local_free()||
-       !runtime_dialogue_options(panel,catalog,-1)||!runtime_dialogue_panel_current(q->base,p)||
+    if(!runtime_dialogue_panel_current(q->base,p)||!runtime_dialogue_guest_local_free()){
+        runtime_dialogue_panel_refused(5,"guest-wheel-options-or-local-scope-unavailable",catalog);runtime_dialogue_lease_retire();return 0;}
+    int applied=runtime_dialogue_options(panel,catalog,-1);
+    /* The native call already wrote the widget, even if a following identity
+     * or local-conversation read becomes temporarily unavailable. Retain that
+     * cleanup obligation before publishing a fully admitted lease. */
+    if(applied)p->options=1;
+    if(!applied||!runtime_dialogue_panel_current(q->base,p)||
        !runtime_dialogue_guest_local_free()){
         runtime_dialogue_panel_refused(5,"guest-wheel-options-or-local-scope-unavailable",catalog);runtime_dialogue_lease_retire();return 0;}
     p->options=1;p->generation=catalog->generation;p->ready=1;p->retiring=0;

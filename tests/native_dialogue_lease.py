@@ -32,7 +32,8 @@ def main():
     assert 'if(p->active&&(!p->ready||p->retiring))' in production
     variants={'production':production,
         'partial-ledger-adopted':production.replace('if(p->active&&(!p->ready||p->retiring))','if(0)',1),
-        'cleanup-keeps-readiness':production.replace('p->ready=0;p->retiring=1;','',1)}
+        'cleanup-keeps-readiness':production.replace('p->ready=0;p->retiring=1;','',1),
+        'options-write-not-retained':production.replace('if(applied)p->options=1;','')}
     output=ROOT/'local/dialogue-lease-fixture';output.mkdir(parents=True,exist_ok=True)
     env=dict(os.environ,ZIG_GLOBAL_CACHE_DIR=str(ROOT/'local/zig-cache'),ZIG_LOCAL_CACHE_DIR=str(ROOT/'local/zig-local-cache'))
     for name,functions in variants.items():
@@ -42,5 +43,5 @@ def main():
         result=subprocess.run([str(exe)],capture_output=True,text=True,timeout=10)
         if name=='production':assert result.returncode==0,result.stderr
         else:assert result.returncode!=0,'Negative control escaped: '+name
-    print('PASS actual production dialogue lease admission/cleanup and two negative controls; no game launched')
+    print('PASS actual production dialogue lease admission/options cleanup and three negative controls; no game launched')
 if __name__=='__main__':main()

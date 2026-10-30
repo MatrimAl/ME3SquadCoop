@@ -13,8 +13,8 @@ typedef struct RuntimeDialogueChoices {
 } RuntimeDialogueChoices;
 static RuntimeDialogueChoices runtime_dialogue;
 static struct {
-    uintptr_t panel;int unknown,full,fail_set,fail_options,values[5];
-    unsigned set_calls[5],option_calls,hide_calls,shown,refusals;
+    uintptr_t panel;int unknown,full,fail_set,fail_options,options_make_unknown,values[5];
+    unsigned set_calls[5],option_calls,option_applied,hide_calls,shown,refusals;
 } engine;
 typedef void (*ProcessEvent)(void*,void*,void*,void*);
 static void fixture_process_event(void *self,void *fn,void *parameters,void *result) {
@@ -37,7 +37,7 @@ static uintptr_t runtime_dialogue_find_panel(uintptr_t base,uintptr_t pc,uintptr
     (void)base;(void)pc;(void)world;*record=(RuntimeDialogueRecord){1,2,3,0};return engine.panel;
 }
 static int runtime_dialogue_panel_current(uintptr_t base,const RuntimeDialoguePanel *p) {
-    (void)base;return p->active&&p->panel.pointer==engine.panel;
+    (void)base;return !engine.unknown&&p->active&&p->panel.pointer==engine.panel;
 }
 static int runtime_dialogue_method_live(uintptr_t base,const GuestPlayerContextMethod *method,uintptr_t entry) {
     (void)base;(void)method;(void)entry;return 1;
@@ -54,7 +54,11 @@ static int runtime_dialogue_ui_value(uintptr_t panel,unsigned bit,int set,uint32
     return 1;
 }
 static int runtime_dialogue_options(uintptr_t panel,const DialogueChoiceCatalog *catalog,int marker) {
-    (void)panel;(void)catalog;(void)marker;++engine.option_calls;return !engine.fail_options;
+    (void)panel;(void)catalog;(void)marker;++engine.option_calls;
+    if(engine.fail_options)return 0; /* The native ProcessEvent was not called. */
+    ++engine.option_applied;
+    if(engine.options_make_unknown)engine.unknown=1;
+    return 1;
 }
 static void runtime_dialogue_note(const char *event) {
     if(!strcmp(event,"guest-native-wheel-presented"))++engine.shown;
@@ -111,5 +115,44 @@ int main(void) {
     CHECK(!runtime_dialogue_lease_begin(24,32,&c));
     CHECK(!runtime_dialogue.lease.active&&!runtime_dialogue.lease.ready&&engine.hide_calls==1);
     for(unsigned i=0;i<5;++i)CHECK(engine.values[i]==0);
+    /* Native options are written before the post-call identity read. With
+     * all five baseline flags already true, no flag cleanup would hide a
+     * missed options write: the explicit widget obligation is essential. */
+    reset();c.generation=1;engine.options_make_unknown=1;
+    for(unsigned i=0;i<5;++i)engine.values[i]=1;
+    CHECK(!runtime_dialogue_lease_begin(24,32,&c));
+    CHECK(engine.option_applied==1&&runtime_dialogue.lease.active&&runtime_dialogue.lease.options);
+    CHECK(!runtime_dialogue.lease.ready&&runtime_dialogue.lease.retiring&&!runtime_dialogue.lease.owned);
+    c.generation=2;CHECK(!runtime_dialogue_lease_begin(24,32,&c)&&engine.option_applied==1);
+    engine.unknown=0;runtime_dialogue_lease_retire();
+    CHECK(!runtime_dialogue.lease.active&&engine.hide_calls==1);
+    for(unsigned i=0;i<5;++i)CHECK(engine.values[i]==1);
+    /* The already-admitted catalog path must record an options write too.
+     * Native replacement may have relinquished the previous strings. */
+    reset();c.generation=1;CHECK(runtime_dialogue_lease_begin(24,32,&c));
+    runtime_dialogue.lease.options=0;engine.options_make_unknown=1;c.generation=2;
+    CHECK(!runtime_dialogue_lease_begin(24,32,&c));
+    CHECK(engine.option_applied==2&&runtime_dialogue.lease.options&&runtime_dialogue.lease.retiring);
+    CHECK(runtime_dialogue.lease.generation==1&&!runtime_dialogue.lease.ready);
+    engine.unknown=0;runtime_dialogue_lease_retire();
+    CHECK(!runtime_dialogue.lease.active&&engine.hide_calls==1);
+    /* A real conversation or a foreign panel must never be hidden merely
+     * because the retained ledger says our earlier options were written. */
+    reset();c.generation=1;engine.options_make_unknown=1;
+    for(unsigned i=0;i<5;++i)engine.values[i]=1;
+    CHECK(!runtime_dialogue_lease_begin(24,32,&c)&&runtime_dialogue.lease.options);
+    engine.unknown=0;engine.full=1;runtime_dialogue_lease_retire();
+    CHECK(!runtime_dialogue.lease.active&&engine.hide_calls==0);
+    for(unsigned i=0;i<5;++i)CHECK(engine.values[i]==1);
+    reset();c.generation=1;engine.options_make_unknown=1;
+    CHECK(!runtime_dialogue_lease_begin(24,32,&c)&&runtime_dialogue.lease.options);
+    engine.unknown=0;engine.panel=48;runtime_dialogue_lease_retire();
+    CHECK(runtime_dialogue.lease.active&&runtime_dialogue.lease.options&&engine.hide_calls==0);
+    c.generation=2;CHECK(!runtime_dialogue_lease_begin(24,32,&c)&&engine.option_applied==1);
+    /* A failed pre-native-call validation creates no widget obligation. */
+    reset();c.generation=1;engine.fail_options=1;
+    for(unsigned i=0;i<5;++i)engine.values[i]=1;
+    CHECK(!runtime_dialogue_lease_begin(24,32,&c));
+    CHECK(engine.option_calls==1&&engine.option_applied==0&&engine.hide_calls==0&&!runtime_dialogue.lease.active);
     return 0;
 }

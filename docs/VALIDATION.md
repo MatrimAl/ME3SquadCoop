@@ -1,5 +1,13 @@
 # Validation status
 
+The default-off Matinee reference observer passed 20 current-production helper
+checks for scalar sites, nested receive masking and unchanged original
+forwarding/result/error. It reuses the single ordinary archive-scalar hook
+owner and never replays a decoder or assigns a scene reference. Identity,
+metadata discovery and installation are explicit fixture boundaries; live
+scene resolution and rendered parity are not established by these checks.
+See [scene reference observation](SCENE-REFERENCE-OBSERVATION.md).
+
 Authenticated guest power ingress now carries the stock transient player-order
 intent into the same existing host power context. The original native targeting,
 cooldown and action checks remain in control. Production helper fixtures passed
@@ -14,6 +22,13 @@ A retained partial cleanup cannot be reused as an admitted choice panel.
 The fixture executes actual admission/retirement functions, preserves native
 conversation and foreign state, and rejects two deliberately broken variants.
 It does not establish complete rendered dialogue or cinematic parity.
+
+A successful options write is now recorded before subsequent scope checks in
+both admission paths. Otherwise temporary identity uncertainty could retain a
+cleanup ledger without its HideWheel obligation. The fixture covers enabled
+baseline presentation, delayed identity recovery, native conversation takeover,
+foreign panel replacement and failure before dispatch. Three broken variants
+are rejected. No native conversation or foreign panel is hidden by this repair.
 
 The latest owner test still failed full guest cinematic/dialogue presentation
 and post-dialogue firing. Cached POV equality and completed option transport

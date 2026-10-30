@@ -9,6 +9,7 @@ typedef void (*RuntimeRpcReceive)(void*,void*);
 static RuntimeRpcReceive runtime_rpc_receive_original;
 static uintptr_t runtime_rpc_receive_base;
 static DWORD runtime_rpc_receive_thread;
+static uintptr_t runtime_rpc_receive_archive;
 static int runtime_rpc_receive_attempted,runtime_rpc_receive_installed;
 static int runtime_initial_reference_installed;
 #define ME3_INITIAL_OBJECT_ORDINARY
@@ -21,6 +22,7 @@ static int runtime_initial_reference_installed;
 #undef initial_actor_trace_installed
 #undef ME3_INITIAL_OBJECT_ORDINARY
 #include "runtime_initial_reference.h"
+#include "runtime_scene_reference.h"
 static unsigned runtime_initial_receive_events;
 static void runtime_rpc_receive(void *self,void *bunch) {
     DWORD error=GetLastError();NativeRpcReceiveFrame frame;
@@ -35,7 +37,9 @@ static void runtime_rpc_receive(void *self,void *bunch) {
         initial.channel=channel;initial.archive=(uintptr_t)bunch;
         read_at(channel+0x6c,&initial.index,4);
     }
-    if(initial_thread){initial.previous=initial_object_frame;initial_object_frame=&initial;}
+    uintptr_t previous_archive=0;
+    if(initial_thread){previous_archive=runtime_rpc_receive_archive;runtime_rpc_receive_archive=(uintptr_t)bunch;
+        initial.previous=initial_object_frame;initial_object_frame=&initial;}
     native_rpc_receive_begin(&frame,runtime_rpc_receive_thread,
         runtime_control_enabled&&runtime_scope_ready?(uintptr_t)self:0);
     RuntimeAmmoReceiveFrame ammo_frame={0};
@@ -44,7 +48,7 @@ static void runtime_rpc_receive(void *self,void *bunch) {
     if(ammo_begin&&ammo_end)ammo_begin(&ammo_frame,(uintptr_t)self);
     SetLastError(error);runtime_rpc_receive_original(self,bunch);
     error=GetLastError();if(ammo_begin&&ammo_end)ammo_end(&ammo_frame);native_rpc_receive_end(&frame);
-    if(initial_thread)initial_object_frame=initial.previous;
+    if(initial_thread){initial_object_frame=initial.previous;runtime_rpc_receive_archive=previous_archive;}
     if(initial.active) {
         uint32_t flags_after=0;read_at(channel+0x68,&flags_after,4);
         char row[340];snprintf(row,sizeof row,"{\"runtime_initial_actor\":\"after-native-receive\",\"event\":%u,\"channel_index\":%d,\"flags_before\":%u,\"flags_after\":%u,\"actor_present\":%s,\"class_present\":%s,\"forwarded_unchanged\":true}\r\n",initial.event,initial.index,flags_before,flags_after,read_ptr(channel+0xa0)?"true":"false",read_ptr(channel+0xa8)?"true":"false");line(row);
@@ -82,9 +86,10 @@ static void runtime_rpc_receive_prepare(uintptr_t base) {
     int owned=g_runtime_config.role==ME3_ROLE_GUEST&&runtime_owned_optimized_opted();
     int delayed=g_runtime_config.role==ME3_ROLE_HOST&&runtime_delayed_fire_stop_enabled();
     int hit=g_runtime_config.role==ME3_ROLE_GUEST&&runtime_hit_enabled();
-    if(((opted||presentation||revive||owned||delayed||hit||runtime_scene_spectator_opted())&&runtime_control_enabled&&runtime_scope_ready)||
+    if(((opted||presentation||revive||owned||delayed||hit||runtime_scene_spectator_opted()||
+         (g_runtime_config.role==ME3_ROLE_GUEST&&runtime_scene_reference_opted()))&&runtime_control_enabled&&runtime_scope_ready)||
        (g_runtime_config.role==ME3_ROLE_GUEST&&initial_object_opted()&&runtime_control_enabled)) {
-        if(runtime_rpc_receive_install(base)){initial_object_install(base);runtime_initial_reference_install(base);}
+        if(runtime_rpc_receive_install(base)){initial_object_install(base);runtime_initial_reference_install(base);runtime_scene_reference_prepare(base);}
     }
     runtime_owned_optimized_prepare(base);
     if(runtime_rpc_receive_installed)runtime_delayed_fire_stop_prepare(base);
