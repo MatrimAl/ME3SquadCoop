@@ -221,6 +221,7 @@ static int runtime_scene_voice_playback_create(const RuntimeSceneVoiceRequest *r
 static void runtime_scene_voice_playback_tick(uintptr_t base,uintptr_t engine,DWORD now) {
     DWORD error=GetLastError();RuntimeSceneVoicePlayback *s=&runtime_scene_voice_playback;s->base=base;s->engine=engine;
     if(g_runtime_config.role!=ME3_ROLE_GUEST||GetCurrentThreadId()!=session_game_thread||s->busy)goto done;
+    if(s->prepared&&!s->used&&!s->queued)goto done;
     if(!s->prepared&&(!s->checked||now-s->checked>=1000)){
         s->checked=now;uintptr_t fn=function_named(base,"BioSeqAct_FaceOnlyVO","GetObjClassVersion"),klass=read_ptr(fn+0x40);
         GuestCameraStamp stamp={0};

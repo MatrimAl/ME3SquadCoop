@@ -24,6 +24,9 @@ typedef struct RuntimeSceneVoice {
 static RuntimeSceneVoice runtime_scene_voice;
 static int runtime_scene_voice_ready(void);
 static int runtime_scene_voice_host_sex(unsigned);
+static int runtime_scene_voice_identity_scene_policy(char kind,int scene_live,uint64_t nonce,uint64_t scene_nonce) {
+    return kind=='H'||(scene_live&&nonce==scene_nonce);
+}
 static void runtime_scene_voice_key(void*,int,void*);
 static void runtime_scene_voice_note(const char *event) {
     RuntimeSceneVoice *s=&runtime_scene_voice;if(s->rows++>=128)return;
@@ -171,8 +174,9 @@ static int runtime_scene_voice_receive(uintptr_t self,uintptr_t frame,const wcha
        !presentation_method_valid(1)||read_ptr(frame+0x18)!=presentation_methods[1].function.pointer||read_ptr(frame+0x20)!=self||
        !runtime_scene_actor_observer_scope(s->base,s->engine,&scope)||scope.pc.pointer!=self||
        r->channel!=scope.channel.pointer||!network_actor_channel_valid(s->base,self,r->channel,scope.driver.pointer,&source)||
-       source.connection!=scope.connection.pointer||!runtime_scene_view.valid||
-       !runtime_scene_scope_live(s->base,&runtime_scene_view.scope)||message.scene_nonce!=runtime_scene_view.message.nonce)return 1;
+       source.connection!=scope.connection.pointer)return 1;
+    int scene_live=message.kind=='H'?0:(runtime_scene_view.valid&&runtime_scene_scope_live(s->base,&runtime_scene_view.scope));
+    if(!runtime_scene_voice_identity_scene_policy(message.kind,scene_live,message.scene_nonce,runtime_scene_view.message.nonce))return 1;
     if(message.kind=='H'){
         int same=s->sex_valid&&s->sex_nonce==message.scene_nonce&&
             guest_camera_stamp_core_equal(&s->sex_scope.connection,&scope.connection);
@@ -181,6 +185,9 @@ static int runtime_scene_voice_receive(uintptr_t self,uintptr_t frame,const wcha
         s->sex_scope=scope;s->sex=message.flags;s->sex_nonce=message.scene_nonce;s->sex_generation=message.generation;
         s->sex_at=GetTickCount();s->sex_valid=1;if(changed)runtime_scene_voice_note("authenticated-host-sex-captured");return 1;
     }
+    /* The first inactive camera snapshot can predate the guest's receiver.
+     * Identity bootstrap therefore relies on this authenticated owner-PC
+     * frame alone. Actual speech still requires a current active scene. */
     if(s->valid&&(s->received.scene_nonce!=message.scene_nonce||
        !guest_camera_stamp_core_equal(&s->received_scope.connection,&scope.connection))){s->valid=0;s->consumed=0;}
     if(s->valid&&message.generation<s->received.generation)return 1;
@@ -236,7 +243,7 @@ static int runtime_scene_voice_host_sex(unsigned female) {
 static int runtime_scene_voice_sex_live(void) {
     RuntimeSceneVoice *s=&runtime_scene_voice;RuntimeScenePlayerBinding *p=&runtime_scene_player_binding;
     return s->sex_valid&&GetTickCount()-s->sex_at<=2000&&runtime_scene_scope_live(s->base,&s->sex_scope)&&
-        runtime_scene_player_live()&&runtime_scene_view.valid&&s->sex_nonce==runtime_scene_view.message.nonce&&
+        runtime_scene_player_live()&&
         guest_camera_stamp_core_equal(&s->sex_scope.connection,&p->scope.connection)&&
         guest_camera_stamp_core_equal(&s->sex_scope.root,&p->scope.root);
 }
@@ -319,7 +326,7 @@ static void runtime_scene_voice_tick(uintptr_t base,uintptr_t engine,DWORD now) 
         if(s->polled&&now-s->polled<50)goto done;s->polled=now;
         RuntimeSceneScope sex_scope={0};uint32_t sex=0;
         RuntimeSceneInterp *transport=&runtime_scene_interp;
-        if(runtime_scene_host_nonce&&transport->voice_capability_valid&&now-transport->voice_received<=2000&&
+        if((!s->sex_sent_at||now-s->sex_sent_at>=500)&&runtime_scene_host_nonce&&transport->voice_capability_valid&&now-transport->voice_received<=2000&&
            runtime_scene_scope_live(base,&transport->voice_capability)&&runtime_scene_host_peer(base,session_context(engine),&sex_scope)&&
            guest_camera_stamp_core_equal(&sex_scope.connection,&transport->voice_capability.connection)&&
            session_actor_live(base,session_shepard)&&is_kind_of(base,session_shepard,"SFXPawn_Player")&&
@@ -345,7 +352,10 @@ static void runtime_scene_voice_tick(uintptr_t base,uintptr_t engine,DWORD now) 
         goto done;
     }
     if(g_runtime_config.role!=ME3_ROLE_GUEST)goto done;
-    if(runtime_scene_voice_sex_live())runtime_scene_voice_host_sex(s->sex);
+    uint32_t current_sex=0;
+    if(s->sex_valid&&now-s->sex_at<=2000&&runtime_scene_player_binding.valid&&
+       (!read_at(runtime_scene_player_binding.actor.pointer+0x578,&current_sex,4)||
+        ((current_sex&0x20)!=0)!=(s->sex!=0))&&runtime_scene_voice_sex_live())runtime_scene_voice_host_sex(s->sex);
     if(!s->valid||s->received.kind=='S'||now-s->received_at>500||!runtime_scene_scope_live(base,&s->received_scope)){
         if(s->have_request)runtime_scene_voice_playback_end(s->request.scene_nonce,s->request.line_generation);
         s->have_request=0;goto playback;
@@ -379,7 +389,10 @@ static void runtime_scene_voice_fixture_observe(void *track,int key,void *instan
 static int runtime_scene_voice_selftest(void) {
     DWORD error=GetLastError();runtime_scene_voice_fixture_calls=runtime_scene_voice_fixture_seen=runtime_scene_voice_fixture_bad=0;
     SetLastError(37);runtime_scene_voice_key_forward((void*)16,3,(void*)24,runtime_scene_voice_fixture_key,runtime_scene_voice_fixture_observe);
-    int ok=runtime_scene_voice_fixture_calls==1&&runtime_scene_voice_fixture_seen==1&&!runtime_scene_voice_fixture_bad&&GetLastError()==53;
+    int ok=runtime_scene_voice_fixture_calls==1&&runtime_scene_voice_fixture_seen==1&&!runtime_scene_voice_fixture_bad&&GetLastError()==53&&
+        runtime_scene_voice_identity_scene_policy('H',0,1,0)&&runtime_scene_voice_identity_scene_policy('H',1,2,1)&&
+        !runtime_scene_voice_identity_scene_policy('P',0,1,0)&&!runtime_scene_voice_identity_scene_policy('S',0,1,1)&&
+        !runtime_scene_voice_identity_scene_policy('P',1,2,1)&&runtime_scene_voice_identity_scene_policy('P',1,1,1);
     SetLastError(error);return ok&&runtime_scene_voice_playback_selftest();
 }
 #endif

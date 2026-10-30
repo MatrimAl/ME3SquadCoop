@@ -41,6 +41,10 @@ selecting the wrong Shepard voice. No squad-player field is borrowed.
 The main intro's existing native FOVO nodes receive the same narrow player
 selection only after exact live Matinee/group/track-instance node membership
 is established. Their natural keys and activation are not replayed.
+Ordinary frames use a scalar sex-bit check; reflected repair runs only for a
+mismatch. Host identity publication is checked at its 500 ms send cadence,
+and an idle prepared playback adapter skips native hook maintenance. Actual
+voice use and transport capability still revalidate their identities.
 
 For localized speech the adapter constructs a fresh native FaceOnlyVO object
 using the stock factory call ABI and attaches it to the exact owner sequence.
@@ -74,3 +78,8 @@ cannot admit a Matinee. Only such a verified peer receives the sex message;
 full R4 admission follows the authenticated identity. Older peers therefore
 receive no unknown speech messages, and no circular readiness condition is
 introduced.
+Identity reception does not require an earlier camera snapshot: the initial
+inactive snapshot can arrive before the guest receiver exists. Its exact
+owner-PC source and current scope are sufficient for identity bootstrap.
+Actual speech messages still require the matching active scene. Fixtures
+cover this missing-initial-snapshot case and refuse speech in that state.
