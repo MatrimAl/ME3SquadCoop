@@ -51,6 +51,31 @@ static void runtime_power_assignment_reject(RuntimePowerIconLease *lease,const c
     if(rows++<32){char row[230];snprintf(row,sizeof row,
         "{\"runtime_power_input\":\"guest-slot-drop-refused\",\"reason\":\"%s\",\"map_preserved\":true,\"profile_write\":false}\r\n",reason);line(row);}
 }
+static int runtime_power_assignment_source_index(int native_drag,int mapped,int displayed,int expected,int proxy) {
+    return native_drag?(expected&&proxy?displayed:-1):mapped;
+}
+/* The logical name map can be ahead of the one-widget-per-Tick painter.
+ * Native EndDrag copies the actual source power into m_oDragSlotIcon before
+ * this callback. Resolve that exact visible gesture, not its newer slot map.
+ * AS_StopDragging changes Flash dragging only; it does not clear this tuple. */
+static int runtime_power_assignment_visible_source(uintptr_t base,uintptr_t handler,SessionContext c,
+        const RuntimePowerCatalog *catalog,const RuntimePowerIconSlot *origin) {
+    uintptr_t proxy=0,power=0;uint32_t name[2]={0};SessionHandle proxy_handle;
+    if(!runtime_power_icon_expected(origin,c.pawn)||
+       !runtime_power_property(base,handler,"SFXSFHandler_PCPowerWheel","m_oDragSlotIcon","ObjectProperty",0xc30,8)||
+       !read_at(handler+0xc30,&proxy,8)||!proxy||!narrative_probe_object(base,proxy,"SFXGUIValue_QuickSlotPowerIcon")||
+       read_ptr(proxy)!=base+0x13b29b8||read_ptr(proxy+0x40)!=handler||
+       !runtime_power_property(base,proxy,"SFXGUIValue_PowerIcon","pPower","ObjectProperty",0x194,8)||
+       !runtime_power_property(base,proxy,"SFXGUIValue_PowerIcon","pPawn","ObjectProperty",0x19c,8)||
+       !runtime_power_property(base,proxy,"SFXGUIValue_PowerIcon","nmPowerName","NameProperty",0x1a4,8)||
+       !read_at(origin->icon.pointer+0x194,&power,8)||!read_at(origin->icon.pointer+0x1a4,name,8))return -1;
+    proxy_handle=session_capture_handle(proxy);int displayed=runtime_power_name_index(catalog,name);
+    if(displayed<0||catalog->powers[displayed].pointer!=power||
+       !runtime_power_icon_matches(origin->icon.pointer,catalog->powers[displayed],c.pawn,name)||
+       !runtime_power_icon_matches(proxy,catalog->powers[displayed],c.pawn,name)||
+       !session_handle_matches(proxy_handle)||read_ptr(handler+0xc30)!=proxy)return -1;
+    return runtime_power_assignment_source_index(1,-1,displayed,1,1);
+}
 static void runtime_power_assignment(void *self,int destination,int source,uint32_t from_power,uint32_t silent) {
     DWORD entry_error=GetLastError();
     uintptr_t caller=(uintptr_t)__builtin_return_address(0);
@@ -109,11 +134,21 @@ static void runtime_power_assignment(void *self,int destination,int source,uint3
     int index=-1;
     if(!from_power) {
         if(source<0||source>=8) {runtime_power_assignment_reject(lease,"source-slot");return;}
-        index=runtime_power_slot_index(&catalog,(unsigned)source);
         RuntimePowerIconSlot *origin=&lease->slots[source];
-        if(index<0||!runtime_power_icon_layout(base,&lease->owner,(unsigned)source,origin->icon)||
-           (source!=destination&&!runtime_power_icon_matches(origin->icon.pointer,catalog.powers[index],
-               c.pawn,catalog.names[index]))) {runtime_power_assignment_reject(lease,"source-icon");return;}
+        if(!runtime_power_icon_layout(base,&lease->owner,(unsigned)source,origin->icon)){
+            runtime_power_assignment_reject(lease,"source-icon");return;}
+        if(native_drag&&source==destination){
+            /* A drop back on the same visible slot changes no assignment,
+             * including while an earlier move is still being painted. */
+            lease->drop_accepted=1;lease->drag_observed=0;return;
+        }
+        if(native_drag)index=runtime_power_assignment_visible_source(base,handler,c,&catalog,origin);
+        else {
+            index=runtime_power_assignment_source_index(0,runtime_power_slot_index(&catalog,(unsigned)source),-1,0,0);
+            if(index>=0&&source!=destination&&!runtime_power_icon_matches(origin->icon.pointer,catalog.powers[index],
+                c.pawn,catalog.names[index]))index=-1;
+        }
+        if(index<0){runtime_power_assignment_reject(lease,native_drag?"native-drag-source-or-proxy":"source-icon");return;}
     } else {
         GameArray icons={0},after={0};uintptr_t object=0,power=0;uint32_t name[2]={0};
         if(source<0||!runtime_power_property(base,handler,"SFXSFHandler_PowerWheel","m_aPowerIcons","ArrayProperty",0x45c,16)||
@@ -329,7 +364,22 @@ static int runtime_power_assignment_selftest(void) {
         runtime_power_assign_slot(7,first)&&!memcmp(runtime_power_slots[7].name,first,8)&&
         !runtime_power_slots[1].bound&&!runtime_power_assign_slot(8,first)&&
         runtime_power_assignment_reject_policy(7,1,1)&&!runtime_power_assignment_reject_policy(8,1,1)&&
-        !runtime_power_assignment_reject_policy(0,0,1)&&!runtime_power_assignment_reject_policy(0,1,0);
+        !runtime_power_assignment_reject_policy(0,0,1)&&!runtime_power_assignment_reject_policy(0,1,0)&&
+        runtime_power_assignment_source_index(1,0,1,1,1)==1&&
+        runtime_power_assignment_source_index(0,0,1,1,1)==0&&
+        runtime_power_assignment_source_index(1,0,1,0,1)==-1&&
+        runtime_power_assignment_source_index(1,0,1,1,0)==-1&&
+        runtime_power_assignment_source_index(1,0,-1,1,1)==-1;
+    /* A second drag sees the old visible skill while the first move's map
+     * is already committed. Its actual name must move from its current
+     * logical source, preserving the skill newly assigned to the UI source. */
+    memset(runtime_power_slots,0,sizeof runtime_power_slots);RuntimePowerCatalog catalog={0};catalog.count=2;
+    memcpy(catalog.names[0],first,8);memcpy(catalog.names[1],second,8);
+    ok=ok&&runtime_power_assign_slot(0,first)&&runtime_power_assign_slot(1,second)&&runtime_power_assign_slot(1,first);
+    int visible=runtime_power_assignment_source_index(1,runtime_power_slot_index(&catalog,1),1,1,1);
+    ok=ok&&visible==1&&runtime_power_assign_slot(2,catalog.names[visible])&&
+        !runtime_power_slots[0].bound&&!memcmp(runtime_power_slots[1].name,first,8)&&
+        !memcmp(runtime_power_slots[2].name,second,8);
     memcpy(runtime_power_slots,saved,sizeof saved);return ok;
 }
 #endif

@@ -118,3 +118,26 @@ required. During that short interval, assignment callbacks for the exact owned
 retained wheel are consumed instead of editing saved definitions; unrelated
 wheels keep stock forwarding. Actual drag/reopen/new-slot casting remains a
 gameplay check.
+
+## Consecutive native slot drags during repaint
+
+The logical slot map changes immediately, while its optional painter updates
+one widget per Tick. A following native drag can therefore carry a valid
+visible skill whose slot already names another skill. Comparing only with the
+new logical source map incorrectly refused that gesture.
+
+Only the exact decoded native EndDrag caller now resolves the visible source
+icon and its matching native drag proxy. Both must retain the captured widget
+identity and identify the same current guest power, pawn and FName in the fresh
+catalog. The map then moves that actual power from its current logical source.
+An unchanged-pointer proxy with stale pawn/name fields is refused. A drop back
+onto the same slot changes no assignment. Indexed/script and power-list paths
+retain their existing checks; saved Shepard definitions remain untouched.
+
+Native EndDrag copies the source into its proxy before calling the assignment
+slot. AS_StopDragging only stops Flash dragging; no source identity is cleared,
+and the native tail only resets target/drag state. No additional native UI
+setter, input event, native cleanup or profile write is introduced. Fixtures
+cover a second drag while the visible skill and logical map differ, swapped
+map preservation, and source/proxy refusal. Physical repeated drag and use
+from the new key remain gameplay checks.
