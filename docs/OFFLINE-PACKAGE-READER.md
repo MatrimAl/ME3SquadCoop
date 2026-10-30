@@ -66,16 +66,29 @@ python -I tools/melepkg/mele_tables.py chain    <package> <class>
 ```
 
 `coopcheck`, `savecheck`, `squadadd` and `routing` exit non-zero when a measurement contradicts what
-the documentation claims, so they are usable as checks rather than as printouts.
+the documentation claims, so they are usable as checks rather than as printouts. `routing` exits 1
+when the transport half is skipped for lack of an index, which is a "not checked" signal rather than a
+failure - read the `skipped:` line.
 
 ## Where the game is found
 
 `melepkg.game_dirs()` locates the installs automatically (a Steam library search that matches the
 folder name case-insensitively and de-duplicates, so one install is not walked twice). Override it
-with `MELE_GAME_DIR` when the library is somewhere unexpected. An optional pre-built package index
-speeds up `maplist`; set `MELE_INDEX_DIR` to the folder holding `ME1.json`/`ME2.json`/`ME3.json`.
-**Without an index `maplist` walks the install and parses every package** - correct, and slow (minutes
-per build).
+with `MELE_GAME_DIR` when the library is somewhere unexpected.
+
+Two checks want to look inside **every** package rather than a named one, and they need an optional
+pre-built index for that:
+
+| command | without an index |
+| --- | --- |
+| `maplist` | walks the install and parses each package - correct, and minutes per build |
+| `routing` (driver half only) | prints `skipped: no package index` and reports the rest |
+
+Set `MELE_INDEX_DIR` to a folder holding `ME1.json`/`ME2.json`/`ME3.json` to avoid the walk. Both
+refuse to report a zero they could not have measured; neither is silently fast.
+
+No install at all is a **skip, not a finding**: `coopcheck`, `savecheck`, `squadadd` and `maplist`
+exit 2 and print `skip, not a result` rather than a page of zeroes, and the test module skips too.
 
 `melepkg.find_oodle()` uses the game's own `oo2core_8_win64.dll`, read in place; set `MELE_ODLE_DLL`
 to point at it explicitly. No file in the game tree is modified.

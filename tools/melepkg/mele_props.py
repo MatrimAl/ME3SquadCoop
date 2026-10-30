@@ -701,6 +701,12 @@ def cmd_routing(args):
     print("net driver classes as script exports (absent => native only)")
     drivers = ("TcpNetDriver", "UdpNetDriver", "DemoRecDriver", "NetDriver",
                "SFXOnlineNetDriver", "IpNetDriver")
+    # This half needs a package index. Without one it would have to parse all 19,430 packages, which
+    # is minutes of work for a single negative; say so instead of either stalling or reporting a
+    # fabricated zero.
+    if not os.path.isfile(os.path.join(_index_dir(), "ME1.json")):
+        print("  skipped: no package index (set MELE_INDEX_DIR); this check needs every package")
+        return 1 if bad else 0
     found = {}
     for game in ("ME1", "ME2", "ME3"):
         hits = []
