@@ -328,6 +328,7 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `src/*verification.py` | Evidence evaluators; labels alone do not count as proof |
 | `src/safe_workspace.py`, `src/share_guard.py` | Independent-copy verification and original-file locks |
 | `src/sandbox_launch.c` | Bounded native launcher |
+| `tools/melepkg/` | Offline `.pcc` reader: container, tables, signatures, class default objects - see [offline package reader](docs/OFFLINE-PACKAGE-READER.md) |
 | `boot_probe.py`, `pair_probe.py` | Private-workspace research orchestration |
 | `tools/` | Configuration and packaging tooling |
 | `tests/` | Synthetic Python tests and separate Windows native harness |
