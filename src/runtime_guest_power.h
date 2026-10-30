@@ -214,7 +214,7 @@ static int runtime_power_dispatch_idle(SessionContext c) {
 }
 #include "runtime_power_reload_admission.h"
 static int runtime_power_read_catalog(uintptr_t base,SessionContext c,int ordinary,RuntimePowerCatalog *out) {
-    /* A typed native reload may reach stock UsePower, which owns cancellation.
+    /* Typed native reload/evade input may reach stock UsePower, which owns queuing.
      * Other busy actions retain the restrictive command admission policy. */
     return ordinary&&runtime_power_input_ready(base,c)&&runtime_power_read_membership(base,c,out)&&
         runtime_power_input_ready(base,c);
@@ -349,12 +349,12 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
        !read_at(item+0x46c,name,8)||!name[0]||memcmp(name,current.names[index],8)) {
         reason="power-rank-or-cached-controller-not-ready";goto rejected;
     }
-    if(runtime_power_reload_instance(base,c)) {
+    if(runtime_power_queued_action_instance(base,c)) {
         if(runtime_power_request_expired(submitted)){reason="power-request-expired";goto rejected;}
         runtime_power_last_order=now;
         int sent=runtime_power_reload_use(base,engine,&current,index,mapped,requested,submitted);
         status=sent?RUNTIME_POWER_NATIVE_DISPATCHED:RUNTIME_POWER_REJECTED;
-        reason=sent?"native-reload-usepower-dispatched":"reload-usepower-context-or-method-not-ready";
+        reason=sent?"native-action-usepower-dispatched":"action-usepower-context-or-method-not-ready";
         goto rejected;
     }
     uintptr_t method=guest_player_context_find_method(base,read_ptr(c.pc+0x50),"BioPlayerController","SquadOrderUsePower");

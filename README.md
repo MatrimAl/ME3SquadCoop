@@ -79,6 +79,12 @@ starting the power. Other busy actions remain restricted. Actual interruption,
 ammunition, camera and host effects require a gameplay check; see
 [reload power input](docs/GUEST-RELOAD-POWER.md).
 
+The same native input route can retain a power press during one of the four
+owned player evades, allowing the stock blocking-action/queue policy to decide
+its outcome. It does not cancel the evade or clear input-ignore state. Queued
+casting and host effects still need a gameplay check; see
+[evade power input](docs/GUEST-EVADE-POWER.md).
+
 The ordinary guest now has a bounded ammo receive observer to investigate the
 remaining clip rebound. It orders the selected weapon's native integer decode
 and completed receive storage against local native firing, without changing

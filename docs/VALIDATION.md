@@ -1,5 +1,12 @@
 # Validation status
 
+The typed power-input route also admits the exact four owned PlayerEvade
+classes. One movement-ignore count requires that verified evade's own movement
+disable flag; unrelated and excessive ignore state remains excluded. Fixtures
+cover the four class/slot pairs and ownership/input-ignore refusals through
+the production predicates and dispatcher. Actual native queue decisions,
+post-evade timing, camera and host effect remain gameplay checks.
+
 The guest power catalog admits an owned, matching native ReloadBase instance
 in addition to idle state. That specific input uses the existing default mode's
 complete UsePower event; it does not manually cancel reload or repeat the idle

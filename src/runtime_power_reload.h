@@ -1,7 +1,7 @@
 #ifndef ME3_RUNTIME_POWER_RELOAD_H
 #define ME3_RUNTIME_POWER_RELOAD_H
-/* Only reload uses the complete stock mode event. Idle orders keep their
- * established explicit native acceptance/ApplyTacticalOrders path. */
+/* Typed reload/evade input uses the complete stock mode event, including
+ * its blocking-action/queue policy. Idle orders keep their established path. */
 #pragma pack(push,4)
 typedef struct RuntimeReloadPowerParms {uint32_t name[2];uintptr_t pawn;} RuntimeReloadPowerParms;
 #pragma pack(pop)
@@ -47,7 +47,7 @@ static int runtime_power_reload_use(uintptr_t base,uintptr_t engine,const Runtim
        !runtime_power_read_catalog(base,c,1,&current)||!runtime_power_catalog_same(submitted,&current)||
        index>=(unsigned)current.count||runtime_power_wheel_input_blocked(base,c)||
        !guest_player_context_conditions(base,c.pc,c.pawn,c.world,1,1,0,&channel,&chain))return 0;
-    uintptr_t reload=runtime_power_reload_instance(base,c),manager=read_ptr(c.pc+0xc38);GameArray modes={0};
+    uintptr_t reload=runtime_power_queued_action_instance(base,c),manager=read_ptr(c.pc+0xc38);GameArray modes={0};
     if(!reload||!read_at(manager+0x70,&modes,sizeof modes)||!modes.data||modes.count<1||modes.count>64||
        modes.max<modes.count||modes.max>128)return 0;
     uintptr_t mode=read_ptr(modes.data),checked_manager=0;uint32_t permissions=0,combat=2;
@@ -67,12 +67,12 @@ static int runtime_power_reload_use(uintptr_t base,uintptr_t engine,const Runtim
     if(!dispatch_supported||session_engine_blocked(checked)||!runtime_power_read_catalog(base,checked,1,&final)||
        !runtime_power_catalog_same(&current,&final)||runtime_power_wheel_input_blocked(base,checked)||
        !guest_player_context_conditions(base,checked.pc,checked.pawn,checked.world,1,1,0,&channel,&chain)||
-       runtime_power_reload_instance(base,checked)!=reload||!guest_camera_stamp_matches(base,&reload_stamp,0)||
+       runtime_power_queued_action_instance(base,checked)!=reload||!guest_camera_stamp_matches(base,&reload_stamp,0)||
        !guest_camera_stamp_matches(base,&manager_stamp,0)||!guest_camera_stamp_matches(base,&mode_stamp,0)||
        !runtime_mapped_input_mode(base,checked,mode,&checked_manager)||checked_manager!=manager||
        !guest_player_context_method_matches(base,&method,1)||read_ptr(read_ptr(mode)+0x230)!=pe||
        (mapped&&runtime_power_resolve_mapped(base,&final,requested)!=(int)index))return 0;
-    /* The event may cancel reload/start a power/change ownership. Only scalar
+    /* The event may cancel reload/queue a power/change ownership. Only scalar
      * logging is permitted after it returns; the caller reuses no game data. */
     return runtime_power_reload_dispatch((ProcessEvent)pe,mode,method.function.pointer,final.names[index],checked.pawn,1,at);
 }
@@ -99,6 +99,25 @@ static int runtime_power_reload_selftest(void) {
        runtime_power_reload_state(9,0,1,0,8,0)||runtime_power_reload_state(9,0,0,1,8,0)||
        runtime_power_reload_state(9,0,0,0,0x200008,0)||runtime_power_reload_state(9,0,0,0,0x20000008,0))ok=0;
     for(unsigned bit=0;bit<32;++bit)if((0x40300u&(1u<<bit))&&runtime_power_reload_state(9,0,0,0,8,1u<<bit))ok=0;
+    if(!runtime_power_action_input_state(54,0,1,0,8,0,1,4)||
+       !runtime_power_action_input_state(54,0,0,0,8,0,1,0)||
+       runtime_power_action_input_state(54,0,2,0,8,0,1,4)||
+       runtime_power_action_input_state(54,0,1,0,8,0,0,4)||
+       runtime_power_action_input_state(54,0,1,0,8,0,1,0)||
+       runtime_power_action_input_state(54,23,1,0,8,0,1,4)||
+       runtime_power_action_input_state(54,0,1,1,8,0,1,4))ok=0;
+    static const char *evades[]={"SFXGameContent.SFXCustomAction_PlayerEvadeLeft","SFXGameContent.SFXCustomAction_PlayerEvadeRight",
+        "SFXGameContent.SFXCustomAction_PlayerEvadeForward","SFXGameContent.SFXCustomAction_PlayerEvadeBackwards"};
+    for(int i=0;i<4;++i){
+        if(!runtime_power_evade_input_class(54+i,evades[i],1,1,1)||
+           runtime_power_evade_input_class(54+i,evades[(i+1)%4],1,1,1)||
+           runtime_power_evade_input_class(54+i,evades[i],0,1,1)||
+           runtime_power_evade_input_class(54+i,evades[i],1,0,1)||
+           runtime_power_evade_input_class(54+i,evades[i],1,1,0))ok=0;
+    }
+    if(runtime_power_evade_input_class(53,evades[0],1,1,1)||runtime_power_evade_input_class(58,evades[3],1,1,1)||
+       runtime_power_evade_input_class(54,NULL,1,1,1)||
+       runtime_power_evade_input_class(54,"SFXGameContent.SFXCustomAction_HenchRollLeft",1,1,1))ok=0;
     ok=ok&&!runtime_power_reload_fixture_bad&&runtime_power_reload_fixture_calls==1;SetLastError(error);return ok;
 }
 #endif

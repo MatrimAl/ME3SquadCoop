@@ -6,8 +6,9 @@ reload. The retained `SFXGameModeDefault.UsePower` script cancels the user's
 weapon reload before its normal order, blocking-action and application checks.
 
 The command catalog now also accepts an actual current `ReloadBase` instance
-from the owned pawn's matching native class/instance tables. Other busy actions
-retain the existing restrictions. Dead, downed, frozen, root-motion override,
+from the owned pawn's matching native class/instance tables. The same route
+also admits the four verified [player evades](GUEST-EVADE-POWER.md); other busy
+actions retain the existing restrictions. Dead, downed, frozen, root-motion override,
 ignored input, full-scene and lost-ownership states remain excluded.
 
 A queued power during that reload is sent once to the existing default mode's
