@@ -2,8 +2,10 @@
 #define ME3_RUNTIME_POWER_ACTION_CONTEXT_H
 /* Existing idle power instances only. Stock VerifyCAHasBeenInstanced binds
  * m_oPawn/m_oAI/m_oPC only when constructing a missing instance. This lease
- * changes only the two controller caches of an already Ashley-owned power;
- * no action array, pawn binding, rank, cooldown or lifecycle is replayed. */
+ * changes the two controller caches of an already Ashley-owned power. An
+ * authenticated stock server power request can also retain its missing local
+ * player-order intent in that same lease; no action array, pawn binding,
+ * rank, cooldown, target selection or lifecycle is replayed. */
 typedef struct RuntimePowerActionContextRow {
     GuestCameraStamp action,ai;
     uintptr_t old_ai;
@@ -153,6 +155,50 @@ static void runtime_power_action_context_log(const char *event,unsigned count) {
     if(runtime_power_action_context_events++>=64)return;char row[250];
     snprintf(row,sizeof row,"{\"runtime_power_action_context\":\"%s\",\"role\":%d,\"instances\":%u,\"action_started\":false,\"cast_verified\":false,\"monotonic_ms\":%lu}\r\n",event,(int)g_runtime_config.role,count,GetTickCount());line(row);
 }
+/* ChoosePowerTarget sets this transient, nonreplicated intent before the
+ * local player's stock power start. ServerStartPowerCustomAction already
+ * carries the chosen target but does not run ChoosePowerTarget on the host.
+ * Never rerun targeting: preserve only this exact native intent bit. */
+static int runtime_power_action_context_order_layout(uintptr_t base,uintptr_t action) {
+    uintptr_t owner=runtime_power_declaring_base(base,action),field=0;GuestCameraStamp stamp={0};uint64_t mask=0,flags=0;
+    if(!owner||!guest_camera_stamp_read(base,owner,&stamp,1)||
+       strcmp(stamp.full_name,"SFXGame.SFXPowerCustomActionBase")||
+       !(field=runtime_native_hud_field(base,owner,"m_bPlayerOrderedPowerUse","BoolProperty",0x4dc,4))||
+       !read_at(field+0xd0,&mask,8)||mask!=8||!read_at(field+0x78,&flags,8)||flags!=UINT64_C(0x2000))return 0;
+    return guest_camera_stamp_matches(base,&stamp,1);
+}
+static int runtime_power_action_context_order_bit(uintptr_t action,uint32_t expected,int ordered) {
+    uintptr_t at=action+0x4dc;uint32_t desired=ordered?expected|8u:expected&~8u;
+    return !(at&3)&&background_focus_writable(at,4)&&
+        (uint32_t)InterlockedCompareExchange((LONG volatile*)at,(LONG)desired,(LONG)expected)==expected;
+}
+/* Called only by the authenticated incoming stock server-power boundary,
+ * independently of diagnostic quotas. It cannot admit a new control lease.
+ * changed bit4 owns a zero-to-one intent transition until idle retirement. */
+static int runtime_power_action_context_player_order(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t power) {
+    RuntimePowerActionContext *lease=&runtime_power_action_context;RuntimePowerCatalog current;
+    if(g_runtime_config.role!=ME3_ROLE_HOST||GetCurrentThreadId()!=session_game_thread||
+       !runtime_control_enabled||!runtime_scope_ready||!runtime_power_action_context_enabled()||
+       !lease->active||lease->retiring||lease->catalog.pc.pointer!=pc||lease->catalog.pawn.pointer!=pawn)return 0;
+    SessionContext context={0};context.pc=pc;context.pawn=pawn;context.world=lease->catalog.info.pointer;
+    if(!runtime_power_action_context_scope(base,context,&current)||
+       !runtime_power_action_context_catalog_same(&lease->catalog,&current)||
+       read_ptr(pc+0x3bc)!=pawn||read_ptr(pawn+0x374)!=pc||
+       !narrative_probe_object(base,power,"SFXPowerCustomAction")||
+       read_ptr(power+0x98)!=pawn||read_ptr(power+0xa0)!=pc||read_ptr(power+0xa8)||
+       !runtime_power_action_context_order_layout(base,power))return 0;
+    unsigned matches=0;for(int i=0;i<current.count;++i)if(current.powers[i].pointer==power)++matches;
+    if(matches!=1)return 0;
+    RuntimePowerActionContextRow *owned=NULL;
+    for(unsigned i=0;i<lease->count;++i)if(lease->rows[i].action.pointer==power){
+        if(owned)return 0;owned=&lease->rows[i];}
+    uint32_t flags=0;
+    if(!owned||!guest_camera_stamp_matches(base,&owned->action,1)||
+       !read_at(power+0x4dc,&flags,4))return 0;
+    if(flags&8)return 1; /* Native preexisting intent is not ours to restore. */
+    if(!runtime_power_action_context_order_bit(power,flags,1))return 0;
+    owned->changed|=4u;runtime_power_action_context_log("host-player-order-intent-bound",1);return 1;
+}
 static int runtime_power_action_context_cleanup_idle(uintptr_t base,const RuntimePowerCatalog *catalog) {
     uintptr_t pawn=catalog->pawn.pointer,pc=catalog->pc.pointer;
     if(g_runtime_config.role!=ME3_ROLE_HOST)return runtime_power_action_context_idle(pawn,pc);
@@ -198,6 +244,12 @@ static int runtime_power_action_context_retire(uintptr_t base,SessionContext c,i
         /* A native/external context replacement owns its own pair. Preserve
          * it rather than append an old AI beside an unrelated controller. */
         if((current_pc&&current_pc!=pc)||current_ai){row->changed=0;continue;}
+        if(row->changed&4){uint32_t flags=0;
+            if(!runtime_power_action_context_order_layout(base,action)||!read_at(action+0x4dc,&flags,4)||
+               ((flags&8)&&(!runtime_power_action_context_cleanup_idle(base,&lease->catalog)||
+                 !runtime_power_action_context_order_bit(action,flags,0)))){++pending;continue;}
+            row->changed&=~4u;
+        }
         if((row->changed&1)&&current_pc==pc){
             if(!runtime_power_action_context_cleanup_idle(base,&lease->catalog)||
                !runtime_power_action_context_pointer(action+0xa0,pc,0)){++pending;continue;}

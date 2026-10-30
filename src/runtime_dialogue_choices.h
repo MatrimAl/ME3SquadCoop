@@ -18,7 +18,7 @@ typedef struct RuntimeDialoguePanel {
     unsigned owned;
     uint32_t baseline[5],written[5];
     uint64_t generation,arrow_generation;
-    int active,options;
+    int active,options,ready,retiring;
 } RuntimeDialoguePanel;
 typedef struct RuntimeDialogueChoices {
     uintptr_t base;
@@ -182,6 +182,7 @@ static int runtime_dialogue_options(uintptr_t panel,const DialogueChoiceCatalog 
 static void runtime_dialogue_lease_retire(void) {
     RuntimeDialogueChoices *q=&runtime_dialogue;RuntimeDialoguePanel *p=&q->lease;
     if(!p->active)return;
+    p->ready=0;p->retiring=1;
     int states[]={runtime_scene_camera_stamp_state(q->base,&p->panel),
         runtime_scene_camera_stamp_state(q->base,&p->pc),runtime_scene_camera_stamp_state(q->base,&p->world)};
     for(unsigned i=0;i<3;++i)if(states[i]<0){memset(p,0,sizeof *p);return;}
@@ -215,9 +216,15 @@ static void runtime_dialogue_lease_retire(void) {
 }
 static int runtime_dialogue_lease_begin(uintptr_t pc,uintptr_t info,const DialogueChoiceCatalog *catalog) {
     RuntimeDialogueChoices *q=&runtime_dialogue;RuntimeDialoguePanel *p=&q->lease;
-    if(p->active){if(!runtime_dialogue_panel_current(q->base,p)||!runtime_dialogue_guest_local_free())return 0;
+    /* An active ledger may be retained halfway through admission or cleanup.
+     * It cannot become a new wheel merely by accepting another catalog. */
+    if(p->active&&(!p->ready||p->retiring)){
+        runtime_dialogue_lease_retire();if(p->active)return 0;
+    }
+    if(p->active){if(!runtime_dialogue_panel_current(q->base,p)||!runtime_dialogue_guest_local_free()){
+            runtime_dialogue_lease_retire();return 0;}
         if(!runtime_dialogue_options(p->panel.pointer,catalog,-1)||!runtime_dialogue_panel_current(q->base,p)||
-           !runtime_dialogue_guest_local_free())return 0;
+           !runtime_dialogue_guest_local_free()){runtime_dialogue_lease_retire();return 0;}
         p->options=1;p->generation=catalog->generation;return 1;}
     RuntimeDialogueRecord record={0};uintptr_t panel=runtime_dialogue_find_panel(q->base,pc,info,&record),full=0;
     if(!panel){runtime_dialogue_panel_refused(0,"guest-wheel-existing-native-panel-unavailable",catalog);return 0;}
@@ -243,7 +250,8 @@ static int runtime_dialogue_lease_begin(uintptr_t pc,uintptr_t info,const Dialog
        !runtime_dialogue_options(panel,catalog,-1)||!runtime_dialogue_panel_current(q->base,p)||
        !runtime_dialogue_guest_local_free()){
         runtime_dialogue_panel_refused(5,"guest-wheel-options-or-local-scope-unavailable",catalog);runtime_dialogue_lease_retire();return 0;}
-    p->options=1;p->generation=catalog->generation;runtime_dialogue_note("guest-native-wheel-presented");return 1;
+    p->options=1;p->generation=catalog->generation;p->ready=1;p->retiring=0;
+    runtime_dialogue_note("guest-native-wheel-presented");return 1;
 }
 static int runtime_dialogue_host_current(uintptr_t base,uintptr_t *controller,uintptr_t *data,int32_t *entry) {
     RuntimeDialogueChoices *q=&runtime_dialogue;SessionContext c=session_context(session_engine);uintptr_t full=0;uint32_t flags=0;
@@ -442,7 +450,8 @@ static void runtime_dialogue_native_update(void *self) {
     RuntimeDialogueChoices *q=&runtime_dialogue;DWORD before=GetLastError();
     if(q->original_update){SetLastError(before);q->original_update(self);}DWORD after=GetLastError();
     if(!q->busy&&q->prepared&&g_runtime_config.role==ME3_ROLE_GUEST&&GetCurrentThreadId()==session_game_thread&&
-       (uintptr_t)self==q->lease.panel.pointer&&runtime_dialogue_panel_current(q->base,&q->lease)&&
+       (uintptr_t)self==q->lease.panel.pointer&&q->lease.ready&&!q->lease.retiring&&
+       runtime_dialogue_panel_current(q->base,&q->lease)&&
        runtime_dialogue_guest_fresh(GetTickCount())&&runtime_dialogue_guest_local_free()&&
        read_ptr(read_ptr((uintptr_t)self)+0x488)==q->base+0xba5b50) {
         uint64_t generation=q->lease.generation;
@@ -464,13 +473,15 @@ static int runtime_dialogue_redirect(uintptr_t frame,const GameArray *script,uns
 }
 static void runtime_dialogue_vote(unsigned slot) {
     RuntimeDialogueChoices *q=&runtime_dialogue;
-    if(slot>=6||q->vote_pending||q->vote_acked||q->vote_attempts||!runtime_dialogue_guest_fresh(GetTickCount()))return;
+    if(slot>=6||!q->lease.ready||q->lease.retiring||q->vote_pending||q->vote_acked||q->vote_attempts||
+       !runtime_dialogue_guest_fresh(GetTickCount()))return;
     DialogueChoicePacket packet=dialogue_choice_packet(&q->guest,L'V',slot,0);
     if(!dialogue_choice_vote_matches(&q->guest,&packet))return;
     q->vote=packet;q->vote_pending=1;q->vote_sent=0;runtime_dialogue_note("guest-advisory-choice-queued");
 }
 static int runtime_dialogue_ui_ready(void) {
     RuntimeDialogueChoices *q=&runtime_dialogue;
+    if(!q->lease.ready||q->lease.retiring)return 0;
     for(unsigned i=0;i<5;++i){uint32_t value=0;
         if(!runtime_dialogue_panel_current(q->base,&q->lease)||!runtime_dialogue_guest_local_free()||
            !runtime_dialogue_ui_value(q->lease.panel.pointer,i,0,&value)||!value)return 0;}
@@ -610,9 +621,11 @@ static void runtime_dialogue_guest_tick(uintptr_t engine,DWORD now) {
         q->active_guest=0;q->stage.failed=1;q->vote_pending=0;
     }
     if(!runtime_dialogue_guest_fresh(now)) {
+        if(q->active_guest)runtime_dialogue_panel_refused(6,"guest-wheel-awaiting-fresh-authenticated-scene",&q->guest);
         q->vote_pending=0;runtime_dialogue_lease_retire();return;
     }
-    if(q->lease.active&&(!runtime_dialogue_panel_current(q->base,&q->lease)||!runtime_dialogue_guest_local_free())) {
+    if(q->lease.active&&(!q->lease.ready||q->lease.retiring||
+       !runtime_dialogue_panel_current(q->base,&q->lease)||!runtime_dialogue_guest_local_free())) {
         runtime_dialogue_lease_retire();if(q->lease.active)return;
     }
     if((!q->lease.active||q->lease.generation!=q->guest.generation)&&
@@ -620,6 +633,7 @@ static void runtime_dialogue_guest_tick(uintptr_t engine,DWORD now) {
         q->panel_scanned=now;SessionContext c=session_context(engine);
         if(c.pc==q->guest_scope.pc.pointer&&c.world==q->guest_scope.world.pointer)
             runtime_dialogue_lease_begin(c.pc,c.world,&q->guest);
+        else runtime_dialogue_panel_refused(7,"guest-wheel-current-local-pc-or-world-changed",&q->guest);
     }
     if(q->vote_pending&&q->vote_attempts<8&&(!q->vote_sent||now-q->vote_sent>=250)&&
        runtime_dialogue_guest_fresh(now)&&dialogue_choice_vote_matches(&q->guest,&q->vote)) {

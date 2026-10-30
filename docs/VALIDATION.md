@@ -1,5 +1,20 @@
 # Validation status
 
+Authenticated guest power ingress now carries the stock transient player-order
+intent into the same existing host power context. The original native targeting,
+cooldown and action checks remain in control. Production helper fixtures passed
+87 intent/retirement checks and 17 forwarding cases, including exhausted
+diagnostic quotas and unchanged original arguments/result/error. The observed
+host/guest intent mismatch and exact henchman grenade guard support this
+correction; real host cast acceptance/effects still require gameplay evidence.
+See [host power intent](HOST-POWER-ORDER-INTENT.md).
+
+Native dialogue leases now distinguish allocated, ready and retiring states.
+A retained partial cleanup cannot be reused as an admitted choice panel.
+The fixture executes actual admission/retirement functions, preserves native
+conversation and foreign state, and rejects two deliberately broken variants.
+It does not establish complete rendered dialogue or cinematic parity.
+
 The latest owner test still failed full guest cinematic/dialogue presentation
 and post-dialogue firing. Cached POV equality and completed option transport
 did not establish the rendered result. The inactive-only weapon continuation
