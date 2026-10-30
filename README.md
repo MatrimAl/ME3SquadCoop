@@ -66,6 +66,13 @@ but did not prove attacks or rendered movie recovery and ended with a different
 guest access violation whose module remains unresolved. See [melee](docs/GUEST-MELEE.md) and
 [movie recovery](docs/BINK-MOVIE-RECOVERY.md).
 
+The guest power bridge also completes the stock own-pawn order sequence with
+`ApplyTacticalOrders` after a newly accepted, still-current power order.
+Previously it stopped at the native queue acceptance. Fresh ownership/catalog
+and pending-order checks prevent replaying a consumed or replaced order.
+Actual casting and host effect visibility remain gameplay checks; see
+[power order continuation](docs/GUEST-POWER-ORDER-APPLY.md).
+
 The ordinary guest now has a bounded ammo receive observer to investigate the
 remaining clip rebound. It orders the selected weapon's native integer decode
 and completed receive storage against local native firing, without changing

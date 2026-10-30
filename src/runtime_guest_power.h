@@ -290,6 +290,7 @@ static void runtime_power_log(int status,const char *reason,unsigned index,DWORD
 #include "runtime_power_input.h"
 #include "runtime_native_power_input.h"
 #include "runtime_mapped_power_input.h"
+#include "runtime_power_order_apply.h"
 static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionContext c,int ordinary,int after,DWORD now) {
     RuntimePowerCatalog current;
     if(!runtime_control_enabled||!runtime_scope_ready||!runtime_power_read_catalog(base,c,ordinary,&current)) {
@@ -376,9 +377,11 @@ static void runtime_guest_power_tick(uintptr_t base,uintptr_t engine,SessionCont
     if(runtime_power_request_expired(submitted)){reason="power-request-expired";goto rejected;}
     runtime_power_last_order=now;
     ((ProcessEvent)pe)((void*)c.pc,(void*)method,&parms,NULL);
-    /* Do not dereference captured game objects after native execution. */
+    /* The native order only queues own-pawn powers. Reacquire all control
+     * and catalog identities before the stock UsePower continuation. */
     status=parms.result==1?RUNTIME_POWER_NATIVE_ACCEPTED:parms.result==0?RUNTIME_POWER_NATIVE_REFUSED:RUNTIME_POWER_REJECTED;
     reason=parms.result==1?"native-tactical-order-accepted":parms.result==0?"native-tactical-order-refused":"native-return-unverified";
+    if(parms.result==1&&runtime_power_apply_accepted(base,engine,&final,name))reason="native-tactical-order-applied";
 rejected:
     runtime_power_log(status,reason,index,now);
 }

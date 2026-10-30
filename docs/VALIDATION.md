@@ -1,5 +1,14 @@
 # Validation status
 
+The guest power-order continuation restores the second call in the retained
+stock `GameModeDefault.UsePower` sequence. Native own-pawn queue acceptance
+does not itself activate a power. The continuation checks fresh control,
+catalog and channel identities and the actual pending order before dispatching
+the existing `ApplyTacticalOrders` event once. Production dispatch fixtures
+cover native consumption, replacement, scope refusal, read failure and exact
+arguments/LastError. They do not establish a successful cast, host-side effect
+or a fix for the reported visual replication defect.
+
 The cinematic Player binding follows the exact native selector, which reads
 WorldInfo.Squad.PlayerPawn. It captures the existing authenticated host-Shepard
 channel into a scene identity lease and supplements natural track/group Player
