@@ -8,9 +8,10 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 **Status: research prototype. A complete playable campaign and a validated player installation are not available yet.** This repository publishes source and test tooling so the work can continue openly, with clear limits on what has actually been demonstrated.
 
-The latest owner test confirmed guest melee and host scene camera angles, but
-the guest's scene character animations were absent and firing failed afterwards.
-These remain active defects, along with dialogue-choice presentation. The next
+An earlier owner test confirmed guest melee and some host scene camera angles.
+The latest test still showed different guest cinematic/dialogue presentation,
+absent scene character animations and failed firing afterwards. These remain
+gameplay verification targets, along with dialogue-choice presentation. The next
 camera correction retains the guest shoulder scale through the exact native
 Melee camera requested by the stock actions; its rendered result needs checking.
 The conditional [weapon-return candidate](docs/GUEST-SCENE-WEAPON.md) can resume

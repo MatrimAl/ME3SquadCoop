@@ -26,6 +26,7 @@ static unsigned runtime_scene_samples;
 static DWORD runtime_scene_sampled;
 static int runtime_scene_camera_value(uintptr_t,SceneSpectatorMessage*);
 static int runtime_scene_camera_requested(void);
+static int runtime_scene_full_conversation(uintptr_t base,SessionContext c);
 #include "runtime_scene_camera.h"
 static int runtime_scene_spectator_opted(void) {
     static int value=-1;
@@ -64,6 +65,17 @@ static int runtime_scene_scope_live(uintptr_t base,const RuntimeSceneScope *s) {
     NetworkActorIdentityEntry current={0};
     return network_actor_channel_valid(base,s->peer.pointer,s->channel.pointer,s->driver.pointer,&current)&&
         current.connection==s->connection.pointer;
+}
+/* The same authenticated scene scope used by the spectator camera authorizes
+ * focus-only world ticking. It never authorizes input or removes native pause. */
+static int runtime_scene_background_context(uintptr_t pc,uintptr_t info,int mode) {
+    if(mode!=0&&!runtime_scene_mode(mode))return 0;
+    const RuntimeSceneScope *scope=NULL;
+    if(g_runtime_config.role==ME3_ROLE_GUEST&&runtime_scene_camera_requested())scope=&runtime_scene_view.scope;
+    else if(g_runtime_config.role==ME3_ROLE_HOST&&runtime_scene_host_active&&
+        (runtime_scene_mode(mode)||(mode==0&&runtime_scene_full_conversation(presentation_base,session_context(session_engine)))))
+        scope=&runtime_scene_host_scope;
+    return scope&&scope->pc.pointer==pc&&scope->world.pointer==info&&runtime_scene_scope_live(presentation_base,scope);
 }
 static int runtime_scene_context(uintptr_t base,SessionContext c,NetworkActorScope *world) {
     uintptr_t player=read_ptr(c.pc+0x67c);

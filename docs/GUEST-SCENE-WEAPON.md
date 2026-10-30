@@ -1,13 +1,11 @@
 # Guest weapon return after a host scene
 
-The owner reported correct Ashley position after a Mars dialogue, followed by
-missing shooting and incorrect animations. The captured guest equipment was
-valid briefly after control returned and then failed the observer's weapon
-ownership filter. That older filtered result does not establish that the raw
-Pawn.Weapon pointer was null. The expanded private observer distinguishes null
-selection from invalid Owner/Instigator/InvManager links and also records scene
-track and gesture state. No general postscene weapon or animation repair is
-claimed from that evidence.
+The latest owner test reproduced missing guest shooting after a Mars dialogue.
+Its expanded observer captured a genuinely null Pawn.Weapon, while the native
+replicated index still resolved the same reciprocal inventory weapon in the
+Inactive state. The previous conditional return expired without dispatch.
+Full scene animation and rendered camera parity also failed that owner test;
+neither is established by a cached camera match or by this weapon correction.
 
 This candidate covers one precise native continuation: after an authenticated
 host scene ends, a previously selected existing guest weapon is still the
@@ -33,6 +31,14 @@ inventory, attachment, ownership, animation tree, transform, input, ammunition
 or timer is authored. The stock method's missing-inventory timer branch is
 excluded by the complete chain checks immediately before dispatch.
 
+Return admission requires the existing weapon's exact Inactive state. It does
+not reuse the equipped-idle fire-mode and animation-bit checks: native
+Inactive.BeginState does not clear those fields, and ChangedWeapon/Activate is
+the stock path that resumes selection. Pawn actions, powers, controller fire
+and pending inventory fire requests still refuse it. The stricter equipped
+predicate remains unchanged for ordinary baseline and ammo handling. Bounded
+refusal events distinguish context, channel, chain and native-state failures.
+
 The full 513-byte runtime VM and all 24 object and six name relocations of
 ReplicatedWeaponUpdated are checked. The exact 142-byte GetInventoryByIndex VM
 and its 13 object operands independently establish the chain/index ordering.
@@ -44,3 +50,6 @@ body/identity checks run again before an actual return invocation.
 Compile/fixture checks establish the guard logic only. Real dialogue return,
 firing and animation correctness require a later owner gameplay check. A
 startup baseline observation does not prove that the recovery branch ran.
+The focused native fixture executes the current return and equipped-idle
+helpers on temporary memory, including stale inactive fields and active input
+refusals. Native selection dispatch and real shooting remain gameplay checks.

@@ -26,8 +26,11 @@ static int native_session_role(void) {
 #include "guest_equipment_bootstrap.h"
 #include "squad_session_core.h"
 static int runtime_startup_focus_pending(void);
+static int runtime_scene_background_context(uintptr_t pc,uintptr_t info,int mode);
 #define ME3_ORDINARY_STARTUP_FOCUS
+#define ME3_AUTHENTICATED_SCENE_FOCUS
 #include "background_focus.h"
+#undef ME3_AUTHENTICATED_SCENE_FOCUS
 #undef ME3_ORDINARY_STARTUP_FOCUS
 static int runtime_hit_enabled(void);
 static int runtime_scene_spectator_opted(void);

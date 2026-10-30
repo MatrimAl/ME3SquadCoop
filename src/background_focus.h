@@ -102,12 +102,19 @@ static int background_focus_context(uintptr_t self,uintptr_t frame,int expected_
     uintptr_t player=read_ptr(players.data),pc=read_ptr(player+0x68);
     if(!narrative_probe_object(b,player,"LocalPlayer")||!guest_camera_actor_live(b,pc)||
        !is_kind_of(b,pc,"PlayerController")||read_ptr(pc+0x67c)!=player||read_ptr(pc+0x198)!=self)return background_focus_fail("local-controller");
-    SessionContext c=session_context(s->engine);uint32_t flags=0,wflags=0,focus=0;
-    if(c.pc!=pc||c.world!=self||!narrative_probe_object(b,c.manager,"SFXGameModeManager")||c.mode!=0||
-       !read_at(pc+0x77c,&flags,4)||(flags&(0x20000|0x800))||
+    SessionContext c=session_context(s->engine);uint32_t flags=0,wflags=0,focus=0;int scene=0;
+#ifdef ME3_AUTHENTICATED_SCENE_FOCUS
+    scene=runtime_scene_background_context(pc,self,c.mode);
+#endif
+    if(c.pc!=pc||c.world!=self||!narrative_probe_object(b,c.manager,"SFXGameModeManager")||(c.mode!=0&&!scene)||
+       !read_at(pc+0x77c,&flags,4)||(flags&0x20000)||((flags&0x800)&&!scene)||
        !read_at(self+0x7c0,&wflags,4)||!read_at(self+0x9c8,&focus,4))return background_focus_fail("not-ordinary-gameplay");
     if((wflags&0x800)||((wflags&0x400)&&!(focus&0x8000)))return background_focus_fail("intentional-or-pending-pause");
-    /* Mode-0 landing dialogue still needs the world Tick to advance. This
+    /* Authenticated host scenes also need the background window's world Tick:
+     * possession/input can be released while native Matinee and streamed scene
+     * actors still have to advance. Only the focus-owned pause is admitted;
+     * intentional menu/conversation pauses above continue to win.
+     * Mode-0 landing dialogue still needs the world Tick to advance. This
      * getter policy changes no possession/input permission: the session core
      * continues handing control to AI during a conversation. A dialogue's
      * intentional PlayersOnly pause is refused above unless focus owns it. */
@@ -134,7 +141,7 @@ static int background_focus_context(uintptr_t self,uintptr_t frame,int expected_
                 connection=read_ptr(peers.data);remote=read_ptr(connection+0x68);
                 if(!narrative_probe_object(b,connection,"NetConnection")||!guest_camera_actor_live(b,remote)||
                    !is_kind_of(b,remote,"PlayerController")||read_ptr(remote+0x67c)!=connection||read_ptr(remote+0x198)!=self||
-                   read_ptr(connection+0x8c)!=driver||!read_at(remote+0x77c,&flags,4)||(flags&0x800))return background_focus_fail("host-peer-membership");
+                   read_ptr(connection+0x8c)!=driver||!read_at(remote+0x77c,&flags,4)||((flags&0x800)&&!scene))return background_focus_fail("host-peer-membership");
             }
         } else if(net==3) {
             connection=read_ptr(driver+0x80);

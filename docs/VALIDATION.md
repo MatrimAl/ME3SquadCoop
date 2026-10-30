@@ -1,5 +1,21 @@
 # Validation status
 
+The latest owner test still failed full guest cinematic/dialogue presentation
+and post-dialogue firing. Cached POV equality and completed option transport
+did not establish the rendered result. The inactive-only weapon continuation
+now excludes the circular equipped-idle requirement; 31 focused native fixture
+cases cover the current production helpers and read-only guard behavior.
+
+Focus-only world ticking now admits the same authenticated shared scene when
+the local or remote controller carries the native cinematic flag. Intentional
+or pending pauses, frozen local input, unrelated modes and expired guest scene
+scope remain excluded. The exact native wrapper fixture passed 36 cases with
+unchanged pause state and original forwarding. The latest retained gameplay
+record lacks world focus flags, so focus loss is not a proven cause of its
+cinematic failure. Actual scene progression/rendering needs an owner check.
+Dialogue panel admission now records bounded refusal reasons; receiving a
+catalog alone is not evidence that a native guest panel exists or is shown.
+
 The typed power-input route also admits the exact four owned PlayerEvade
 classes. One movement-ignore count requires that verified evade's own movement
 disable flag; unrelated and excessive ignore state remains excluded. Fixtures

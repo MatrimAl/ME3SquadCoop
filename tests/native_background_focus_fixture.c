@@ -70,7 +70,13 @@ static int guest_player_context_function_abi(uintptr_t b,uintptr_t f,const char 
         read_at(f+0xea,&ac,1)&&ac==count&&read_ptr(f+0xd8)==b+native;
 }
 static void line(const char*text){(void)text;++logs;SetLastError(9999);}
+static int authenticated_scene;
+static int runtime_scene_background_context(uintptr_t current_pc,uintptr_t info_object,int mode){
+    return authenticated_scene&&current_pc==addr(&pc)&&info_object==addr(&info)&&(mode==0||mode==7||mode==8);
+}
+#define ME3_AUTHENTICATED_SCENE_FOCUS
 #include "background_focus.h"
+#undef ME3_AUTHENTICATED_SCENE_FOCUS
 
 static void add(Object *object,const char*kind,const char*name,const char*path){
     int i=registered++;registry[i]=(Registration){object,kind,name,path};p32(addr(object)+8,(uint32_t)i+1);
@@ -162,6 +168,18 @@ int main(void){setup();int fails=0,tests=0;
     p32(addr(&fn)+0xe0,0x20401);CASE("changed native function ABI",71,0);p32(addr(&fn)+0xe0,0x20400);
     p64(addr(&field)+0xd0,2);CASE("changed bool return mask",71,0);p64(addr(&field)+0xd0,1);
     p8(addr(&manager)+0xa8,7);CASE("scene game mode",71,0);p8(addr(&manager)+0xa8,0);
+    authenticated_scene=1;p8(addr(&manager)+0xa8,7);CASE("authenticated conversation background tick",71,1);
+    p32(addr(&remote)+0x77c,0x800);CASE("same scene remote cinematic controller",71,1);
+    p8(addr(&manager)+0xa8,8);CASE("authenticated cinematic background tick",280,1);
+    p32(addr(&pc)+0x77c,0x800);CASE("scene cinematic input flag preserved",71,1);
+    p8(addr(&manager)+0xa8,0);CASE("guest view without local conversation mode",71,1);
+    authenticated_scene=0;CASE("expired scene cannot admit cinematic input flag",71,0);authenticated_scene=1;
+    p32(addr(&info)+0x7c0,0x400);p32(addr(&info)+0x9c8,0);CASE("scene intentional pause preserved",280,0);
+    p32(addr(&info)+0x9c8,0x8000);CASE("scene focus-owned pause resumes",280,1);
+    p32(addr(&info)+0x7c0,0);p32(addr(&info)+0x9c8,0);p32(addr(&pc)+0x77c,0);
+    p8(addr(&manager)+0xa8,3);CASE("scene cannot admit menu mode",71,0);
+    p8(addr(&manager)+0xa8,0);authenticated_scene=0;CASE("remote cinematic controller outside scene",71,0);
+    p32(addr(&remote)+0x77c,0);
     p32(addr(&pc)+0x77c,0x20000);CASE("cinematic PC",71,0);p32(addr(&pc)+0x77c,0);
     p32(addr(&info)+0x7c0,0x800);CASE("pending pause",71,0);p32(addr(&info)+0x7c0,0);
     script[61]^=1;CASE("changed HasFocus FName",71,0);script[61]^=1;

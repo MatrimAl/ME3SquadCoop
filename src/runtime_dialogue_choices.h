@@ -34,6 +34,8 @@ typedef struct RuntimeDialogueChoices {
     DWORD prepared_at,guest_received,sent_at,vote_sent,panel_scanned;
     uint64_t generation,suppressed_generation;
     unsigned row,offset,events,vote_attempts;
+    unsigned panel_refusals;
+    uint64_t panel_refusal_generation,panel_refusal_nonce;
     int prepared,installed,busy,active_host,active_guest,send_catalog,send_close,scene_suspended;
     int pending_host_valid,advice_slot,vote_pending,vote_acked,host_marked;
     const char *prepare_step;
@@ -70,6 +72,13 @@ static int runtime_dialogue_enabled(void) {
 static void runtime_dialogue_note(const char *event) {
     if(runtime_dialogue.events++>=80)return;char row[360];
     snprintf(row,sizeof row,"{\"runtime_dialogue_choices\":\"%s\",\"advisory_only\":true,\"story_selection_written\":false,\"full_scene_parity_verified\":false,\"monotonic_ms\":%lu}\r\n",event,GetTickCount());line(row);
+}
+static void runtime_dialogue_panel_refused(unsigned gate,const char *reason,const DialogueChoiceCatalog *catalog) {
+    RuntimeDialogueChoices *q=&runtime_dialogue;
+    if(q->panel_refusal_generation!=catalog->generation||q->panel_refusal_nonce!=catalog->nonce){
+        q->panel_refusal_generation=catalog->generation;q->panel_refusal_nonce=catalog->nonce;q->panel_refusals=0;}
+    if(gate>=16||(q->panel_refusals&(1u<<gate)))return;
+    q->panel_refusals|=1u<<gate;runtime_dialogue_note(reason);
 }
 static int runtime_dialogue_method(uintptr_t base,const char *owner,const char *name,uint32_t flags,
         unsigned size,unsigned ret,unsigned count,uintptr_t native,GuestPlayerContextMethod *out) {
@@ -211,24 +220,29 @@ static int runtime_dialogue_lease_begin(uintptr_t pc,uintptr_t info,const Dialog
            !runtime_dialogue_guest_local_free())return 0;
         p->options=1;p->generation=catalog->generation;return 1;}
     RuntimeDialogueRecord record={0};uintptr_t panel=runtime_dialogue_find_panel(q->base,pc,info,&record),full=0;
-    if(!panel||!runtime_dialogue_query_full(q->base,info,&full)||full)return 0;
+    if(!panel){runtime_dialogue_panel_refused(0,"guest-wheel-existing-native-panel-unavailable",catalog);return 0;}
+    if(!runtime_dialogue_query_full(q->base,info,&full)){
+        runtime_dialogue_panel_refused(1,"guest-wheel-local-conversation-query-unavailable",catalog);return 0;}
+    if(full){runtime_dialogue_panel_refused(2,"guest-wheel-native-local-conversation-preserved",catalog);return 0;}
     RuntimeDialoguePanel next={0};
     if(!guest_camera_stamp_read(q->base,panel,&next.panel,0)||!guest_camera_stamp_read(q->base,pc,&next.pc,0)||
        !guest_camera_stamp_read(q->base,info,&next.world,0))return 0;
     next.record=record;next.active=1;*p=next;
     for(unsigned i=0;i<5;++i)if(!runtime_dialogue_ui_value(panel,i,0,p->baseline+i)||
         !runtime_dialogue_panel_current(q->base,p)||!runtime_dialogue_guest_local_free()) {
-        memset(p,0,sizeof *p);return 0;
+        runtime_dialogue_panel_refused(3,"guest-wheel-baseline-or-registry-unavailable",catalog);memset(p,0,sizeof *p);return 0;
     }
     for(unsigned i=0;i<5;++i){uint32_t desired=1,current=0;
         if(p->baseline[i])continue;
         p->owned|=1u<<i;p->written[i]=1;
         if(!runtime_dialogue_panel_current(q->base,p)||!runtime_dialogue_guest_local_free()||
            !runtime_dialogue_ui_value(panel,i,1,&desired)||!runtime_dialogue_panel_current(q->base,p)||
-           !runtime_dialogue_guest_local_free()||!runtime_dialogue_ui_value(panel,i,0,&current)||current!=1){runtime_dialogue_lease_retire();return 0;}}
+           !runtime_dialogue_guest_local_free()||!runtime_dialogue_ui_value(panel,i,0,&current)||current!=1){
+            runtime_dialogue_panel_refused(4,"guest-wheel-native-presentation-not-admitted",catalog);runtime_dialogue_lease_retire();return 0;}}
     if(!runtime_dialogue_panel_current(q->base,p)||!runtime_dialogue_guest_local_free()||
        !runtime_dialogue_options(panel,catalog,-1)||!runtime_dialogue_panel_current(q->base,p)||
-       !runtime_dialogue_guest_local_free()){runtime_dialogue_lease_retire();return 0;}
+       !runtime_dialogue_guest_local_free()){
+        runtime_dialogue_panel_refused(5,"guest-wheel-options-or-local-scope-unavailable",catalog);runtime_dialogue_lease_retire();return 0;}
     p->options=1;p->generation=catalog->generation;runtime_dialogue_note("guest-native-wheel-presented");return 1;
 }
 static int runtime_dialogue_host_current(uintptr_t base,uintptr_t *controller,uintptr_t *data,int32_t *entry) {

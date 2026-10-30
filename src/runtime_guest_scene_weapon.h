@@ -15,6 +15,7 @@ typedef struct RuntimeGuestSceneWeapon {
     uint64_t nonce,started_sequence;
     DWORD ended,checked,method_checked;
     unsigned events;
+    unsigned return_refusals;
     int phase,busy; /* 0 observe, 1 real host scene, 2 bounded native return */
 } RuntimeGuestSceneWeapon;
 static RuntimeGuestSceneWeapon runtime_guest_scene_weapon;
@@ -84,6 +85,28 @@ static int runtime_scene_weapon_item_idle(uintptr_t base,uintptr_t pc,uintptr_t 
        (strcmp(state,"Active")&&strcmp(state,"Inactive")))return 0;
     for(int i=0;i<requests.count;++i){int32_t value=-1;if(!read_at(requests.data+(SIZE_T)i*4,&value,4)||value)return 0;}
     return 1;
+}
+/* Inactive.BeginState does not clear CurrentFireMode, PendingFireMode or the
+ * drawing/holstering animation bits. Those are not an equipped idle contract.
+ * A truly null selection with the same received inventory index is precisely
+ * the case handled by stock ReplicatedWeaponUpdated -> ChangedWeapon ->
+ * Activate. Never clear those fields or demand that this inactive actor has
+ * already completed the activation that we are asking stock code to resume.
+ * Keep the stricter equipped predicate unchanged for ammo and baseline use. */
+static int runtime_scene_weapon_return_ready(uintptr_t base,uintptr_t pc,uintptr_t pawn,
+        uintptr_t inventory,uintptr_t weapon) {
+    unsigned char fire=255;GameArray requests={0};char state[96];
+    if(!runtime_movement_idle(pawn)||!read_at(pc+0x480,&fire,1)||fire||
+       !native_state_name(base,weapon,state,sizeof state)||strcmp(state,"Inactive")||
+       !runtime_guest_team_field(base,inventory,"InventoryManager","PendingFire","ArrayProperty",0x270,16,0x400000)||
+       !scene_readiness_array(inventory+0x270,&requests,32))return 0;
+    for(int i=0;i<requests.count;++i){int32_t value=-1;if(!read_at(requests.data+(SIZE_T)i*4,&value,4)||value)return 0;}
+    return 1;
+}
+static void runtime_scene_weapon_return_refused(unsigned gate,const char *reason,DWORD now) {
+    RuntimeGuestSceneWeapon *q=&runtime_guest_scene_weapon;
+    if(q->phase!=2||gate>=16||(q->return_refusals&(1u<<gate)))return;
+    q->return_refusals|=1u<<gate;runtime_scene_weapon_note(reason,now,0,0);
 }
 /* Complete zero-based chain, including nonweapon items. A repeated node,
  * foreign owner/manager/world, unreadable link, or chain over64 is refused. */
@@ -249,15 +272,17 @@ static void runtime_guest_scene_weapon_tick(uintptr_t base,uintptr_t engine,DWOR
         /* A freshness timeout is not a scene end. Require its authenticated
          * later inactive message; no repair while a scene merely stops sending. */
         if(runtime_scene_view.message.active||runtime_scene_view.message.sequence<=q->started_sequence)return;
-        q->phase=2;q->ended=now;q->checked=0;
+        q->phase=2;q->ended=now;q->checked=0;q->return_refusals=0;
     }
     if(q->phase==2&&now-q->ended>10000){q->phase=0;q->prior.valid=0;runtime_scene_weapon_note("return-window-expired",now,0,0);}
     if(q->checked&&now-q->checked<250)return;q->checked=now;
-    if(!runtime_scene_weapon_ordinary(base,engine,&c,&current))return;
+    if(!runtime_scene_weapon_ordinary(base,engine,&c,&current)){
+        runtime_scene_weapon_return_refused(0,"return-waiting-for-ordinary-owned-context",now);return;}
     uintptr_t selected=1,inventory=0,pending=1;int32_t index=-1;
     if(!read_at(c.pawn+0x41c,&selected,8)||!read_at(c.pawn+0x414,&inventory,8)||
        !guest_camera_actor_live(base,inventory)||!is_kind_of(base,inventory,"SFXInventoryManager")||
-       !read_at(inventory+0x288,&pending,8)||pending||!read_at(inventory+0x3a0,&index,4))return;
+       !read_at(inventory+0x288,&pending,8)||pending||!read_at(inventory+0x3a0,&index,4)){
+        runtime_scene_weapon_return_refused(1,"return-inventory-unready-or-native-switch-pending",now);return;}
     current.inventory=session_capture_handle(inventory);
     current.weapon=q->phase==2?q->prior.weapon:session_capture_handle(selected);
     if(!session_handle_matches(current.inventory)||!session_handle_matches(current.weapon))return;
@@ -265,7 +290,8 @@ static void runtime_guest_scene_weapon_tick(uintptr_t base,uintptr_t engine,DWOR
         current.inventory_channel=q->prior.inventory_channel;current.weapon_channel=q->prior.weapon_channel;
     }
     if(!runtime_scene_weapon_channel(base,inventory,&current,&current.inventory_channel)||
-       !runtime_scene_weapon_channel(base,current.weapon.pointer,&current,&current.weapon_channel))return;
+       !runtime_scene_weapon_channel(base,current.weapon.pointer,&current,&current.weapon_channel)){
+        runtime_scene_weapon_return_refused(2,"return-actor-channel-scope-unavailable",now);return;}
     current.valid=1;
     if(q->phase==2&&selected) {
         /* Native return can initially succeed and then lose the selection.
@@ -276,8 +302,11 @@ static void runtime_guest_scene_weapon_tick(uintptr_t base,uintptr_t engine,DWOR
         }
         return;
     }
-    if(!runtime_scene_weapon_item_idle(base,c.pc,c.pawn,inventory,current.weapon.pointer)||
-       !runtime_scene_weapon_chain(base,&current,index))return;
+    int item_ready=q->phase==2?
+        runtime_scene_weapon_return_ready(base,c.pc,c.pawn,inventory,current.weapon.pointer):
+        runtime_scene_weapon_item_idle(base,c.pc,c.pawn,inventory,current.weapon.pointer);
+    if(!item_ready||!runtime_scene_weapon_chain(base,&current,index)){
+        runtime_scene_weapon_return_refused(3,item_ready?"return-native-index-chain-mismatch":"return-native-state-or-fire-request-busy",now);return;}
     if(q->phase==0) {
         if(selected!=current.weapon.pointer)return;
         int same=runtime_scene_weapon_same(&q->prior,&current);q->prior=current;
@@ -292,11 +321,13 @@ static void runtime_guest_scene_weapon_tick(uintptr_t base,uintptr_t engine,DWOR
         return;
     }
     if(!runtime_scene_weapon_policy(q->phase,1,1,selected,1,pending,index,
-       runtime_scene_weapon_same(&q->prior,&current),q->ended,now))return;
+       runtime_scene_weapon_same(&q->prior,&current),q->ended,now)){
+        runtime_scene_weapon_return_refused(4,"return-captured-scope-or-selection-changed",now);return;}
     GuestVitalsMethod method={0};GuestEquipmentSnapshot before,after;RuntimeSceneWeaponIdentity final={0};SessionContext fresh;
     if(!runtime_scene_weapon_method(base,inventory,&method)||
        !guest_equipment_snapshot(c.pawn,current.weapon.pointer,inventory,&before)||before.pawn_weapon||
-       !runtime_scene_weapon_ordinary(base,engine,&fresh,&final))return;
+       !runtime_scene_weapon_ordinary(base,engine,&fresh,&final)){
+        runtime_scene_weapon_return_refused(5,"return-stock-method-or-final-context-unavailable",now);return;}
     final.inventory=current.inventory;final.weapon=current.weapon;final.inventory_channel=current.inventory_channel;
     final.weapon_channel=current.weapon_channel;final.valid=1;
     uintptr_t raw=1,waiting=1;
@@ -304,7 +335,7 @@ static void runtime_guest_scene_weapon_tick(uintptr_t base,uintptr_t engine,DWOR
        !runtime_scene_weapon_channel(base,inventory,&final,&final.inventory_channel)||
        !runtime_scene_weapon_channel(base,final.weapon.pointer,&final,&final.weapon_channel)||
        !read_at(fresh.pawn+0x41c,&raw,8)||raw||!read_at(inventory+0x288,&waiting,8)||waiting||
-       !runtime_scene_weapon_item_idle(base,fresh.pc,fresh.pawn,inventory,final.weapon.pointer)||
+       !runtime_scene_weapon_return_ready(base,fresh.pc,fresh.pawn,inventory,final.weapon.pointer)||
        !runtime_scene_weapon_chain(base,&final,index)||!guest_vitals_method_live(base,&method)||
        !runtime_scene_weapon_body(base,method.object.pointer)||runtime_scene_camera_requested()||
        read_ptr(read_ptr(inventory)+0x230)!=base+0x40d450)return;
