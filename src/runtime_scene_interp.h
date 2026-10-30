@@ -27,6 +27,8 @@ typedef struct RuntimeSceneInterp {
 } RuntimeSceneInterp;
 static RuntimeSceneInterp runtime_scene_interp;
 static int (*runtime_scene_interp_player_ready)(void);
+static int (*runtime_scene_interp_effects_ready)(void);
+static void (*runtime_scene_interp_effect_event)(uintptr_t,uintptr_t,int);
 static void runtime_scene_interp_activated(void*);
 static void runtime_scene_interp_start(void*);
 static void runtime_scene_interp_event(void*,void*,int);
@@ -246,7 +248,10 @@ static int runtime_scene_interp_event_owned(uintptr_t action,uintptr_t track,int
      * A disappearing PC/channel must not grant story authority during native
      * teardown. Exact selected object identity is still required above; this
      * refusal grants no playback, binding, event replay or memory write. */
-    (void)track;(void)key;
+    /* A natural crossed EventTrack key may enqueue a narrowly validated
+     * local presentation effect. General OutputLink calls pass no track and
+     * cannot enter that path. The story output itself remains withheld. */
+    if(track&&runtime_scene_interp_effect_event)runtime_scene_interp_effect_event(action,track,key);
     /* All EventTrack outputs for this exact selected action are host-owned,
      * including malformed keys. Other track methods and assets stay native. */
     runtime_scene_interp_note("guest-sequence-event-withheld",action);return 1;
@@ -317,6 +322,7 @@ static void runtime_scene_interp_tick(uintptr_t base,uintptr_t engine,DWORD now)
     if(g_runtime_config.role!=ME3_ROLE_GUEST||(s->sent&&now-s->sent<500)||
        !runtime_scene_interp_hook_live(&s->event)||!runtime_scene_interp_hook_live(&s->output)||
        !runtime_scene_interp_player_ready||!runtime_scene_interp_player_ready()||
+       !runtime_scene_interp_effects_ready||!runtime_scene_interp_effects_ready()||
        !runtime_scene_interp_enabled())goto done;
     RuntimeSceneScope scope={0};wchar_t text[SCENE_INTERP_CAPABILITY_CAPACITY];
     if(!runtime_scene_actor_observer_scope(base,engine,&scope))goto done;

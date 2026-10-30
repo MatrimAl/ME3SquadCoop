@@ -36,10 +36,11 @@ actions retain their original calls, arguments, return values and LastError.
 The guest guard survives presentation opt-out, camera loss, temporary
 unpossession and disappearing connection state during teardown. It still
 requires the exact live selected action identity. It does not grant a guest
-authority to start or progress the scene. Presentation effects whose Kismet
-events are withheld may still require separate host-originated presentation.
+authority to start or progress the scene. Three exact Liara presentation keys
+can queue validated local client effects without executing their Kismet
+outputs; see [local effects](LIARA-SCENE-EFFECTS.md).
 
-The capability uses `ME3CI1 R 2` through the existing native owner-controller
+The capability uses `ME3CI1 R 3` through the existing native owner-controller
 RPC and actual ReceivedBunch channel. Its lifetime is local and bounded to two
 seconds, and the exact controller, world, driver, connection and channel are
 rechecked before admission. Native hooks check supported image, selected entry
@@ -80,7 +81,8 @@ Stopped-action retirement also accepts that verified pending-deletion identity
 once group and latent-actor lists are empty, restoring the borrowed bit before
 a later native replacement rather than retaining an obsolete admission lease.
 
-Version 2 additionally requires the guest's native Player track/group resolver
-hooks and a current authenticated host-Shepard identity lease. The earlier
-startup verified version 1 guards only; it is not a version 2 preparation or
-cinematic playback result. See [Player binding](CINEMATIC-PLAYER-BINDING.md).
+The capability requires the guest's native Player track/group resolver hooks,
+a current authenticated host-Shepard identity lease, and prepared local effect
+methods. An earlier version 2 startup verified the resolver preparation and
+host identity capture. It did not play a Liara scene or verify version 3 effect
+preparation. See [Player binding](CINEMATIC-PLAYER-BINDING.md).
