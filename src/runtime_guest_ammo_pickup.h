@@ -9,6 +9,8 @@ static int runtime_dialogue_node_match(uintptr_t);
 static void runtime_dialogue_forward(void*,void*,void*,RuntimeAmmoPickupExec);
 static int runtime_scene_actor_observer_node_match(uintptr_t);
 static void runtime_scene_actor_observer_forward(void*,void*,void*,RuntimeAmmoPickupExec);
+static int runtime_power_start_observer_node_match(uintptr_t);
+static void runtime_power_start_observer_forward(void*,void*,void*,RuntimeAmmoPickupExec);
 typedef struct RuntimeAmmoPickupScope {
     RuntimeMovementScope owner;
     GuestCameraStamp pickup,state,cdo;
@@ -168,6 +170,8 @@ static void runtime_ammo_pickup_exec(void *self,void *frame,void *result) {
         runtime_dialogue_forward(self,frame,result,s->original);
     else if(s->installed&&frame&&runtime_scene_actor_observer_node_match(*(uintptr_t*)((unsigned char*)frame+0x18)))
         runtime_scene_actor_observer_forward(self,frame,result,s->original);
+    else if(s->installed&&frame&&runtime_power_start_observer_node_match(*(uintptr_t*)((unsigned char*)frame+0x18)))
+        runtime_power_start_observer_forward(self,frame,result,s->original);
     else s->original(self,frame,result);
 }
 static uintptr_t runtime_ammo_pickup_find(uintptr_t base,uintptr_t owner,const char *kind,const char *name) {

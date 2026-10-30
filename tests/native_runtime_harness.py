@@ -70,6 +70,7 @@ def main():
                  "ME3RuntimeDialogueProtocolSelfTest",
                  "ME3RuntimeDialogueSelfTest",
                  "ME3RuntimeSceneActorObserverSelfTest",
+                 "ME3RuntimePowerStartObserverSelfTest",
                  "ME3RuntimeAmmoSettleSelfTest",
                  "ME3RuntimeSceneInterpSelfTest",
                  "ME3RuntimeScenePlayerSelfTest",

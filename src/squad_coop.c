@@ -164,6 +164,7 @@ __declspec(dllexport) int ME3RuntimeSceneSpectatorSelfTest(void) {return runtime
 __declspec(dllexport) int ME3RuntimeDialogueProtocolSelfTest(void) {return dialogue_choice_protocol_selftest();}
 __declspec(dllexport) int ME3RuntimeDialogueSelfTest(void) {return runtime_dialogue_selftest();}
 __declspec(dllexport) int ME3RuntimeSceneActorObserverSelfTest(void) {return runtime_scene_actor_observer_selftest();}
+__declspec(dllexport) int ME3RuntimePowerStartObserverSelfTest(void) {return runtime_power_start_observer_selftest();}
 __declspec(dllexport) int ME3RuntimeAmmoSettleSelfTest(void) {return runtime_ammo_settle_selftest();}
 __declspec(dllexport) int ME3RuntimeSceneInterpSelfTest(void) {return runtime_scene_interp_selftest();}
 __declspec(dllexport) int ME3RuntimeScenePlayerSelfTest(void) {return runtime_scene_player_selftest();}
