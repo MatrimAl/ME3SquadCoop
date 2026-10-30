@@ -64,7 +64,7 @@ actor, and never stops or unlinks an unrelated node. Expired world identities
 are dropped without calls into the old world. Scope loss, line replacement,
 host stop and a 500 ms message expiry end the owned lease.
 
-The current transport capability is `ME3CI1 R 4`; it additionally requires
+The current transport capability is `ME3CI1 R 5`; it additionally requires
 prepared speech-key, isolated activation and player-getter hooks. Native ABI,
 field layouts, supported-image bytes and hook identities are checked. Local
 fixtures cover message bounds, namespace, integer overflow, generations,
@@ -72,7 +72,7 @@ forwarding arguments/LastError and pending cancellation. They do not prove
 rendered speech or exact cinematic parity. Full paired intro/dialogue, repeat
 branches, host skip, disconnect, female Shepard, subtitle settings and firing
 after the scene remain gameplay checks.
-Before host sex is known the guest sends `ME3CI1 H 4` through the already
+Before host sex is known the guest sends `ME3CI1 H 5` through the already
 guarded capability namespace. This announces speech infrastructure only and
 cannot admit a Matinee. Only such a verified peer receives the sex message;
 full R4 admission follows the authenticated identity. Older peers therefore
@@ -83,3 +83,6 @@ inactive snapshot can arrive before the guest receiver exists. Its exact
 owner-PC source and current scope are sufficient for identity bootstrap.
 Actual speech messages still require the matching active scene. Fixtures
 cover this missing-initial-snapshot case and refuse speech in that state.
+
+The current version 5 filter also accepts the actual localized Package outers
+and the selected Mars airlock; see [runtime scene paths](LOCALIZED-SCENE-PATHS.md).

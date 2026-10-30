@@ -22,10 +22,11 @@ static RuntimeSceneOwnerCache runtime_scene_owner_cache;
 static int runtime_scene_owner_path(const char *path) {
     static const char *prefixes[]={
         "BioD_ProMar_205BLiaraConv.promar_intro_liara_m_d.Node_Data_Sequence.SeqAct_Interp_",
-        "BioD_ProMar_205BLiaraConv_LOC_INT.promar_intro_liara_m_d.Node_Data_Sequence.SeqAct_Interp_"};
+        "BioD_ProMar_205BLiaraConv_LOC_INT.promar_intro_liara_m_d.Node_Data_Sequence.SeqAct_Interp_",
+        "promar_intro_liara_m_d.Node_Data_Sequence.SeqAct_Interp_"};
     if(!path)return 0;
-    for(unsigned i=0;i<2;++i){size_t n=strlen(prefixes[i]);
-        if(strncmp(path,prefixes[i],n))continue;
+    for(unsigned i=0;i<sizeof prefixes/sizeof *prefixes;++i){size_t n=strlen(prefixes[i]);
+        if(_strnicmp(path,prefixes[i],n))continue;
         const char *p=path+n;if(*p<'0'||*p>'9')return 0;
         for(;*p;++p)if(*p<'0'||*p>'9')return 0;
         return 1;
@@ -160,6 +161,10 @@ static uintptr_t runtime_scene_owner_actor(uintptr_t base,uintptr_t action,uintp
 static int runtime_scene_owner_binding_selftest(void) {
     return runtime_scene_owner_path("BioD_ProMar_205BLiaraConv.promar_intro_liara_m_d.Node_Data_Sequence.SeqAct_Interp_40")&&
         runtime_scene_owner_path("BioD_ProMar_205BLiaraConv_LOC_INT.promar_intro_liara_m_d.Node_Data_Sequence.SeqAct_Interp_0")&&
+        runtime_scene_owner_path("promar_intro_liara_m_D.Node_Data_Sequence.SeqAct_Interp_40")&&
+        !runtime_scene_owner_path("promar_airlock_m_D.Node_Data_Sequence.SeqAct_Interp_40")&&
+        !runtime_scene_owner_path("promar_intro_liara_m_DForeign.Node_Data_Sequence.SeqAct_Interp_40")&&
+        !runtime_scene_owner_path("promar_intro_liara_m_D.Node_Data_Sequence.SeqAct_Interp_40.Foreign")&&
         !runtime_scene_owner_path("BioD_ProMar_205ALiaraIntro_LOC_INT.promar_intro_liara_m_d.Node_Data_Sequence.SeqAct_Interp_0")&&
         !runtime_scene_owner_path("BioD_ProMar_205BLiaraConv_LOC_INT.promar_level02_b_d.Node_Data_Sequence.SeqAct_Interp_40")&&
         !runtime_scene_owner_path("BioD_ProMar_205BLiaraConv_LOC_INT.promar_intro_liara_m_d.Node_Data_Sequence.SeqAct_Interp_")&&

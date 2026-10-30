@@ -52,9 +52,16 @@ static void runtime_scene_interp_note(const char *event,uintptr_t action) {
 }
 static int runtime_scene_interp_path(const char *path) {
     static const char *packages[]={"BioD_ProMar_205ALiaraIntro.","BioD_ProMar_205ALiaraIntro_LOC_INT.",
-        "BioD_ProMar_205BLiaraConv.","BioD_ProMar_205BLiaraConv_LOC_INT."};
+        "BioD_ProMar_205BLiaraConv.","BioD_ProMar_205BLiaraConv_LOC_INT.",
+        "BioD_ProMar_125Elevator.","BioD_ProMar_125Elevator_LOC_INT.",
+        /* Localized exports retain their authored Package outer at runtime,
+         * rather than acquiring the containing PCC filename as an outer.
+         * FNames are case insensitive (the live suffix is commonly _D). */
+        "promar_intro_liara_c_d.","promar_intro_liara_m_d.","promar_level02_b_d.",
+        "promar_airlock_m_d."};
     if(!path)return 0;
-    for(unsigned i=0;i<4;++i)if(!strncmp(path,packages[i],strlen(packages[i])))return 1;
+    for(unsigned i=0;i<sizeof packages/sizeof *packages;++i)
+        if(!_strnicmp(path,packages[i],strlen(packages[i])))return 1;
     return 0;
 }
 static int runtime_scene_interp_host_line(uintptr_t base,uintptr_t info,uintptr_t action) {
@@ -355,6 +362,14 @@ static int runtime_scene_interp_selftest(void) {
         !runtime_scene_interp_bit((uintptr_t)&flags+1,0)&&
         runtime_scene_interp_path("BioD_ProMar_205ALiaraIntro.TheWorld.PersistentLevel.Action")&&
         runtime_scene_interp_path("BioD_ProMar_205BLiaraConv_LOC_INT.Conv.Line")&&
+        runtime_scene_interp_path("promar_intro_liara_c_D.Node_Data_Sequence.SeqAct_Interp_1279")&&
+        runtime_scene_interp_path("promar_intro_liara_m_D.Node_Data_Sequence.SeqAct_Interp_0")&&
+        runtime_scene_interp_path("promar_level02_b_D.Node_Data_Sequence.SeqAct_Interp_40")&&
+        runtime_scene_interp_path("promar_airlock_m_D.Node_Data_Sequence.SeqAct_Interp_15")&&
+        runtime_scene_interp_path("BioD_ProMar_125Elevator.TheWorld.PersistentLevel.Action")&&
+        !runtime_scene_interp_path("promar_airlock_m_DForeign.Node_Data_Sequence.SeqAct_Interp_15")&&
+        !runtime_scene_interp_path("promar_intro_liara_m_DForeign.Node_Data_Sequence.SeqAct_Interp_0")&&
+        !runtime_scene_interp_path("promar_intro_liara_m_D")&&
         !runtime_scene_interp_path("BioD_ProMar_205BLiaraConvForeign.Conv.Line")&&
         !runtime_scene_interp_path("Other.TheWorld.Action")&&
         runtime_scene_interp_cap_fresh(1,100,2100)&&!runtime_scene_interp_cap_fresh(1,100,2101)&&
