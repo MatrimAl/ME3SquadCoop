@@ -311,11 +311,11 @@ The whole UE3 join chain is implemented **in script** on `Engine.GameInfo` on al
 `ChoosePlayerStart`, `FindPlayerStart`, `SpawnPlayerController`, 9 of 9, with bytecode rather than
 native stubs. So co-op does not need a native patch to decide about a second player.
 
-| build | campaign class | script overrides | touches the join chain |
+| build | campaign class | script overrides (real bodies) | touches the join chain |
 | --- | --- | --- | --- |
-| LE1 | `BioSPGame` | 18 | `SpawnDefaultPawnFor`, `FindPlayerStart` |
-| LE2 | `BioSPGame` | 4 | nothing (stock `GameInfo` path) |
-| LE3 | `SFXGame` | 80 | `RestartPlayer`, `SpawnDefaultPawnFor` |
+| LE1 | `BioSPGame` | 17 of 18 declared | `SpawnDefaultPawnFor`, `FindPlayerStart` |
+| LE2 | `BioSPGame` | 4 of 4 | nothing (stock `GameInfo` path) |
+| LE3 | `SFXGame` | **70 of 80 declared** | `RestartPlayer`, `SpawnDefaultPawnFor` |
 
 On LE3 the runtime campaign GameInfo is `SFXGameInfoSP` (super `SFXGame`) in `BIO_COMMON.pcc`, whose
 export list begins with the path `..\BIOGame\MPContent\BIO_COMMON.upk` - the campaign game class ships
@@ -525,6 +525,13 @@ Two traps for anyone repeating this measurement. A class's children include its 
 as properties inflated `Actor` by 15 fields and the density figure from 1.8% to 4.7% - filter on the child's
 class being a `UProperty` subclass. And `Actor.Location` is spelled with a capital on LE1/LE2 but
 `Actor.location` on LE3, so a cross-build name lookup must be case-insensitive.
+
+**A third trap, which cost six counts in this document before it was caught:** a UE3 **native** function
+still carries a 2-3 byte stub body (`0b 53`, `04 0b 53`, `0b 04 0b 53`), so `serial_size > 4` cannot tell an
+implementation from a declaration. **1,070 of the 5,279 functions in LE3's `Engine.pcc` are that shape -
+about 20%.** `mele_tables.is_implemented()` uses the proven bytecode extent instead. The counts in this
+document are the corrected ones; every structural conclusion survived, because each rested on a specific
+function whose body is hundreds of bytes rather than on a total.
 
 ## 15. The net driver is native on every build
 `TcpNetDriver`, `UdpNetDriver`, `DemoRecDriver` and `SFXOnlineNetDriver` exist in **zero of the 12,704

@@ -480,6 +480,55 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertNotIn("PlayerSquad", stock[0])
 
 
+    @needs_install
+    def test_native_stubs_are_not_counted_as_implementations(self):
+        """A UE3 native function carries a 2-3 byte stub body, so bytecode length is the real test.
+
+        `serial_size > 4` cannot distinguish an implementation from a declaration, and this project used it
+        until the stubs were measured: 1,070 of 5,279 functions in LE3's `Engine.pcc` are `0b 53` or
+        `04 0b 53`, about 20%. `mele_tables.is_implemented()` uses the proven extent instead.
+
+        The stub shapes are asserted because a change in them would silently reclassify a fifth of the
+        engine, and the functions the rest of this document leans on are asserted to be real bodies rather
+        than stubs.
+        """
+        import collections
+        mt = mele_props.load_tables()
+        pkg = mt.load_pkg()
+        base = None
+        for root in pkg.game_dirs():
+            cand = os.path.join(root, "Game", "ME3", "BioGame", "CookedPCConsole", "Engine.pcc")
+            if os.path.isfile(cand):
+                base = cand
+                break
+        if not base:
+            self.skipTest("no install")
+        t = mt.build(base)
+        funcs = [e for e in t["exports"]
+                 if mt.describe_index(e["class_index"], t["exports"], t["imports"]) == "Core.Function"]
+        self.assertGreater(len(funcs), 1000)
+        shapes = collections.Counter()
+        stubs = 0
+        for e in funcs:
+            body = mt.function_body(t, e)
+            if len(body) <= 4:
+                stubs += 1
+                shapes[body.hex(" ")] += 1
+        self.assertGreater(stubs, 0, "no stubs found - the discriminator is inert")
+        unexpected = {k: v for k, v in shapes.items()
+                      if k not in ("0b 53", "04 0b 53", "0b 04 0b 53", "")}
+        self.assertFalse(unexpected, "unexpected stub shapes: %s" % unexpected)
+        share = 100.0 * stubs / len(funcs)
+        self.assertTrue(10.0 < share < 30.0, "stub share is %.1f%%, outside 10-30%%" % share)
+        for cls, fn in (("GameInfo", "Login"), ("GameInfo", "AtCapacity"),
+                        ("PlayerController", "ServerMove"), ("GameInfo", "SpawnDefaultPawnFor")):
+            fns, _rows = mele_props._script_functions(mt, t, cls)
+            e = fns.get(fn)
+            self.assertIsNotNone(e, "%s.%s missing" % (cls, fn))
+            self.assertTrue(mt.is_implemented(t, e),
+                            "%s.%s is only a stub, and a claim here rests on it" % (cls, fn))
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
