@@ -208,6 +208,30 @@ class CampaignInvariantTests(unittest.TestCase):
             self.assertLessEqual(placed, 50,
                                  "LE1 trigger volume usage changed: %s" % volume[0].strip())
 
+    @needs_install
+    def test_story_state_is_bounded_and_le3_has_none_of_it(self):
+        """The sync budget: how much state the story surface in section 7 actually produces.
+
+        `PlotManager.pcc` on LE1/LE2 defines one class whose body is `F<n>` plot-flag accessors, so the
+        flag set is a bounded integer array and a guest can be handed all of it rather than a delta log.
+
+        LE3 ships neither the class nor the package, which is asserted because it is the build being
+        worked on first and the cheap path does not exist there. A test that only checked LE1/LE2 would
+        pass while the plan was wrong for LE3.
+        """
+        code, out = run(mele_props.cmd_plotcheck)
+        self.assertEqual(code, 0, out)
+        import re
+        for game in ("ME1", "ME2"):
+            line = re.search(r"^%s\s+(\d+) plot flag" % game, out, re.M)
+            self.assertIsNotNone(line, "%s row missing:\n%s" % (game, out))
+            self.assertGreater(int(line.group(1)), 1000,
+                               "%s flag count collapsed: %s" % (game, line.group(0)))
+            self.assertIn("%s " % game, out)
+        self.assertIn("ME3  PlotManager.pcc present: False", out)
+        # The budget claim itself: ~8 KB, so shipping the whole set is cheaper than tracking deltas.
+        self.assertIn("~8 KB", out)
+
 
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
@@ -217,7 +241,7 @@ class SkipBehaviourTests(unittest.TestCase):
         os.environ["MELE_GAME_DIR"] = str(Path(PROJECT) / "local" / "definitely-not-a-game")
         try:
             for command in (mele_props.cmd_coopcheck, mele_props.cmd_savecheck,
-                            mele_props.cmd_squadadd):
+                            mele_props.cmd_squadadd, mele_props.cmd_plotcheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)

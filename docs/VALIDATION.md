@@ -1127,9 +1127,10 @@ two that bear directly on claims made elsewhere in this document:
 2. **LE3 clamps capacity to one** on its campaign game class (`MaxPlayersAllowed=1`) while the base
    class allows 32, which names the field pair the `MaxPlayers`/`MaxAllowed` lease raises.
 
-Offline checks run as `python -m unittest tests.test_mele_invariants -v`. They skip when no install is
-present, and the underlying commands exit 2 in that case rather than printing zeroes, because a report
-full of zeroes from a tool that could not read the install is not evidence of absence.
+Offline checks run as `python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
+They skip when no install is present, and the underlying commands exit 2 in that case rather than
+printing zeroes, because a report full of zeroes from a tool that could not read the install is not
+evidence of absence.
 
 ## Public source snapshot checks
 

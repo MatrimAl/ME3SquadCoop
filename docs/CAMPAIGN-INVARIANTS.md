@@ -5,9 +5,9 @@ constrain what a guest implementation can assume, and several contradict assumpt
 this repository is built around. Nothing here proves guest behaviour; it narrows where to look.
 
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
-`savecheck`, `squadadd`, `storycheck` and `maplist`. The reader and its scope limit are described in
-[offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
-`python -m unittest tests.test_mele_invariants -v`.
+`savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8) and `maplist`. The reader and its scope
+limit are described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
+`python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
 
 Labels follow [VALIDATION.md](VALIDATION.md): **observed** means read from a file with a check that
 can fail; **derived** means it follows from observations plus engine behaviour; **hypothesis** means
@@ -179,9 +179,34 @@ and silently misses the rest.
 establish how often a node is *placed*, not that a given node fires or what it does when it fires. The
 `Region`/`Plot` byte properties are typed by `EBioRegionAutoSet`/`EBioPlotAutoSet`, which have two
 members each (`*_Unset`, `*_MAX`) - stubs for a value space defined in the plot manager's own data - so
-the size of story state cannot be read from the enums and is not claimed here.
+the size of story state **cannot** be read from those enums. Section 8 reads it from the accessors
+instead, which do bound it.
 
-## 8. The net driver is native on every build
+## 8. Story state is small enough to ship whole, on two of three builds
+
+Section 7 says where the campaign advances. This says what the advancement costs to synchronise, which
+decides whether a guest needs a delta log or can simply be handed the whole thing.
+
+`PlotManager.pcc` on LE1 and LE2 defines exactly one class, `BioAutoConditionals`, and its entire body
+is plot-flag accessors shaped `F(id)(Argument: Int) -> ReturnValue: Bool`. Each flag is an integer
+addressed by a small id, and the id space is bounded by the largest id present:
+
+| build | functions | ids | slots | as int32 |
+| --- | --- | --- | --- | --- |
+| LE1 | 1,066 | 113..2018 | 2,019 | ~8 KB |
+| LE2 | 1,356 | 1..2050 | 2,051 | ~8 KB |
+
+At most ~8 KB either way. That is the number that matters: a host can ship the entire flag set on every
+level change rather than maintaining a delta log, and a guest can be handed a complete story state
+instead of a replay of how it got there. It also means story state is cheap enough to include in a
+desync check - comparing two 8 KB blobs every N seconds is free.
+
+**LE3 has neither.** No `BioAutoConditionals` exists anywhere in its 7,943 packages and it ships no
+`PlotManager.pcc`; its plot data lives in tables (`Plot_Treasure_*`, `PlotManagerGameData`) referenced
+from level packages. So the same question has a different answer per build, and a design that assumes
+the cheap path works on all three will be wrong on the one build that is being built first.
+
+## 9. The net driver is native on every build
 `TcpNetDriver`, `UdpNetDriver`, `DemoRecDriver` and `SFXOnlineNetDriver` exist in **zero of the 12,704
 packages**. They are native classes, so a mod can create a driver but can never adjust its properties
 from script. This is consistent with the ordinary listen path this repository already uses, and it
