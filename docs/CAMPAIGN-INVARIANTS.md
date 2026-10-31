@@ -500,6 +500,22 @@ whole of co-op becomes: lift `MaxPlayersAllowed` from 1 on `SFXGame`, let the st
 hand the guest a controller, and override `Possess` so it takes a squadmate pawn. No packet format, no
 movement code, no snapshot system.
 
+**And the campaign's possession is already squad-aware on LE2/LE3**, which is the signature an override has
+to match:
+
+| build | `BioPlayerController.Possess` |
+| --- | --- |
+| LE1 | `(aPawn, bVehicleTransition, V)` - 0x18, no squad |
+| LE2 | `(aPawn, bVehicleTransition, V, **PlayerSquad**, oBioPawn, oBioWorldInfo)` - 0x30 |
+| LE3 | `(aPawn, bVehicleTransition, V, **PlayerSquad**, oBioWorldInfo)` - 0x28 |
+
+LE2/LE3 take the `PlayerSquad` the pawn is being placed into, which matches the recruitment difference
+measured in section 3 (LE1's `AddToParty` touches no `Bio2DA`, LE2/LE3 go through the table). And the class
+the campaign actually instantiates, `SFXPlayerController`, has a **stock-shaped**
+`Possess(aPawn, bVehicleTransition)` at 0xc - so the override matches the engine's own signature and the
+squad-aware version sits one level down. On the pawn side, `SFXPawn_Player.PossessedBy(C,
+bVehicleTransition, Manager)` adds one parameter the engine lacks.
+
 **`Projectile` replicates nothing, on all three builds.** Weapon fire travels as `Pawn.FlashCount` (an
 increment) and `Pawn.FlashLocation` (a position), and each client spawns its own projectile locally. So
 tracers and muzzle effects are free and **damage is not** - the guest's projectile is a different object from

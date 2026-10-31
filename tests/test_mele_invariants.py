@@ -464,6 +464,20 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertTrue(any("replaces: Possess" in ln for ln in replacing),
                         "possession is no longer the overridden seam:\n%s" % out)
         self.assertIn("possession is the", out)
+        # Squad awareness belongs to LE2/LE3 only, matching the recruitment-path difference in section 3.
+        squad = [ln for ln in out.splitlines() if "Possess squad-aware:" in ln]
+        self.assertEqual(len(squad), 3, "squad awareness not reported per build:\n%s" % out)
+        self.assertTrue(squad[0].strip().endswith("False"), "LE1 became squad-aware: %s" % squad[0])
+        self.assertTrue(squad[1].strip().endswith("True"), "LE2 lost PlayerSquad: %s" % squad[1])
+        self.assertTrue(squad[2].strip().endswith("True"), "LE3 lost PlayerSquad: %s" % squad[2])
+        # The class the campaign actually instantiates keeps a stock-shaped Possess - but only on LE3, where
+        # SFXPlayerController overrides possession at all. Matched per line rather than by exact padding.
+        stock = [ln for ln in out.splitlines()
+                 if "SFXPlayerController" in ln and "Possess" in ln and "parms=0xc" in ln]
+        self.assertEqual(len(stock), 1,
+                         "SFXPlayerController.Possess shape changed: %r" % stock)
+        self.assertIn("bVehicleTransition:BoolProperty", stock[0])
+        self.assertNotIn("PlayerSquad", stock[0])
 
 
 class SkipBehaviourTests(unittest.TestCase):
