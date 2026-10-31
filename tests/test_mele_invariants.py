@@ -313,6 +313,35 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("ME3  no MemberAdded - adding a member is silent; SetPlayerPawn", out)
 
 
+    @needs_install
+    def test_guest_has_no_spawn_point_of_its_own(self):
+        """Section 11: where a second player could stand.
+
+        The campaign spawns from `BioStartLocation`, not `PlayerStart`, so a count of `PlayerStart` alone
+        reported zero spawn points almost everywhere. Pinned here: the spawn class, that the map totals
+        are plausible, and that of the maps that have a spawn point LE3 mostly has only one - which is
+        what makes `bNoCollisionFail` necessary rather than optional.
+        """
+        index_dir = os.environ.get("MELE_INDEX_DIR") or str(
+            PROJECT / "local" / "MELE" / "index")
+        if not os.path.isfile(os.path.join(index_dir, "ME3.json")):
+            self.skipTest("no package index (startcheck needs every map; set MELE_INDEX_DIR)")
+        code, out = run(mele_props.cmd_startcheck)
+        self.assertEqual(code, 0, out)
+        import re
+        lines = out.splitlines()
+        for game in ("ME1", "ME2", "ME3"):
+            idx = [i for i, l in enumerate(lines) if l.startswith(game)]
+            self.assertTrue(idx, "%s row missing:\n%s" % (game, out))
+            self.assertIn("BioStartLocation", lines[idx[0] + 1])
+            maps = int(re.search(r"(\d+) map\(s\)", lines[idx[0]]).group(1))
+            with_start = int(re.search(r"(\d+) with a spawn point", lines[idx[0]]).group(1))
+            self.assertGreater(maps, 1000, "%s map count collapsed" % game)
+            self.assertGreater(with_start, 0)
+            self.assertLessEqual(with_start, maps)
+        self.assertIn("SpawnDefaultPawnFor's bNoCollisionFail", out)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
@@ -323,7 +352,7 @@ class SkipBehaviourTests(unittest.TestCase):
             for command in (mele_props.cmd_coopcheck, mele_props.cmd_savecheck,
                             mele_props.cmd_squadadd, mele_props.cmd_plotcheck,
                             mele_props.cmd_joincheck, mele_props.cmd_spawncheck,
-                            mele_props.cmd_rostercheck):
+                            mele_props.cmd_rostercheck, mele_props.cmd_startcheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)

@@ -338,7 +338,33 @@ squadmate-as-player needs. The guest's pawn does not have to be invented; what i
 that accepts a second player. `SFXGameInfoMP_LobbyUnusedDummy` also ships, which says MP was disabled
 deliberately rather than removed.
 
-## 11. The net driver is native on every build
+## 11. A guest shares the host's spawn point, because most maps have none or exactly one
+
+`startcheck` answers where a second player could stand. Counting only `PlayerStart` gives zero spawn
+points in 94-99% of maps, which is a fact about `PlayerStart` and not about the game: the campaign spawns
+from **`BioStartLocation`** (plus `BioStartPoint` on LE1/LE2), which is also why LE1's campaign class
+overrides `FindPlayerStart` and adds `FindStartingNavPoint`.
+
+| build | maps | with a spawn point | exactly one | two or more |
+| --- | --- | --- | --- | --- |
+| LE1 | 1,811 | 129 (7.1%) | 61 (47.3%) | 68 (52.7%) |
+| LE2 | 2,156 | 250 (11.6%) | 121 (48.4%) | 129 (51.6%) |
+| LE3 | 2,677 | 114 (4.3%) | **69 (60.5%)** | 45 (39.5%) |
+
+By class - `BioStartLocation` / `BioStartPoint` / `PlayerStart`: LE1 251 / 202 / 165, LE2 338 / 33 / 147,
+LE3 255 / – / 44.
+
+Most of the 6,644 packages are streaming sublevels (`_ART`, `_SND`, `_LAY`, `_DSG`) that never receive a
+player, which is why the 7%/12%/4% figures are small. The useful number is the last two columns: **of the
+maps that do have a spawn point, LE3 has exactly one in 60% of them**, so a guest has no start of its own
+in most places a player can appear.
+
+That settles guest placement without a new mechanism: share the host's start and pass
+`bNoCollisionFail`, which ME3's `Engine.GameInfo.SpawnDefaultPawnFor` takes and ME1/ME2's does not - the
+build added "spawn even though something is standing there" precisely because two things can want the
+same spot.
+
+## 12. The net driver is native on every build
 `TcpNetDriver`, `UdpNetDriver`, `DemoRecDriver` and `SFXOnlineNetDriver` exist in **zero of the 12,704
 packages**. They are native classes, so a mod can create a driver but can never adjust its properties
 from script. This is consistent with the ordinary listen path this repository already uses, and it

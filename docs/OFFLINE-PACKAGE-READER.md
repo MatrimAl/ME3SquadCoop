@@ -59,6 +59,7 @@ python -I tools/melepkg/mele_props.py plotcheck    # how much story state that a
 python -I tools/melepkg/mele_props.py joincheck    # is the join path in script, and where is the pawn
 python -I tools/melepkg/mele_props.py spawncheck   # what a guest pawn needs, and whether the game takes it
 python -I tools/melepkg/mele_props.py rostercheck  # how a roster entry is added, and what notifies
+python -I tools/melepkg/mele_props.py startcheck   # where a guest could stand, in every map
 python -I tools/melepkg/mele_props.py maplist      # how many maps a full pass covers
 python -I tools/melepkg/mele_props.py routing      # map prefix -> game class, and the driver check
 
@@ -89,6 +90,7 @@ pre-built index for that:
 | `maplist` | walks the install and parses each package - correct, and minutes per build |
 | `storycheck` | refuses, and says so; it counts actions in every map and a partial count is misleading |
 | `routing` (driver half only) | prints `skipped: no package index` and reports the rest |
+| `startcheck` | refuses; it counts spawn points in every map, and a partial count is misleading |
 
 `plotcheck` deliberately needs no index: it opens two named packages, so it answers in seconds. The same
 is true of `joincheck` (which opens `Engine.pcc`, each campaign `SFXGame.pcc` and `BIO_COMMON.pcc`) and
