@@ -7,7 +7,7 @@ this repository is built around. Nothing here proves guest behaviour; it narrows
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
 `savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8), `spawncheck` (9), `joincheck` (10),
 `rostercheck` (3), `startcheck` (11), `gricheck` (12), `prefixcheck` (13), `netcheck` (14),
-`travelcheck` (15) and `maplist`. The reader and its scope limit are described in
+`travelcheck` (15), `capacitycheck` (2) and `maplist`. The reader and its scope limit are described in
 [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
 `python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
 
@@ -57,6 +57,22 @@ LE3 does not merely allow fewer players; its campaign game class serialises a `1
 admission. Reading the declaration gives 32 and is the wrong answer. This is consistent with the
 `MaxPlayers`/`MaxAllowed` lease that `src/session_control.h` already raises, and it names the exact
 field pair to raise on LE3 and explains why LE1/LE2 need no equivalent clamp.
+
+**Where the clamp actually bites, measured with `capacitycheck` - identical on all three builds:**
+
+| step | function | reads |
+| --- | --- | --- |
+| 1 | `GameInfo.InitGame(Options, out ErrorMessage)` - 1,454/1,454/**1,467** bytes, literals `'MaxPlayers'`, `'MaxSpectators'` | **`MaxPlayers` and `MaxPlayersAllowed`** |
+| 2 | `GameInfo.AtCapacity(bSpectator) -> bool` - 138/138/**139** bytes | **`NumPlayers` vs `MaxPlayers`**, `NumSpectators` vs `MaxSpectators`; never `MaxPlayersAllowed` |
+| 3 | `GameInfo.Login(...)` - 2,079/2,079/**2,127** bytes, literal `'.MaxedOutMessage'` | the refusal |
+
+`InitGame` parses `?MaxPlayers=` from the options string and clamps the requested value against
+`MaxPlayersAllowed`; `AtCapacity` compares `NumPlayers` against the resulting `MaxPlayers`; `Login` refuses
+with `MaxedOutMessage`. LE3's `MaxPlayers` is the inherited 4 until `InitGame` writes 1 into it.
+
+Two consequences. **`?MaxPlayers=2` in a travel URL does nothing on its own** - it is parsed and clamped back
+inside the same function, so the obvious first experiment is pre-defeated. And the fix is the one int this
+section already named, but for a measured reason: `MaxPlayersAllowed` is what `InitGame` clamps against.
 
 ## 3. The squad roster stores a record on LE1/LE2 and the pawn itself on LE3, behind one shared call
 

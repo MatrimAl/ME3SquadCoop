@@ -557,6 +557,36 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("HandleSeamlessTravelPlayer(1343)", out)
 
 
+    @needs_install
+    def test_capacity_clamp_is_initgames_not_atcapacitys(self):
+        """Section 2: where the capacity clamp bites, which decides the fix.
+
+        `AtCapacity` never reads `MaxPlayersAllowed`. The chain is `InitGame` parsing `?MaxPlayers=` and
+        clamping it against `MaxPlayersAllowed`, then `AtCapacity` comparing `NumPlayers` against the
+        resulting `MaxPlayers`, then `Login` refusing with `.MaxedOutMessage`.
+
+        That makes `?MaxPlayers=2` in a travel URL useless on its own - the obvious first experiment is
+        pre-defeated - and it is why the fix is the one int on the campaign class.
+        """
+        code, out = run(mele_props.cmd_capacitycheck)
+        self.assertEqual(code, 0, out)
+        for game in ("ME1", "ME2", "ME3"):
+            section = out.split("== %s" % game)
+            self.assertGreaterEqual(len(section), 2, "%s section missing" % game)
+            body = section[1].split("== ME")[0]
+            self.assertIn("AtCapacity(bSpectator, ReturnValue)", body)
+            self.assertIn("capacity literals: ['MaxPlayers', 'MaxSpectators']", body)
+            self.assertIn(".MaxedOutMessage", body)
+        for line in out.splitlines():
+            if "MaxPlayersAllowed read by:" in line:
+                self.assertNotIn("AtCapacity", line,
+                                 "AtCapacity reads MaxPlayersAllowed directly:\n%s" % line)
+            if "MaxPlayers        read by:" in line:
+                self.assertIn("GameInfo.AtCapacity", line)
+        self.assertIn("Default__SFXGame      {'MaxPlayersAllowed': 1}", out)
+        self.assertIn("Default__GameInfo     {'MaxPlayers': 4, 'MaxPlayersAllowed': 32}", out)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
@@ -569,7 +599,8 @@ class SkipBehaviourTests(unittest.TestCase):
                             mele_props.cmd_joincheck, mele_props.cmd_spawncheck,
                             mele_props.cmd_rostercheck, mele_props.cmd_startcheck,
                             mele_props.cmd_gricheck, mele_props.cmd_prefixcheck,
-                            mele_props.cmd_netcheck, mele_props.cmd_travelcheck):
+                            mele_props.cmd_netcheck, mele_props.cmd_travelcheck,
+                            mele_props.cmd_capacitycheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)
