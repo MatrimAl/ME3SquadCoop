@@ -232,6 +232,14 @@ cooked inside `SFXGame.pcc` under the package group `BIOG_2DA_PlotManager_X` wit
 An earlier version of this section said LE3's flag set could not be enumerated and called it the hard
 build. The absence of the accessor class is real; the conclusion drawn from it was not.
 
+**The sync itself is a getter/setter pair.** `BioGlobalVariableTable` carries
+`GetPlayerPlotData(out PlayerData: Struct) -> void` and `SetPlayerPlotData(PlayerData: Struct) -> void`,
+plus `CopyPlots(toCopy: Array)` and `ApplyCanonPlots(aCanonPlotVariables: Array)`, and uses that same
+pair for its own ME1/ME2 import paths. So the LE3 story sync is: get on the host, ship the struct, set on
+the guest. The struct the parameter is typed as is not resolved by the offline reader - both ends are a
+48-byte `StructProperty` whose inner words disagree - so it is probably `PlotTableSaveRecord` and that is
+stated as probable rather than measured.
+
 ## 9. Accepting a second player is a class override on every build
 
 `joincheck` answers the question the rest of the plan rests on: is the code that decides about a joining
