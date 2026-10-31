@@ -354,6 +354,15 @@ overrides `FindPlayerStart` and adds `FindStartingNavPoint`.
 By class - `BioStartLocation` / `BioStartPoint` / `PlayerStart`: LE1 251 / 202 / 165, LE2 338 / 33 / 147,
 LE3 255 / – / 44.
 
+The class is confirmed by the campaign's own `FindPlayerStart` rather than by a name match - LE3's takes an
+out parameter called **`ChkBioStartLocation`**:
+
+| build | `FindPlayerStart` |
+| --- | --- |
+| LE1 | `BioSPGame(Player, InTeam, IncomingName, out ReturnValue, oNav, ATStartPoint)` |
+| LE2 | `SFXGame(Player, InTeam, IncomingName, out ReturnValue, ChkActor, ATStart, Engine)` |
+| LE3 | `SFXGameInfoSP(Player, InTeam, IncomingName, out ReturnValue, Engine, ATStart, ChkActor, ChkBioStartLocation)` |
+
 Most of the 6,644 packages are streaming sublevels (`_ART`, `_SND`, `_LAY`, `_DSG`) that never receive a
 player, which is why the 7%/12%/4% figures are small. The useful number is the last two columns: **of the
 maps that do have a spawn point, LE3 has exactly one in 60% of them**, so a guest has no start of its own

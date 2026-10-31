@@ -2030,11 +2030,16 @@ def cmd_startcheck(args):
        the engine already has the "spawn even though someone is standing there" flag, and on this
        build it is needed rather than optional.
 
-    The spawn classes are counted by export class from the package index. Needs one for every package,
-    so without an index it refuses rather than reporting a partial count.
+    The spawn classes are counted by export class from the package index. That index is required rather
+    than optional here: `_iter_index` can walk the install instead, but a full walk is many minutes per
+    build, so a silent slow path would be worse than a clear refusal.
     """
     if not _require_install():
         print("no Legendary Edition install found - set MELE_GAME_DIR (skip, not a result)")
+        return 2
+    if not os.path.isfile(os.path.join(_index_dir(), "ME1.json")):
+        print("no package index in %s - startcheck counts spawn points in every map, so it needs one "
+              "(set MELE_INDEX_DIR; skip, not a result)" % _index_dir())
         return 2
     spawn_classes = ("BioStartLocation", "BioStartPoint", "PlayerStart", "BioPlayerStart")
     problems = []
@@ -2086,6 +2091,34 @@ def cmd_startcheck(args):
         if with_start and one / float(with_start) > 0.95:
             problems.append("%s: nearly every spawnable map has exactly one start - re-read the guest "
                             "placement plan" % game)
+
+    print()
+    print("2. The campaign's own FindPlayerStart, which names the class it returns")
+    overrides = (("ME1", "BioSPGame", "SFXGame.pcc"), ("ME2", "SFXGame", "SFXGame.pcc"),
+                 ("ME3", "SFXGameInfoSP", "BIO_COMMON.pcc"))
+    mt = load_tables()
+    pkg = mt.load_pkg()
+    for game, klass, package in overrides:
+        path = None
+        for root in pkg.game_dirs():
+            cand = os.path.join(root, "Game", game, "BioGame", "CookedPCConsole", package)
+            if os.path.isfile(cand):
+                path = cand
+                break
+        if path is None:
+            problems.append("%s: no %s - FindPlayerStart not read" % (game, package))
+            continue
+        t = mt.build(path)
+        fn = _function_on(mt, t, klass, "FindPlayerStart")
+        if fn is None:
+            problems.append("%s: %s.FindPlayerStart not found in %s" % (game, klass, package))
+            continue
+        sig = mt.signature(t, t["buf"], fn)
+        params = [n for n, _ty, _s, _o in sig["params"]]
+        print("   %-4s %s.FindPlayerStart(%s)" % (game, klass, ", ".join(params)))
+        if game == "ME3" and "ChkBioStartLocation" not in params:
+            problems.append("ME3: FindPlayerStart no longer takes a ChkBioStartLocation - the spawn "
+                            "class is no longer confirmed by the signature")
 
     print()
     if problems:
