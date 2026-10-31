@@ -394,6 +394,27 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("MaxPlayersAllowed            1", out)
 
 
+    @needs_install
+    def test_pri_is_per_player_and_mp_shaped(self):
+        """Section 12's other half: the per-player replication info.
+
+        `SFXGame.PlayerReplicationInfoClass=SFXPRI`, so every player gets one. It is multiplayer-shaped:
+        credits, points, medals, match consumables, a score-replication period, `FindLocalPRI` (a
+        local-versus-remote distinction), and `Server*` RPCs - the server-authoritative pattern. Three of
+        its 10 properties replicate.
+
+        That means the engine already models "this player's state" separately from the session's, which is
+        what a second player needs, and it is the asset that makes a guest's per-player data cheap.
+        """
+        code, out = run(mele_props.cmd_gricheck)
+        self.assertEqual(code, 0, out)
+        self.assertIn("5. The per-player replication info, SFXPRI", out)
+        self.assertIn("super: export:SFXPRI_NativeBase", out)
+        self.assertIn("10 property(ies), 27 function(s)", out)
+        self.assertIn("ReplicatedScoreInfo", out)
+        self.assertIn("ServerAddActiveMatchConsumable", out)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 

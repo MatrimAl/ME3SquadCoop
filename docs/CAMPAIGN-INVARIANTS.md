@@ -438,6 +438,18 @@ The player stack is already wired: `Default__SFXGame` sets `PlayerControllerClas
 routes to `SFXGameInfoSP : SFXGame`, any player the engine spawns gets a Bio controller, PRI and HUD with no
 co-op code - which is the asset that decides whether a second player has a working HUD.
 
+**The per-player record replicates, and it is multiplayer-shaped.** `SFXPRI` has 10 properties and 27
+functions: `CreditsEarned`, `PointsEarned`, `ScoreLog`, `ScoreReplicationPeriod`, `ActiveMatchConsumables`,
+`ReplicatedScoreInfo`; `AddPoints`, `AddPlayerMedal`, `ReplicateScoreInfo`, `CanSetReadyInLobby`,
+`SetReadyInLobby`; and `ServerAddActiveMatchConsumable` / `ServerRemoveActiveMatchConsumable`, which are the
+server-authoritative RPC pattern already in the shipped code. Three properties replicate.
+`FindLocalPRI` distinguishes *the local player's* record from everyone else's, which only makes sense with
+more than one player.
+
+So the split is backwards from what a networked game would want, and worth stating plainly: **per-player data
+replicates, per-session permissions do not.** A guest's score syncs for free; a guest's inability to save has
+to be enforced by the mod (section 12).
+
 Two reader notes for anyone repeating this: `ArrayProperty` values decode into a tag **list per element**,
 so a row is folded by hand; and for an import, `describe_index`'s package prefix is the cook **source**, not
 the package. `SFXGameInfoSP`'s super reads `Core.SFXGame` and is really `SFXGame.SFXGame`;
