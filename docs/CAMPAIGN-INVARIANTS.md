@@ -479,8 +479,26 @@ Only ~1.8% of the engine's properties replicate, and they are the right ones.
 **The stock client-join handshake is in script on `PlayerController` on every build, 5/5:**
 `ServerGivePawn`, `ServerAcknowledgePossession`, `ServerMove`, `ServerSetSpectatorLocation`,
 `ServerUpdatePing`, plus 62-65 `Client*` functions with bytecode. That is unmodified UE3 - the host assigns a
-pawn, the client acknowledges possession, the client sends its own movement. A guest needs no new networking,
-only the campaign's refusal lifted and a squadmate pawn to hand over.
+pawn, the client acknowledges possession, the client sends its own movement.
+
+**And the campaign's own controller chain never replaces that transport.** Following the class each campaign
+instantiates:
+
+| build | chain, outermost last | `ServerMove` replaced |
+| --- | --- | --- |
+| LE1 | `PlayerController` 364 fn -> `BioBasePlayerController` 2 -> `BioPlayerController` 119 | **no** |
+| LE2 | `PlayerController` 362 -> `BioBasePlayerController` 0 -> `BioPlayerController` 166 -> `SFXPlayerController` 14 | **no** |
+| LE3 | `PlayerController` 361 -> `BioPlayerController` 272 -> `SFXPlayerController` 76 | **no** |
+
+`ServerMove` and `ClientRestart` are declared once, on `Engine.PlayerController`, and never overridden
+anywhere in the Bio chain on any build. The chain replaces `Possess` (on `BioPlayerController` everywhere and
+again on `SFXPlayerController` on LE2/LE3), `UnPossess` (LE2/LE3) and `SpawnPlayerCamera` (LE3).
+
+So the movement transport a guest gets is exactly the engine's own, and **possession is the single overridden
+seam in the presence path** - which is also the seam "the client takes a squadmate" has to hook. On LE3 the
+whole of co-op becomes: lift `MaxPlayersAllowed` from 1 on `SFXGame`, let the stock `Login`/`PostLogin` path
+hand the guest a controller, and override `Possess` so it takes a squadmate pawn. No packet format, no
+movement code, no snapshot system.
 
 **`Projectile` replicates nothing, on all three builds.** Weapon fire travels as `Pawn.FlashCount` (an
 increment) and `Pawn.FlashLocation` (a position), and each client spawns its own projectile locally. So

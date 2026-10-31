@@ -441,6 +441,31 @@ class CampaignInvariantTests(unittest.TestCase):
             self.assertIn("replicate (", row[0])
 
 
+    @needs_install
+    def test_movement_transport_is_inherited_and_possession_is_the_seam(self):
+        """Section 14: the most actionable result — the campaign never replaces `ServerMove`.
+
+        `BioPlayerController` has 119-272 script functions, which looks like it owns the presence path. It
+        owns `Possess` and the camera; `ServerMove` and `ClientRestart` pass straight through from
+        `Engine.PlayerController` on every build. So the movement transport a guest gets is the engine's own,
+        and possession is the single overridden seam — which is where "the client takes a squadmate" has to
+        hook.
+        """
+        code, out = run(mele_props.cmd_netcheck)
+        self.assertEqual(code, 0, out)
+        self.assertIn("the campaign's own controller chain, and what it replaces", out)
+        replacing = [ln for ln in out.splitlines() if "replaces:" in ln]
+        self.assertTrue(replacing, "no override list reported:\n%s" % out)
+        for line in replacing:
+            # Only Engine.PlayerController may replace ServerMove; anything further down means the
+            # inherited-transport claim no longer holds.
+            if "ServerMove" in line and not line.strip().startswith("PlayerController "):
+                self.fail("a Bio/SP controller now replaces ServerMove: %s" % line.strip())
+        self.assertTrue(any("replaces: Possess" in ln for ln in replacing),
+                        "possession is no longer the overridden seam:\n%s" % out)
+        self.assertIn("possession is the", out)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
