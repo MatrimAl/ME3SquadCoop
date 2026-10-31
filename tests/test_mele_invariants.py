@@ -621,6 +621,9 @@ class CampaignInvariantTests(unittest.TestCase):
             self.assertIn("WorldInfo.IsDemoBuild", body)
             # The ordering that makes a mutator able to fix the player count.
             self.assertIn("mutator runs AFTER the clamp", body)
+        # The shipped template and the loader that makes ?Mutator= resolve.
+        self.assertIn("SFXMutator_DifficultySpeed", out)
+        self.assertIn("GameInfo.AddMutator (body=619) reads Mutator.GroupNames", out)
 
 
 class SkipBehaviourTests(unittest.TestCase):

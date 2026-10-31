@@ -200,6 +200,30 @@ the player count, `ModifyLogin` accepts the guest and `ModifyPlayer` hands it a 
 the campaign builds its own travel URLs, so whether `?Mutator=` survives a map change is unmeasured; and
 nothing here proves a mutator's effect is *replicated* to a client, only that the hook is called.
 
+**And LE3 already ships a working example, which removes most of the first risk.** `SFXGame.pcc` defines two
+subclasses:
+
+| class | super | overrides |
+| --- | --- | --- |
+| `SFXMutator` | `Engine.Mutator` | `SetGameSpeed(NewSpeed, NextMut)` |
+| `SFXMutator_DifficultySpeed` | `SFXMutator` | `MutatorIsAllowed()`, `SetGameSpeed(NewSpeed, NextMut, GRI, GlobalSpeed)` |
+
+`Default__SFXMutator_DifficultySpeed` sets exactly one property, `GroupNames`, whose single element decodes to
+the UTF-16 string **`DifficultySpeed`** — and **`GameInfo.AddMutator` reads `Mutator.GroupNames`** (verified by
+locating the property's dword inside its 619-byte body). So the whole chain is demonstrated by shipped content:
+
+```
+?Mutator=DifficultySpeed
+  -> InitGame parses the 'Mutator' option
+  -> AddMutator resolves the name via Mutator.GroupNames
+  -> MutatorIsAllowed (!WorldInfo.IsDemoBuild()) permits it
+  -> InitMutator runs, after the MaxPlayers clamp
+  -> ModifyLogin / ModifyPlayer / NotifyLogin fire
+```
+
+That means the class *can* be cooked and the name *is* resolved — by the same code path a mod would use.
+What is still unmeasured is only whether the campaign's own travel URLs carry the option forward.
+
 ## 5. LE3 does not persist the level's actors; LE1 does
 
 | build | classes ending in `SaveObject` | how a level is written |
