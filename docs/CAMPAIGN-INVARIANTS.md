@@ -6,8 +6,8 @@ this repository is built around. Nothing here proves guest behaviour; it narrows
 
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
 `savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8), `spawncheck` (9), `joincheck` (10),
-`rostercheck` (3) and `maplist`. The reader and its scope limit are described in
-[offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
+`rostercheck` (3), `startcheck` (11), `gricheck` (12) and `maplist`. The reader and its scope limit are
+described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
 `python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
 
 Labels follow [VALIDATION.md](VALIDATION.md): **observed** means read from a file with a check that
@@ -373,7 +373,47 @@ That settles guest placement without a new mechanism: share the host's start and
 build added "spawn even though something is standing there" precisely because two things can want the
 same spot.
 
-## 12. The net driver is native on every build
+## 12. LE3's campaign replication info is multiplayer-shaped, but its capability flags are local
+
+`Default__SFXGameInfoSP` sets exactly one property, `GameReplicationInfoClass=SFXGRISP`, and `SFXGRISP` is
+a **zero-override alias of `SFXGRI`** - 35 properties and 32 script functions - which is the per-session
+state the campaign is built on.
+
+| build | campaign `GameReplicationInfoClass` | that class |
+| --- | --- | --- |
+| LE1 | **`BioGameReplicationInfo`** | 3 properties, 1 function |
+| LE2 | *inherited* - stock `GameReplicationInfo` | `BioGameReplicationInfo` exists in `SFXGame.pcc` but the CDO does not point at it |
+| LE3 | **`SFXGRISP`** | 35 properties, 32 functions |
+
+`SFXGRI` carries capability switches (`bCanSave`, `bCanShowJournal`, `bCanShowCodex`, `bCanShowMap`,
+`bPlayerCanChangeSquad`, `bCanSpawnHenchmen`, `bPauseForCommand`, `bAllowTimeDilation`), multiplayer state
+(`MaxUniquePlayers`, `bMultiplayer`, `bIsMultiplayerCharacter`), combat state (`bInCombat`,
+`bForceCombat`, `bAlwaysInCombat`), and the functions `NumPlayersInGame`, `NumLivingPlayers`,
+`IsJoinInProgress`, `NextLivingPlayer`, `GetPlayerLevel`, `IsGameOver`, `GetTeamScore`,
+`CopyProperties(OldGRI)`. `Default__SFXGRI` closes exactly with 18 properties; all eight capability
+switches default to True, and `bMultiplayer` / `bIsMultiplayerCharacter` / `MaxUniquePlayers` are unset.
+
+**The capability switches do not replicate, and a co-op plan must not assume they do.** Exactly four of
+the 35 properties carry `CPF_Net`:
+
+```
+replicated:  MaxUniquePlayers, WaveCoordinator, bForceCombat, bInCombat
+local-only:  bCanSave, bCanShowJournal, bCanShowCodex, bCanShowMap,
+             bPlayerCanChangeSquad, bCanSpawnHenchmen, bPauseForCommand, bAllowTimeDilation
+```
+
+So "the guest cannot save" has to be enforced where the save happens (the `SFXSeqAct_SaveGame` surface in
+section 7), not by flipping a bool the host owns. What *is* replicated is combat state and the player
+ceiling - the half that must not diverge, which is the useful half to get for free.
+
+`CopyProperties(OldGRI)` is a state-transfer primitive LE1/LE2 do not have: one GRI can be handed
+another's state wholesale, which is what a late join or a level transition needs.
+
+An earlier pass concluded LE1/LE2 have no replication-info class at all. Both define
+`BioGameReplicationInfo` and ME1's campaign points at it; the difference is scale and whether the campaign
+uses it.
+
+## 13. The net driver is native on every build
 `TcpNetDriver`, `UdpNetDriver`, `DemoRecDriver` and `SFXOnlineNetDriver` exist in **zero of the 12,704
 packages**. They are native classes, so a mod can create a driver but can never adjust its properties
 from script. This is consistent with the ordinary listen path this repository already uses, and it

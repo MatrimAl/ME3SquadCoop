@@ -342,6 +342,32 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("SpawnDefaultPawnFor's bNoCollisionFail", out)
 
 
+    @needs_install
+    def test_capability_flags_are_local_and_combat_state_replicates(self):
+        """Section 12: the campaign's replication info, and the one thing it does not give us.
+
+        `SFXGRISP` is a zero-override alias of a 35-property, 32-function `SFXGRI`, so LE3's campaign
+        runs on multiplayer-shaped state. The tempting conclusion - that `bCanSave` and friends are
+        replicated capability switches a host can flip - is false, and this test asserts the negative so
+        a plan cannot be built on it: exactly four properties carry `CPF_Net`, and none is a capability
+        flag. If that ever changes, the gating plan gets simpler and this fails to say so.
+        """
+        code, out = run(mele_props.cmd_gricheck)
+        self.assertEqual(code, 0, out)
+        self.assertIn("GameReplicationInfoClass=<BioGameReplicationInfo>", out)
+        self.assertIn("inherited (stock GameReplicationInfo)", out)
+        self.assertIn("GameReplicationInfoClass=<SFXGRISP>", out)
+        self.assertIn("SFXGRISP                  0 property(ies),  0 function(s)", out)
+        self.assertIn("35 property(ies), 32 function(s)", out)
+        self.assertIn("closure EXACT", out)
+        self.assertIn("replicated: MaxUniquePlayers, WaveCoordinator, bForceCombat, bInCombat", out)
+        local = [ln for ln in out.splitlines() if "capability flags present and local-only" in ln]
+        self.assertTrue(local, "local-only capability flags were not reported:\n%s" % out)
+        for flag in ("bCanSave", "bCanShowJournal", "bCanShowCodex", "bCanShowMap"):
+            self.assertIn(flag, local[0])
+        self.assertIn("CopyProperties       (OldGRI)", out)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
@@ -352,7 +378,8 @@ class SkipBehaviourTests(unittest.TestCase):
             for command in (mele_props.cmd_coopcheck, mele_props.cmd_savecheck,
                             mele_props.cmd_squadadd, mele_props.cmd_plotcheck,
                             mele_props.cmd_joincheck, mele_props.cmd_spawncheck,
-                            mele_props.cmd_rostercheck, mele_props.cmd_startcheck):
+                            mele_props.cmd_rostercheck, mele_props.cmd_startcheck,
+                            mele_props.cmd_gricheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)
