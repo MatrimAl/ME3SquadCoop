@@ -288,6 +288,31 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("ME3  SFXGame   .SpawnDefaultPawnFor 33 param(s), parms 0xf4, PlayerInfo: True", out)
 
 
+    @needs_install
+    def test_roster_is_one_call_over_two_different_stores(self):
+        """Section 3: the store differs per build, the call does not.
+
+        `Members` holds a `MemberData` record on LE1/LE2 and the `Pawn` itself on LE3, which reads like
+        three different edits. `AddMember(Pawn) -> int` exists on every build, so adding the guest is one
+        call either way; the store decides what the entry *means*, not how much work it is.
+
+        The notification differences are pinned too, because they are the part a co-op mod has to fill in:
+        only LE1 has `MemberAdded`, only LE1 has a spare-controller slot, only LE3 has `SetPlayerPawn`.
+        """
+        code, out = run(mele_props.cmd_rostercheck)
+        self.assertEqual(code, 0, out)
+        for game in ("ME1", "ME2"):
+            line = [l for l in out.splitlines() if l.strip().startswith(game) and "Members is" in l]
+            self.assertTrue(line, "%s store row missing:\n%s" % (game, out))
+            self.assertIn("element struct MemberData", line[0])
+        me3 = [l for l in out.splitlines() if l.strip().startswith("ME3") and "Members is" in l]
+        self.assertTrue(me3, "LE3 store row missing:\n%s" % out)
+        self.assertIn("element class Pawn", me3[0])
+        self.assertIn("BioBaseSquad   AddMember            (Pawn", out)
+        self.assertIn("ME1  MemberAdded(notification); spare-controller slot", out)
+        self.assertIn("ME3  no MemberAdded - adding a member is silent; SetPlayerPawn", out)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
@@ -297,7 +322,8 @@ class SkipBehaviourTests(unittest.TestCase):
         try:
             for command in (mele_props.cmd_coopcheck, mele_props.cmd_savecheck,
                             mele_props.cmd_squadadd, mele_props.cmd_plotcheck,
-                            mele_props.cmd_joincheck, mele_props.cmd_spawncheck):
+                            mele_props.cmd_joincheck, mele_props.cmd_spawncheck,
+                            mele_props.cmd_rostercheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)

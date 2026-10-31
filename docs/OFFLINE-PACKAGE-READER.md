@@ -58,6 +58,7 @@ python -I tools/melepkg/mele_props.py storycheck   # what advances the campaign,
 python -I tools/melepkg/mele_props.py plotcheck    # how much story state that advancement produces
 python -I tools/melepkg/mele_props.py joincheck    # is the join path in script, and where is the pawn
 python -I tools/melepkg/mele_props.py spawncheck   # what a guest pawn needs, and whether the game takes it
+python -I tools/melepkg/mele_props.py rostercheck  # how a roster entry is added, and what notifies
 python -I tools/melepkg/mele_props.py maplist      # how many maps a full pass covers
 python -I tools/melepkg/mele_props.py routing      # map prefix -> game class, and the driver check
 

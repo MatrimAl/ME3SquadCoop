@@ -5,8 +5,8 @@ constrain what a guest implementation can assume, and several contradict assumpt
 this repository is built around. Nothing here proves guest behaviour; it narrows where to look.
 
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
-`savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8), `spawncheck` (9), `joincheck` (10) and
-`maplist`. The reader and its scope limit are described in
+`savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8), `spawncheck` (9), `joincheck` (10),
+`rostercheck` (3) and `maplist`. The reader and its scope limit are described in
 [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
 `python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
 
@@ -57,21 +57,50 @@ admission. Reading the declaration gives 32 and is the wrong answer. This is con
 `MaxPlayers`/`MaxAllowed` lease that `src/session_control.h` already raises, and it names the exact
 field pair to raise on LE3 and explains why LE1/LE2 need no equivalent clamp.
 
-## 3. The squad roster changes shape between builds, and recruitment is table-driven
+## 3. The squad roster stores a record on LE1/LE2 and the pawn itself on LE3, behind one shared call
 
-`BioBaseSquad.Members` is an `ArrayProperty` everywhere, but its element type is not the same:
+`BioBaseSquad.Members` is an `ArrayProperty` everywhere, but its element is not the same thing. The
+element type is a child property of the array, and resolving *that* property's `+44` field names it:
 
-| build | `Members` element | `MemberData` struct |
+| build | `Members` element | what one entry **is** |
 | --- | --- | --- |
-| LE1 | `TArray<MemberData>` | present, **17 fields** |
-| LE2 | `TArray<MemberData>` | present, **7 fields** |
-| LE3 | `TArray<Object>` | **absent** |
+| LE1 | struct `MemberData` | a **record** describing a squad member (17 fields) |
+| LE2 | struct `MemberData` | a **record** (7 fields) |
+| LE3 | class **`Pawn`** | **the pawn itself** |
 
 `MemberData` on LE1 carries per-member order state - `SquadMember`, `vMoveLocation`,
 `vHoldPosition`, `vTarget`, `stCoverToUse`, `EscapeLocation`, `nmPower`, `eAction`, `eSwitchWeapon`,
-`eFormation`. LE3 has none of that in a struct.
+`eFormation`. LE3 has none of that in a struct, because its roster entry is the pawn.
 
-The campaign's own recruitment action does not simply append. `BioSeqAct_AddToParty.Activated`:
+**That reads like three different edits and it is not.** The API in front of the store is the same:
+
+| build | `AddMember` |
+| --- | --- |
+| LE1 | `(Pawn) -> int` |
+| LE2 | `(Pawn, bCheckPlaypens) -> int` |
+| LE3 | `(Pawn, bCheckPlaypens) -> int` |
+
+`AddMember` takes a pawn on every build and returns its index, so adding the guest is one call whichever
+build is running; the pawn to `MemberData` conversion on LE1/LE2 happens inside the engine. What the
+difference decides is what the entry *means*: on LE3 the roster holds the guest pawn alive, on LE1/LE2 it
+holds a description of it.
+
+Where the builds genuinely diverge is notification and control transfer:
+
+| capability | LE1 | LE2 | LE3 |
+| --- | --- | --- | --- |
+| `MemberAdded` notify | **base + player squad** | none | none |
+| `MemberRemoved` notify | yes | yes | yes |
+| `GetSpareController` / `SetSpareController(newCtrl)` / `SwapSpareController(oPawn, oOriginalController, oNewController)` | **yes** | no | no |
+| `BioPlayerSquad.SetPlayerPawn(PlayerPawn)` | no | no | **yes** |
+
+Two matter. **LE1 has an explicit spare-controller slot**, and the word `SpareController` appears in no
+other name in any of the 19,430 packages - a second-player mechanism sitting dormant in the campaign's own
+squad class (a name search cannot exclude a bytecode call site, so "declared and named nowhere else" is
+the claim). And **LE1 notifies on add while LE2/LE3 do not**: on those builds `MemberAdded` does not
+exist, so anything reacting to a squad change has to be driven explicitly rather than observed.
+
+The campaign's own recruitment action does not simply append either. `BioSeqAct_AddToParty.Activated`:
 
 | build | body size | `Bio2DA` members referenced |
 | --- | --- | --- |
