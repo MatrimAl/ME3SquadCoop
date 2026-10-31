@@ -182,7 +182,7 @@ members each (`*_Unset`, `*_MAX`) - stubs for a value space defined in the plot 
 the size of story state **cannot** be read from those enums. Section 8 reads it from the accessors
 instead, which do bound it.
 
-## 8. Story state is small enough to ship whole, on two of three builds
+## 8. Story state is small enough to ship whole, on all three builds
 
 Section 7 says where the campaign advances. This says what the advancement costs to synchronise, which
 decides whether a guest needs a delta log or can simply be handed the whole thing.
@@ -191,20 +191,46 @@ decides whether a guest needs a delta log or can simply be handed the whole thin
 is plot-flag accessors shaped `F(id)(Argument: Int) -> ReturnValue: Bool`. Each flag is an integer
 addressed by a small id, and the id space is bounded by the largest id present:
 
-| build | functions | ids | slots | as int32 |
-| --- | --- | --- | --- | --- |
-| LE1 | 1,066 | 113..2018 | 2,019 | ~8 KB |
-| LE2 | 1,356 | 1..2050 | 2,051 | ~8 KB |
+| build | shape | size |
+| --- | --- | --- |
+| LE1 | 1,066 accessors, ids 113..2018 | ~8 KB as int32 over 2,019 slots |
+| LE2 | 1,356 accessors, ids 1..2050 | ~8 KB as int32 over 2,051 slots |
+| LE3 | one save struct, no accessor class | ~69 KB dense over 17,655 slots |
 
-At most ~8 KB either way. That is the number that matters: a host can ship the entire flag set on every
-level change rather than maintaining a delta log, and a guest can be handed a complete story state
-instead of a replay of how it got there. It also means story state is cheap enough to include in a
-desync check - comparing two 8 KB blobs every N seconds is free.
+At most ~8 KB on the first two. That is the number that matters: a host can ship the entire flag set on
+every level change rather than maintaining a delta log, and a guest can be handed a complete story
+state instead of a replay of how it got there. It also means story state is cheap enough to include in
+a desync check - comparing two 8 KB blobs every N seconds is free.
 
-**LE3 has neither.** No `BioAutoConditionals` exists anywhere in its 7,943 packages and it ships no
-`PlotManager.pcc`; its plot data lives in tables (`Plot_Treasure_*`, `PlotManagerGameData`) referenced
-from level packages. So the same question has a different answer per build, and a design that assumes
-the cheap path works on all three will be wrong on the one build that is being built first.
+**LE3 has no `BioAutoConditionals` in any of its 7,943 packages and ships no `PlotManager.pcc`, and
+that is not the same as having no story state.** It keeps the same state in one place: `SFXGame.pcc`
+declares `PlotTableSaveRecord` inside `SFXSaveGame`, and the save object holds it as `PlotRecord` (with
+`ME1PlotRecord` beside it for imported LE1 state). The struct is seven arrays - `BoolVariables`,
+`IntVariables`, `FloatVariables`, `QuestProgress`, `QuestIDs`, `CodexEntries`, `CodexIDs` - plus a
+`QuestProgressCounter` int. Entries are index-keyed pairs, not names: `IntVariablePair` is
+`{Index: int32, Value: int32}` and `FloatVariablePair` is `{Index: int32, Value: float32}`, 8 bytes each.
+
+The size comes from constants the runtime plot manager ships with. `BioGlobalVariableTable` - the plot
+manager, under a different name - carries on its class default object
+`ME1PlotTable_IndexOffset=10000`, `Float_CutoffIndex=10039`, `Int_CutoffIndex=10148`,
+`Bool_CutoffIndex=17655`, so the index space runs to 17,655 slots: ~69 KB dense, ~138 KB as pairs.
+
+Two consequences that change the design rather than decorating it:
+
+1. **"Ship the whole state" holds on all three builds, and on LE3 it is the easier case**, because the
+   payload is already a save struct the engine knows how to write. The per-build difference is the
+   *shape* - named flags on LE1/LE2, an index-addressed blob on LE3 - not whether it is affordable.
+2. **Plot state gates level streaming.** `BioSeqAct_GetIsLevelLoaded.GetLevelStreamingObject` takes
+   `(LevelName: Name, oWorldInfo: Object, i: Int, PlotStreamingElements: Array, Element: Struct)` and
+   each level package declares its own `PlotStreamingElements`. A guest must receive the host's plot
+   state **before** its streaming is applied, not after.
+
+The names are only part of the set: `oNameLookupTable` points at `PlotManagerGameData`, a `Bio2DA`
+cooked inside `SFXGame.pcc` under the package group `BIOG_2DA_PlotManager_X` with 176 rows naming the
+*named* integer variables. Counting names therefore undercounts; the count came from the constants.
+
+An earlier version of this section said LE3's flag set could not be enumerated and called it the hard
+build. The absence of the accessor class is real; the conclusion drawn from it was not.
 
 ## 9. The net driver is native on every build
 `TcpNetDriver`, `UdpNetDriver`, `DemoRecDriver` and `SFXOnlineNetDriver` exist in **zero of the 12,704

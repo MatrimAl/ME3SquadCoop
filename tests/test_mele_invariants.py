@@ -209,15 +209,15 @@ class CampaignInvariantTests(unittest.TestCase):
                                  "LE1 trigger volume usage changed: %s" % volume[0].strip())
 
     @needs_install
-    def test_story_state_is_bounded_and_le3_has_none_of_it(self):
+    def test_story_state_is_bounded_and_le3_keeps_it_in_one_struct(self):
         """The sync budget: how much state the story surface in section 7 actually produces.
 
         `PlotManager.pcc` on LE1/LE2 defines one class whose body is `F<n>` plot-flag accessors, so the
         flag set is a bounded integer array and a guest can be handed all of it rather than a delta log.
 
-        LE3 ships neither the class nor the package, which is asserted because it is the build being
-        worked on first and the cheap path does not exist there. A test that only checked LE1/LE2 would
-        pass while the plan was wrong for LE3.
+        LE3 has no accessor class, and the first reading took that for absence of the state. It is
+        asserted here that the state exists and has one serialization point, because "nothing to sync"
+        would be a plan built on a gap that is not real.
         """
         code, out = run(mele_props.cmd_plotcheck)
         self.assertEqual(code, 0, out)
@@ -227,10 +227,15 @@ class CampaignInvariantTests(unittest.TestCase):
             self.assertIsNotNone(line, "%s row missing:\n%s" % (game, out))
             self.assertGreater(int(line.group(1)), 1000,
                                "%s flag count collapsed: %s" % (game, line.group(0)))
-            self.assertIn("%s " % game, out)
         self.assertIn("ME3  PlotManager.pcc present: False", out)
-        # The budget claim itself: ~8 KB, so shipping the whole set is cheaper than tracking deltas.
+        self.assertIn("PlotTableSaveRecord", out)
+        for array in ("BoolVariables", "IntVariables", "FloatVariables", "QuestIDs", "CodexIDs"):
+            self.assertIn(array, out)
+        self.assertIn("IntVariablePair = 8 bytes", out)
+        self.assertIn("Bool_CutoffIndex=17655", out)
+        # The budget claim itself: cheap enough to ship whole on every build.
         self.assertIn("~8 KB", out)
+        self.assertIn("small enough to ship", out)
 
 
 class SkipBehaviourTests(unittest.TestCase):
