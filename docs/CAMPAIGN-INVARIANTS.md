@@ -7,8 +7,8 @@ this repository is built around. Nothing here proves guest behaviour; it narrows
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
 `savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8), `spawncheck` (9), `joincheck` (10),
 `rostercheck` (3), `startcheck` (11), `gricheck` (12), `prefixcheck` (13), `netcheck` (14),
-`travelcheck` (15), `capacitycheck` (2) and `maplist`. The reader and its scope limit are described in
-[offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
+`travelcheck` (15), `capacitycheck` (2), `mutatorcheck` (4b) and `maplist`. The reader and its scope limit
+are described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
 `python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
 
 Labels follow [VALIDATION.md](VALIDATION.md): **observed** means read from a file with a check that
@@ -138,7 +138,6 @@ cap of 2 exists on this path it was not located.
 ## 4. Only two things in the guest plan are genuinely shared across builds
 
 Everything squad-related above differs per build. Two things do not:
-
 | surface | LE1 | LE2 | LE3 |
 | --- | --- | --- | --- |
 | `Controller.Possess` / `UnPossess` | present | present | present |
@@ -149,6 +148,48 @@ Everything squad-related above differs per build. Two things do not:
 Taking a squadmate from its AI and handing it to a player controller is a first-class engine operation
 on all three builds. Write it once. Likewise the dialogue selection call exists everywhere, so "a guest
 cannot choose dialogue" is not an API gap - it is a contention question, and a different piece of work.
+
+## 4b. There is a supported hook into the join path, and it ships: the mutator chain
+
+This is the most useful structural finding here, because it means the guest work does not need a binary patch.
+`GameInfo` calls into the UE3 `Mutator` chain at every moment the plan needs, and the chain is populated from
+the travel URL (`InitGame` parses `Mutator` / `Mutators` and calls `AddMutator` + `InitMutator`).
+
+The wiring, measured by scanning each body for the hook's **name index** — a virtual call emits an `FName`,
+not a package reference, so an export-reference scan reports no mutator calls at all:
+
+| `GameInfo` function | calls |
+| --- | --- |
+| `InitGame` | `AddMutator`, `InitMutator` |
+| `Login` | **`Mutator.ModifyLogin`**, `FindPlayerStart` |
+| `PostLogin` → `GenericPlayerInitialization` | **`Mutator.NotifyLogin`** |
+| `RestartPlayer` → `SetPlayerDefaults` | **`Mutator.ModifyPlayer`** |
+| `Logout` | `Mutator.NotifyLogout` |
+| `ServerMutate` → `GameInfo.Mutate` | `Mutator.Mutate` |
+
+**The gate is open:** `Mutator.MutatorIsAllowed` is 29 bytes on all three builds and is
+`return !WorldInfo.IsDemoBuild()` — stock UE3, so mutators are permitted in a retail build.
+
+**And the signatures are identical on every build**, which is what makes one implementation portable:
+
+| hook | signature | parms |
+| --- | --- | --- |
+| `ModifyLogin` | `(Portal: Str, Options: Str)` | 0x20 |
+| `InitMutator` | `(Options: Str, ErrorMessage: Str)` | 0x20 |
+| `ModifyPlayer` | `(Other: Object)` | 0x8 |
+| `NotifyLogin` | `(NewPlayer: Object)` | 0x8 |
+| `NotifyLogout` | `(Exiting: Object)` | 0x8 |
+| `Mutate` | `(MutateString: Str, Sender: Object)` | 0x18 |
+| `FindPlayerStart` | `(Player, InTeam, IncomingName, out ReturnValue)` | 0x24 |
+
+So the three things the guest plan needs are already hook names: accept the guest is `ModifyLogin`, give it a
+pawn is `ModifyPlayer`, set up its per-player state is `NotifyLogin`. `InitMutator` runs during `InitGame`
+*after* the `MaxPlayers` clamp (section 2), so the player count can be corrected from inside the supported
+path rather than by patching an int.
+
+**Three risks, stated rather than waved away:** the mutator class has to be reachable from a cooked package;
+the campaign builds its own travel URLs, so whether `?Mutator=` survives a map change is unmeasured; and
+nothing here proves a mutator's effect is *replicated* to a client, only that the hook is called.
 
 ## 5. LE3 does not persist the level's actors; LE1 does
 

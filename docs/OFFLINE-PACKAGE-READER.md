@@ -65,6 +65,7 @@ python -I tools/melepkg/mele_props.py prefixcheck # the map-prefix table, and th
 python -I tools/melepkg/mele_props.py netcheck    # what the engine replicates, and what it does not
 python -I tools/melepkg/mele_props.py travelcheck # what a level change runs, and whether a guest moves
 python -I tools/melepkg/mele_props.py capacitycheck # the chain that refuses a guest, and where it clamps
+python -I tools/melepkg/mele_props.py mutatorcheck  # the supported hook into the join path
 python -I tools/melepkg/mele_props.py maplist      # how many maps a full pass covers
 python -I tools/melepkg/mele_props.py routing      # map prefix -> game class, and the driver check
 

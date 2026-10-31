@@ -587,6 +587,40 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("Default__GameInfo     {'MaxPlayers': 4, 'MaxPlayersAllowed': 32}", out)
 
 
+    @needs_install
+    def test_mutator_chain_is_a_supported_hook(self):
+        """Section 4b: the guest work does not need a binary patch, because `Mutator` is already called.
+
+        `GameInfo` calls `ModifyLogin` from `Login`, `ModifyPlayer` from `SetPlayerDefaults`, `NotifyLogin` from
+        `GenericPlayerInitialization`, and `AddMutator`/`InitMutator` from `InitGame` - on every build, with
+        identical hook signatures. `MutatorIsAllowed` is `!WorldInfo.IsDemoBuild()`, so it is open in retail.
+
+        The scan must look for the hook's **name index**: a virtual call emits an `FName`, so an
+        export-reference scan reports no mutator calls at all and made this look like dead code.
+        """
+        code, out = run(mele_props.cmd_mutatorcheck)
+        self.assertEqual(code, 0, out)
+        for game in ("ME1", "ME2", "ME3"):
+            section = out.split("== %s" % game)
+            self.assertGreaterEqual(len(section), 2, "%s section missing" % game)
+            body = section[1].split("== ME")[0]
+            wiring = {}
+            for line in body.splitlines():
+                if "->" in line and line.strip().startswith("GameInfo."):
+                    caller = line.strip().split("->")[0].strip().replace("GameInfo.", "")
+                    wiring[caller] = [h.strip() for h in line.split("->")[1].split(",")]
+            for caller, hook in (("InitGame", "AddMutator"), ("InitGame", "InitMutator"),
+                                 ("Login", "ModifyLogin"),
+                                 ("GenericPlayerInitialization", "NotifyLogin"),
+                                 ("SetPlayerDefaults", "ModifyPlayer"),
+                                 ("Logout", "NotifyLogout")):
+                self.assertIn(hook, wiring.get(caller, []),
+                              "%s: %s no longer calls %s (%s)" % (game, caller, hook, wiring))
+            self.assertIn("Mutator.ModifyLogin      (Portal, Options) parms=0x20", body)
+            self.assertIn("Mutator.ModifyPlayer     (Other) parms=0x8", body)
+            self.assertIn("WorldInfo.IsDemoBuild", body)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
@@ -600,7 +634,7 @@ class SkipBehaviourTests(unittest.TestCase):
                             mele_props.cmd_rostercheck, mele_props.cmd_startcheck,
                             mele_props.cmd_gricheck, mele_props.cmd_prefixcheck,
                             mele_props.cmd_netcheck, mele_props.cmd_travelcheck,
-                            mele_props.cmd_capacitycheck):
+                            mele_props.cmd_capacitycheck, mele_props.cmd_mutatorcheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)
