@@ -232,7 +232,44 @@ cooked inside `SFXGame.pcc` under the package group `BIOG_2DA_PlotManager_X` wit
 An earlier version of this section said LE3's flag set could not be enumerated and called it the hard
 build. The absence of the accessor class is real; the conclusion drawn from it was not.
 
-## 9. The net driver is native on every build
+## 9. Accepting a second player is a class override on every build
+
+`joincheck` answers the question the rest of the plan rests on: is the code that decides about a joining
+player still in script, and does a second player have anywhere to come from?
+
+The whole UE3 join chain is implemented **in script** on `Engine.GameInfo` on all three builds -
+`PreLogin`, `Login`, `PostLogin`, `AtCapacity`, `RestartPlayer`, `SpawnDefaultPawnFor`,
+`ChoosePlayerStart`, `FindPlayerStart`, `SpawnPlayerController`, 9 of 9, with bytecode rather than
+native stubs. So co-op does not need a native patch to decide about a second player.
+
+| build | campaign class | script overrides | touches the join chain |
+| --- | --- | --- | --- |
+| LE1 | `BioSPGame` | 18 | `SpawnDefaultPawnFor`, `FindPlayerStart` |
+| LE2 | `BioSPGame` | 4 | nothing (stock `GameInfo` path) |
+| LE3 | `SFXGame` | 80 | `RestartPlayer`, `SpawnDefaultPawnFor` |
+
+On LE3 the runtime campaign GameInfo is `SFXGameInfoSP` (super `SFXGame`) in `BIO_COMMON.pcc`, whose
+export list begins with the path `..\BIOGame\MPContent\BIO_COMMON.upk` - the campaign game class ships
+inside a multiplayer content package. `Default__SFXGameInfoSP` sets exactly one property,
+`GameReplicationInfoClass=SFXGRISP`, and inherits the `MaxPlayersAllowed=1` clamp from `SFXGame`.
+
+`SFXGame` still carries teams (`InitializeTeams`, `ChangeTeam(Other, N, bNewTeam) -> bool`), a player
+count (`GetPlayerCount`), `GetDownedPlayerCount`, join-in-progress delegates, `CalculatedNetSpeed()`,
+and **`SpawnNewPlayerPawn`** - 17 parameters, parms block 0x90, `-> Object`:
+
+```
+SpawnNewPlayerPawn(bCombatPawn, bInjuredPawn, bUseCasualAppearance, ForcedCasualID,
+                   bCreateAndShowWeapons, PC, SpawnLocation, SpawnRotation, ReturnValue,
+                   Engine, firstName, Origin, Notoriety, ResultPawn, PlayerArchetype,
+                   faceCode, CharacterGUID)
+```
+
+It takes a `PlayerController` and a `PlayerArchetype` and returns a pawn, which is precisely what a
+squadmate-as-player needs. The guest's pawn does not have to be invented; what is missing is a caller
+that accepts a second player. `SFXGameInfoMP_LobbyUnusedDummy` also ships, which says MP was disabled
+deliberately rather than removed.
+
+## 10. The net driver is native on every build
 `TcpNetDriver`, `UdpNetDriver`, `DemoRecDriver` and `SFXOnlineNetDriver` exist in **zero of the 12,704
 packages**. They are native classes, so a mod can create a driver but can never adjust its properties
 from script. This is consistent with the ordinary listen path this repository already uses, and it

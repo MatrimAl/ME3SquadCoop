@@ -238,6 +238,28 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("small enough to ship", out)
 
 
+    @needs_install
+    def test_join_chain_is_script_and_le3_has_a_guest_pawn_spawn(self):
+        """Section 9: accepting a second player is a class override, not a native patch.
+
+        This is the claim the whole guest plan rests on, so it is asserted at both ends: the chain
+        functions must be in script on all three builds, and LE3 must still expose a spawn that takes a
+        `PlayerController` and returns a pawn. Either one failing changes the plan rather than a detail.
+        """
+        code, out = run(mele_props.cmd_joincheck)
+        self.assertEqual(code, 0, out)
+        for game in ("ME1", "ME2", "ME3"):
+            line = [l for l in out.splitlines() if l.strip().startswith(game) and "9/9 in script" in l]
+            self.assertTrue(line, "%s join chain is not fully in script:\n%s" % (game, out))
+            for fn in ("Login", "AtCapacity", "RestartPlayer"):
+                self.assertIn(fn, line[0])
+        self.assertIn("SFXGameInfoSP lives in BIO_COMMON.pcc", out)
+        self.assertIn("MPContent", out)
+        self.assertIn("SpawnNewPlayerPawn: 17 parameter(s)", out)
+        for fn in ("InitializeTeams", "ChangeTeam", "GetPlayerCount"):
+            self.assertIn(fn, out)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
@@ -246,7 +268,8 @@ class SkipBehaviourTests(unittest.TestCase):
         os.environ["MELE_GAME_DIR"] = str(Path(PROJECT) / "local" / "definitely-not-a-game")
         try:
             for command in (mele_props.cmd_coopcheck, mele_props.cmd_savecheck,
-                            mele_props.cmd_squadadd, mele_props.cmd_plotcheck):
+                            mele_props.cmd_squadadd, mele_props.cmd_plotcheck,
+                            mele_props.cmd_joincheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)

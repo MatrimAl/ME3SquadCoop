@@ -56,6 +56,7 @@ python -I tools/melepkg/mele_props.py savecheck    # how each build persists a l
 python -I tools/melepkg/mele_props.py squadadd     # how the campaign recruits a squad member
 python -I tools/melepkg/mele_props.py storycheck   # what advances the campaign, in every map
 python -I tools/melepkg/mele_props.py plotcheck    # how much story state that advancement produces
+python -I tools/melepkg/mele_props.py joincheck    # is the join path in script, and where is the pawn
 python -I tools/melepkg/mele_props.py maplist      # how many maps a full pass covers
 python -I tools/melepkg/mele_props.py routing      # map prefix -> game class, and the driver check
 
@@ -87,7 +88,8 @@ pre-built index for that:
 | `storycheck` | refuses, and says so; it counts actions in every map and a partial count is misleading |
 | `routing` (driver half only) | prints `skipped: no package index` and reports the rest |
 
-`plotcheck` deliberately needs no index: it opens two named packages, so it answers in seconds.
+`plotcheck` deliberately needs no index: it opens two named packages, so it answers in seconds. The same
+is true of `joincheck`, which opens `Engine.pcc`, each campaign `SFXGame.pcc` and `BIO_COMMON.pcc`.
 
 Set `MELE_INDEX_DIR` to a folder holding `ME1.json`/`ME2.json`/`ME3.json` to avoid the walk. Both
 refuse to report a zero they could not have measured; neither is silently fast.
