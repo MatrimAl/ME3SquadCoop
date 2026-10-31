@@ -415,6 +415,32 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("ServerAddActiveMatchConsumable", out)
 
 
+    @needs_install
+    def test_engine_replicates_the_transform_and_a_player_pawn(self):
+        """Section 14: what co-op gets for free.
+
+        Only ~1.8% of the engine's properties replicate, and they are `Actor.Role`/`RemoteRole` with the
+        transform plus a complete `Pawn` - so a replicated pawn moves, and the authority pair travels.
+        The stock UE3 client-join handshake is also in script on every build.
+
+        `Projectile` replicating nothing is asserted too: weapon fire travels as
+        `Pawn.FlashCount`/`FlashLocation` and each client spawns its own projectile, so visuals are free and
+        damage must be authority-checked. And the transform's spelling differs per build, which is why the
+        lookup is case-insensitive.
+        """
+        code, out = run(mele_props.cmd_netcheck)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(out.count("transform spelling"), 3, "spelling not reported per build:\n%s" % out)
+        self.assertIn("transform spelling: Actor.Location", out)
+        self.assertIn("transform spelling: Actor.location", out)
+        self.assertIn("5/5 present: ServerGivePawn, ServerAcknowledgePossession, ServerMove", out)
+        self.assertIn("Projectile replicates 0 propert(ies)", out)
+        for game in ("ME1", "ME2", "ME3"):
+            row = [l for l in out.splitlines() if l.startswith(game)]
+            self.assertTrue(row, "%s density row missing" % game)
+            self.assertIn("replicate (", row[0])
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
@@ -426,7 +452,8 @@ class SkipBehaviourTests(unittest.TestCase):
                             mele_props.cmd_squadadd, mele_props.cmd_plotcheck,
                             mele_props.cmd_joincheck, mele_props.cmd_spawncheck,
                             mele_props.cmd_rostercheck, mele_props.cmd_startcheck,
-                            mele_props.cmd_gricheck, mele_props.cmd_prefixcheck):
+                            mele_props.cmd_gricheck, mele_props.cmd_prefixcheck,
+                            mele_props.cmd_netcheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)

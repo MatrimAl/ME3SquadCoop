@@ -6,8 +6,8 @@ this repository is built around. Nothing here proves guest behaviour; it narrows
 
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
 `savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8), `spawncheck` (9), `joincheck` (10),
-`rostercheck` (3), `startcheck` (11), `gricheck` (12), `prefixcheck` (13) and `maplist`. The reader and
-its scope limit are described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
+`rostercheck` (3), `startcheck` (11), `gricheck` (12), `prefixcheck` (13), `netcheck` (14) and `maplist`.
+The reader and its scope limit are described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
 `python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
 
 Labels follow [VALIDATION.md](VALIDATION.md): **observed** means read from a file with a check that
@@ -455,7 +455,44 @@ so a row is folded by hand; and for an import, `describe_index`'s package prefix
 the package. `SFXGameInfoSP`'s super reads `Core.SFXGame` and is really `SFXGame.SFXGame`;
 `mele_tables.qualified_name()` gets it right.
 
-## 14. The net driver is native on every build
+## 14. What the engine already replicates to a guest
+
+`netcheck` counts `CPF_Net` on real property exports across every class in `Engine.pcc`.
+
+| build | properties | replicated |
+| --- | --- | --- |
+| LE1 | 7,922 | **145 (1.83%)** |
+| LE2 | 7,929 | **147 (1.85%)** |
+| LE3 | 7,923 | **146 (1.84%)** |
+
+Only ~1.8% of the engine's properties replicate, and they are the right ones.
+
+**`Actor` (20-21):** `Role`, `RemoteRole`, `bNetOwner`, `bProjTarget`, `Location`/`location`, `Rotation`,
+`Velocity`, `RelativeLocation`, `RelativeRotation`, `DrawScale`, `bHidden`, `Base`, `Owner`, `Instigator`,
+`Physics`, `bCollideActors`, `bBlockActors`, `bCollideWorld`, `bHardAttach`, `bTearOff`,
+`ReplicatedCollisionType`. The authority model and the transform both replicate.
+
+**`Pawn` (25-26):** `Controller`, `PlayerReplicationInfo`, `Health`, `FiringMode`, `FlashCount`,
+`FlashLocation`, `TakeHitLocation`, `HitDamageType`, `bIsCrouched`, `bIsWalking`, `RemoteViewPitch`,
+`DrivenVehicle`, `InvManager`, and the movement rates. A complete player pawn.
+
+**The stock client-join handshake is in script on `PlayerController` on every build, 5/5:**
+`ServerGivePawn`, `ServerAcknowledgePossession`, `ServerMove`, `ServerSetSpectatorLocation`,
+`ServerUpdatePing`, plus 62-65 `Client*` functions with bytecode. That is unmodified UE3 - the host assigns a
+pawn, the client acknowledges possession, the client sends its own movement. A guest needs no new networking,
+only the campaign's refusal lifted and a squadmate pawn to hand over.
+
+**`Projectile` replicates nothing, on all three builds.** Weapon fire travels as `Pawn.FlashCount` (an
+increment) and `Pawn.FlashLocation` (a position), and each client spawns its own projectile locally. So
+tracers and muzzle effects are free and **damage is not** - the guest's projectile is a different object from
+the host's, so every damage path has to be authority-checked.
+
+Two traps for anyone repeating this measurement. A class's children include its **enums**, and counting them
+as properties inflated `Actor` by 15 fields and the density figure from 1.8% to 4.7% - filter on the child's
+class being a `UProperty` subclass. And `Actor.Location` is spelled with a capital on LE1/LE2 but
+`Actor.location` on LE3, so a cross-build name lookup must be case-insensitive.
+
+## 15. The net driver is native on every build
 `TcpNetDriver`, `UdpNetDriver`, `DemoRecDriver` and `SFXOnlineNetDriver` exist in **zero of the 12,704
 packages**. They are native classes, so a mod can create a driver but can never adjust its properties
 from script. This is consistent with the ordinary listen path this repository already uses, and it
