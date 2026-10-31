@@ -529,6 +529,34 @@ class CampaignInvariantTests(unittest.TestCase):
                             "%s.%s is only a stub, and a claim here rests on it" % (cls, fn))
 
 
+    @needs_install
+    def test_level_change_moves_every_connected_player(self):
+        """Section 15: a map change is a broadcast, so a guest is carried by the engine.
+
+        `ProcessServerTravel` (704-718 bytes) is the loop and `ProcessClientTravel` (180-185 bytes) takes the
+        `PlayerController` to move. So the guest does not need co-op code to reach the next map.
+
+        And the travel call itself is a 24-28 byte forwarder, too small to hold that loop - so the script
+        layer decides and the native layer performs, which is why a mod observes the change at
+        `Process*Travel`. The dead seamless path is asserted too, because it is the machinery that would
+        carry a pawn across the change.
+        """
+        code, out = run(mele_props.cmd_travelcheck)
+        self.assertEqual(code, 0, out)
+        for game in ("ME1", "ME2", "ME3"):
+            section = out.split("== %s" % game)
+            self.assertGreaterEqual(len(section), 2, "%s section missing:\n%s" % (game, out))
+            body = section[1].split("== ME")[0]
+            self.assertIn("ProcessServerTravel", body)
+            self.assertIn("ProcessClientTravel", body)
+            self.assertIn("P, LP", body)
+            self.assertIn("body=28", body)
+        self.assertEqual(out.count("PlayerController   ClientTravel                 script  body=28"), 3)
+        self.assertIn("never called, because no build enables it", out)
+        # The seamless machinery: present, real, and unreachable.
+        self.assertIn("HandleSeamlessTravelPlayer(1343)", out)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
@@ -541,7 +569,7 @@ class SkipBehaviourTests(unittest.TestCase):
                             mele_props.cmd_joincheck, mele_props.cmd_spawncheck,
                             mele_props.cmd_rostercheck, mele_props.cmd_startcheck,
                             mele_props.cmd_gricheck, mele_props.cmd_prefixcheck,
-                            mele_props.cmd_netcheck):
+                            mele_props.cmd_netcheck, mele_props.cmd_travelcheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)

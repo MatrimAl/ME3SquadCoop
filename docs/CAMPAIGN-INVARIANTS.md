@@ -6,8 +6,9 @@ this repository is built around. Nothing here proves guest behaviour; it narrows
 
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
 `savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8), `spawncheck` (9), `joincheck` (10),
-`rostercheck` (3), `startcheck` (11), `gricheck` (12), `prefixcheck` (13), `netcheck` (14) and `maplist`.
-The reader and its scope limit are described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
+`rostercheck` (3), `startcheck` (11), `gricheck` (12), `prefixcheck` (13), `netcheck` (14),
+`travelcheck` (15) and `maplist`. The reader and its scope limit are described in
+[offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
 `python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
 
 Labels follow [VALIDATION.md](VALIDATION.md): **observed** means read from a file with a check that
@@ -533,7 +534,46 @@ about 20%.** `mele_tables.is_implemented()` uses the proven bytecode extent inst
 document are the corrected ones; every structural conclusion survived, because each rested on a specific
 function whose body is hundreds of bytes rather than on a total.
 
-## 15. The net driver is native on every build
+## 15. A level change is a scripted broadcast, and the seamless path is dead but complete
+
+Section 1 established there is no seamless travel, so a level change is a hard reload. The follow-up is
+whether the reload moves *every* connected player or only the host.
+
+On all three builds, with real bodies:
+
+| function | body | signature |
+| --- | --- | --- |
+| `GameInfo.ProcessServerTravel` | 704 / 704 / **718** | `(URL, bAbsolute, LocalPlayer, bSeamless, NextMap, NextMapGuid, OptionStart)` |
+| `GameInfo.ProcessClientTravel` | 180 / 180 / **185** | `(URL, NextMapGuid, bSeamless, bAbsolute, out ReturnValue, out P, out LP)` |
+| `GameInfo.PostLogin` | 894 / 894 / 915 | `(NewPlayer, Address, ...)` |
+| `WorldInfo.ServerTravel` | 363 / 363 / 365 | `(URL, bAbsolute, bShouldSkipGameNotify)` |
+
+`ProcessClientTravel` takes the `PlayerController` to move as an out parameter, and `ProcessServerTravel` is
+the loop above it. **So a level change is already a broadcast: a connected guest is carried to the next map
+by the engine**, and its pawn is re-created on the ordinary `PostLogin`/`RestartPlayer` path the same way a
+late joiner's would be.
+
+**The travel call itself is native.** `PlayerController.ClientTravel(URL, TravelType, bSeamless,
+MapPackageGuid)` has a 28-byte body on LE1/LE2, and LE3's `BioPlayerController.ClientTravel` override is 24
+bytes; the only package references inside are the function's own four parameters. That is the shape of a
+forwarder onto native code - a **hypothesis**, since the opcode table is unproven, but 24-28 bytes cannot
+hold a loop over players. The practical rule: **observe a map change at `Process*Travel`, not at
+`ClientTravel`.**
+
+**And the seamless path is scripted, complete and switched off:**
+
+| function | body |
+| --- | --- |
+| `GameInfo.GetSeamlessTravelActorList` | 274-279 bytes |
+| `GameInfo.HandleSeamlessTravelPlayer` | **1,315-1,343 bytes** |
+| `WorldInfo.SeamlessTravel` | 19 bytes |
+
+`HandleSeamlessTravelPlayer` is the third-largest travel function in the engine, its whole purpose is
+carrying player state across a map change, and nothing reaches it because `bUseSeamlessTravel` is set by 0 of
+6,685 class default objects. That is the second dormant mechanism found here, after LE1's spare-controller
+trio in section 3.
+
+## 16. The net driver is native on every build
 `TcpNetDriver`, `UdpNetDriver`, `DemoRecDriver` and `SFXOnlineNetDriver` exist in **zero of the 12,704
 packages**. They are native classes, so a mod can create a driver but can never adjust its properties
 from script. This is consistent with the ordinary listen path this repository already uses, and it
