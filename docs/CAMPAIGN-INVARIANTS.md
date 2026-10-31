@@ -5,8 +5,9 @@ constrain what a guest implementation can assume, and several contradict assumpt
 this repository is built around. Nothing here proves guest behaviour; it narrows where to look.
 
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
-`savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8) and `maplist`. The reader and its scope
-limit are described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
+`savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8), `spawncheck` (9), `joincheck` (10) and
+`maplist`. The reader and its scope limit are described in
+[offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
 `python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
 
 Labels follow [VALIDATION.md](VALIDATION.md): **observed** means read from a file with a check that
@@ -232,15 +233,46 @@ cooked inside `SFXGame.pcc` under the package group `BIOG_2DA_PlotManager_X` wit
 An earlier version of this section said LE3's flag set could not be enumerated and called it the hard
 build. The absence of the accessor class is real; the conclusion drawn from it was not.
 
-**The sync itself is a getter/setter pair.** `BioGlobalVariableTable` carries
-`GetPlayerPlotData(out PlayerData: Struct) -> void` and `SetPlayerPlotData(PlayerData: Struct) -> void`,
-plus `CopyPlots(toCopy: Array)` and `ApplyCanonPlots(aCanonPlotVariables: Array)`, and uses that same
-pair for its own ME1/ME2 import paths. So the LE3 story sync is: get on the host, ship the struct, set on
-the guest. The struct the parameter is typed as is not resolved by the offline reader - both ends are a
-48-byte `StructProperty` whose inner words disagree - so it is probably `PlotTableSaveRecord` and that is
-stated as probable rather than measured.
+**The sync itself is not a getter/setter pair, and the first reading of it was wrong.** An earlier
+version of this section named `GetPlayerPlotData` / `SetPlayerPlotData` on `BioGlobalVariableTable` as the
+plot sync, on the strength of their names. Resolving the parameter's `StructProperty` type shows both
+take **`PlayerInfoEx`** - the player *identity* block (`FirstName`, `FaceCode`, `CharacterClass`,
+`MorphHead`, `BonusTalentClass`, `bIsFemale`, `Origin`, `Notoriety`, plus `CharacterGUID` on LE3). The
+name says plot; the payload is character.
 
-## 9. Accepting a second player is a class override on every build
+The plot payload is `PlotTableSaveRecord`, held by `SFXSaveGame.PlotRecord` and by **nothing else** on
+every build, and **no function in any build takes it as a parameter** - so it is reached through the save
+object rather than a getter. It is also the same struct on all three builds: `BoolVariables`,
+`IntVariables`, `FloatVariables`, `QuestProgress`, `QuestIDs`, `CodexEntries`, `CodexIDs`,
+`QuestProgressCounter`. LE3 declares `IntVariablePair` and `FloatVariablePair` inside it as nested types,
+which is why its field count reads 12 rather than 10.
+
+## 9. A guest pawn needs a character description, and LE1 does not have one
+
+`spawncheck` answers the question behind "the client takes a squadmate": does the campaign's own pawn
+spawn take a *character description*, or only a controller?
+
+| build | campaign spawn | params | parms | takes `PlayerInfo` |
+| --- | --- | --- | --- | --- |
+| LE1 | `BioSPGame.SpawnDefaultPawnFor(NewPlayer, SpawnPoint, BioPlayerController, Pawn)` | 5 | 0x28 | **no** |
+| LE2 | `SFXGame.SpawnDefaultPawnFor(NewPlayer, StartSpot, ..., PlayerInfo, ...)` | 29 | 0xdc | yes |
+| LE3 | `SFXGame.SpawnDefaultPawnFor(NewPlayer, StartSpot, ..., PlayerInfo, ResetPlayerInfoEx, ..., CharacterGUID)` | 33 | 0xf4 | yes |
+
+The identity payload is `PlayerInfoEx`, held by `SFXSaveGame`, at **7 / 8 / 9 fields** across the builds.
+
+So on LE2 and LE3 the guest pawn is the campaign's own spawn called with a different character
+description, and the struct it wants is one the save system already writes. **LE1's campaign spawn takes
+four opaque objects and no identity at all**; its identity levers are the other functions on the same
+class (`SpawnPlayer`, `SpawnPawn`, `SpawnHenchman`, `SpawnPlayerSquadMembers`). That is a real difference
+in effort, not a detail - and it is the reason LE1 is not simply the same work again.
+
+Both payloads were resolved with `mele_tables.property_struct()`, which reads the struct reference at
+serial +44 of a 48-byte `UStructProperty`. That offset is measured, not assumed: it resolves for
+2,539/2,539 struct properties on ME1, 2,752/2,752 on ME2 and 4,480/4,503 on ME3, against a 1.5% rate for
+every other offset. The 23 ME3 misses are 50-byte struct properties, a wider form, reported as unreadable
+rather than guessed.
+
+## 10. Accepting a second player is a class override on every build
 
 `joincheck` answers the question the rest of the plan rests on: is the code that decides about a joining
 player still in script, and does a second player have anywhere to come from?
@@ -277,7 +309,7 @@ squadmate-as-player needs. The guest's pawn does not have to be invented; what i
 that accepts a second player. `SFXGameInfoMP_LobbyUnusedDummy` also ships, which says MP was disabled
 deliberately rather than removed.
 
-## 10. The net driver is native on every build
+## 11. The net driver is native on every build
 `TcpNetDriver`, `UdpNetDriver`, `DemoRecDriver` and `SFXOnlineNetDriver` exist in **zero of the 12,704
 packages**. They are native classes, so a mod can create a driver but can never adjust its properties
 from script. This is consistent with the ordinary listen path this repository already uses, and it

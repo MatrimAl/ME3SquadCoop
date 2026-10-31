@@ -260,6 +260,34 @@ class CampaignInvariantTests(unittest.TestCase):
             self.assertIn(fn, out)
 
 
+    @needs_install
+    def test_guest_pawn_needs_a_character_description_and_le1_has_none(self):
+        """Section 9: what "the client takes a squadmate" actually requires.
+
+        Two payloads and one function decide it. `PlayerInfoEx` is the identity block (7/8/9 fields);
+        `PlotTableSaveRecord` is the plot payload, the same struct on all three builds and held only by
+        `SFXSaveGame.PlotRecord`.
+
+        And the campaign's own spawn takes the identity block on LE2/LE3 but not on LE1. That asymmetry
+        is asserted rather than noted, because it is the difference between "call the existing spawn with
+        a different character" and "there is no such call to make".
+        """
+        code, out = run(mele_props.cmd_spawncheck)
+        self.assertEqual(code, 0, out)
+        for game, count in (("ME1", 7), ("ME2", 8), ("ME3", 9)):
+            line = [l for l in out.splitlines()
+                    if l.strip().startswith(game) and "PlayerInfoEx" in l]
+            self.assertTrue(line, "%s PlayerInfoEx row missing:\n%s" % (game, out))
+            self.assertIn("%2d field(s)" % count, line[0])
+        for game in ("ME1", "ME2", "ME3"):
+            holder = [l for l in out.splitlines()
+                      if l.strip().startswith(game) and "SFXSaveGame.PlotRecord" in l]
+            self.assertTrue(holder, "%s plot payload holder missing:\n%s" % (game, out))
+        self.assertIn("ME1  BioSPGame .SpawnDefaultPawnFor  5 param(s), parms 0x28, PlayerInfo: False", out)
+        self.assertIn("ME2  SFXGame   .SpawnDefaultPawnFor 29 param(s), parms 0xdc, PlayerInfo: True", out)
+        self.assertIn("ME3  SFXGame   .SpawnDefaultPawnFor 33 param(s), parms 0xf4, PlayerInfo: True", out)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
@@ -269,7 +297,7 @@ class SkipBehaviourTests(unittest.TestCase):
         try:
             for command in (mele_props.cmd_coopcheck, mele_props.cmd_savecheck,
                             mele_props.cmd_squadadd, mele_props.cmd_plotcheck,
-                            mele_props.cmd_joincheck):
+                            mele_props.cmd_joincheck, mele_props.cmd_spawncheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)
