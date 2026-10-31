@@ -626,6 +626,49 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("GameInfo.AddMutator (body=619) reads Mutator.GroupNames", out)
 
 
+    @needs_install
+    def test_bytecode_grammar_is_partial_and_pointer_width_is_32(self):
+        """Section 17: the bytecode attempt, and the fact that it did not produce a disassembler.
+
+        `UStruct::SerializeExpr` uses `XFERPTR` for property and function pointers, width
+        `sizeof(ScriptPointerType)`. Trying both over every function with a body and requiring an exact landing:
+
+            ptr=8: 1.9% closed      ptr=4: 12.5% closed     (ME3 Engine.pcc)
+
+        4 wins by more than 6x, so script pointers are 32-bit even though the game is 64-bit.
+
+        The second assertion is the important one: the absolute rate must stay **low**, so nobody later mistakes
+        this for a disassembler and reads a specific function out of it. If it ever improves past 40% the docs
+        claim needs revisiting, and this fails to say so.
+        """
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "ue3_decode", str(TOOLS / "ue3_decode.py"))
+        dec = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(dec)
+        tables = load_tables()
+        pkg = tables.load_pkg()
+        base = None
+        for root in pkg.game_dirs():
+            cand = Path(root) / "Game" / "ME3" / "BioGame" / "CookedPCConsole" / "Engine.pcc"
+            if cand.is_file():
+                base = str(cand)
+                break
+        if not base:
+            self.skipTest("no install")
+        t = tables.build(base)
+        c4, _d, _u, total = dec.closure(t, 4, 8)
+        c8, _d8, _u8, _total8 = dec.closure(t, 8, 8)
+        self.assertGreater(total, 1000)
+        self.assertGreater(c4, c8 * 2,
+                           "ptr=4 is no longer clearly better (%d vs %d) - re-read the width claim"
+                           % (c4, c8))
+        share = 100.0 * c4 / total
+        self.assertLess(share, 40.0,
+                        "the decoder now closes on %.1f%% - the 'partial, not a disassembler' claim in the "
+                        "docs should be revisited" % share)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 

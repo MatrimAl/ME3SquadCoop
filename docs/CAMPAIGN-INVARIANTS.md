@@ -673,8 +673,40 @@ The UE3 replication model itself is intact on all three builds - `Actor.Role`/`R
 net-named `PlayerController` functions, the full listen-server admin surface on `GameInfo` - so the
 work is in what replicates and when, not in providing a transport.
 
-## What this does not tell you
+## 17. Bytecode: the stock UE3 grammar decodes 12-22% of functions, which is not a disassembler
 
+Everything above was read from tables and property streams. Function **bodies** were only ever sized, never
+decoded, and several questions need decoding. This records the attempt and its honest limit.
+
+The real grammar was obtained from UE3 source - `UStruct::SerializeExpr` in `CodeRedModding/UnrealEngine3`
+(`ScriptSerialization.h` blob ee67f58, `UnStack.h` blob 774de7f) - so the operand rules are not guesses. Two
+build properties were then **measured** by requiring a walk to land exactly on the end of a body:
+
+**Script pointers are 32-bit**, even though the game is a 64-bit executable:
+
+| build | `ptr=8` closed | `ptr=4` closed |
+| --- | --- | --- |
+| ME1 | 7.8% | **21.9%** |
+| ME2 | 5.8% | **22.5%** |
+| ME3 | 6.2% | **12.5%** |
+
+**`FName` in bytecode is 8 bytes**, matching the property tags (8 B 21.9%/12.5%; 4 B 17.6%/12.4%;
+12 B 16.8%/12.3%).
+
+**And the absolute rate is the finding:** over every function with a body, ME1 945/4,314, ME2 959/4,265,
+ME3 528/4,209 close exactly - with 73-83% hitting a token the stock table does not have. Adding ten correct
+opcode cases moved the rate not at all (23.9% → 23.5% → 22.5% on ME1), which means the walks **desync before
+reaching the unknown token**. A grammar gap would raise the rate; a wrong operand size does not.
+
+So `tools/melepkg/ue3_decode.py` is deliberately a *partial* decoder: token names, the closure test, and the
+token inventory, and **no per-function disassembler**. A decoder that closes on a fifth of functions cannot be
+trusted on the one function you care about.
+
+Nothing in this document rests on a decode. `AtCapacity` (139 bytes), the `ClientTravel` forwarder,
+`ModifyPlayer` (41 bytes) and `ProcessClientTravel` (185 bytes) remain sized but unread, and are labelled as
+such wherever they are described.
+
+## What this does not tell you
 - Nothing here is a game result. No guest ran.
 - Whether a guest pawn survives a real level transition is untested. Section 1 says it cannot survive
   by seamless travel; it says nothing about what a from-scratch re-spawn does.

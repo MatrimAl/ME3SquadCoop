@@ -66,6 +66,7 @@ python -I tools/melepkg/mele_props.py netcheck    # what the engine replicates, 
 python -I tools/melepkg/mele_props.py travelcheck # what a level change runs, and whether a guest moves
 python -I tools/melepkg/mele_props.py capacitycheck # the chain that refuses a guest, and where it clamps
 python -I tools/melepkg/mele_props.py mutatorcheck  # the supported hook into the join path
+python -I tools/melepkg/ue3_decode.py closure <package>   # how far the bytecode grammar actually gets
 python -I tools/melepkg/mele_props.py maplist      # how many maps a full pass covers
 python -I tools/melepkg/mele_props.py routing      # map prefix -> game class, and the driver check
 
@@ -118,6 +119,7 @@ to point at it explicitly. No file in the game tree is modified.
 | `melepkg.py` | container chunks, Oodle decompression, name table, install discovery |
 | `mele_tables.py` | import and export tables, `class_fields`, `signature`, `enum_members`, bytecode extents |
 | `mele_props.py` | property tag reader, struct-array decoder, and the invariant checks above |
+| `ue3_decode.py` | the UE3 `EExprToken` grammar and the closure test - a **partial** decoder, see section 17 |
 
 ## Limits that are not going to be fixed by more work
 
