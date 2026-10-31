@@ -368,6 +368,32 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("CopyProperties       (OldGRI)", out)
 
 
+    @needs_install
+    def test_routing_knows_no_multiplayer_class(self):
+        """Section 13: the map-prefix table, and the player stack it routes to.
+
+        Three prefixes, all `bIsMultiplayer=False`, one `SP` alias. So the engine will not route a campaign
+        map to a networked class by itself - and the `Bio` row with `bUsesCommonPackage=True` is why the
+        MPContent-derived `BIO_COMMON.pcc` loads for every campaign map.
+
+        The player stack is asserted in the same test because it is the other half of the same question:
+        `SFXGame` sets the controller, PRI and HUD classes, so a player the engine spawns needs no co-op
+        code to have a working HUD.
+        """
+        code, out = run(mele_props.cmd_prefixcheck)
+        self.assertEqual(code, 0, out)
+        self.assertIn("Default__GameInfo: 35 tag(s), closure EXACT", out)
+        self.assertIn("DefaultMapPrefixes: 3 row(s)", out)
+        self.assertNotIn("mp=True", out)
+        self.assertIn("Bio            -> SFXGameContent.SFXGameInfoSP           common=True  mp=False", out)
+        self.assertIn("GameInfoClassAliases: 1 row(s)", out)
+        self.assertIn("SP     -> SFXGameContent.SFXGameInfoSP", out)
+        self.assertIn("PlayerControllerClass        <SFXPlayerController>", out)
+        self.assertIn("PlayerReplicationInfoClass   <SFXPRI>", out)
+        self.assertIn("HUDType                      <BioHUD>", out)
+        self.assertIn("MaxPlayersAllowed            1", out)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
@@ -379,7 +405,7 @@ class SkipBehaviourTests(unittest.TestCase):
                             mele_props.cmd_squadadd, mele_props.cmd_plotcheck,
                             mele_props.cmd_joincheck, mele_props.cmd_spawncheck,
                             mele_props.cmd_rostercheck, mele_props.cmd_startcheck,
-                            mele_props.cmd_gricheck):
+                            mele_props.cmd_gricheck, mele_props.cmd_prefixcheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)

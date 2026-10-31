@@ -61,6 +61,7 @@ python -I tools/melepkg/mele_props.py spawncheck   # what a guest pawn needs, an
 python -I tools/melepkg/mele_props.py rostercheck  # how a roster entry is added, and what notifies
 python -I tools/melepkg/mele_props.py startcheck   # where a guest could stand, in every map
 python -I tools/melepkg/mele_props.py gricheck    # the campaign's replication info, and what replicates
+python -I tools/melepkg/mele_props.py prefixcheck # the map-prefix table, and the player stack it routes to
 python -I tools/melepkg/mele_props.py maplist      # how many maps a full pass covers
 python -I tools/melepkg/mele_props.py routing      # map prefix -> game class, and the driver check
 

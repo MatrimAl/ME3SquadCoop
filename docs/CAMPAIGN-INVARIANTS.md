@@ -6,8 +6,8 @@ this repository is built around. Nothing here proves guest behaviour; it narrows
 
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
 `savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8), `spawncheck` (9), `joincheck` (10),
-`rostercheck` (3), `startcheck` (11), `gricheck` (12) and `maplist`. The reader and its scope limit are
-described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
+`rostercheck` (3), `startcheck` (11), `gricheck` (12), `prefixcheck` (13) and `maplist`. The reader and
+its scope limit are described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
 `python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
 
 Labels follow [VALIDATION.md](VALIDATION.md): **observed** means read from a file with a check that
@@ -413,7 +413,37 @@ An earlier pass concluded LE1/LE2 have no replication-info class at all. Both de
 `BioGameReplicationInfo` and ME1's campaign points at it; the difference is scale and whether the campaign
 uses it.
 
-## 13. The net driver is native on every build
+## 13. Routing knows no multiplayer class, and the campaign class already supplies the player stack
+
+`prefixcheck` reads the engine's map-prefix table. ME3's `Default__GameInfo.DefaultMapPrefixes` has
+**three rows**, and every one is marked `bIsMultiplayer=False`:
+
+| `Prefix` | `GameType` | `bUsesCommonPackage` | `bIsMultiplayer` |
+| --- | --- | --- | --- |
+| `EntryMenu` | `SFXGameContent.SFXGameInfoEntryMenu` | False | **False** |
+| `BIOG_UIWorld` | `SFXGame.SFXGame` | False | **False** |
+| `Bio` | `SFXGameContent.SFXGameInfoSP` | **True** | **False** |
+
+`GameInfoClassAliases` holds exactly one alias, `SP -> SFXGameContent.SFXGameInfoSP`, and `DefaultGameType`
+names the same class. So nothing in the engine's routing hands a campaign map to a networked game class -
+the multiplayer entry points were removed from the table, not disabled.
+
+One prefix covers the whole campaign: `Bio` catches every `Bio*` package into `SFXGameInfoSP` with
+`bUsesCommonPackage=True`, which is how `BIO_COMMON.pcc` - the MPContent-derived package from section 12 -
+is loaded for every campaign map. `bIsMultiplayer` is a `GameTypePrefix` field on LE3 only (7 fields versus
+5 on LE1/LE2).
+
+The player stack is already wired: `Default__SFXGame` sets `PlayerControllerClass=<SFXPlayerController>`,
+`PlayerReplicationInfoClass=<SFXPRI>`, `HUDType=<BioHUD>` and `MaxPlayersAllowed=1`. Since every campaign map
+routes to `SFXGameInfoSP : SFXGame`, any player the engine spawns gets a Bio controller, PRI and HUD with no
+co-op code - which is the asset that decides whether a second player has a working HUD.
+
+Two reader notes for anyone repeating this: `ArrayProperty` values decode into a tag **list per element**,
+so a row is folded by hand; and for an import, `describe_index`'s package prefix is the cook **source**, not
+the package. `SFXGameInfoSP`'s super reads `Core.SFXGame` and is really `SFXGame.SFXGame`;
+`mele_tables.qualified_name()` gets it right.
+
+## 14. The net driver is native on every build
 `TcpNetDriver`, `UdpNetDriver`, `DemoRecDriver` and `SFXOnlineNetDriver` exist in **zero of the 12,704
 packages**. They are native classes, so a mod can create a driver but can never adjust its properties
 from script. This is consistent with the ordinary listen path this repository already uses, and it
