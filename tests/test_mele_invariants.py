@@ -171,6 +171,44 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("GetSquadSize", out)
 
 
+    @needs_install
+    def test_story_surface_is_shared(self):
+        """Where story progression lives at campaign scale, and where it does not.
+
+        `BioSeqAct_PMBase` and its three concrete subclasses carry the same class and property names
+        on all three builds, so "the host advances the story and the guest observes" has one
+        interception point rather than three.
+
+        The trigger-volume finding is asserted too because it corrects a natural assumption: a
+        `TriggerVolume` that moves the player to another area is used three times in total across
+        6,644 maps, against 56,568 placements of `PMExecuteTransition`. A hook on trigger volumes
+        follows almost nothing.
+        """
+        import re
+        index_dir = os.environ.get("MELE_INDEX_DIR") or str(
+            PROJECT / "local" / "MELE" / "index")
+        if not os.path.isfile(os.path.join(index_dir, "ME1.json")):
+            self.skipTest("no package index (storycheck needs every package; set MELE_INDEX_DIR)")
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = mele_props.cmd_storycheck(None)
+        out = buffer.getvalue()
+        self.assertEqual(code, 0, out)
+        self.assertIn("PM action family is the campaign's story surface", out)
+        for game in ("ME1", "ME2", "ME3"):
+            match = re.search(r"=== %s:([^\n]*)\n(.*?)(?==== ME|\Z)" % game, out, re.S)
+            self.assertIsNotNone(match, "%s block missing:\n%s" % (game, out))
+            section = match.group(2)
+            self.assertIn("BioSeqAct_PMExecuteTransition", section)
+            self.assertIn("BioSeqAct_PMCheckState", section)
+        le1 = re.search(r"=== ME1:.*?(?==== ME2|\Z)", out, re.S).group(0)
+        volume = [l for l in le1.splitlines() if "BioAreaTransition" in l]
+        if volume:
+            placed = int(volume[0].split()[1])
+            self.assertLessEqual(placed, 50,
+                                 "LE1 trigger volume usage changed: %s" % volume[0].strip())
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 

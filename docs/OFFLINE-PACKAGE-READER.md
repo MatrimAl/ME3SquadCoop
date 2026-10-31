@@ -54,6 +54,7 @@ python -I tools/melepkg/mele_props.py value <package> <object> <property>
 python -I tools/melepkg/mele_props.py coopcheck    # travel, capacity, roster, possession, dialogue
 python -I tools/melepkg/mele_props.py savecheck    # how each build persists a level
 python -I tools/melepkg/mele_props.py squadadd     # how the campaign recruits a squad member
+python -I tools/melepkg/mele_props.py storycheck   # what advances the campaign, in every map
 python -I tools/melepkg/mele_props.py maplist      # how many maps a full pass covers
 python -I tools/melepkg/mele_props.py routing      # map prefix -> game class, and the driver check
 
@@ -82,6 +83,7 @@ pre-built index for that:
 | command | without an index |
 | --- | --- |
 | `maplist` | walks the install and parses each package - correct, and minutes per build |
+| `storycheck` | refuses, and says so; it counts actions in every map and a partial count is misleading |
 | `routing` (driver half only) | prints `skipped: no package index` and reports the rest |
 
 Set `MELE_INDEX_DIR` to a folder holding `ME1.json`/`ME2.json`/`ME3.json` to avoid the walk. Both

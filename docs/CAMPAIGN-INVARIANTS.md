@@ -5,7 +5,7 @@ constrain what a guest implementation can assume, and several contradict assumpt
 this repository is built around. Nothing here proves guest behaviour; it narrows where to look.
 
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
-`savecheck`, `squadadd` and `maplist`. The reader and its scope limit are described in
+`savecheck`, `squadadd`, `storycheck` and `maplist`. The reader and its scope limit are described in
 [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
 `python -m unittest tests.test_mele_invariants -v`.
 
@@ -130,8 +130,58 @@ armour mesh, `BIOG_UIWorld` is a map, and both match a `^BIOG_` level pattern).
 | LE2 | 2,156 | 1,278 | 878 |
 | LE3 | **2,677** | 1,442 | 1,235 |
 
-## 7. The net driver is native on every build
+## 7. Story progression has one shared interception point, and it is not a trigger volume
 
+Four classes carry the campaign's story progression, with **identical class names and identical
+property names on all three builds**:
+
+```
+BioSeqAct_PMBase              m_sObjectType(Str)  m_nIndex(Int)  Region(Byte)  Plot(Byte)
+BioSeqAct_PMCheckState        OutValue(Bool)      State(Byte)
+BioSeqAct_PMCheckConditional  Param(Int)          OutValue(Bool)  Conditional(Byte)
+BioSeqAct_PMExecuteTransition Param(Int)          Transition(Byte)
+```
+
+ME1/ME2's base adds `m_sVarName`, `m_nPrevRegionIndex`, `m_nPrevPlotIndex`; ME3 drops those three.
+`PMExecuteConsequence` is ME1/ME2 only. `PMBase` is declared and has a class default object but
+declares no functions and is placed in zero maps - the three subclasses are what a level uses.
+
+Counted in every package holding a `PersistentLevel` (1,811 / 2,156 / 2,677 maps):
+
+| action | LE1 | LE2 | LE3 |
+| --- | --- | --- | --- |
+| `BioSeqAct_PMCheckState` | 4,913 / 473 maps | 12,019 / 815 | 14,422 / 1,014 |
+| `BioSeqAct_PMCheckConditional` | 1,824 / 227 | 12,613 / 386 | 12,686 / 722 |
+| **`BioSeqAct_PMExecuteTransition`** | 8,752 / 453 | 32,209 / 801 | **15,607 / 1,058** |
+| `BioSeqAct_AreaTransition` | 837 / 43 | 271 / 157 | 30 / 22 |
+| **`BioAreaTransition`** (trigger volume) | **1 / 1** | **2 / 2** | **0 / 0** |
+| `BioSeqAct_StartConversation` | 762 / 283 | 821 / 280 | - |
+| `SFXSeqAct_StartConversation` | - | 940 / 389 | 1,944 / 692 |
+| `BioSeqAct_AddToParty` | 426 / 52 | 402 / 138 | 244 / 201 |
+| `BioSeqAct_AutoSave` | 178 / 159 | - | - |
+| `SFXSeqAct_SaveGame` | - | 800 / 413 | 983 / 499 |
+
+Two things follow, and the second corrects a natural assumption:
+
+1. **The host-advances-the-story / guest-observes rule has one interception point on LE3, not three.**
+   It sits at the story layer rather than the engine layer, which is a stronger place to enforce
+   authority than anything that only decides what an actor is.
+2. **Walking into a trigger volume changes almost no level.** `BioAreaTransition` - a `TriggerVolume`
+   carrying `sMoveToArea` / `sMoveToStartPoint` - is used **once in LE1, twice in LE2, never in LE3**
+   across 6,644 maps. A hook on trigger volumes follows essentially nothing. The campaign reaches the
+   plot manager 56,568 times by comparison.
+
+Conversations and saves *do* split per build, and LE2 is the awkward case: it carries **both**
+`BioSeqAct_StartConversation` and `SFXSeqAct_StartConversation`, so hooking one covers part of that game
+and silently misses the rest.
+
+**Caveat on what this does not say.** These are class-instance counts from export tables, so they
+establish how often a node is *placed*, not that a given node fires or what it does when it fires. The
+`Region`/`Plot` byte properties are typed by `EBioRegionAutoSet`/`EBioPlotAutoSet`, which have two
+members each (`*_Unset`, `*_MAX`) - stubs for a value space defined in the plot manager's own data - so
+the size of story state cannot be read from the enums and is not claimed here.
+
+## 8. The net driver is native on every build
 `TcpNetDriver`, `UdpNetDriver`, `DemoRecDriver` and `SFXOnlineNetDriver` exist in **zero of the 12,704
 packages**. They are native classes, so a mod can create a driver but can never adjust its properties
 from script. This is consistent with the ordinary listen path this repository already uses, and it
