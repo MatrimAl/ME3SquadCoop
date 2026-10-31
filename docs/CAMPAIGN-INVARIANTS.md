@@ -183,9 +183,18 @@ not a package reference, so an export-reference scan reports no mutator calls at
 | `FindPlayerStart` | `(Player, InTeam, IncomingName, out ReturnValue)` | 0x24 |
 
 So the three things the guest plan needs are already hook names: accept the guest is `ModifyLogin`, give it a
-pawn is `ModifyPlayer`, set up its per-player state is `NotifyLogin`. `InitMutator` runs during `InitGame`
-*after* the `MaxPlayers` clamp (section 2), so the player count can be corrected from inside the supported
-path rather than by patching an int.
+pawn is `ModifyPlayer`, set up its per-player state is `NotifyLogin`.
+
+**And `InitMutator` runs after the capacity clamp** (section 2), measured by bytecode offset inside `InitGame`:
+
+| build | clamp at | `AddMutator` at | `InitMutator` at |
+| --- | --- | --- | --- |
+| LE1 / LE2 | `+0x29` | `+0x302` | **`+0x487`** |
+| LE3 | `+0x2b` | `+0x31c` | **`+0x4b0`** |
+
+So a mutator can raise `MaxPlayers` *after* the ceiling has clamped it, from inside the supported path and with
+no int patching. That makes the whole guest plan one deliverable: a `Mutator` subclass whose `InitMutator` sets
+the player count, `ModifyLogin` accepts the guest and `ModifyPlayer` hands it a squadmate pawn.
 
 **Three risks, stated rather than waved away:** the mutator class has to be reachable from a cooked package;
 the campaign builds its own travel URLs, so whether `?Mutator=` survives a map change is unmeasured; and

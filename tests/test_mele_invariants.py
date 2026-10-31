@@ -619,6 +619,8 @@ class CampaignInvariantTests(unittest.TestCase):
             self.assertIn("Mutator.ModifyLogin      (Portal, Options) parms=0x20", body)
             self.assertIn("Mutator.ModifyPlayer     (Other) parms=0x8", body)
             self.assertIn("WorldInfo.IsDemoBuild", body)
+            # The ordering that makes a mutator able to fix the player count.
+            self.assertIn("mutator runs AFTER the clamp", body)
 
 
 class SkipBehaviourTests(unittest.TestCase):
