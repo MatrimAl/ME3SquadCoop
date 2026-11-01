@@ -710,6 +710,48 @@ class CampaignInvariantTests(unittest.TestCase):
         # The three stubs and the never-set string are the finding.
         self.assertIn("m_sObjectType 0", out)
         self.assertIn("Region 11216, Plot 10108, Transition 9676", out)
+        self.assertIn("m_sVarName 0", out)
+
+
+class CrossBuildTransitionTests(unittest.TestCase):
+    """Section 7's cross-build half: LE1/LE2 declare three extra fields, and none of them is used."""
+
+    @needs_install
+    def test_le1_le2_extra_fields_are_sentinel(self):
+        """`m_sVarName`, `m_nPrevRegionIndex` and `m_nPrevPlotIndex` are declared on LE1/LE2 only.
+
+        "Three more fields" reads like three more pieces of story state to synchronise. Measured over every
+        exactly-closing instance:
+
+            LE1  8,758 instances   m_sVarName 0
+            LE2 32,214 instances   m_sVarName 0, m_nPrevRegionIndex 32,210 of which 32,203 are -1
+
+        So they are emitted defaults the shipped content never fills in - the same category as `m_sObjectType`
+        (declared, never set) and the two-member enums (`*_Unset`, `*_MAX`). The hand-off is the integer index
+        on all three builds.
+        """
+        index_dir = os.environ.get("MELE_INDEX_DIR") or str(
+            PROJECT / "local" / "MELE" / "index")
+        if not os.path.isfile(os.path.join(index_dir, "ME2.json")):
+            self.skipTest("no package index (transitioncheck opens every map)")
+        import argparse
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = mele_props.cmd_transitioncheck(argparse.Namespace(game="ME2"))
+        out = buffer.getvalue()
+        self.assertEqual(code, 0, out)
+        self.assertIn("ME2", out)
+        self.assertIn("m_sVarName 0", out,
+                      "m_sVarName is now set on LE2 instances - it would be a real second identity:\n%s" % out)
+        # The sentinel is the point: present on ~every instance, -1 on ~every one of those.
+        import re
+        match = re.search(r"m_nPrevRegionIndex on (\d+), m_nPrevPlotIndex on (\d+): "
+                          r"region \{-1: (\d+)", out)
+        self.assertIsNotNone(match, "the sentinel histogram did not parse:\n%s" % out)
+        present, _plot_present, negative = (int(g) for g in match.groups())
+        self.assertGreater(present, 30000)
+        self.assertGreater(negative / present, 0.99,
+                           "only %.2f%% of m_nPrevRegionIndex values are -1" % (100.0 * negative / present))
 
 
 class SkipBehaviourTests(unittest.TestCase):

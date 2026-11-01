@@ -319,6 +319,20 @@ So the progression step is identified by an **integer index**. `m_sObjectType` e
 on zero real instances; `Region`/`Plot`/`Transition` read `None`; `Param` is an occasional argument on 4%. A
 declaration lists what a field could be; the data says what it is.
 
+**And the three fields LE1/LE2 add are declared, not used.** `BioSeqAct_PMBase` declares `m_sVarName`,
+`m_nPrevRegionIndex` and `m_nPrevPlotIndex` on LE1/LE2 only, which reads like more story state. Measured:
+
+| build | instances | `m_nIndex` | distinct | `m_sVarName` | `m_nPrevRegionIndex` | `m_nPrevPlotIndex` |
+| --- | --- | --- | --- | --- | --- | --- |
+| LE1 | **8,758** | 205 … 6,540 | 1,455 | **0** | 8,751, all **−1** | 8,751, all **−1** |
+| LE2 | **32,214** | −1 … 7,170 | 2,145 | **0** | 32,210 — **32,203 at −1** | 32,180 — 32,146 at −1 |
+| LE3 | **15,625** | −1 … 7,416 | 2,858 | field absent | — | — |
+
+`m_sVarName` is never set on any build, and the two `m_nPrev*` fields are **sentinel −1** on essentially every
+instance (LE2 has 7 non-sentinel region values and 34 plot values out of ~32,200). So there is no second
+identity to carry on the older builds and no per-build field set to reconcile — **the same rule holds on all
+three builds**, across 66,597 exactly-closing instances with 3 skipped.
+
 ## 8. Story state is small enough to ship whole, on all three builds
 
 Section 7 says where the campaign advances. This says what the advancement costs to synchronise, which
