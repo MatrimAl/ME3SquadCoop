@@ -31,12 +31,24 @@ if (Test-Path -LiteralPath $asiRoot) {
     })
 }
 $versionInfo = (Get-Item -LiteralPath $exe).VersionInfo
+# Whether the native pins describe THIS executable, decided offline. Reported as its own field rather than
+# as a pass/fail, because "different build" and "the mod is wrong" have different owners.
+$supportedSha = 'b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001'
+$exeSha = ($files | Where-Object { $_.file -eq 'Binaries\Win64\MassEffect3.exe' }).sha256
+$pinCheck = python -I (Join-Path (Split-Path -Parent $PSScriptRoot) 'tools\check_pins.py') --exe $exe 2>&1
+$pinReport = [ordered]@{
+    supportedExecutableSha256 = $supportedSha
+    executableMatchesSupported = ($exeSha -eq $supportedSha)
+    exitCode = $LASTEXITCODE
+    summary = ($pinCheck | Select-Object -Last 1)
+}
 $report = [ordered]@{
     schema=1
     game='ME3 Legendary Edition'
     fileVersion=$versionInfo.FileVersion
     fixedFileVersion=('{0}.{1}.{2}.{3}' -f $versionInfo.FileMajorPart,$versionInfo.FileMinorPart,$versionInfo.FileBuildPart,$versionInfo.FilePrivatePart)
     files=$files
+    nativePins=$pinReport
     activeCustomDLC=$dlcs
     activeASI=$asis
     campaignCoopAvailable=$false

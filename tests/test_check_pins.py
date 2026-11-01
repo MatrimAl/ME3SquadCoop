@@ -1,0 +1,181 @@
+"""Pin checking against synthetic PE images only. Never reads an installed game.
+
+The pin checker exists to turn "the mod crashes on launch" into "these 9 pinned offsets do not describe this
+executable". What has to hold, and is asserted here:
+
+* a matching pin is reported as a match, and a one-byte change is reported as a mismatch - so the check can
+  fail;
+* a pin whose RVA no section covers is `unmapped`, not `mismatch`, because the two mean different things to
+  whoever has to fix it;
+* an offset used without pinned bytes is reported as `unpinned` rather than counted as passing, because
+  "nothing checked it" and "it checked out" must not print the same;
+* a result from an unsupported executable gets its own exit code, so a wrong-build report cannot be mistaken
+  for a broken-mod report.
+"""
+import hashlib
+import os
+from pathlib import Path
+import struct
+import subprocess
+import sys
+import tempfile
+import unittest
+
+PROJECT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT / "tools"))
+import check_pins  # noqa: E402
+
+
+def build_pe(text_at=0x1000, text=b"", extra=b"") -> bytes:
+    """A minimal PE32+ whose .text section holds `text` at RVA `text_at`."""
+    file_align, section_align = 0x200, 0x1000
+    headers = 0x40 + 0x40 + 0xF0 + 0x28  # DOS + stub + optional + one section header
+    raw = (headers + file_align - 1) // file_align * file_align
+    data = bytearray(raw) + bytearray(text) + bytearray(extra)
+    data[0:2] = b"MZ"
+    struct.pack_into("<I", data, 0x3C, 0x40)
+    data[0x40:0x44] = b"PE\0\0"
+    struct.pack_into("<H", data, 0x44, 0x8664)          # machine
+    struct.pack_into("<H", data, 0x46, 1)               # one section
+    struct.pack_into("<H", data, 0x54, 0xF0)            # optional header size
+    opt = 0x58
+    struct.pack_into("<H", data, opt, 0x20B)            # PE32+
+    row = opt + 0xF0
+    data[row:row + 5] = b".text"
+    struct.pack_into("<I", data, row + 8, len(text))    # virtual size
+    struct.pack_into("<I", data, row + 12, text_at)     # virtual address
+    struct.pack_into("<I", data, row + 16, len(text))   # size of raw data
+    struct.pack_into("<I", data, row + 20, raw)         # pointer to raw data
+    return bytes(data)
+
+
+class PEMappingTests(unittest.TestCase):
+    def test_a_section_maps_an_rva_to_its_bytes(self):
+        image = check_pins.PE(build_pe(0x4000, b"\x48\x8b\xc4"))
+        self.assertEqual(image.read(0x4000, 3), b"\x48\x8b\xc4")
+        self.assertEqual(image.read(0x4001, 2), b"\x8b\xc4")
+
+    def test_an_rva_outside_every_section_is_unmapped_rather_than_empty(self):
+        image = check_pins.PE(build_pe(0x4000, b"\x90"))
+        self.assertIsNone(image.read(0x9000, 1), "an uncovered RVA must be None, not b''")
+        self.assertIsNone(image.read(0x3FFF, 1))
+
+    def test_a_non_pe_is_refused(self):
+        with self.assertRaises(ValueError):
+            check_pins.PE(b"not a pe at all" * 8)
+
+
+class SourceScanTests(unittest.TestCase):
+    def setUp(self):
+        scratch = PROJECT / "local" / "pin-tests"
+        scratch.mkdir(parents=True, exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(dir=scratch)
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.src = self.root / "src"
+        self.src.mkdir()
+        self.exe = self.root / "fake.exe"
+
+    def write(self, name, text):
+        (self.src / name).write_text(text, encoding="utf-8")
+
+    def test_pins_are_read_with_file_and_line(self):
+        self.write("a.h", 'int a(void) {\n  return !pin(base+0x401000,"488bc4");\n}\n')
+        pins = check_pins.read_pins(str(self.src))
+        self.assertEqual(len(pins), 1)
+        self.assertEqual((pins[0]["file"], pins[0]["line"]), ("a.h", 2))
+        self.assertEqual((pins[0]["rva"], pins[0]["pinned"]), (0x401000, "488bc4"))
+
+    def test_a_loose_offset_is_reported_and_a_member_offset_is_not(self):
+        self.write("b.h", 'read_ptr(pawn+0x1e0);\nuse(base+0x401000);\nuse(base+0x401100);\n'
+                          'pin(base+0x401100,"90");\n')
+        pins = check_pins.read_pins(str(self.src))
+        # 0x1e0 is below .text and is a member offset; 0x401000 is used without pinned bytes;
+        # 0x401100 is pinned, so the loose use of it is not reported twice.
+        self.assertEqual(sorted((p["rva"], p["pinned"]) for p in pins),
+                         [(0x401000, None), (0x401100, "90")])
+
+    def _check(self, src_text, image):
+        self.write("c.h", src_text)
+        self.exe.write_bytes(image)
+        result = check_pins.check(str(self.exe), str(self.src))
+        return check_pins.summarise(result)
+
+    def test_a_matching_pin_passes_and_a_one_byte_change_fails(self):
+        image = build_pe(0x1000, b"\x48\x8b\xc4\x53")
+        code, lines = self._check('pin(base+0x1000,"488bc453");\n', image)
+        self.assertEqual(code, 0, "\n".join(lines))
+        # The same image with the pin off by one byte must fail, or the check cannot fail at all.
+        code, lines = self._check('pin(base+0x1000,"488bc452");\n', image)
+        self.assertNotEqual(code, 0, "a changed byte was reported as a match")
+        self.assertIn("MISMATCH", "\n".join(lines))
+
+    def test_an_uncovered_rva_is_unmapped_not_a_mismatch(self):
+        code, lines = self._check('pin(base+0x900000,"90");\n', build_pe(0x1000, b"\x90"))
+        text = "\n".join(lines)
+        self.assertIn("UNMAPPED", text)
+        self.assertNotIn("MISMATCH", text)
+        self.assertNotEqual(code, 0)
+
+    def test_an_unpinned_offset_is_not_silently_counted_as_passing(self):
+        code, lines = self._check('use(base+0x1000);\npin(base+0x1001,"90");\n',
+                                  build_pe(0x1000, b"\x48\x90"))
+        text = "\n".join(lines)
+        self.assertIn("unpinned 1", text)
+        self.assertIn("unpinned  c.h:1", text)
+        self.assertIn("1 absolute offset(s) are unpinned", text)
+        self.assertEqual(code, 0)
+
+    def test_an_unsupported_executable_gets_its_own_exit_code(self):
+        # The synthetic image cannot be the supported build, so a mismatch here is about the build.
+        code, lines = self._check('pin(base+0x1000,"00");\n', build_pe(0x1000, b"\x90"))
+        self.assertEqual(code, 3, "\n".join(lines))
+        self.assertIn("NOT the one the mod targets", "\n".join(lines))
+        self.assertIn("nothing about the mod follows from this run", "\n".join(lines))
+
+    def test_the_supported_hash_is_the_documented_one(self):
+        # Pinned here so the support boundary cannot drift away from README.md without a failure.
+        self.assertEqual(check_pins.SUPPORTED_SHA256,
+                         "b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001")
+        readme = (PROJECT / "README.md").read_text(encoding="utf-8")
+        self.assertIn(check_pins.SUPPORTED_SHA256, readme,
+                      "README.md no longer states the supported executable hash")
+
+    def test_the_fixed_file_version_is_parsed_from_the_resource(self):
+        """A version string is not an identity, and the parse has to be right for the message to be true.
+
+        `VS_FIXEDFILEINFO` is signature, struct version, `FileVersionMS`, `FileVersionLS`. The MS word packs
+        major (high) and minor (low); the LS word packs build (high) and private (low). Reading four
+        consecutive dwords instead gives nonsense - measured as `131072.65536.4277077181.48602` on the
+        installed build, whose real fixed version is `2.0.0.48602`.
+        """
+        try:
+            import ctypes  # noqa: F401
+        except Exception:
+            self.skipTest("no ctypes")
+        import sys
+        if sys.platform != "win32":
+            self.skipTest("version resources are Windows-only")
+        # python.exe always carries a version resource, so this needs no game file.
+        version = check_pins.file_version(sys.executable)
+        self.assertIsNotNone(version, "could not read a version resource from %s" % sys.executable)
+        parts = version.split(".")
+        self.assertEqual(len(parts), 4, version)
+        self.assertTrue(all(p.isdigit() for p in parts), version)
+
+
+class CommandLineTests(unittest.TestCase):
+    def test_a_missing_executable_is_a_skip_not_a_failure(self):
+        scratch = PROJECT / "local" / "pin-tests"
+        scratch.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch) as temp:
+            code = subprocess.run(
+                [sys.executable, "-I", str(PROJECT / "tools" / "check_pins.py"),
+                 "--exe", str(Path(temp) / "absent.exe")],
+                capture_output=True, text=True, check=False)
+        self.assertEqual(code.returncode, 2, code.stdout + code.stderr)
+        self.assertIn("skip, not a result", code.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

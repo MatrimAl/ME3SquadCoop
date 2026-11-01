@@ -789,6 +789,86 @@ builds, so how the campaign's scene action picks its controller is not readable 
 stands between "the campaign puts the squad in the scene" and "the campaign puts the guest's squadmate in the
 scene", and it is a live question.
 
+## 19. Two native shapes, not one — and the collision repair is writing a replicated bit
+
+Two corrections to this repository's own numbers, both found by reversing the shipped packages.
+
+### A native function that takes parameters is not an empty stub
+
+Every "N of M functions are implemented" count here was produced by testing `len(body) > 4`. UE3 gives a
+native function an empty body so the interpreter has a return to execute, and this was written down as the
+*only* native shape. It is not:
+
+| shape | body | meaning |
+| --- | --- | --- |
+| stub | `0b 53`, `04 0b 53`, `0b 04 0b 53` (2–3 bytes) | empty implementation |
+| **native declaration** | `29 <u32> 0b 53` (7 + 5 per parameter) | `EX_NativeParm`, index, nothing, end |
+| script | anything else | a body worth reading |
+
+`0x29` is `EX_NativeParm` and `0x0b` is `EX_Nothing`, so the body reads "declare this native parameter, do
+nothing, end". The dword is a **per-build native function index**, and that is decidable without decoding
+anything, because it has three properties a name index cannot have:
+
+| test | ME1 | ME2 | ME3 |
+| --- | --- | --- | --- |
+| all values distinct | 590 / 590 | 571 / 571 | 552 / 552 |
+| outside the name table entirely | 105 | 181 | 191 |
+| same-named function shared with another build carrying the same value | **0 of 455** (ME1 vs ME3) | | |
+
+Corrected counts — these replace the earlier table:
+
+| measurement | published | actually |
+| --- | --- | --- |
+| ME3 `BioPlayerController` script functions | 236 | **198** |
+| ME3 `BioWorldInfo` script functions | 46 | **28** |
+| ME3 `Actor` script functions | 180 | **121** |
+| ME1 `PlayerController` script functions | 329 | **305** |
+| ME1 `BioBaseSquad` script functions | 194 | **119** |
+| LE3 `BioBaseSquad` script functions | 28 | **10** |
+
+About **1,000 functions per build** move from "script" to "native". No finding in this document rests on a
+count — they all rest on a specific function's measured size — but the *engine-wide* claim "the script layer
+does this" was overstated by roughly a fifth, on top of the fifth the stub test already removed.
+
+### The guest collision repair writes a bit the engine already replicates
+
+The live work recorded a real failure: on release and reacquire the guest's pawn lost world and actor
+collision, stayed non-colliding, fell, and could not move. The repair calls native `Actor.SetCollisionType`
+and then writes `Actor.bCollideWorld` directly, because `SetCollisionType` does not restore it.
+
+That is true about the method and the wrong layer to fix it at. The collision contract on `Actor`:
+
+| property | `CPF_Net` |
+| --- | --- |
+| `bCollideWorld` | **yes** |
+| `bCollideActors` | **yes** |
+| `bBlockActors` | **yes** |
+| `bProjTarget` | yes |
+| `Role`, `RemoteRole` | yes |
+| `CollisionType` | no |
+| `CollisionComponent` | no |
+
+**Every flag the repair writes locally is a replicated property.** So the guest's value is not the engine's
+idea of the guest's value: on an authority-side release and reacquisition the property stream re-sends these
+bits, and a local write is either overwritten by the next update or diverges until one arrives. A repair that
+works for a moment and then is not there is exactly what a local write of a replicated property looks like.
+
+**There is no shipped force-update call.** `Actor.bForceNetUpdate` and `Actor.bNetDirty` exist on all three
+builds (both `CPF_RepNotify`, both correctly local), but neither is read by any script function:
+`bNetDirty`'s only reader is `Actor.ForceNetRelevant`; `bForceNetUpdate` has no reader by export index and no
+FName mention outside `GameInfo.HandleSeamlessTravelPlayer` on LE3. `ForceNetUpdate`, `ForceRelevant` and
+`SetNetUpdateFrequency` are not exported from `Engine.pcc` at all. Consistent with section 14: 98% of engine
+properties are local and the replication decisions are native.
+
+**So the repair is a display fix, not the fix.** The durable correction is on the authority — make the host's
+copy of the guest pawn's collision right and let the existing replication carry it, which is the same free
+path sections 14 and 15 rely on. If the host's copy is already correct and the guest still shows the wrong
+value, that is a channel/relevancy question, and no guest-side write settles it.
+
+**What is not established:** whether the host's copy is in fact correct at that moment. That needs a
+two-process read of three bits, four times (healthy, released, reacquired, post-repair), on both processes.
+It is the one measurement the repair needs and the packages cannot supply.
+
 ## What this does not tell you
 - Nothing here is a game result. No guest ran.
 - Whether a guest pawn survives a real level transition is untested. Section 1 says it cannot survive
