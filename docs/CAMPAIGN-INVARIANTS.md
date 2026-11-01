@@ -7,8 +7,8 @@ this repository is built around. Nothing here proves guest behaviour; it narrows
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
 `savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8), `spawncheck` (9), `joincheck` (10),
 `rostercheck` (3), `startcheck` (11), `gricheck` (12), `prefixcheck` (13), `netcheck` (14),
-`travelcheck` (15), `capacitycheck` (2), `mutatorcheck` (4b) and `maplist`. The reader and its scope limit
-are described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
+`travelcheck` (15), `capacitycheck` (2), `mutatorcheck` (4b), `transitioncheck` (7) and `maplist`. The reader
+and its scope limit are described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
 `python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
 
 Labels follow [VALIDATION.md](VALIDATION.md): **observed** means read from a file with a check that
@@ -302,6 +302,22 @@ establish how often a node is *placed*, not that a given node fires or what it d
 members each (`*_Unset`, `*_MAX`) - stubs for a value space defined in the plot manager's own data - so
 the size of story state **cannot** be read from those enums. Section 8 reads it from the accessors
 instead, which do bound it.
+
+**And reading the real instances turns five candidate identity fields into one.** `transitioncheck` decodes
+every `BioSeqAct_PMExecuteTransition` that closes exactly - **15,625 on LE3, 1 skipped**:
+
+| field | type | presence | value |
+| --- | --- | --- | --- |
+| **`m_nIndex`** | `Int` | 14,918 | **-1 … 7,416, 2,858 distinct** |
+| `Region` | `Byte` (`EBioRegionAutoSet`) | 11,216 | `None` |
+| `Plot` | `Byte` (`EBioPlotAutoSet`) | 10,108 | `None` |
+| `Transition` | `Byte` (`EBioAutoSet`) | 9,676 | `None` |
+| `Param` | `Int` | 673 | -1 … 5 |
+| `m_sObjectType` | `Str` | **0** | never set |
+
+So the progression step is identified by an **integer index**. `m_sObjectType` exists on the class and appears
+on zero real instances; `Region`/`Plot`/`Transition` read `None`; `Param` is an occasional argument on 4%. A
+declaration lists what a field could be; the data says what it is.
 
 ## 8. Story state is small enough to ship whole, on all three builds
 

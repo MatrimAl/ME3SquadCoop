@@ -675,6 +675,43 @@ class CampaignInvariantTests(unittest.TestCase):
                            "ME3 closed almost nothing - the native-final-function path may have regressed")
 
 
+    @needs_install
+    def test_progression_step_carries_an_index_not_a_string(self):
+        """Section 7: what a real transition instance carries, as opposed to what the class declares.
+
+        Five fields on `BioSeqAct_PMBase`/`PMExecuteTransition` look like identity candidates. On 15,625 real LE3
+        instances only one is: **`m_nIndex`**, over -1..7,416 with 2,858 distinct values. `m_sObjectType` never
+        appears, `Region`/`Plot`/`Transition` read `None` (their enums are two-member stubs), and `Param` is
+        present on 4% of instances.
+
+        The negatives are asserted because each rules out an easier design - a string key, a region enum, a
+        transition enum - and because a declaration cannot distinguish them from the data.
+        """
+        index_dir = os.environ.get("MELE_INDEX_DIR") or str(
+            PROJECT / "local" / "MELE" / "index")
+        if not os.path.isfile(os.path.join(index_dir, "ME3.json")):
+            self.skipTest("no package index (transitioncheck opens every map)")
+        import argparse
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = mele_props.cmd_transitioncheck(argparse.Namespace(game="ME3"))
+        out = buffer.getvalue()
+        self.assertEqual(code, 0, out)
+        import re
+        match = re.search(r"ME3\s+(\d+) instance\(s\) closed exactly, (\d+) skipped; "
+                          r"m_nIndex (-?\d+)\.\.(-?\d+), (\d+) distinct", out)
+        self.assertIsNotNone(match, "row did not parse:\n%s" % out)
+        total, skipped, low, high, distinct = (int(g) for g in match.groups())
+        self.assertGreater(total, 10000, "only %d instances closed" % total)
+        self.assertLess(skipped, total * 0.05, "%d of %d failed to close" % (skipped, total))
+        self.assertEqual(low, -1)
+        self.assertGreater(high, 7000)
+        self.assertGreater(distinct, 1000)
+        # The three stubs and the never-set string are the finding.
+        self.assertIn("m_sObjectType 0", out)
+        self.assertIn("Region 11216, Plot 10108, Transition 9676", out)
+
+
 class SkipBehaviourTests(unittest.TestCase):
     """The commands must refuse to report a measurement when there is no install to measure."""
 
@@ -688,7 +725,8 @@ class SkipBehaviourTests(unittest.TestCase):
                             mele_props.cmd_rostercheck, mele_props.cmd_startcheck,
                             mele_props.cmd_gricheck, mele_props.cmd_prefixcheck,
                             mele_props.cmd_netcheck, mele_props.cmd_travelcheck,
-                            mele_props.cmd_capacitycheck, mele_props.cmd_mutatorcheck):
+                            mele_props.cmd_capacitycheck, mele_props.cmd_mutatorcheck,
+                            mele_props.cmd_transitioncheck):
                 code, out = run(command)
                 self.assertEqual(code, 2, "%s did not skip: %s" % (command.__name__, out))
                 self.assertIn("skip, not a result", out)
