@@ -1,5 +1,15 @@
 # Native Liara scene transport
 
+The latest paired test narrowed the localized reference failure. The bounded
+native receive observer recorded 52 channel-tag references with index zero,
+null output and no archive error, while 12 static references resolved normally.
+Sampled host channels correlated the zero references with the selected Mars
+airlock and Liara dialogue actions. These references were already encoded as
+zero; a failed guest static-index lookup does not explain them. Native send
+can produce this encoding from a null input or an unmapped object, so the
+receive records alone do not identify the exact sender refusal. They do not
+justify manually assigning InterpAction or bypassing package validation.
+
 A retained paired scene captured another incomplete boundary: guest native
 Matinee actors arrived while selected scene-action references remained null.
 The host admitted the selected localized actions; guest snapshots showed no

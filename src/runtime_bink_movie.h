@@ -1,6 +1,6 @@
 #ifndef ME3_RUNTIME_BINK_MOVIE_H
 #define ME3_RUNTIME_BINK_MOVIE_H
-/* Exact guest movie-worker repair. The observed native Multi caller ignores
+/* Exact co-op movie-worker repair. The observed native Multi caller ignores
  * failure, so a refused asynchronous dispatch cannot simply return zero.
  * For its observed zero-ID / missing-worker / no-pending-jobs case only, use
  * the original synchronous decoder. Its native preparation and completion
@@ -104,7 +104,8 @@ static void runtime_bink_movie_flush(DWORD now) {
 static void runtime_bink_movie_prepare(uintptr_t base,DWORD now) {
     RuntimeBinkMovie *s=&runtime_bink_movie;
     if(!session_game_thread||GetCurrentThreadId()!=session_game_thread)return;
-    int enabled=runtime_bink_movie_opted()&&g_runtime_config.role==ME3_ROLE_GUEST&&g_config_status==ME3_CONFIG_READY&&
+    int enabled=runtime_bink_movie_opted()&&
+        (g_runtime_config.role==ME3_ROLE_HOST||g_runtime_config.role==ME3_ROLE_GUEST)&&g_config_status==ME3_CONFIG_READY&&
         runtime_control_enabled&&InterlockedCompareExchange(&g_enable_requested,0,0)&&
         InterlockedCompareExchange(&g_bridge_installed,0,0);
     InterlockedExchange(&s->enabled,enabled&&InterlockedCompareExchange(&s->installed,0,0)&&
@@ -143,7 +144,9 @@ static void runtime_bink_movie_prepare(uintptr_t base,DWORD now) {
     if(previous!=(PVOID)original){InterlockedExchange(&s->enabled,0);InterlockedExchange(&s->installed,0);s->original=NULL;s->sync=NULL;
         s->native_reference=s->proxy_reference=NULL;FreeLibrary(native);FreeLibrary(proxy);return;}
     InterlockedExchange(&s->enabled,1);
-    line("{\"runtime_bink_movie\":\"guest-native-sync-guard-installed\",\"iat_slot_owned\":true,\"native_forwarder_verified\":true,\"gameplay_verified\":false}\r\n");
+    line(g_runtime_config.role==ME3_ROLE_HOST?
+        "{\"runtime_bink_movie\":\"host-native-sync-guard-installed\",\"iat_slot_owned\":true,\"native_forwarder_verified\":true,\"gameplay_verified\":false}\r\n":
+        "{\"runtime_bink_movie\":\"guest-native-sync-guard-installed\",\"iat_slot_owned\":true,\"native_forwarder_verified\":true,\"gameplay_verified\":false}\r\n");
 }
 #ifdef ME3_RUNTIME_FIXTURE
 static int runtime_bink_fixture_selected,runtime_bink_fixture_calls,runtime_bink_fixture_bad,runtime_bink_fixture_result;

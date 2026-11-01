@@ -139,7 +139,10 @@ static uintptr_t runtime_dialogue_find_panel(uintptr_t base,uintptr_t pc,uintptr
     uintptr_t registry=read_ptr(base+0x18b6be0),found=0;GameArray lists[2]={{0}};
     if(!registry||!runtime_power_wheel_registry_pins(base))return 0;
     const int offsets[]={0x4c,0xbc};
-    for(unsigned l=0;l<2;++l){if(!identity_array(registry+offsets[l],&lists[l],128))return 0;
+    /* Both native registry lists may be empty independently. In particular,
+     * the secondary list is normally {0,0,0}; a nonempty-only object-list
+     * predicate would discard a panel already found in the primary list. */
+    for(unsigned l=0;l<2;++l){if(!scene_readiness_array(registry+offsets[l],&lists[l],128))return 0;
         for(int i=0;i<lists[l].count;++i){uintptr_t entry=read_ptr(lists[l].data+(SIZE_T)i*8),panel=read_ptr(entry+0x5c);
             if(!runtime_dialogue_panel_owned(base,panel,pc,info))continue;
             if(found&&found!=panel)return 0;found=panel;

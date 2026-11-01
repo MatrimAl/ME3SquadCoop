@@ -1,5 +1,20 @@
 # Validation status
 
+The latest host dump reproduced the missing Bink worker failure previously
+observed on the guest. The same guarded synchronous decoder now admits both
+configured co-op roles. Its production preparation prefix passed 75 scope
+checks and rejected the previous guest-only behavior. Existing caller, image,
+worker and pending-job guards remain intact. These fixtures and the native
+build do not prove rendered playback or recovery from the host freeze.
+
+Native dialogue panel discovery now permits an empty secondary registry list
+after finding a valid primary panel. A paired scene observation contained that
+ordinary empty header while the previous nonempty-only check refused every
+discovery. The focused fixture passed 24 checks using the production array predicates,
+ownership checks and two-list search, including malformed headers, ambiguity,
+foreign ownership and an old-behavior negative control. Actual rendering and
+advisory input still require gameplay verification.
+
 The default-off Matinee reference observer passed 20 current-production helper
 checks for scalar sites, nested receive masking and unchanged original
 forwarding/result/error. It reuses the single ordinary archive-scalar hook
@@ -36,8 +51,9 @@ flag cleanup can become uncertain. The extended fixture rejects five broken
 variants and covers unavailable metadata, eventual recovery and no repeated
 hide during deferred cleanup. Real local conversation takeover still wins.
 
-The latest owner test still failed full guest cinematic/dialogue presentation
-and post-dialogue firing. Cached POV equality and completed option transport
+The latest owner test confirmed guest combat after dialogue, but still failed
+full guest cinematic/dialogue presentation and reported missing guest Liara
+and a subsequent host freeze. Cached POV equality and completed option transport
 did not establish the rendered result. The inactive-only weapon continuation
 now excludes the circular equipped-idle requirement; 31 focused native fixture
 cases cover the current production helpers and read-only guard behavior.

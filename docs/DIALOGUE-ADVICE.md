@@ -37,6 +37,16 @@ pointer update runs after ordinary movie update when that update has no local
 full conversation to drive it. The first update of a new catalog uses stock's
 force-refresh argument; subsequent updates consume normal mouse axes.
 
+Registry discovery accepts each native list independently when empty. The
+secondary list normally has a zero data/count/capacity header, including in a
+paired dialogue observation with a valid primary-list panel. The former
+nonempty-only array check rejected that header and discarded the primary hit,
+preventing the advisory panel lease. Discovery now uses the existing bounded
+empty-aware registry predicate. Invalid headers, ambiguous panels and the exact
+current PC/world/self/native-entry ownership checks still refuse admission.
+The focused fixture executes the production predicates and discovery helper,
+and rejects the old nonempty-only behavior; it does not prove rendered parity.
+
 Real mouse-left/A GUI events may confirm the existing widget. The resulting
 guest selection, skip and interruption callbacks return through validated stock
 return sites before their story code. They cannot call QueueReply or advance a
