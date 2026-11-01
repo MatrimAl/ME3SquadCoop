@@ -7,7 +7,8 @@ this repository is built around. Nothing here proves guest behaviour; it narrows
 Reproduce every row: `python -I tools/melepkg/mele_props.py coopcheck` (sections 1-5),
 `savecheck`, `squadadd`, `storycheck` (7), `plotcheck` (8), `spawncheck` (9), `joincheck` (10),
 `rostercheck` (3), `startcheck` (11), `gricheck` (12), `prefixcheck` (13), `netcheck` (14),
-`travelcheck` (15), `capacitycheck` (2), `mutatorcheck` (4b), `transitioncheck` (7) and `maplist`. The reader
+`travelcheck` (15), `capacitycheck` (2), `mutatorcheck` (4b), `transitioncheck` (7), `scenecheck` (18) and
+`maplist`. The reader
 and its scope limit are described in [offline package reader](OFFLINE-PACKAGE-READER.md). Tests:
 `python -I -m unittest discover -s tests -p "test_mele_invariants.py" -v`.
 
@@ -740,9 +741,60 @@ bytes), the `ClientTravel` forwarder, `ModifyPlayer` (41) and `ProcessClientTrav
 
 Nothing in this document rests on a decode.
 
+## 18. A conversation takes the camera and input, and nothing tells the client
+
+Section [4](../README.md) of the design treats cinematics as "host drives, client is a passenger". That is a
+description of what should happen. This is what the packages say, from `scenecheck`.
+
+**Scene state is per-controller and it does not replicate.** On `PlayerController`, `bCinematicMode` and
+`ViewTarget` carry no `CPF_Net`; the only two replicated properties on that class are `TargetEyeHeight` and
+`TargetViewRotation`. On `WorldInfo`, `bPlayersOnly` carries none either - its five replicated properties are
+`Pauser`, `ReplicatedMusicTrack`, `TimeDilation`, `WorldGravityZ` and `bHighPriorityLoading`. **So a client is
+never told by the engine that the host entered a scene.** The two replicated rows are checked as positive
+controls in the same run, on the same classes, so an unreadable flag would fail the control rather than
+silently support the negative.
+
+**The engine already ships the per-client call - and nothing reaches it for a guest.**
+`PlayerController.ClientSetCinematicMode(bInCinematicMode, bAffectsMovement, bAffectsTurning, bAffectsHUD)` is
+real script on all three builds (116 / 116 / 119 bytes) and does the right per-client work: `bCinematicMode`,
+`myHUD.bShowHUD`, and the movement/turning input gates. It is called from `PlayerController.SetCinematicMode`
+at **+0xef / +0xef / +0xfc**.
+
+That offset is found by **FName match, not export index**. A virtual call in UE3 emits a name, not a package
+reference, so an index scan reports that *nothing* calls this function - the exact false negative that would
+make writing a new RPC look necessary when the shipped one is fine. `scenecheck` reports both counts and labels
+the index count a lower bound.
+
+**The campaign's own scene toggle already loops the squad on LE2 and LE3.** The action the campaign places is
+`BioSeqAct_BioToggleCinematicMode` - **728 / 2,264 / 2,051** instances. The stock `SeqAct_ToggleCinematicMode`
+is placed **once per build**, in `Engine.pcc`: a declaration with no campaign use. Its path ends in
+`BioPlayerController.SetCinematicMode`, overridden per build:
+
+| build | body | squad references inside it | parms |
+| --- | --- | --- | --- |
+| ME1 | 131 B | **none** | 6 |
+| ME2 | 747 B | `m_playerSquad`, `GetMember`, `ClearRBCallbacks`, `SetWeaponImmediately`, `m_oBehavior` | 10 |
+| ME3 | 775 B | `Squad`, `Members`, `ForceEndRagdoll` | 13 |
+
+LE2/LE3 already fetch every squad member and clear its behaviour on scene entry, so a guest possessing a
+squadmate rides a path the campaign runs on every scene. **LE1's 131-byte body does not mention the squad at
+all**, so the loop has to be written there.
+
+**This reverses the usual per-build ordering for this one seam.** Elsewhere LE1 is the cheapest target because
+it is closest to stock `Engine.GameInfo`. For scenes it is the most expensive, and a table written left to
+right would have assigned the most new code to the build that needs it.
+
+**What is still unread:** `BioWorldInfo.GetLocalPlayerController` is a **2-byte native stub** on all three
+builds, so how the campaign's scene action picks its controller is not readable from the packages. That is what
+stands between "the campaign puts the squad in the scene" and "the campaign puts the guest's squadmate in the
+scene", and it is a live question.
+
 ## What this does not tell you
 - Nothing here is a game result. No guest ran.
 - Whether a guest pawn survives a real level transition is untested. Section 1 says it cannot survive
   by seamless travel; it says nothing about what a from-scratch re-spawn does.
 - The recruitment path's control flow is not decoded; only the references inside it are measured.
 - Cross-build facts about LE1/LE2 come from their packages, not from a running LE1/LE2 session.
+- Section 18 measures that the engine has a per-client cinematic call and that nothing reaches it for a
+  guest; it does not measure what happens to the guest's pawn when the scene *ends*. The way out is where
+  this project has recorded the damage before.

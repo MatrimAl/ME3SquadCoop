@@ -68,6 +68,7 @@ python -I tools/melepkg/mele_props.py capacitycheck # the chain that refuses a g
 python -I tools/melepkg/mele_props.py mutatorcheck  # the supported hook into the join path
 python -I tools/melepkg/mele_props.py transitioncheck --game ME3  # what the progression step carries
 python -I tools/melepkg/mele_props.py transitioncheck               # all three builds (same answer)
+python -I tools/melepkg/mele_props.py scenecheck   # does a conversation take the guest's camera and input
 python -I tools/melepkg/ue3_decode.py closure <package>   # how far the bytecode grammar actually gets
 python -I tools/melepkg/mele_props.py maplist      # how many maps a full pass covers
 python -I tools/melepkg/mele_props.py routing      # map prefix -> game class, and the driver check

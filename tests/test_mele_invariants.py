@@ -712,6 +712,52 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("Region 11216, Plot 10108, Transition 9676", out)
         self.assertIn("m_sVarName 0", out)
 
+    @needs_install
+    def test_scene_state_is_unreplicated_and_le2_le3_already_loop_the_squad(self):
+        """Section 18: the conversation/cutscene seam, measured instead of assumed.
+
+        Three claims, and the third is the one that reorders the work:
+
+        * `PlayerController.bCinematicMode`, `ViewTarget` and `WorldInfo.bPlayersOnly` carry no `CPF_Net`,
+          so a client is never told by the engine that the host entered a scene. The check cannot pass by
+          accident: `TargetViewRotation` and `Pauser` are asserted **positive** in the same run on the same
+          classes, so a broken flag read fails the control first.
+        * `ClientSetCinematicMode` is real script (116/116/119 bytes) and `SetCinematicMode` reaches it at
+          **+0xef / +0xef / +0xfc**. That call site is visible only by FName matching - an export-index scan
+          reports that nothing calls it, which is the false negative that makes a new RPC look necessary.
+        * `BioPlayerController.SetCinematicMode` is 131/747/775 bytes, and the LE2/LE3 bodies reference the
+          squad while LE1's 131-byte body references none of it. **For scenes, LE1 is the expensive build.**
+        """
+        code, out = run(mele_props.cmd_scenecheck)
+        self.assertEqual(code, 0, out)
+        # Unreplicated scene state on every build, with the positive controls holding.
+        for field in ("bCinematicMode       CPF_Net=False", "ViewTarget           CPF_Net=False",
+                      "bPlayersOnly         CPF_Net=False"):
+            self.assertEqual(out.count(field), 3,
+                             "%s appears %d time(s), expected 3:\n%s"
+                             % (field.strip(), out.count(field), out))
+        self.assertEqual(out.count("positive control       TargetViewRotation   CPF_Net=True"), 3,
+                         "the CPF_Net positive control failed - the negative is unsupported:\n%s" % out)
+        self.assertEqual(out.count("positive control       Pauser               CPF_Net=True"), 3,
+                         "the Pauser positive control failed - the flag offset is wrong:\n%s" % out)
+        # The shipped per-client call, and the call site only an FName match can see.
+        import re
+        sites = re.findall(r"ClientSetCinematicMode at \+0x([0-9a-f]+) \(FName call\)", out)
+        self.assertEqual(sites, ["ef", "ef", "fc"], "call sites changed: %s\n%s" % (sites, out))
+        # The split: LE1 has no squad loop, LE2/LE3 do.
+        rows = re.findall(r"BioPlayerController\.SetCinematicMode\s+(\d+) B, \d+ exact ref\(s\), "
+                          r"(\d+) squad ref\(s\)", out)
+        self.assertEqual([int(r[0]) for r in rows], [131, 747, 775],
+                         "override sizes changed: %s\n%s" % (rows, out))
+        self.assertEqual(int(rows[0][1]), 0,
+                         "LE1's override now references the squad - the 'LE1 needs the loop written' "
+                         "finding no longer holds:\n%s" % out)
+        self.assertGreater(min(int(r[1]) for r in rows[1:]), 0,
+                           "LE2/LE3 no longer loop the squad - the reversal no longer holds:\n%s" % out)
+        # The stock action is a declaration; the campaign places the Bio one.
+        self.assertEqual(len(re.findall(r"SeqAct_ToggleCinematicMode 1(?!\d)", out)), 3,
+                         "the stock cinematic action is now placed by the campaign:\n%s" % out)
+
 
 class CrossBuildTransitionTests(unittest.TestCase):
     """Section 7's cross-build half: LE1/LE2 declare three extra fields, and none of them is used."""
