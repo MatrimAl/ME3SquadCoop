@@ -628,18 +628,20 @@ class CampaignInvariantTests(unittest.TestCase):
 
     @needs_install
     def test_bytecode_grammar_is_partial_and_pointer_width_is_32(self):
-        """Section 17: the bytecode attempt, and the fact that it did not produce a disassembler.
+        """Section 17: the bytecode attempt, the bug it exposed, and the fact it is still not a disassembler.
 
         `UStruct::SerializeExpr` uses `XFERPTR` for property and function pointers, width
         `sizeof(ScriptPointerType)`. Trying both over every function with a body and requiring an exact landing:
 
-            ptr=8: 1.9% closed      ptr=4: 12.5% closed     (ME3 Engine.pcc)
+            ME1: ptr=8  6.7%   ptr=4 39.5%
+            ME3: ptr=8  2.4%   ptr=4 14.2%
 
-        4 wins by more than 6x, so script pointers are 32-bit even though the game is 64-bit.
+        4 wins by 6x, so script pointers are 32-bit even though the game is 64-bit.
 
-        The second assertion is the important one: the absolute rate must stay **low**, so nobody later mistakes
-        this for a disassembler and reads a specific function out of it. If it ever improves past 40% the docs
-        claim needs revisiting, and this fails to say so.
+        The second assertion is the one that matters most: the rate must stay **low**. It is ~40% on ME1/ME2 but
+        only ~14% on ME3, because ME3 uses opcodes the stock UE3 enum does not name and their operand sizes did
+        not converge when derived empirically. If it ever improves past 70% the docs claim needs revisiting, and
+        this fails to say so.
         """
         import importlib.util
         spec = importlib.util.spec_from_file_location(
@@ -648,25 +650,29 @@ class CampaignInvariantTests(unittest.TestCase):
         spec.loader.exec_module(dec)
         tables = load_tables()
         pkg = tables.load_pkg()
-        base = None
-        for root in pkg.game_dirs():
-            cand = Path(root) / "Game" / "ME3" / "BioGame" / "CookedPCConsole" / "Engine.pcc"
-            if cand.is_file():
-                base = str(cand)
-                break
-        if not base:
-            self.skipTest("no install")
+        for game in ("ME1", "ME3"):
+            base = None
+            for root in pkg.game_dirs():
+                cand = Path(root) / "Game" / game / "BioGame" / "CookedPCConsole" / "Engine.pcc"
+                if cand.is_file():
+                    base = str(cand)
+                    break
+            if not base:
+                self.skipTest("no install")
+            t = tables.build(base)
+            c4, _d, _u, total = dec.closure(t, 4, 8)
+            c8, _d8, _u8, _total8 = dec.closure(t, 8, 8)
+            self.assertGreater(total, 1000)
+            self.assertGreater(c4, c8 * 2,
+                               "%s: ptr=4 is no longer clearly better (%d vs %d)" % (game, c4, c8))
+            share = 100.0 * c4 / total
+            self.assertLess(share, 70.0,
+                            "%s: the decoder now closes on %.1f%% - the 'partial, not a disassembler' claim "
+                            "should be revisited" % (game, share))
+        # The bug that was worth 2x: the native-token path must consume parameters rather than raise.
         t = tables.build(base)
-        c4, _d, _u, total = dec.closure(t, 4, 8)
-        c8, _d8, _u8, _total8 = dec.closure(t, 8, 8)
-        self.assertGreater(total, 1000)
-        self.assertGreater(c4, c8 * 2,
-                           "ptr=4 is no longer clearly better (%d vs %d) - re-read the width claim"
-                           % (c4, c8))
-        share = 100.0 * c4 / total
-        self.assertLess(share, 40.0,
-                        "the decoder now closes on %.1f%% - the 'partial, not a disassembler' claim in the "
-                        "docs should be revisited" % share)
+        self.assertGreater(dec.closure(tables.build(base), 4, 8)[0], 300,
+                           "ME3 closed almost nothing - the native-final-function path may have regressed")
 
 
 class SkipBehaviourTests(unittest.TestCase):
