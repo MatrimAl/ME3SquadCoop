@@ -869,6 +869,54 @@ value, that is a channel/relevancy question, and no guest-side write settles it.
 two-process read of three bits, four times (healthy, released, reacquired, post-repair), on both processes.
 It is the one measurement the repair needs and the packages cannot supply.
 
+## 20. The guest's team is the right lever, and half of the team path is local
+
+The live work's most concrete combat finding: a guest's `PRI.Team` was null, `GetTeamNum` mapped that to 255,
+stock hostility logic rejected an unknown team, and after registering the guest as host team 0 through
+`SFXGame.ChangeTeam` near-hits started reducing a real `SFXPawn_Trooper_0` from 512.5 to 194.05. Measuring the
+contract around that:
+
+| item | location | size / flags | replicates |
+| --- | --- | --- | --- |
+| `PlayerReplicationInfo.Team` | `Engine.pcc` | ObjectProperty | **yes, all builds** |
+| `Pawn.Health` | `Engine.pcc` | IntProperty | yes |
+| `Actor.bProjTarget` | `Engine.pcc` | BoolProperty | yes |
+| `RestartPlayer.TeamNum` | `Engine.pcc` | IntProperty | **no** |
+| `ChoosePlayerStart.Team` | `Engine.pcc` | ByteProperty | **no** |
+| `Actor.GetTeamNum` | `Engine.pcc` | **2-byte native stub** | — |
+| `Pawn.GetTeamNum` | `Engine.pcc` | **2-byte native stub** | — |
+| `PlayerReplicationInfo.GetTeamNum` | `Engine.pcc` | **2-byte native stub** | — |
+| `PlayerController.ChangeTeam` | `Engine.pcc` | 188 / 188 / 194 B script | — |
+| `GameInfo.ChangeTeam` | `Engine.pcc` | 9 B script — a forwarder | — |
+| `SFXGame.ChangeTeam` | `SFXGame.pcc` | **358 B** script (LE3) | — |
+| `PlayerReplicationInfo.SetPlayerTeam` | `Engine.pcc` | 43 / 43 / 46 B script | — |
+| `SFXGRI.ModifyDamage` | `SFXGame.pcc` | 178 B script (LE3) | server-side gate |
+| `SFXGame.ModifyDamage` | `SFXGame.pcc` | 2,483 B script | server-side gate |
+| `BioPawn.ModifyDamage` | `SFXGame.pcc` | 561 B script (LE3) | per-pawn |
+
+Four things follow, and they are cheap to act on:
+
+1. **`PRI.Team` replicates, so the team registration was always going to travel.** Setting it on the host
+   is sufficient; the guest's copy follows. That is why the approach worked after registration, and it means
+   the guest-side re-registration the live work performs on scene release and reacquisition is belt and
+   braces rather than the mechanism. Worth saying so, because a repair that is re-run "because it worked" is a
+   repair nobody can reason about later.
+2. **Every `GetTeamNum` is native.** The team decision is not readable and not overridable in script on any
+   build — it is a native stub on `Actor`, `Pawn`, `Controller`, `PlayerReplicationInfo`, `Projectile` and
+   `TeamInfo`. So the only script-level lever is setting `Team`, which is exactly what the code does. That
+   makes `ChangeTeam` the whole mechanism, not one option among several.
+3. **`RestartPlayer.TeamNum` and `ChoosePlayerStart.Team` are local.** Anything that derives a spawn from a
+   team is a host-only decision, so a guest's own copy of those fields will disagree and must not be trusted
+   on the guest.
+4. **`SFXGame.ChangeTeam` is the LE3 override at 358 bytes, over `GameInfo.ChangeTeam`'s 9-byte forwarder.**
+   So the call the code makes reaches the campaign's own logic, not the stock stub — the right entry point.
+
+**What this still does not establish**, and it is the same gap the live work reports: whether a guest hit is
+admitted by the server in a full combat sequence. `ModifyDamage` is a 2,483-byte server-side gate whose inputs
+are `injured`, `instigatedBy`, `DamageCauser`, `Info` and `PC`, and none of those is replicated to the guest
+in the direction that would let a guest decide. That is consistent with "the host must adjudicate", and it is
+the design the mod already has — but it is a design statement, not a measurement.
+
 ## What this does not tell you
 - Nothing here is a game result. No guest ran.
 - Whether a guest pawn survives a real level transition is untested. Section 1 says it cannot survive

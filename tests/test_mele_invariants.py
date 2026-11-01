@@ -18,6 +18,7 @@ import importlib.util
 import io
 import os
 from pathlib import Path
+import struct
 import sys
 import unittest
 from contextlib import redirect_stdout
@@ -754,9 +755,85 @@ class CampaignInvariantTests(unittest.TestCase):
                          "finding no longer holds:\n%s" % out)
         self.assertGreater(min(int(r[1]) for r in rows[1:]), 0,
                            "LE2/LE3 no longer loop the squad - the reversal no longer holds:\n%s" % out)
-        # The stock action is a declaration; the campaign places the Bio one.
-        self.assertEqual(len(re.findall(r"SeqAct_ToggleCinematicMode 1(?!\d)", out)), 3,
-                         "the stock cinematic action is now placed by the campaign:\n%s" % out)
+        # The stock action is a declaration; the campaign places the Bio one. A count the tool never took is
+        # reported as NOT MEASURED, and must not be compared against a constant - the two sentences are
+        # distinct on purpose, because a shared prefix let an unmeasured run pass this assertion in an
+        # earlier version of this test.
+        if "NOT MEASURED (no package index)" in out:
+            self.assertEqual(out.count("NOT MEASURED (no package index)"), 3,
+                             "only some builds reported unmeasured placements:\n%s" % out)
+        else:
+            self.assertEqual(len(re.findall(r"SeqAct_ToggleCinematicMode 1(?!\d)", out)), 3,
+                             "the stock cinematic action is now placed by the campaign:\n%s" % out)
+
+    @needs_install
+    def test_guest_team_replicates_and_every_team_getter_is_native(self):
+        """Section 20: why registering the guest's team worked, and which part of it can be checked.
+
+        The live finding was that a null `PRI.Team` made `GetTeamNum` return 255 and the stock hostility logic
+        reject the guest; registering team 0 through `SFXGame.ChangeTeam` started real damage. Measured here:
+
+        * `PlayerReplicationInfo.Team` carries `CPF_Net` on every build, so the registration travels with the
+          property stream. The guest-side re-registration on reacquisition is belt and braces, not the
+          mechanism.
+        * `RestartPlayer.TeamNum` and `ChoosePlayerStart.Team` do **not** replicate, so any spawn decision
+          derived from a team is host-only and a guest's own copy must not be trusted.
+        * every `GetTeamNum` - on Actor, Pawn, Controller, PlayerReplicationInfo - is a 2-byte native stub, so
+          `Team` is the only script-level lever on all three builds, and `ChangeTeam` is the whole mechanism.
+        """
+        tables = load_tables()
+        package = tables.load_pkg()
+        for game in ("ME1", "ME2", "ME3"):
+            path = None
+            for root in package.game_dirs():
+                candidate = Path(root) / "Game" / game / "BioGame" / "CookedPCConsole" / "Engine.pcc"
+                if candidate.is_file():
+                    path = str(candidate)
+                    break
+            self.assertIsNotNone(path, "no %s Engine.pcc" % game)
+            table = tables.build(path)
+            buf, disp = table["buf"], table["displacement"]
+            exports, imports = table["exports"], table["imports"]
+
+            def net_flags(owner, name):
+                """True/False for CPF_Net on owner.name, or None when the property is absent."""
+                for e in exports:
+                    if e["object_name"] != name:
+                        continue
+                    if not tables.describe_index(e["class_index"], exports, imports).endswith("Property"):
+                        continue
+                    if not tables.describe_index(e["outer_index"], exports, imports).endswith(owner):
+                        continue
+                    return bool(struct.unpack_from(
+                        "<Q", buf, e["serial_offset"] - disp + mele_props.load_tables().CPF_OFFSET_FLAGS)[0] & 0x20)
+                return None
+
+            # The positive row: the team registration does travel.
+            self.assertIs(net_flags("PlayerReplicationInfo", "Team"), True,
+                          "%s: PRI.Team no longer replicates - the registration would not reach a guest"
+                          % game)
+            # The negative rows: a spawn decision from a team is host-only.
+            self.assertIs(net_flags("RestartPlayer", "TeamNum"), False,
+                          "%s: RestartPlayer.TeamNum now replicates - re-read what a guest can trust" % game)
+            self.assertIs(net_flags("ChoosePlayerStart", "Team"), False,
+                          "%s: ChoosePlayerStart.Team now replicates" % game)
+            # Every team getter is native, so Team is the only script lever.
+            for owner in ("Actor", "Pawn", "Controller", "PlayerReplicationInfo"):
+                function = None
+                for e in exports:
+                    if e["object_name"] != "GetTeamNum":
+                        continue
+                    if not tables.describe_index(e["class_index"], exports, imports).endswith("Function"):
+                        continue
+                    if tables.describe_index(e["outer_index"], exports, imports).endswith(owner):
+                        function = e
+                        break
+                if function is None:
+                    continue
+                self.assertEqual(
+                    tables.function_shape(table, function), "stub",
+                    "%s %s.GetTeamNum is no longer native - it may now be overridable in script"
+                    % (game, owner))
 
 
 class CrossBuildTransitionTests(unittest.TestCase):
