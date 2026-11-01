@@ -917,6 +917,42 @@ are `injured`, `instigatedBy`, `DamageCauser`, `Info` and `PC`, and none of thos
 in the direction that would let a guest decide. That is consistent with "the host must adjudicate", and it is
 the design the mod already has — but it is a design statement, not a measurement.
 
+## 21. The installed executable's code is encrypted at rest, so no offline pin check can run on it
+
+A finding that changes what "the build does not match" means. Measured on the installed
+`MassEffect3.exe` (`72047e65…`, 26,896,672 bytes):
+
+| section | entropy | reading |
+| --- | --- | --- |
+| `.text` (17 MB) | **8.0000 bits/byte** | random — not code |
+| `.data` (7.4 MB) | **7.9996** | random — not data |
+| `.rdata` (7.2 MB) | 4.54 | **plaintext** — holds Bioware source paths |
+| `.pdata`, `.reloc` | 6.77, 5.73 | structured |
+
+Controls on the same machine: `notepad.exe` `.text` 6.24, `kernel32.dll` 6.26, with hundreds of
+`48 83 ec 28` prologues. The installed LE3 `.text` has zero of those in 17 MB, zero duplicated 32-byte windows
+in 4 MB, and 38.3% printable bytes — the random baseline (95/256 = 37.1%), not text.
+
+**The file on disk is not the code the game runs.** It decrypts in memory, through an exe wrapper or the EA
+App's licence path. Consequences, in order of how much they change:
+
+1. **"9 pins mismatch" against this file is a statement about the file, not about the build.** No offline byte
+   comparison of this executable can validate anything about the mod. `tools/check_pins.py` now detects the
+   condition and reports `UNREADABLE` (exit 2) instead of mismatches, and `--generate` refuses rather than
+   writing random bytes as pins — a generated pin from an encrypted image would pass, which is worse than none.
+2. **The build-identity gap is not "find the right exe".** Even a correct Steam install of this game has
+   encrypted `.text`. The supported build can only be identified from a **decrypted image**, which means the
+   supported SHA-256 `b453871e…` describes a build the owner has in a form this machine does not — or the pins
+   were taken from a decrypted image the repository does not record how it obtained.
+3. **The in-process guard is the only check that can work.** `supported_image()` reads memory after the game
+   has decrypted itself, so its timestamp and 7-byte check operate on real code. The launcher's SHA-256 gate
+   plus the in-process guard together are therefore the design, and neither alone is sufficient.
+
+The classifier that decides "encrypted" is tested, because its failure mode is silently wrong in both
+directions: a section below 64 KiB is *unknown* not encrypted, a uniform byte ramp has entropy 8.0 but is
+plaintext (detected by small-lag self-match), and a printable-ratio test was rejected because random bytes and
+a uniform ramp both measure 37%.
+
 ## What this does not tell you
 - Nothing here is a game result. No guest ran.
 - Whether a guest pawn survives a real level transition is untested. Section 1 says it cannot survive

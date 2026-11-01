@@ -56,8 +56,14 @@ A fourth outcome, `unmapped`, is separate again: no PE section covers the RVA, w
 not address file-backed code at all. That is a different repair from a wrong pin.
 
 Exit codes: `0` all pinned sequences match; `1` a pin does not match the **supported** build;
-`2` the executable or sources are missing (a skip, not a result); `3` pins do not match but the executable is
-not the supported one.
+`2` the executable or sources are missing, **or the code sections are not plaintext** — both are a
+skip, not a result, because neither can support a claim about the mod; `3` pins do not match but the
+executable is not the supported one.
+
+A note on exit code 2 and encryption: a file whose `.text` is random at 8.0000 bits/byte is not "a build the
+mod does not support". It is a file the mod's own guards never see, because the game decrypts before it runs.
+Telling those apart is the difference between "wrong build" and "cannot be checked offline", and the tool says
+which one it means.
 
 ## Usage
 
@@ -95,8 +101,14 @@ game results.
 
 `tests/test_check_pins.py` builds minimal PE32+ images in the test scratch directory and asserts that a
 matching pin passes, a one-byte change fails, an uncovered RVA is `unmapped` rather than `mismatch`, an
-unpinned offset is reported rather than counted as passing, and the unsupported-executable case gets its own
-exit code. Twelve cases, no game, no network, no modification of an installed copy.
+unpinned offset is reported rather than counted as passing, the unsupported-executable case gets its own exit
+code, and an encrypted image is refused rather than compared. Twenty-one cases, no game, no network, no
+modification of an installed copy.
+
+Exit codes: `0` all pinned sequences match the supported build; `1` a pin does not match the **supported**
+build; `2` the executable or sources are missing, **or the code sections are not plaintext** — both are a
+skip, not a result, because neither can support a claim about the mod; `3` pins do not match but the
+executable is not the supported one.
 
 ## What this says about the rest of the native surface
 
@@ -131,6 +143,45 @@ Two cautions are built into the output rather than left to the reader:
 
 So use `--generate` against the **supported** executable. Against any other, the pins it produces are a
 description of that other build, which is worse than no pins because they would pass.
+
+**But `--generate` refuses to run against this machine's install, and that refusal is the finding.**
+
+## The bigger finding: the installed executable's code is encrypted at rest
+
+Measured on the installed `MassEffect3.exe` (`72047e65…`, 26,896,672 bytes):
+
+| section | entropy | what it means |
+| --- | --- | --- |
+| `.text` (17 MB) | **8.0000 bits/byte** | random — not code |
+| `.data` (7.4 MB) | **7.9996** | random — not data |
+| `.rdata` (7.2 MB) | 4.54 | **plaintext** — holds Bioware source paths (`C:\metr\sfx3\Development\Src\...`) |
+| `.pdata`, `.reloc` | 6.77, 5.73 | structured |
+
+Controls on the same machine: `notepad.exe` `.text` 6.24, `kernel32.dll` 6.26, with hundreds of
+`48 83 ec 28` prologues. The installed LE3 `.text` has **zero** `48 83 ec 28` in 17 MB, **zero** duplicated
+32-byte windows in 4 MB, and 38.3% printable bytes — which is the random baseline (95/256 = 37.1%), not text.
+
+**So the file on disk is not the code the game runs.** It decrypts in memory, either through an exe wrapper or
+through the EA App's licence path. Three consequences, in order of how much they change:
+
+1. **No offline byte comparison of this executable can validate anything about the mod.** "9 pins mismatch"
+   against this file is a statement about the file, not about the build. `check_pins.py` now detects this and
+   reports `UNREADABLE` with exit code 2 instead of reporting mismatches, and `--generate` refuses rather than
+   writing random bytes as pins — a generated pin from an encrypted image would pass, which is worse than none.
+2. **The build-identity gap is not "find the right exe".** Even a correct Steam install of this game would have
+   encrypted `.text`. The supported build can only be identified from a **decrypted image**, which means the
+   supported SHA-256 `b453871e…` describes a build the owner has in a form this machine does not — or the pins
+   were taken from a decrypted image the repository does not record how it obtained.
+3. **The in-process guard is the only check that can work.** `supported_image()` reads memory after the game
+   has decrypted itself, so its timestamp and 7-byte check operate on real code. That is why the launcher's
+   SHA-256 gate plus the in-process guard together are the design, and why neither alone is sufficient: the
+   hash gate refuses a different file, the guard refuses a wrong build at runtime, and neither can be replaced
+   by an offline byte comparison of the on-disk file.
+
+The classifier that decides "encrypted" is itself tested, because it is the one component whose failure mode
+is silently wrong in both directions: a section below 64 KiB is *unknown* (the statistic has no meaning), a
+uniform byte ramp has entropy 8.0 but is plaintext (detected by small-lag self-match), and a printable-ratio
+test was rejected because random bytes and a uniform ramp both measure 37%.
 
 ## What cannot be pinned, and what to do about it instead
 

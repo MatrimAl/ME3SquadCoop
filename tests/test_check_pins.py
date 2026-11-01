@@ -239,5 +239,108 @@ class CoverageTests(unittest.TestCase):
         self.assertIn('#ifndef ME3_CODE_PINS_H', text)
 
 
+class EncryptionTests(unittest.TestCase):
+    """The check that inverts every other result, and that this tool got wrong first time.
+
+    The installed Steam build of LE3 is **not** an ordinary PE: its `.text` measures 8.0000 bits/byte, has no
+    repeated 32-byte window in 4 MB, and contains zero `48 83 ec 28` prologues in 17 MB. `notepad.exe` and
+    `kernel32.dll` on the same machine measure 6.24 and 6.26 with hundreds of them. The code is encrypted at
+    rest and decrypted when the game runs.
+
+    Reporting "9 pins mismatch" against such a file is a false negative of the worst kind: it reads as "the mod
+    is broken" when it means "this file cannot be checked". So an unreadable image must produce its own
+    outcome, and generation from one must be refused.
+
+    The classifier's own limits are asserted too, because they are what keep it honest: a section too small
+    for the statistic is *unknown*, not encrypted, and a uniform byte ramp has entropy 8.0 without being
+    random - so plaintext that measures 8.0 must still be readable as plaintext.
+    """
+
+    def setUp(self):
+        scratch = PROJECT / "local" / "pin-tests"
+        scratch.mkdir(parents=True, exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(dir=scratch)
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.src = self.root / "src"
+        self.src.mkdir()
+
+    def _image(self, text):
+        """A PE whose `.text` is exactly `text`, large enough that the entropy statistic can apply."""
+        import struct as _struct
+        blob = bytearray(0x400 + 0x10000 + len(text))
+        blob[0:2] = b"MZ"
+        _struct.pack_into("<I", blob, 0x3C, 0x40)
+        blob[0x40:0x44] = b"PE\0\0"
+        _struct.pack_into("<H", blob, 0x44, 0x8664)
+        _struct.pack_into("<H", blob, 0x46, 1)
+        _struct.pack_into("<H", blob, 0x54, 0xF0)
+        opt = 0x58
+        _struct.pack_into("<H", blob, opt, 0x20B)
+        row = opt + 0xF0
+        blob[row:row + 5] = b".text"
+        _struct.pack_into("<I", blob, row + 8, len(text))
+        _struct.pack_into("<I", blob, row + 12, 0x1000)
+        _struct.pack_into("<I", blob, row + 16, len(text))
+        _struct.pack_into("<I", blob, row + 20, 0x400)
+        blob[0x400:0x400 + len(text)] = text
+        return bytes(blob)
+
+    def test_high_entropy_code_is_reported_unreadable_rather_than_as_mismatches(self):
+        import random
+        rng = random.Random(1234)
+        exe = self.root / "packed.exe"
+        exe.write_bytes(self._image(bytes(rng.randrange(256) for _ in range(1 << 17))))
+        (self.src / "a.h").write_text('pin(base+0x1000,"488bc4");\n', encoding="utf-8")
+        result = check_pins.check(str(exe), str(self.src))
+        self.assertFalse(result["code_readable"], "encrypted .text was read as plaintext")
+        self.assertEqual(result["code_section"], ".text")
+        code, lines = check_pins.summarise(result)
+        text = "\n".join(lines)
+        self.assertEqual(code, 2, "an unreadable image must not return a pass or a mod verdict")
+        self.assertIn("UNREADABLE", text)
+        self.assertIn("must not be read as", text)
+        self.assertNotIn("the mod is wrong", text)
+
+    def test_generation_refuses_an_encrypted_image(self):
+        import random
+        rng = random.Random(1234)
+        exe = self.root / "packed.exe"
+        exe.write_bytes(self._image(bytes(rng.randrange(256) for _ in range(1 << 17))))
+        (self.src / "a.h").write_text("use(base+0x1000);\n", encoding="utf-8")
+        out = self.root / "gen.h"
+        code = check_pins.main(["--exe", str(exe), "--root", str(self.root), "--generate", str(out)])
+        self.assertEqual(code, 2, "generation from encrypted code must be refused, not warned about")
+        self.assertFalse(out.exists(), "a refused generation must not leave a partial pin file")
+
+    def test_plaintext_code_is_still_readable(self):
+        # The negative control: without this, "everything is unreadable" would also pass the cases above.
+        # Real x64 code is repetitive - the same prologues and epilogues over and over - so plaintext here is
+        # built from repeated real instruction shapes rather than a uniform byte ramp, which also measures
+        # 8.0 bits/byte and would test the classifier's stated limit instead of the plaintext path.
+        exe = self.root / "plain.exe"
+        body = (b"\x48\x83\xec\x28\x48\x89\x5c\x24\x08\x57\x48\x8b\x01\xff\xd0\x5f\x48\x83\xc4\x28\xc3"
+                b"\xcc\xcc\xcc\xcc") * 4000
+        exe.write_bytes(self._image(body))
+        (self.src / "a.h").write_text("use(base+0x1000);\n", encoding="utf-8")
+        result = check_pins.check(str(exe), str(self.src))
+        self.assertTrue(result["code_readable"], "plaintext .text was reported as encrypted: %s"
+                        % result.get("code_why"))
+
+    def test_a_uniform_byte_ramp_is_high_entropy_but_not_called_encrypted(self):
+        # bytes(range(256)) repeated measures 8.0 bits/byte - the same entropy as random - and is plainly
+        # not encrypted. The classifier must not call it encrypted on entropy alone.
+        image = self._image(bytes(range(256)) * 512)
+        encrypted, why = check_pins.looks_encrypted(image[0x400:])
+        self.assertFalse(encrypted, "a uniform ramp was called encrypted: %s" % why)
+
+    def test_a_small_section_is_unknown_not_encrypted(self):
+        image = self._image(bytes(1 << 17))
+        # The section starts at file offset 0x400; pass only part of it, below the 64 KiB floor.
+        encrypted, why = check_pins.looks_encrypted(image[0x400:0x400 + (1 << 15)])
+        self.assertFalse(encrypted)
+        self.assertIn("too small", why)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -103,11 +103,81 @@ def read_pins(src_dir):
     return out
 
 
+def looks_encrypted(section_bytes):
+    """True when a section is not plaintext code, measured rather than assumed.
+
+    **Every pins check rests on this**, and getting it wrong inverts the answer. An x64 `.text` is full of
+    recognisable bytes; encrypted code is not. Measured on the installed Steam build of LE3:
+
+        .text entropy 8.0000 bits/byte, 0 duplicated 32-byte windows in 4 MB,
+        0 occurrences of `48 83 ec 28` (sub rsp,28h) in 17 MB,
+        and 38.3% "printable" bytes - which is the random baseline (95/256 = 37.1%), not text.
+        By contrast .rdata is plaintext and still holds Bioware source paths.
+
+    For comparison `notepad.exe` and `kernel32.dll` on this machine measure 6.24 and 6.26 bits/byte.
+
+    Three cases have to be told apart, and the traps are the reason the classifier is this shape rather than
+    one statistic:
+
+      * **too small** - below 64 KiB the entropy statistic has no meaning, so the answer is "unknown", not
+        "encrypted". A test image of a few kilobytes can measure anything;
+      * **high entropy** - code never measures above ~7.9, so 7.9 or more is the random signature. But a
+        uniform byte ramp (`bytes(range(256))` repeated) measures exactly 8.0 and is plaintext, so entropy
+        alone is not proof. The ramp is *periodic*: it repeats with period 256, which random data does not.
+        So the high-entropy branch checks periodicity at a few small lags before calling a section random;
+      * **printable ratio is deliberately not used.** Random bytes are ~37% printable by construction and a
+        uniform ramp is 37.1% - the same number - so that ratio separates nothing.
+
+    Returns `(is_encrypted, reason)`.
+    """
+    import math
+    if len(section_bytes) < 1 << 16:
+        return False, ("section too small (%d bytes) for the entropy statistic to mean anything"
+                       % len(section_bytes))
+    sample = section_bytes[:1 << 22]
+    counts = [0] * 256
+    for byte in sample:
+        counts[byte] += 1
+    entropy = 0.0
+    for n in counts:
+        if n:
+            p = n / len(sample)
+            entropy -= p * math.log2(p)
+    if entropy < 7.9:
+        return False, "entropy %.4f bits/byte (plaintext x64 measures about 6.2)" % entropy
+    # High entropy. Distinguish random from a uniform ramp by periodicity: a ramp repeats with a small
+    # period, random data matches itself at a lag about 1/256 of the time.
+    best = 0.0
+    for lag in (256, 512, 1024, 2048):
+        if len(sample) <= lag * 2:
+            continue
+        a = sample[:len(sample) - lag]
+        b = sample[lag:]
+        same = sum(1 for x, y in zip(a, b) if x == y)
+        rate = same / len(a)
+        best = max(best, rate)
+    if best > 0.5:
+        return False, ("entropy %.4f but the section repeats at a small lag (%.1f%% self-match) - a uniform "
+                       "ramp or a repeated block, not random" % (entropy, best * 100))
+    return True, ("entropy %.4f bits/byte, %.1f%% self-match at small lags - random, not text"
+                  % (entropy, best * 100))
+
+
+def image_text_section(data, image):
+    """`(section_name, bytes)` for the executable section a pin would have to come from, or (None, b"")."""
+    for name, rva, vsize, size, raw in image.sections:
+        if name == ".text":
+            return name, data[raw:raw + size]
+    return None, b""
+
+
 def check(exe_path, src_dir):
-    """`(result, pins)` where each pin carries its own status. Raises only on unusable inputs."""
+    """`result` including whether the file's code is readable. Raises only on unusable inputs."""
     with open(exe_path, "rb") as fh:
         data = fh.read()
     image = PE(data)
+    name, section = image_text_section(data, image)
+    encrypted, why = looks_encrypted(section) if section else (True, "no .text section")
     pins = read_pins(src_dir)
     for pin in pins:
         if pin["pinned"] is None:
@@ -121,6 +191,7 @@ def check(exe_path, src_dir):
     return {"executable": exe_path, "sha256": hashlib.sha256(data).hexdigest(),
             "supported": hashlib.sha256(data).hexdigest() == SUPPORTED_SHA256,
             "size": len(data), "pe_timestamp": image.timestamp,
+            "code_section": name, "code_readable": not encrypted, "code_why": why,
             "sections": [name for name, *_rest in image.sections], "pins": pins}
 
 
@@ -168,6 +239,23 @@ def summarise(result):
              "pins        %d: %s" % (len(pins), ", ".join("%s %d" % kv for kv in sorted(counts.items())))]
     version = result.get("file_version")
     failing = [p for p in pins if p["status"] in ("mismatch", "unmapped")]
+    encrypted = not result.get("code_readable", True)
+    if encrypted:
+        # A pins result is meaningless when the code is not plaintext, and reporting the mismatch would be
+        # worse than reporting nothing: it reads as "the mod is wrong" when it is "this file cannot be
+        # checked". Measured reason included so the claim is re-checkable.
+        lines += ["",
+                  "UNREADABLE  the %s section is not plaintext: %s"
+                  % (result.get("code_section") or "code", result.get("code_why")),
+                  "            So no pin comparison is meaningful, and the counts above must not be read as",
+                  "            a result about the mod. The executable likely decrypts its own code, either",
+                  "            through an exe wrapper or through the EA App's licence path; reading the file",
+                  "            on disk cannot see the instructions the game runs.",
+                  "",
+                  "            Consequence: the pins can only be validated against a DECRYPTED image. They",
+                  "            are still correct to ship - the game decrypts before it runs - but an offline",
+                  "            check of this executable cannot confirm them."]
+        return 2, lines
     if not result["supported"]:
         lines += ["",
                   "SUPPORT     this executable is NOT the one the mod targets",
@@ -313,6 +401,21 @@ def main(argv=None):
         print("no src directory under %s (skip, not a result)" % args.root)
         return 2
     if args.generate:
+        with open(args.exe, "rb") as fh:
+            blob = fh.read()
+        probe_image = PE(blob)
+        section_name, section = image_text_section(blob, probe_image)
+        if section:
+            # Generating pins from an unreadable section would write random bytes and certify them. That is
+            # worse than no pins, so it is refused rather than warned about.
+            encrypted, why = looks_encrypted(section)
+            if encrypted:
+                print("REFUSING to generate pins: the %s section is not plaintext (%s)."
+                      % (section_name, why))
+                print("Pins made from this file would be random bytes that then pass, which is worse than")
+                print("having none. Use an executable whose code sections are readable, or decrypt this one")
+                print("first with a method the owner has approved.")
+                return 2
         rows, had, skipped, weak = propose_pins(args.exe, src, length=args.length)
         text = render_pins(rows)
         with open(args.generate, "w", encoding="utf-8", newline="\n") as fh:
