@@ -36,10 +36,13 @@ DEFAULT_INSTALL = r"B:\Steamlibrary\steamapps\common\Mass Effect Legendary Editi
 DEFAULT_EXE = os.path.join(DEFAULT_INSTALL, "Game", "ME3", "Binaries", "Win64", "MassEffect3.exe")
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# `base+0xNNN,"hex"` is the form every pin in this tree uses.
-PIN = re.compile(r'base\+0x([0-9a-fA-F]+)\s*,\s*"([0-9a-fA-F]+)"')
+# `base+0xNNN,"hex"` is the form every pin in this tree uses. Whitespace is allowed around the operator:
+# a regex that requires `base+0x` silently misses `base + 0x`, and this one did - it reported 294 unpinned
+# offsets where the sources use 359, because a spaced spelling is invisible to a pattern written from one
+# example.
+PIN = re.compile(r'base\s*\+\s*0x([0-9a-fA-F]+)\s*,\s*"([0-9a-fA-F]+)"')
 # Any other absolute offset, so a pin written a different way is reported rather than silently skipped.
-LOOSE = re.compile(r"base\+0x([0-9a-fA-F]+)")
+LOOSE = re.compile(r"base\s*\+\s*0x([0-9a-fA-F]+)")
 IMAGE_SCANNED = "0x1000"
 
 
@@ -210,12 +213,97 @@ def summarise(result):
     return 0, lines
 
 
+def code_addresses(src_dir, text_rva=0x1000):
+    """Every distinct absolute code address the sources use, whether or not it is already pinned.
+
+    One pass over `base+0xNNN` spellings, deduped by RVA and excluding anything below the first section (a
+    member offset, which cannot be a code address). Returning *every* address, rather than only the ones with
+    no pin, is what makes coverage reportable: the previous shape produced 52 rows for 140 addresses and could
+    not itself tell whether the missing 88 were pinned or dropped.
+    """
+    found = {}
+    for name in sorted(os.listdir(src_dir)):
+        if not name.endswith((".h", ".c")):
+            continue
+        with open(os.path.join(src_dir, name), encoding="utf-8", errors="replace") as fh:
+            text = fh.read()
+        for match in LOOSE.finditer(text):
+            rva = int(match.group(1), 16)
+            if rva < int(IMAGE_SCANNED, 16) or rva in found:
+                continue
+            found[rva] = {"file": name, "line": text.count("\n", 0, match.start()) + 1, "rva": rva}
+    return [found[rva] for rva in sorted(found)]
+
+
+def propose_pins(exe_path, src_dir, length=16, minimum=8):
+    """Pins for every code address the sources use that has none, read from this executable.
+
+    The measurement that motivates this: `src/` names **140 distinct code addresses** and only **9** carry
+    pinned bytes, so a build mismatch is detected for 6% of the surface and is silent for the rest. Generating
+    the missing ones from a known-good executable turns that into full coverage.
+
+    Two rules keep a generated file from being worse than none:
+
+      * an address that does not resolve to file-backed bytes is **skipped and named**, never emitted with an
+        empty or guessed sequence;
+      * a sequence with fewer than `minimum` distinct byte values is flagged, because 16 bytes with three
+        distinct values matches almost any build and would validate the wrong one.
+
+    Returns `(rows, already, skipped, weak)` where `already` is the count that needed no new pin.
+    """
+    with open(exe_path, "rb") as fh:
+        data = fh.read()
+    image = PE(data)
+    already = {pin["rva"] for pin in read_pins(src_dir) if pin["pinned"] is not None}
+    rows, skipped, weak, had = [], [], [], 0
+    for address in code_addresses(src_dir):
+        if address["rva"] in already:
+            had += 1
+            continue
+        want = image.read(address["rva"], length)
+        if want is None:
+            skipped.append(address)
+            continue
+        if len(set(want)) < minimum:
+            weak.append((address, want))
+        rows.append({"rva": address["rva"], "bytes": want.hex(),
+                     "file": address["file"], "line": address["line"]})
+    rows.sort(key=lambda r: r["rva"])
+    return rows, had, skipped, weak
+
+
+def render_pins(rows):
+    """The generated header. Sorted by RVA so a diff between two builds is readable."""
+    out = ["/* Generated from an executable by tools/check_pins.py --generate. Do not hand-edit.",
+           " *",
+           " * Each row pins the first bytes of a code address the sources use, so a build mismatch is",
+           " * detected offline by tools/check_pins.py instead of at a hook inside the game.",
+           " *",
+           " * Review before committing: a pin generated from the WRONG executable validates the wrong build.",
+           " */",
+           "#ifndef ME3_CODE_PINS_H",
+           "#define ME3_CODE_PINS_H",
+           "",
+           "typedef struct { uint32_t rva; const char *bytes; } Me3CodePin;",
+           "",
+           "static const Me3CodePin me3_code_pins[] = {"]
+    for row in rows:
+        out.append('    {0x%07x, "%s"},' % (row["rva"], row["bytes"]))
+    out.append("};")
+    out.append("")
+    return "\n".join(out)
+
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--exe", default=os.environ.get("ME3_EXE") or DEFAULT_EXE)
     ap.add_argument("--root", default=PROJECT)
     ap.add_argument("--json")
+    ap.add_argument("--generate", metavar="OUT.h",
+                    help="write pins for every code address that has none, read from --exe")
+    ap.add_argument("--length", type=int, default=16, help="bytes per generated pin (default 16)")
     args = ap.parse_args(argv)
     if not os.path.isfile(args.exe):
         print("executable not found: %s (set ME3_EXE; skip, not a result)" % args.exe)
@@ -224,6 +312,29 @@ def main(argv=None):
     if not os.path.isdir(src):
         print("no src directory under %s (skip, not a result)" % args.root)
         return 2
+    if args.generate:
+        rows, had, skipped, weak = propose_pins(args.exe, src, length=args.length)
+        text = render_pins(rows)
+        with open(args.generate, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text + "\n")
+        total = len(rows) + had
+        print("wrote %s: %d new pin(s), %d already pinned, %d skipped, %d weak - %d of %d code address(es) "
+              "covered (%.0f%%)"
+              % (args.generate, len(rows), had, len(skipped), len(weak), total, total,
+                 100.0 if total else 0.0))
+        for pin in skipped[:8]:
+            print("  SKIPPED %s:%d rva 0x%x - no file-backed bytes there (a bug or a wrong address)"
+                  % (pin["file"], pin["line"], pin["rva"]))
+        for pin, want in weak[:8]:
+            print("  WEAK    %s:%d rva 0x%x has only %d distinct byte value(s) - it would match almost any "
+                  "build" % (pin["file"], pin["line"], pin["rva"], len(set(want))))
+        version = file_version(args.exe)
+        if version and version == SUPPORTED_VERSION:
+            print("\nWARNING the source executable reports %s, the same fixed version as the supported build."
+                  % version)
+            print("        A version match is not a build match, so these pins may describe the wrong")
+            print("        executable. Confirm the SHA-256 is %s before committing them." % SUPPORTED_SHA256)
+        return 0
     result = check(args.exe, src)
     result["file_version"] = file_version(args.exe)
     code, lines = summarise(result)

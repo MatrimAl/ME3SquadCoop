@@ -100,17 +100,54 @@ exit code. Twelve cases, no game, no network, no modification of an installed co
 
 ## What this says about the rest of the native surface
 
-The pin failure is the smaller half of the finding. **9 pinned sequences, all in one file, is thin cover for
-294 absolute offsets across 43 files** — and an unpinned offset cannot be validated at runtime either, since
-nothing checks the bytes there. Two directions follow, and they are independent:
+The pin failure is the smaller half of the finding. Measured over the two trees, which are **not** the same
+tree:
 
-1. Pin the entry points that matter. Every offset used as a *code* address (a function pointer, a
-   `ProcessEvent` target, a hook site) can carry its first N instruction bytes the same way
-   `guest_cinematic_registration_adapter.h` does, and then `check_pins.py` covers it for free. This is
-   mechanical and needs no new knowledge.
-2. What cannot be pinned is the object layout — `read_ptr(pawn+0x1e0)` and its relatives. Those are member
-   offsets, not code addresses, and instruction bytes cannot validate them. They need the class-default
-   offsets this repository's offline package reader derives from the shipped `.pcc` files, which is the other
-   half of the work: `tools/melepkg/` reads a class's real field list and declaration order out of
-   `Engine.pcc`/`SFXGame.pcc`, and `mele_tables.class_fields()` is the entry point. A generated header of
-   field offsets, checked against the live values the mod already logs, would replace the hand-written ones.
+| tree | source files | distinct code addresses | pinned | covered |
+| --- | --- | --- | --- | --- |
+| fork `main` | 21 | 61 | 9 | **15%** |
+| `fix/guest-equipment-readiness` | 77 | 140 | 9 | **6%** |
+
+So on the branch the live work actually runs, **131 of 140 code addresses would not notice a build mismatch**.
+An address with no pinned bytes is not checked at runtime either, so it fails silently.
+
+That is why the tool can propose the missing pins instead of only reporting the gap:
+
+```powershell
+python -I tools/check_pins.py --generate src/code_pins.h
+```
+
+It reads the first 16 bytes at every code address the sources use, skips (and names) any address with no
+file-backed bytes, and **flags sequences with fewer than 8 distinct byte values** — sixteen zero bytes matches
+almost any build and would validate the wrong one. On this machine that is 52 new pins covering 100% of the 61
+addresses, with 2 flagged weak.
+
+Two cautions are built into the output rather than left to the reader:
+
+* the header says **"Review before committing"**, because a pin generated from the wrong executable validates
+  the wrong build — and this machine's executable *is* the wrong build;
+* when the source executable reports the supported fixed version, `--generate` prints a warning saying a
+  version match is not a build match and asking for the SHA-256 to be confirmed first.
+
+So use `--generate` against the **supported** executable. Against any other, the pins it produces are a
+description of that other build, which is worse than no pins because they would pass.
+
+## What cannot be pinned, and what to do about it instead
+
+Object member offsets are below the first section and are therefore not code addresses — the checker excludes
+them rather than emitting pins for them, and it is right to: instruction bytes cannot validate
+`read_ptr(pawn+0x1e0)`. Measured: **97 distinct member offsets** across the branch, with a strong cluster
+(`+0x230` eleven times — the `ProcessEvent` vtable slot, structural in UE3; then `+0x198`, `+0x374`, `+0x42c`,
+`+0x3bc`).
+
+Those come from the class layout, which the offline package reader derives from the shipped `.pcc` files:
+`mele_tables.class_fields()` reads a class's real field list and declaration order from `Engine.pcc` /
+`SFXGame.pcc`. A generated header of verified member offsets, cross-checked against the live values the mod
+already logs, would replace the hand-written ones — the same shape as the pin generator, different source of
+truth.
+
+What has *not* been attempted and should not be claimed: that a generated member-offset header matches this
+build. The offsets in the shipped `.pcc` are the *cooked* layout, and the mapping from there to runtime object
+offsets is exactly what the earlier work found does not follow a constant (`PlayerController.Pawn` computed
+0x3A0 vs measured 0x3DC on ME1). So member offsets need the live values to calibrate, and the mod already
+collects them.

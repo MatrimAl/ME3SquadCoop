@@ -177,5 +177,67 @@ class CommandLineTests(unittest.TestCase):
         self.assertIn("skip, not a result", code.stdout)
 
 
+class CoverageTests(unittest.TestCase):
+    """Coverage is only meaningful if it is counted over every address, not only the pinned ones.
+
+    Measured on the two trees in this repository, which are not the same tree:
+
+        tree            source files   distinct code addresses   pinned   covered
+        fork main                 21                        61        9       15%
+        guest-readiness branch    77                       140        9        6%
+
+    So a build mismatch is detected for a small minority of the surface, and silently ignored for the rest.
+    These cases pin the counting rules rather than the numbers, because the numbers move with the branch.
+    """
+
+    def setUp(self):
+        scratch = PROJECT / "local" / "pin-tests"
+        scratch.mkdir(parents=True, exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(dir=scratch)
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.src = self.root / "src"
+        self.src.mkdir()
+
+    def write(self, name, text):
+        (self.src / name).write_text(text, encoding="utf-8")
+
+    def test_code_addresses_counts_every_distinct_address_including_pinned_ones(self):
+        # The bug this pins: returning only the *unpinned* addresses made 52 rows for 140 addresses, and the
+        # output could not itself say whether the missing ones were pinned or dropped.
+        self.write("a.h", 'pin(base+0x401000,"90");\nuse(base+0x402000);\nuse(base + 0x402000);\n'
+                          'use(base + 0x403000);\n')
+        addresses = check_pins.code_addresses(str(self.src))
+        self.assertEqual([a["rva"] for a in addresses], [0x401000, 0x402000, 0x403000])
+
+    def test_a_spaced_offset_is_seen(self):
+        # A pattern written from one example missed `base + 0x`, and under-reported by 60 uses.
+        self.write("b.h", "use(base + 0x401234);\n")
+        self.assertEqual([a["rva"] for a in check_pins.code_addresses(str(self.src))], [0x401234])
+
+    def test_generation_skips_unmapped_and_flags_low_variety_sequences(self):
+        self.write("c.h", 'use(base+0x1000);\nuse(base+0x2000);\npin(base+0x3000,"90");\n')
+        exe = self.root / "fake.exe"
+        exe.write_bytes(build_pe(0x1000, b"\x00" * 0x1000 + b"\x48\x8b\xc4\x53\x55\x56\x57\x41" * 4))
+        # 0x1000 is all zero bytes (weak), 0x2000 is varied, 0x3000 is already pinned.
+        rows, had, skipped, weak = check_pins.propose_pins(str(exe), str(self.src), length=16)
+        self.assertEqual([r["rva"] for r in rows], [0x1000, 0x2000])
+        self.assertEqual(had, 1, "the already-pinned address must be counted, not silently dropped")
+        self.assertEqual([w[0]["rva"] for w in weak], [0x1000],
+                         "sixteen zero bytes must be flagged - it would validate any build")
+        # An address past the end of every section is skipped and named, never emitted with an empty pin.
+        self.write("d.h", "use(base+0x9f0000);\n")
+        rows, had, skipped, _weak = check_pins.propose_pins(str(exe), str(self.src), length=16)
+        self.assertEqual([s["rva"] for s in skipped], [0x9f0000])
+
+    def test_the_generated_header_is_sorted_and_self_describing(self):
+        rows = [{"rva": 0x402000, "bytes": "aa"}, {"rva": 0x401000, "bytes": "bb"}]
+        text = check_pins.render_pins(sorted(rows, key=lambda r: r["rva"]))
+        self.assertIn("Do not hand-edit", text)
+        self.assertIn("Review before committing", text, "a generated pin file must say it needs review")
+        self.assertLess(text.index("0x0401000"), text.index("0x0402000"), "pins must be sorted by RVA")
+        self.assertIn('#ifndef ME3_CODE_PINS_H', text)
+
+
 if __name__ == "__main__":
     unittest.main()
