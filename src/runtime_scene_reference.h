@@ -4,6 +4,9 @@
  * Reuse the existing ReceivedBunch frame and scalar hook owner. Never decode
  * twice, resolve an index, assign InterpAction or activate a guest sequence. */
 typedef int (*RuntimeSceneReferenceNative)(void*,void*,void*,void*);
+/* A later header supplies host-only metadata capture. NULL retains the guest
+ * receive path verbatim; there remains one owner of the property slot. */
+static int (*runtime_scene_reference_host_forward)(void*,void*,void*,void*,uintptr_t,RuntimeSceneReferenceNative);
 typedef struct RuntimeSceneReferenceScope {
     struct RuntimeSceneReferenceScope *previous;
     NativeRpcReceiveFrame *receive;
@@ -100,6 +103,8 @@ static void runtime_scene_reference_emit(const RuntimeSceneReferenceScope *f,voi
 }
 static int runtime_scene_reference_forward(void *property,void *archive,void *map,void *data,uintptr_t caller) {
     RuntimeSceneReference *s=&runtime_scene_reference;DWORD before=GetLastError();
+    if(runtime_scene_reference_host_forward&&g_runtime_config.role==ME3_ROLE_HOST)
+        return runtime_scene_reference_host_forward(property,archive,map,data,caller,s->original);
     int thread=GetCurrentThreadId()==runtime_rpc_receive_thread;RuntimeSceneReferenceScope f={0};
     if(thread){f.previous=s->scope;runtime_scene_reference_capture(&f,(uintptr_t)property,(uintptr_t)archive,(uintptr_t)map,caller);
         /* Push inactive nested properties too; they cannot inherit our tag. */s->scope=&f;}
@@ -110,22 +115,35 @@ static int runtime_scene_reference_forward(void *property,void *archive,void *ma
 static int runtime_scene_reference_serialize(void *property,void *archive,void *map,void *data) {
     return runtime_scene_reference_forward(property,archive,map,data,(uintptr_t)__builtin_return_address(0));
 }
+static int runtime_scene_reference_slot_ready(uintptr_t base) {
+    static const unsigned char pin[23]={0x49,0x8b,0,0x4d,0x8b,0xd0,0x4c,0x8b,0x81,0xd0,0,0,0,0x49,0x8b,0xca,0x48,0xff,0xa0,0xc8,2,0,0};
+    unsigned char actual[23];uintptr_t slot=base+0x1077d88+0x2f8,expected=base+0x146f60;
+    return supported_image(base)&&read_ptr(slot)==expected&&read_at(expected,actual,sizeof actual)&&!memcmp(actual,pin,sizeof pin);
+}
+static int runtime_scene_reference_slot_install(uintptr_t base) {
+    RuntimeSceneReference *s=&runtime_scene_reference;
+    if(s->installed)return s->base==base&&read_ptr(base+0x1077d88+0x2f8)==(uintptr_t)runtime_scene_reference_serialize;
+    if(!runtime_scene_reference_slot_ready(base))return 0;
+    uintptr_t slot=base+0x1077d88+0x2f8,expected=base+0x146f60;
+    DWORD old=0,ignored;if(!VirtualProtect((void*)slot,8,PAGE_READWRITE,&old))return 0;
+    s->base=base;
+    s->original=(RuntimeSceneReferenceNative)expected;
+    PVOID prior=InterlockedCompareExchangePointer((PVOID volatile*)slot,(PVOID)runtime_scene_reference_serialize,(PVOID)expected);
+    VirtualProtect((void*)slot,8,old,&ignored);
+    if((uintptr_t)prior!=expected){s->original=NULL;return 0;}
+    s->installed=1;return 1;
+}
 static void runtime_scene_reference_prepare(uintptr_t base) {
     RuntimeSceneReference *s=&runtime_scene_reference;
     if(s->installed||!runtime_rpc_receive_installed||!runtime_scene_reference_opted()||
        g_runtime_config.role!=ME3_ROLE_GUEST||GetCurrentThreadId()!=runtime_rpc_receive_thread)return;
-    static const unsigned char pin[23]={0x49,0x8b,0,0x4d,0x8b,0xd0,0x4c,0x8b,0x81,0xd0,0,0,0,0x49,0x8b,0xca,0x48,0xff,0xa0,0xc8,2,0,0};
-    unsigned char actual[23];uintptr_t slot=base+0x1077d88+0x2f8,expected=base+0x146f60;
-    if(!supported_image(base)||read_ptr(slot)!=expected||!read_at(expected,actual,sizeof actual)||memcmp(actual,pin,sizeof pin))return;
+    /* Preserve guest preparation order: a foreign or unsupported property
+     * must not install otherwise unrelated archive scalar observers. */
+    if(!runtime_scene_reference_slot_ready(base))return;
     s->base=base;s->wanted=1;runtime_reference_extra_requested=runtime_scene_reference_requested;
     runtime_initial_reference_install(base);
-    if(!runtime_initial_reference_installed)return;
-    DWORD old=0,ignored;if(!VirtualProtect((void*)slot,8,PAGE_READWRITE,&old))return;
-    s->original=(RuntimeSceneReferenceNative)expected;
-    PVOID prior=InterlockedCompareExchangePointer((PVOID volatile*)slot,(PVOID)runtime_scene_reference_serialize,(PVOID)expected);
-    VirtualProtect((void*)slot,8,old,&ignored);
-    if((uintptr_t)prior!=expected){s->original=NULL;return;}
+    if(!runtime_initial_reference_installed||!runtime_scene_reference_slot_install(base))return;
     runtime_reference_extra_bits=runtime_scene_reference_bits;runtime_reference_extra_index=runtime_scene_reference_index;
-    s->installed=1;line("{\"runtime_scene_reference\":\"installed\",\"default_off\":true,\"limit\":64,\"output_only\":true,\"archive_replayed\":false}\r\n");
+    line("{\"runtime_scene_reference\":\"installed\",\"default_off\":true,\"limit\":64,\"output_only\":true,\"archive_replayed\":false}\r\n");
 }
 #endif

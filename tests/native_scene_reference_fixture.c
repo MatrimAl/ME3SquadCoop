@@ -8,6 +8,9 @@
 typedef struct GuestCameraStamp {uintptr_t pointer;int index;} GuestCameraStamp;
 typedef struct NativeRpcReceiveFrame {uintptr_t channel;} NativeRpcReceiveFrame;
 typedef int (*RuntimeSceneReferenceNative)(void*,void*,void*,void*);
+enum {ME3_ROLE_HOST=1,ME3_ROLE_GUEST=2};
+static struct {int role;}g_runtime_config={ME3_ROLE_GUEST};
+static int (*runtime_scene_reference_host_forward)(void*,void*,void*,void*,uintptr_t,RuntimeSceneReferenceNative);
 typedef void (*RuntimeInitialBits)(void*,void*,int32_t);
 typedef void (*RuntimeInitialIndex)(void*,uint32_t*,uint32_t);
 #include "scene_reference_types.h"
@@ -17,7 +20,7 @@ static RuntimeInitialBits runtime_initial_bits_original;
 static RuntimeInitialIndex runtime_initial_index_original;
 static void (*runtime_reference_extra_bits)(void*,void*,int32_t,uintptr_t);
 static void (*runtime_reference_extra_index)(void*,uint32_t*,uint32_t,uintptr_t);
-static unsigned captures,stock_calls,emits,scalar_calls,initial_calls,extra_calls,checks;
+static unsigned captures,stock_calls,emits,scalar_calls,initial_calls,extra_calls,checks,host_calls;
 static int enabled=1,mode,native_result=-7,failed;
 static unsigned char tag;static uint32_t index_value;
 static unsigned char property[16],nested_property[16],archive[16],map[16];static uintptr_t output;
@@ -56,6 +59,9 @@ static int stock(void*p,void*a,void*m,void*d){
     }
     *(uintptr_t*)d=0x1234;SetLastError(53);return native_result;
 }
+static int host_forward(void*p,void*a,void*m,void*d,uintptr_t caller,RuntimeSceneReferenceNative original){
+    if(caller!=77||GetLastError()!=37)failed=1;++host_calls;return original(p,a,m,d);
+}
 static void scalar_bits(void*a,void*d,int32_t count){(void)a;(void)count;++scalar_calls;*(unsigned char*)d=1;SetLastError(1234);}
 static void scalar_index(void*a,uint32_t*d,uint32_t maximum){(void)a;(void)maximum;++scalar_calls;*d=37;SetLastError(2345);}
 static void extra_bits(void*a,void*d,int32_t count,uintptr_t caller){(void)a;(void)d;(void)count;(void)caller;++extra_calls;SetLastError(9876);}
@@ -68,6 +74,14 @@ int main(void){
         CHECK(runtime_scene_reference_forward(property,archive,map,&output,0)==native_result);
         CHECK(stock_calls==(mode==1?2u:1u)&&emits==(mode==2?0u:1u)&&!failed&&GetLastError()==53&&output==0x1234&&!runtime_scene_reference.scope);
     }
+    mode=0;enabled=1;captures=emits=stock_calls=0;g_runtime_config.role=ME3_ROLE_HOST;
+    runtime_scene_reference_host_forward=host_forward;SetLastError(37);
+    CHECK(runtime_scene_reference_forward(property,archive,map,&output,77)==native_result);
+    CHECK(host_calls==1&&stock_calls==1&&!captures&&!emits&&!failed&&GetLastError()==53);
+    g_runtime_config.role=ME3_ROLE_GUEST;SetLastError(37);
+    CHECK(runtime_scene_reference_forward(property,archive,map,&output,77)==native_result);
+    CHECK(host_calls==1&&stock_calls==2&&captures==1&&emits==1&&!failed&&GetLastError()==53);
+    runtime_scene_reference_host_forward=NULL;
     RuntimeSceneReferenceScope f={0};f.active=1;f.archive=(uintptr_t)archive;runtime_scene_reference.scope=&f;
     tag=1;runtime_scene_reference_bits(archive,&tag,1,0x100000+0x602c40);CHECK(f.tag_known&&f.tag==1);
     index_value=37;runtime_scene_reference_index(archive,&index_value,0x3ff,0x100000+0x602c5d);CHECK(f.index_known&&f.index==37);

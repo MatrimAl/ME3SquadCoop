@@ -1,5 +1,9 @@
 # Selected native scene-reference observation
 
+A later paired trace identified encoded-zero localized references. The
+separate default-off [host sender observer](SCENE-REFERENCE-SENDER.md) records
+the original input and package metadata to narrow that sender-side failure.
+
 Retained paired gameplay samples contain guest native Matinee actors with a
 null InterpAction while the host admitted localized dialogue scenes. A null
 result alone cannot distinguish an encoded null reference, package-map lookup

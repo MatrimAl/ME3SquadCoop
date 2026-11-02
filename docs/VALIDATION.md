@@ -1,5 +1,17 @@
 # Validation status
 
+The default-off host reference observer passed 95 production-helper checks for
+metadata capture, ownership, bounded outer/generation reads, readable nulls,
+nested calls, quota exhaustion and unchanged native forwarding/result/error.
+Separate subprocesses checked absent, disabled and invalid opt-ins, and maximal
+escaped-path output parsed as JSON. The shared guest path passed 24 checks;
+11 preparation-order checks reject a delayed-property-precheck mutant. Native
+object discovery, channel acquisition and slot installation are explicit
+fixture boundaries. Independent review found and resolved three issues before
+the final checks: failed Outer reads, unnecessary large-frame preparation and
+guest hook precheck ordering. Actual sender metadata and cinematic recovery
+have not been observed in gameplay. See [sender metadata](SCENE-REFERENCE-SENDER.md).
+
 The latest host dump reproduced the missing Bink worker failure previously
 observed on the guest. The same guarded synchronous decoder now admits both
 configured co-op roles. Its production preparation prefix passed 75 scope

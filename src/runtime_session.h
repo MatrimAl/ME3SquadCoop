@@ -140,6 +140,7 @@ static int runtime_script_executor_prefix(uintptr_t,const unsigned char*,size_t)
 #include "runtime_scene_actor_observer.h"
 #include "runtime_ammo_settle.h"
 #include "runtime_scene_interp.h"
+#include "runtime_scene_reference_send.h"
 #include "runtime_scene_player_binding.h"
 #include "runtime_scene_effects.h"
 #include "runtime_scene_voice.h"
@@ -260,6 +261,7 @@ static void runtime_session_frame(uintptr_t base,uintptr_t engine,int after,DWOR
     if(!after)runtime_scene_effects_tick(base,engine,now);
     if(!after)runtime_scene_voice_tick(base,engine,now);
     if(!after)runtime_scene_interp_tick(base,engine,now);
+    if(!after)runtime_scene_reference_send_prepare(base);
     if(!after)runtime_guest_scene_weapon_tick(base,engine,now);
     if(!after)runtime_guest_weapon_tick(base,engine,now);
     if(!after)runtime_ammo_settle_tick(base,engine,now);
