@@ -115,18 +115,28 @@ executable is not the supported one.
 The pin failure is the smaller half of the finding. Measured over the two trees, which are **not** the same
 tree:
 
-| tree | source files | distinct code addresses | pinned | covered |
+| tree | source files | distinct code addresses | recognized hex-string pins | recognized coverage |
 | --- | --- | --- | --- | --- |
 | fork `main` | 21 | 61 | 9 | **15%** |
 | `fix/guest-equipment-readiness` | 77 | 140 | 9 | **6%** |
 
-So on the branch the live work actually runs, **131 of 140 code addresses would not notice a build mismatch**.
-An address with no pinned bytes is not checked at runtime either, so it fails silently.
+Two limits on that table, stated because they bound what "6%" means:
 
-That is why the tool can propose the missing pins instead of only reporting the gap:
+* It counts **recognized hex-string pins** — the `base+0xNNN,"hex"` form this scanner reads. The sources also
+  guard entry points with committed **byte arrays and `memcmp`** — for example
+  `guest_equipment_bootstrap.h` and `guest_player_context_adapter.h` — which this scanner does not recognize.
+  So the checked fraction is **understated**, and the table is a statement about one scanner, not about how
+  much of the mod is guarded. A comprehensive source analyzer is out of scope here.
+* It is a property of one branch at one commit. The numbers move as sources change.
+
+What the table does support: on the branch the live work runs, most distinct code addresses carry no
+hex-string pin this checker recognizes, and an address with no recognized pin is not compared offline.
+Whether it is guarded some other way is exactly what the scanner cannot say.
+
+That is why the tool can propose the missing recognized pins instead of only reporting the gap:
 
 ```powershell
-python -I tools/check_pins.py --generate src/code_pins.h
+python -I tools/check_pins.py --generate code_pins.h
 ```
 
 It reads the first 16 bytes at every code address the sources use, skips (and names) any address with no
@@ -142,7 +152,9 @@ Two cautions are built into the output rather than left to the reader:
   version match is not a build match and asking for the SHA-256 to be confirmed first.
 
 So use `--generate` against the **supported** executable. Against any other, the pins it produces are a
-description of that other build, which is worse than no pins because they would pass.
+description of that other build, which is worse than no pins because they would pass. And keep the generated
+file **outside `src/`**: the checker scans `src/`, and a generated table placed there would be scanned as if
+its rows were hand-written pins in the sources.
 
 **But `--generate` refuses to run against this machine's install, and that refusal is the finding.**
 

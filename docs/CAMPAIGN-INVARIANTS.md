@@ -32,6 +32,11 @@ confirmations: `SeamlessTravelTo` is declared only on base `PlayerController` an
 `PlayerReplicationInfo` across all 19,430 packages and is overridden on no `BioPlayerController` or
 `SFXPlayerController`, while `PreClientTravel` is overridden on LE2/LE3.
 
+**Scope of this measurement:** it reads class default objects — the *defaults*, not the values a running
+game holds after `InitGame` and the campaign's own setup. The conclusion "no build enables seamless
+travel" is a statement about what is declared and defaulted in the shipped packages; whether a running
+process flips the flag at runtime is not observable offline and is not claimed here.
+
 **Consequences for this project** (derived):
 
 - `GetSeamlessTravelActorList` is declared on `PlayerController`, `GameInfo` and `Mutator` and is
@@ -57,7 +62,10 @@ re-possession inside the same one.
 LE3 does not merely allow fewer players; its campaign game class serialises a `1` that clamps
 admission. Reading the declaration gives 32 and is the wrong answer. This is consistent with the
 `MaxPlayers`/`MaxAllowed` lease that `src/session_control.h` already raises, and it names the exact
-field pair to raise on LE3 and explains why LE1/LE2 need no equivalent clamp.
+field pair to raise on LE3 and explains why LE1/LE2 need no equivalent clamp. **Scope:** these are CDO
+values — what the campaign starts from. `InitGame` parses the options string and clamps to
+`MaxPlayersAllowed` at runtime (§2b), so a CDO edit is the starting state, not the runtime state; the
+fix has to be measured against a running game.
 
 **Where the clamp actually bites, measured with `capacitycheck` - identical on all three builds:**
 
@@ -348,6 +356,12 @@ addressed by a small id, and the id space is bounded by the largest id present:
 | LE1 | 1,066 accessors, ids 113..2018 | ~8 KB as int32 over 2,019 slots |
 | LE2 | 1,356 accessors, ids 1..2050 | ~8 KB as int32 over 2,051 slots |
 | LE3 | one save struct, no accessor class | ~69 KB dense over 17,655 slots |
+
+These are **bounds derived from the id space and the slot count, not measured payloads.** The ~8 KB and
+~69 KB figures assume dense int32 storage over the whole id range; a real save holds a subset, and the
+LE3 figure in particular is a worst case from `Bool_CutoffIndex=17655`, not a size read out of a save.
+What is measured is the id range and the slot count; what is derived is the byte size. Both are labelled
+so a reader does not treat "~69 KB" as a number that came out of a file.
 
 At most ~8 KB on the first two. That is the number that matters: a host can ship the entire flag set on
 every level change rather than maintaining a delta log, and a guest can be handed a complete story
@@ -933,8 +947,14 @@ Controls on the same machine: `notepad.exe` `.text` 6.24, `kernel32.dll` 6.26, w
 `48 83 ec 28` prologues. The installed LE3 `.text` has zero of those in 17 MB, zero duplicated 32-byte windows
 in 4 MB, and 38.3% printable bytes — the random baseline (95/256 = 37.1%), not text.
 
-**The file on disk is not the code the game runs.** It decrypts in memory, through an exe wrapper or the EA
-App's licence path. Consequences, in order of how much they change:
+**The file on disk is not the code the game runs.** It decrypts in memory — **the mechanism is a
+hypothesis**, narrowed by the PE header: the entry point is not in `.text` but in `.ooa`, a 1,554-byte
+EXECUTE section whose first bytes are `90 41 ff 25 …` (`nop; jmp [rip+0x262]`, a jump through a slot),
+and the image imports exactly one DLL, `Core/Activation64.dll`. That is the shape of an activation
+wrapper that maps the real image and decrypts it before running it, but no wrapper code was read here
+and the decryption itself was not observed. What is measured is the section table, the entry point, the
+import table and the entropies; "through an exe wrapper or the EA App's licence path" is the inference,
+not the observation. Consequences, in order of how much they change:
 
 1. **"9 pins mismatch" against this file is a statement about the file, not about the build.** No offline byte
    comparison of this executable can validate anything about the mod. `tools/check_pins.py` now detects the

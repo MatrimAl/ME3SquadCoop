@@ -70,12 +70,24 @@ class PE:
             self.sections.append((name, rva, vsize, size, raw))
 
     def read(self, rva, count):
+        """`count` bytes at `rva`, or None when the range is not file-backed.
+
+        Bounded by `SizeOfRawData`, not by the section's virtual size. A section's virtual tail - the part
+        of `VirtualSize` past `SizeOfRawData` - is zero-filled at load time and is not backed by the file,
+        so a read there must report unavailability rather than return whatever follows the section in the
+        file (an overlay, a certificate, the next section). A synthetic PE with raw size 4, virtual size
+        0x100 and an appended overlay used to hand back overlay bytes for a read of the virtual tail; that
+        is the case this bound exists for.
+        """
         for _name, base, vsize, size, raw in self.sections:
             delta = rva - base
-            if 0 <= delta and delta + count <= max(vsize, size):
+            if 0 <= delta:
+                if delta + count > size:
+                    continue
                 at = raw + delta
                 if at + count <= len(self.data):
                     return self.data[at:at + count]
+                return None
         return None
 
 
@@ -326,9 +338,19 @@ def code_addresses(src_dir, text_rva=0x1000):
 def propose_pins(exe_path, src_dir, length=16, minimum=8):
     """Pins for every code address the sources use that has none, read from this executable.
 
-    The measurement that motivates this: `src/` names **140 distinct code addresses** and only **9** carry
-    pinned bytes, so a build mismatch is detected for 6% of the surface and is silent for the rest. Generating
-    the missing ones from a known-good executable turns that into full coverage.
+    The measurement that motivates this: `src/` names **140 distinct absolute code addresses** (on the
+    guest-readiness branch), and **9** carry committed hex-string pins in this checker's recognized form,
+    so a build mismatch is detected for those 9 and is silent for the rest. Two limits on that number,
+    stated rather than smoothed:
+
+      * it counts **recognized hex-string pins**, not every guard in the tree. The sources also carry
+        byte-array and `memcmp` guards - for example `guest_equipment_bootstrap.h` and
+        `guest_player_context_adapter.h` - which this scanner does not recognize, so the checked fraction
+        is understated, not overstated. A comprehensive source analyzer is out of scope for this tool.
+      * it is a property of one branch at one commit. The number moves as sources change.
+
+    Generating the missing ones from a known-good executable turns the recognized fraction into full
+    coverage of the recognized form.
 
     Two rules keep a generated file from being worse than none:
 
@@ -361,13 +383,21 @@ def propose_pins(exe_path, src_dir, length=16, minimum=8):
 
 
 def render_pins(rows):
-    """The generated header. Sorted by RVA so a diff between two builds is readable."""
+    """The generated header. Sorted by RVA so a diff between two builds is readable.
+
+    The rows are emitted in the form `read_pins()` already recognizes - `base+0xRVA,"hex"` - so a generated
+    file is consumable by the same checker that validates hand-written pins. That is the whole point of
+    generating rather than editing: the generated rows must not need a second reader. The guard is closed.
+    """
     out = ["/* Generated from an executable by tools/check_pins.py --generate. Do not hand-edit.",
            " *",
            " * Each row pins the first bytes of a code address the sources use, so a build mismatch is",
            " * detected offline by tools/check_pins.py instead of at a hook inside the game.",
            " *",
            " * Review before committing: a pin generated from the WRONG executable validates the wrong build.",
+           " *",
+           " * The rows below are comments in the checker's own input syntax, so this file is both the",
+           " * generated pin table and a readable record of what was pinned against which executable.",
            " */",
            "#ifndef ME3_CODE_PINS_H",
            "#define ME3_CODE_PINS_H",
@@ -376,8 +406,11 @@ def render_pins(rows):
            "",
            "static const Me3CodePin me3_code_pins[] = {"]
     for row in rows:
-        out.append('    {0x%07x, "%s"},' % (row["rva"], row["bytes"]))
+        out.append('    {0x%07x, "%s"},  /* base+0x%x,"%s" */'
+                   % (row["rva"], row["bytes"], row["rva"], row["bytes"]))
     out.append("};")
+    out.append("")
+    out.append("#endif /* ME3_CODE_PINS_H */")
     out.append("")
     return "\n".join(out)
 
@@ -390,7 +423,9 @@ def main(argv=None):
     ap.add_argument("--root", default=PROJECT)
     ap.add_argument("--json")
     ap.add_argument("--generate", metavar="OUT.h",
-                    help="write pins for every code address that has none, read from --exe")
+                    help="write pins for every code address that has none, read from --exe. "
+                         "Keep the output OUTSIDE src/: the checker scans src/ and would treat the "
+                         "generated rows as additional pins")
     ap.add_argument("--length", type=int, default=16, help="bytes per generated pin (default 16)")
     args = ap.parse_args(argv)
     if not os.path.isfile(args.exe):

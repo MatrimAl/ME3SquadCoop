@@ -60,6 +60,40 @@ class PEMappingTests(unittest.TestCase):
         self.assertIsNone(image.read(0x9000, 1), "an uncovered RVA must be None, not b''")
         self.assertIsNone(image.read(0x3FFF, 1))
 
+    def test_a_virtual_tail_past_raw_size_is_unavailable_not_the_next_section(self):
+        """The maintainer's case: raw size 4, virtual size 0x100, an appended overlay.
+
+        `read(0x1004, 11)` used to return the overlay bytes, because the bound was
+        `delta + count <= max(vsize, size)`, which admits the whole virtual tail. That tail is zero-filled
+        at load time and is not backed by the file, so the overlay is a different object entirely. The read
+        must be bounded by `SizeOfRawData` and report unavailability for the tail.
+        """
+        # build_pe writes raw size = len(text); build the image by hand so raw size can be 4 while the
+        # virtual size is 0x100.
+        import struct as _s
+        headers = bytearray(0x400)
+        headers[0:2] = b"MZ"
+        _s.pack_into("<I", headers, 0x3C, 0x40)
+        headers[0x40:0x44] = b"PE\0\0"
+        _s.pack_into("<H", headers, 0x44, 0x8664)
+        _s.pack_into("<H", headers, 0x46, 1)
+        _s.pack_into("<H", headers, 0x54, 0xF0)
+        opt = 0x58
+        _s.pack_into("<H", headers, opt, 0x20B)
+        row = opt + 0xF0
+        headers[row:row + 5] = b".text"
+        _s.pack_into("<I", headers, row + 8, 0x100)     # virtual size
+        _s.pack_into("<I", headers, row + 12, 0x1000)   # rva
+        _s.pack_into("<I", headers, row + 16, 4)        # raw size: only 4 file-backed bytes
+        _s.pack_into("<I", headers, row + 20, 0x400)    # raw offset
+        blob = bytes(headers) + b"ABCD" + b"NOT-IN-TEXT-OVERLAY-BYTES"
+        image = check_pins.PE(blob)
+        self.assertEqual(image.read(0x1000, 4), b"ABCD", "the file-backed part must still read")
+        self.assertIsNone(image.read(0x1004, 11),
+                          "the virtual tail returned overlay bytes: it is not file-backed")
+        self.assertIsNone(image.read(0x1000, 0x100),
+                          "a read spanning the raw boundary must be unavailable, not partially served")
+
     def test_a_non_pe_is_refused(self):
         with self.assertRaises(ValueError):
             check_pins.PE(b"not a pe at all" * 8)
@@ -237,6 +271,22 @@ class CoverageTests(unittest.TestCase):
         self.assertIn("Review before committing", text, "a generated pin file must say it needs review")
         self.assertLess(text.index("0x0401000"), text.index("0x0402000"), "pins must be sorted by RVA")
         self.assertIn('#ifndef ME3_CODE_PINS_H', text)
+
+    def test_the_generated_header_is_consumable_by_the_checker_own_scanner(self):
+        """The maintainer's case: the generator emitted rows the checker's own scanner does not read.
+
+        `render_pins` produced `{0xRVA, "hex"}` rows, but `read_pins` only recognizes
+        `base+0xRVA,"hex"`. Generating a header and checking again therefore left the original address
+        reported as unpinned - the generator and the checker disagreed about what a pin is. The generated
+        rows are now emitted in the scanner's own syntax, and the guard is closed.
+        """
+        rows = [{"rva": 0x401000, "bytes": "488bc453", "file": "x.h", "line": 1}]
+        header = check_pins.render_pins(rows)
+        self.assertIn("#endif", header, "the include guard is not closed")
+        import re
+        recognized = re.findall(r'base\s*\+\s*0x([0-9a-fA-F]+)\s*,\s*"([0-9a-fA-F]+)"', header)
+        self.assertEqual(recognized, [("401000", "488bc453")],
+                         "read_pins would not recognize the generated rows:\n%s" % header)
 
 
 class EncryptionTests(unittest.TestCase):

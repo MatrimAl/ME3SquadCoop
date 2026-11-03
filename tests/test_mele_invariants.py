@@ -622,9 +622,11 @@ class CampaignInvariantTests(unittest.TestCase):
             self.assertIn("WorldInfo.IsDemoBuild", body)
             # The ordering that makes a mutator able to fix the player count.
             self.assertIn("mutator runs AFTER the clamp", body)
-        # The shipped template and the loader that makes ?Mutator= resolve.
+        # The shipped template and the loader that reads the conflict field. The claim is deliberately
+        # narrow: AddMutator reads GroupNames for the stock conflict check, which is not the same as
+        # routing a travel URL through it - stock UE3 resolves the URL value by class name.
         self.assertIn("SFXMutator_DifficultySpeed", out)
-        self.assertIn("GameInfo.AddMutator (body=619) reads Mutator.GroupNames", out)
+        self.assertIn("reads Mutator.GroupNames - the stock conflict check, not a URL class alias", out)
 
 
     @needs_install
@@ -712,6 +714,86 @@ class CampaignInvariantTests(unittest.TestCase):
         self.assertIn("m_sObjectType 0", out)
         self.assertIn("Region 11216, Plot 10108, Transition 9676", out)
         self.assertIn("m_sVarName 0", out)
+
+    @needs_install
+    def test_transitioncheck_fails_when_nothing_decodes(self):
+        """Section 7's failure mode: a build whose instances all fail to parse must not produce a verdict.
+
+        Before the fix, `total == 0` with `unclosed > 0` printed "no instance closed exactly", added no
+        problem (because `unclosed` was nonzero), and fell through to the story-sync verdict with an empty
+        summary - a payload reported on zero decoded instances. This is the "0 results is a bug report"
+        rule in that command's shape.
+
+        Synthetic: the install check, the index-dir check, the package iteration and the instance parser are
+        stubbed, so the all-fail path is taken by construction and no game is needed. The stubs are restored
+        in a `finally`.
+        """
+        import argparse
+        import json
+        import shutil
+        import tempfile
+
+        index_dir = tempfile.mkdtemp(prefix="mele-transition-fail-")
+        self.addCleanup(shutil.rmtree, index_dir, True)
+        with open(os.path.join(index_dir, "ME3.json"), "w", encoding="utf-8") as fh:
+            json.dump({"version": 2, "game": "ME3", "packages": {}}, fh)
+
+        saved = (mele_props._require_install, mele_props._index_dir,
+                 mele_props._iter_rel_index, mele_props.parse_object, mele_props.load_tables)
+
+        class _FakeExport(dict):
+            def __init__(self):
+                super().__init__(object_name="BioSeqAct_PMExecuteTransition")
+
+        class _FakeTable(dict):
+            def __init__(self):
+                super().__init__(exports=[_FakeExport()], buf=b"", displacement=0)
+
+        def _fake_require_install(games=("ME1", "ME2", "ME3")):
+            return True
+
+        def _fake_index_dir():
+            return index_dir
+
+        def _fake_iter_rel_index(mt, game):
+            yield {"path": "/fake/%s.pcc" % game}
+
+        def _fake_parse_object(table, buf, obj, start_offset=4, max_tags=40000):
+            raise ValueError("the sole instance failed to parse")
+
+        class _FakeTables:
+            @staticmethod
+            def build(package, limit=None):
+                return _FakeTable()
+
+            @staticmethod
+            def load_pkg():
+                class _Pkg:
+                    @staticmethod
+                    def game_dirs():
+                        return []
+                return _Pkg()
+
+        mele_props._require_install = _fake_require_install
+        mele_props._index_dir = _fake_index_dir
+        mele_props._iter_rel_index = _fake_iter_rel_index
+        mele_props.parse_object = _fake_parse_object
+        mele_props.load_tables = lambda: _FakeTables()
+        try:
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = mele_props.cmd_transitioncheck(argparse.Namespace(game="ME3"))
+            out = buffer.getvalue()
+        finally:
+            (mele_props._require_install, mele_props._index_dir,
+             mele_props._iter_rel_index, mele_props.parse_object,
+             mele_props.load_tables) = saved
+
+        self.assertNotEqual(code, 0, "all instances failed to parse but the command returned 0:\n%s" % out)
+        self.assertNotIn("verdict: the campaign's progression step", out,
+                         "a story-sync verdict was printed with no decoded instance:\n%s" % out)
+        self.assertIn("failed to parse", out,
+                      "the parse failure was not reported as a problem:\n%s" % out)
 
     @needs_install
     def test_scene_state_is_unreplicated_and_le2_le3_already_loop_the_squad(self):
