@@ -5,20 +5,7 @@ static uintptr_t pair_remote = 0, pair_ashley = 0, pair_ai = 0, pair_host = 0, p
 static uintptr_t pair_story_player = 0, pair_story_initial = 0;
 static DWORD pair_possessed_at = 0, pair_skip_at = 0, pair_guest_input_at = 0;
 static float pair_initial_ashley[3], pair_initial_shepard[3];
-static uintptr_t pair_find_remote(uintptr_t base, uintptr_t host, uintptr_t world) {
-    GameArray array = {0}; uintptr_t *objects = identity_object_list(base, &array);
-    if (!objects) return 0;
-    uintptr_t found = 0; int matches = 0;
-    for (int i = 0; i < array.count; ++i) {
-        uintptr_t object = objects[i]; if (!object || object == host) continue;
-        char kind[96]; object_name(base, read_ptr(object + 0x50), kind, sizeof kind);
-        if (!strstr(kind, "PlayerController") || !is_kind_of(base, object, "BioPlayerController") || read_ptr(object + 0x198) != world) continue;
-        uintptr_t player = read_ptr(object + 0x67c);
-        if (is_live(base, player) && is_kind_of(base, player, "NetConnection") && read_ptr(player + 0x68) == object) { found = object; matches++; }
-    }
-    HeapFree(GetProcessHeap(), 0, objects);
-    return matches == 1 ? found : 0;
-}
+#include "native_remote_controller.h"
 static void pair_guest_input(uintptr_t base, uintptr_t engine) {
     if (!pair_control_enabled || test_action != 5) return;
     uintptr_t pc = local_controller(engine), pawn = pc ? read_ptr(pc + 0x3bc) : 0;

@@ -1,6 +1,7 @@
 """Build sandbox research binaries with a workspace-local Zig C compiler."""
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -25,8 +26,12 @@ def main():
                TMP=str(temp), TEMP=str(temp))
     for source, filename, extra in [
         ("squad_probe.c", "ME3SquadCoopProbe.asi", ["-shared"]),
-        ("squad_probe.c", "ME3SquadCoop.asi", ["-shared", "-DME3_SQUAD_COOP_RELEASE"]),
+        ("squad_coop.c", "ME3SquadCoop.asi", [str(ROOT / "src" / "runtime_ready_channel.c"),
+            *[str(ROOT / "third_party" / "minhook" / "src" / name) for name in
+              ("buffer.c", "hook.c", "trampoline.c", "hde/hde64.c")],
+            "-shared", "-lbcrypt", "-luser32", "-lws2_32"]),
         ("sandbox_launch.c", "sandbox_launch.exe", ["-municode", "-ladvapi32"]),
+        ("panel_atomic.c", "ME3PanelAtomic.dll", ["-shared"]),
     ]:
         command = [str(compiler), "cc", "-target", "x86_64-windows-gnu", "-std=c17", "-O2", "-Wall",
                    str(ROOT / "src" / source), "-o", str(output / filename), *extra]
@@ -37,6 +42,8 @@ def main():
             print("\n".join((result.stdout + result.stderr).splitlines()[:12]), flush=True)
             raise SystemExit(result.returncode)
         print("BUILT " + filename, flush=True)
+    # Preserve the dependency's binary redistribution notice alongside ASIs.
+    shutil.copyfile(ROOT / "third_party/minhook/LICENSE.txt", output / "MinHook-LICENSE.txt")
     record_current(ROOT)
 
 

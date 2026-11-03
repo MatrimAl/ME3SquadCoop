@@ -38,15 +38,9 @@ static void narrative_probe_emit(const char *row) {
     ++narrative_probe_rows;line(row);
 }
 
-static const char *narrative_probe_bool(int known, int value) {
-    return known ? (value ? "true" : "false") : "null";
-}
 static void narrative_probe_float(char out[48], int valid, float value) {
     if (valid && isfinite(value)) snprintf(out,48,"%.6f",value);
     else snprintf(out,48,"null");
-}
-static int narrative_probe_object(uintptr_t base, uintptr_t object, const char *kind) {
-    return is_live(base,object) && is_kind_of(base,object,kind);
 }
 /* Writes a complete JSON value: absent, unreadable, and valid are distinct. */
 static void narrative_probe_identity(uintptr_t base, uintptr_t object, int pointer_read,

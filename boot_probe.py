@@ -48,7 +48,7 @@ assert not (SANDBOX / "BioGame" / "DLC" / "DLC_MOD_LEMultiplayer").exists()
 
 before = profile_snapshot()
 # A fresh positive protection test is required immediately before each boot.
-guard = runpy.run_path(str(ROOT / "tests" / "test_probe.py"))
+guard = runpy.run_path(str(ROOT / "tests" / "native_probe_harness.py"))
 runtime = SANDBOX / "ME3SquadCoopRuntime"
 if not runtime.exists():
     guard["owned_directory"](runtime, low=True)

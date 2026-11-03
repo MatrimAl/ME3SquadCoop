@@ -1,9 +1,11 @@
 #ifndef ME3_GUEST_EQUIPMENT_BOOTSTRAP_H
 #define ME3_GUEST_EQUIPMENT_BOOTSTRAP_H
-/* Test-only NORMAL host -> owning-client equipment handoff. Include after
- * combat_fire_bot.h, before session_control.h. No integration in this draft.
+#include "native_script_slot.h"
+/* Shared NORMAL host -> owning-client equipment handoff, once per ownership
+ * epoch. Both the protected probe and ordinary runtime include this path.
  * Root capture18912, exactLE3 build only. No direct Owner/role/flag/ammo writes.
- * Important: false means normal active handoff; true would force Inactive.
+ * false requests normal activation policy, not guaranteed activation. The
+ * selected subclass/state may override the Engine activation body entirely.
  */
 typedef struct GuestEquipmentOperand { unsigned int at; const char *kind,*path; int32_t offset; uint64_t flags; } GuestEquipmentOperand;
 typedef struct GuestEquipmentName { unsigned int at; const char *name; } GuestEquipmentName;
@@ -249,6 +251,7 @@ static const GuestEquipmentName guest_equipment_notify_names[]={
 };
 
 
+#include "weapon_process_event_guard.h"
 static int guest_equipment_dispatch_pins(uintptr_t base) {
     unsigned char got[64];
     static const unsigned char p0[16]={0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x6c,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x57};
@@ -357,6 +360,7 @@ static const char *guest_equipment_resolve_check(uintptr_t base,uintptr_t pc,uin
     if(guest_equipment_methods_valid(base)) {
         if(guest_equipment_find_first(base,read_ptr(weapon+0x50),"ClientGivenTo")!=m->given.function.pointer) return "first-given-mismatch";
         if(guest_equipment_find_first(base,read_ptr(weapon+0x50),"ClientWeaponSet")!=m->first_weapon_set.function.pointer) return "first-weapon-set-mismatch";
+        if(!native_script_slot_matches(base,read_ptr(weapon+0x50),223,m->first_weapon_set.function.pointer)) return "indexed-weapon-set-mismatch";
         if(guest_equipment_find_first(base,read_ptr(inventory+0x50),"ClientWeaponSet")!=m->inventory_set.function.pointer) return "first-inventory-set-mismatch";
         if(guest_equipment_find_first(base,read_ptr(pc+0x50),"NotifyAddInventory")!=m->notify.function.pointer) return "first-notify-mismatch";
         return NULL;
@@ -384,13 +388,10 @@ static const char *guest_equipment_resolve_check(uintptr_t base,uintptr_t pc,uin
     m->base=base;m->ready=1;
     const char *err = guest_equipment_methods_check(base);
     if(err) { m->ready=0; return err; }
+    if(!native_script_slot_matches(base,read_ptr(weapon+0x50),223,m->first_weapon_set.function.pointer)) {m->ready=0;return "indexed-weapon-set-mismatch";}
     return NULL;
 }
-static int guest_equipment_resolve(uintptr_t base,uintptr_t pc,uintptr_t weapon,uintptr_t inventory,DWORD now) {
-    const char *err = guest_equipment_resolve_check(base,pc,weapon,inventory,now);
-    if(err) { snprintf(guest_equipment_resolve_detail,sizeof guest_equipment_resolve_detail,"%s",err); return 0; }
-    return 1;
-}
+
 typedef struct GuestEquipmentSnapshot { uintptr_t owner,instigator,weapon_inventory,pawn_weapon,pawn_inventory,inventory_owner,inventory_instigator; int32_t spare,used; uint32_t weapon_flags; } GuestEquipmentSnapshot;
 static int guest_equipment_snapshot(uintptr_t pawn,uintptr_t weapon,uintptr_t inventory,GuestEquipmentSnapshot *s) {
     memset(s,0,sizeof *s);
@@ -407,26 +408,19 @@ static int guest_equipment_member(uintptr_t base,uintptr_t connection) {
     for(int i=0;i<peers.count;++i){uintptr_t peer=0;if(!read_at(peers.data+(SIZE_T)i*8,&peer,8))return 0;found+=peer==connection;}
     return found==1;
 }
-/* A PE attempt is not a state getter result. Intrinsic-index getters remain
- * explicitly unknown until their ordinary native read implementation is pinned. */
+/* Query only the pinned, read-only native state layout. */
 static int guest_equipment_state(uintptr_t base,uintptr_t object,char *state,size_t size) {
-    state[0]=0;uintptr_t fn=guest_equipment_find_first(base,read_ptr(object+0x50),"GetStateName"),native=0;
-    uint16_t index=65535,parms=0,result=65535;uint32_t flags=0;uint32_t value[2]={UINT32_MAX,UINT32_MAX};
-    if(!narrative_probe_object(base,fn,"Function")||!read_at(fn+0xe4,&index,2)||index||
-       !read_at(fn+0xe6,&parms,2)||parms!=8||!read_at(fn+0xe8,&result,2)||result||
-       !read_at(fn+0xe0,&flags,4)||(flags&0x40)||!read_at(fn+0xd8,&native,8)||native<base||native>=base+0x1300000)return 0;
-    uintptr_t pe=read_ptr(read_ptr(object)+0x230);if(pe!=base+0x40d450)return 0;
-    ((ProcessEvent)pe)((void*)object,(void*)fn,value,NULL);
-    if(value[0]==UINT32_MAX||value[1]==UINT32_MAX)return 0;
-    name_of(base,value[0],state,size);return state[0]!=0;
+    return native_state_name(base,object,state,size);
 }
 static DWORD guest_equipment_reject_at;
 static uint32_t guest_equipment_reject_epoch;
-static const char *guest_equipment_reject_reason;
+static char guest_equipment_reject_reason[128];
 static void guest_equipment_reject(const char *reason,uint32_t epoch,uintptr_t pawn,uintptr_t weapon,uintptr_t inventory,DWORD now) {
-    if(guest_equipment_reject_reason&&guest_equipment_reject_epoch==epoch&&
+    if(guest_equipment_reject_reason[0]&&guest_equipment_reject_epoch==epoch&&
        !strcmp(guest_equipment_reject_reason,reason)&&now-guest_equipment_reject_at<1000)return;
-    guest_equipment_reject_at=now;guest_equipment_reject_epoch=epoch;guest_equipment_reject_reason=reason;
+    guest_equipment_reject_at=now;guest_equipment_reject_epoch=epoch;
+    /* Keep our own value: resolver errors may live in mutable cache buffers. */
+    snprintf(guest_equipment_reject_reason,sizeof guest_equipment_reject_reason,"%s",reason);
     char row[700];snprintf(row,sizeof row,"{\"guest_equipment_bootstrap\":\"rejected\",\"reason\":\"%s\",\"epoch\":%u,\"pawn\":\"0x%llx\",\"weapon\":\"0x%llx\",\"inventory\":\"0x%llx\",\"monotonic_ms\":%lu}\r\n",
       reason,epoch,(unsigned long long)pawn,(unsigned long long)weapon,(unsigned long long)inventory,now);line(row);
 }
@@ -444,7 +438,7 @@ static void guest_equipment_bootstrap_tick(uintptr_t base,uintptr_t host,uintptr
        !is_live(base,connection)||!is_kind_of(base,connection,"NetConnection")||read_ptr(connection+0x68)!=remote||
        !guest_equipment_member(base,connection)||!read_at(remote+0x77c,&pc_flags,4)||(pc_flags&(0x800|0x20000))||
        !read_at(pawn+0xc20,&action,4)||action||!read_at(pawn+0xc28,&power,4)||power||
-       !read_at(pawn+0xe20,&pawn_flags,4)||(pawn_flags&0x40000))return;
+       !read_at(pawn+0xe20,&pawn_flags,4)||(pawn_flags&(0x40000|0x300)))return;
     uintptr_t conversation=read_ptr(world+0x948);if(conversation) {
         int32_t active=-1;uint32_t activating=1;
         if(!read_at(conversation+0xd0,&active,4)||!read_at(conversation+0xe8,&activating,4)||active||(activating&1))return;
@@ -460,7 +454,10 @@ static void guest_equipment_bootstrap_tick(uintptr_t base,uintptr_t host,uintptr
        0)return guest_equipment_reject("equipment-owner-inventory-role-or-ready",epoch,pawn,weapon,inventory,now);
     const char *resolve_err = guest_equipment_resolve_check(base,remote,weapon,inventory,now);
     if(resolve_err) {
-        snprintf(guest_equipment_resolve_detail,sizeof guest_equipment_resolve_detail,"%s",resolve_err);
+        /* A throttled resolver returns this exact cache. Formatting a buffer
+         * into itself is undefined and can erase the retained failure reason. */
+        if(resolve_err!=guest_equipment_resolve_detail)
+            snprintf(guest_equipment_resolve_detail,sizeof guest_equipment_resolve_detail,"%s",resolve_err);
         return guest_equipment_reject(resolve_err,epoch,pawn,weapon,inventory,now);
     }
     GuestCameraStamp ps,ws,is,rs,cs;
@@ -472,11 +469,22 @@ static void guest_equipment_bootstrap_tick(uintptr_t base,uintptr_t host,uintptr
     if(!guest_camera_stamp_matches(base,&ps,1)||!guest_camera_stamp_matches(base,&ws,1)||!guest_camera_stamp_matches(base,&is,1)||
        !guest_camera_stamp_matches(base,&rs,1)||!guest_camera_stamp_matches(base,&cs,1)||
        read_ptr(remote+0x3bc)!=pawn||read_ptr(pawn+0x374)!=remote||!guest_equipment_methods_valid(base))return guest_equipment_reject("pre-dispatch-identity-or-method",epoch,pawn,weapon,inventory,now);
-    uintptr_t pe=read_ptr(read_ptr(weapon)+0x230);if(pe!=base+0x40d450||read_ptr(read_ptr(weapon)+0x248)!=base+0x70a250||
+    uintptr_t pe=read_ptr(read_ptr(weapon)+0x230);if(!guest_equipment_weapon_pe_valid(base,weapon,pe)||read_ptr(read_ptr(weapon)+0x248)!=base+0x70a250||
        read_ptr(read_ptr(weapon)+0x710)!=base+0x15caa0||!guest_equipment_dispatch_pins(base))return guest_equipment_reject("ordinary-native-routing-pins",epoch,pawn,weapon,inventory,now);
     struct __attribute__((packed)) { uintptr_t pawn; uint32_t do_not_activate; } parms={pawn,0};
     _Static_assert(sizeof parms==12,"ClientGivenTo ABI12");
+    /* BioPawn downed/dead flags can precede action/ownership changes. Recheck
+     * after method discovery and before consuming the one-shot epoch. A
+     * refused handoff may be considered again after native recovery. */
+    if(!read_at(pawn+0xe20,&pawn_flags,4)||(pawn_flags&(0x40000|0x300)))
+        return guest_equipment_reject("pawn-life-or-busy-state",epoch,pawn,weapon,inventory,now);
     guest_equipment_attempted_epoch=epoch;guest_equipment_attempted_remote=remote;
+    char dispatch_row[700];
+    snprintf(dispatch_row,sizeof dispatch_row,
+        "{\"guest_equipment_bootstrap\":\"class-script-slot\",\"epoch\":%u,\"slot\":223,\"matches_first_declared\":true,\"targets_engine_weapon_body\":%s,\"targets_empty_sfx_override\":%s,\"state_override_observed\":false,\"guest_execution_verified\":false}\r\n",
+        epoch,guest_equipment_methods.first_weapon_set.function.pointer==guest_equipment_methods.weapon_set.function.pointer?"true":"false",
+        guest_equipment_methods.first_weapon_set.function.pointer!=guest_equipment_methods.weapon_set.function.pointer?"true":"false");
+    line(dispatch_row);
     ((ProcessEvent)pe)((void*)weapon,(void*)guest_equipment_methods.given.function.pointer,&parms,NULL);
     int stable=guest_camera_stamp_matches(base,&ps,1)&&guest_camera_stamp_matches(base,&ws,1)&&guest_camera_stamp_matches(base,&is,1)&&
       guest_camera_stamp_matches(base,&rs,1)&&guest_camera_stamp_matches(base,&cs,1);

@@ -59,6 +59,68 @@ class PairVerification(unittest.TestCase):
         rows += [{"network": "state", "net_mode": 0}]
         self.assertFalse(connection_evidence(rows)["persistent_client_mode_verified"])
 
+    def connection_rows(self, clocks):
+        return [row for elapsed in clocks for row in (
+            {"game_thread": 1, "elapsed_ms": elapsed},
+            {"network": "state", "net_mode": 3})]
+
+    def test_disconnect_retains_observation_but_not_active_verdict(self):
+        rows = self.connection_rows((1000, 3000, 5000))
+        rows.append({"network": "state", "net_mode": 0})
+        result = connection_evidence(rows)
+        self.assertTrue(result["sustained_client_mode_observed"])
+        self.assertEqual(result["longest_client_interval_ms"], 4000)
+        self.assertEqual(result["longest_client_interval_samples"], 3)
+        self.assertFalse(result["client_mode_at_last_sample"])
+        self.assertFalse(result["persistent_client_mode_verified"])
+        self.assertEqual(result["continuous_client_mode_ms"], 0)
+
+    def test_reconnect_does_not_join_separate_intervals(self):
+        rows = self.connection_rows((1000, 2000))
+        rows.append({"network": "state", "net_mode": 0})
+        rows += self.connection_rows((4000, 5000))
+        result = connection_evidence(rows)
+        self.assertFalse(result["sustained_client_mode_observed"])
+        self.assertTrue(result["client_mode_at_last_sample"])
+        self.assertEqual(result["longest_client_interval_ms"], 1000)
+
+    def test_missing_samples_cannot_prove_continuity(self):
+        result = connection_evidence(self.connection_rows((1000, 3000, 9000)))
+        self.assertFalse(result["sustained_client_mode_observed"])
+        self.assertFalse(result["persistent_client_mode_verified"])
+        self.assertEqual(result["longest_client_interval_ms"], 2000)
+
+    def test_duplicate_backwards_and_invalid_clocks_fail_closed(self):
+        for clocks in ((1000, 3000, 5000, 5000), (1000, 3000, 5000, 4000),
+                       (1000, 3000, 5000, -1), (True, 2000, 4000),
+                       (1000, 3000, 5000, None)):
+            with self.subTest(clocks=clocks):
+                result = connection_evidence(self.connection_rows(clocks))
+                self.assertFalse(result["sampling_clock_valid"])
+                self.assertFalse(result["sustained_client_mode_observed"])
+                self.assertFalse(result["persistent_client_mode_verified"])
+
+    def test_error_remains_visible_after_observed_interval(self):
+        rows = self.connection_rows((1000, 3000, 5000))
+        rows.append({"network": "progress", "progress_kind": 4, "pending_error": "Lost"})
+        result = connection_evidence(rows)
+        self.assertTrue(result["sustained_client_mode_observed"])
+        self.assertEqual(result["failure_messages"], ["Lost"])
+        self.assertFalse(result["persistent_client_mode_verified"])
+
+    def test_active_connection_reports_both_scopes(self):
+        result = connection_evidence(self.connection_rows((1000, 3000, 5000)))
+        self.assertTrue(result["sustained_client_mode_observed"])
+        self.assertTrue(result["persistent_client_mode_verified"])
+        self.assertTrue(result["client_mode_at_last_sample"])
+
+    def test_no_or_untimed_samples_do_not_establish_connection(self):
+        for rows in ([], [{"network": "state", "net_mode": 3}] * 4):
+            with self.subTest(rows=rows):
+                result = connection_evidence(rows)
+                self.assertFalse(result["sustained_client_mode_observed"])
+                self.assertFalse(result["persistent_client_mode_verified"])
+
     def test_connection_error_and_missing_control_data_fail(self):
         rows = [{"game_thread": 1, "elapsed_ms": 1000}, {"network": "state", "net_mode": 3},
                 {"network": "progress", "progress_kind": 4, "pending_error": "Connection lost"}]

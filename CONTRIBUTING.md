@@ -2,6 +2,11 @@
 
 Welcome! Code, careful testing, research, documentation and translations are useful contributions. Please use English in public reports. This is a research prototype: read the README and docs/VALIDATION.md before choosing a task.
 
+`dev/campaign-coop` is the default branch and the shared development baseline.
+Use short-lived branches for focused work and target it with pull requests.
+Maintainers keep accepted development there; `main` receives reviewed snapshots.
+See [branch layout](docs/BRANCHES.md) for historical work and archive tags.
+
 ## Start here
 
 1. Search existing issues and open PRs. For substantial work, open a research/task issue first and describe your plan. Say you are working on it in that issue to avoid duplication; this is coordination, not exclusive ownership.

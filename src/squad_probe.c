@@ -12,13 +12,19 @@
 #include <string.h>
 #include <math.h>
 #include "direct_ip_native.h"
+#include "me3_game_support.h"
+#include "runtime_config.h"
+#include "probe_exception_context.h"
+#include "collision_baseline_qa.h"
 static DirectIPNativeConfig direct_ip_config;
+static uintptr_t probe_module_base,probe_game_module_base;
 
-#define NAME_POOLS_RVA 0x17B33D0
-#define OBJECTS_RVA 0x1887E40
 static wchar_t root[MAX_PATH];
 static wchar_t documents[MAX_PATH];
 static char test_role[8] = "single";
+static int probe_guards_only=0,probe_private_guards_ready=0;
+static int probe_dlc_io_trace=0;
+static volatile LONG probe_dlc_io_rows;
 typedef HANDLE (WINAPI *MutexW)(LPSECURITY_ATTRIBUTES,BOOL,LPCWSTR);
 static MutexW original_mutex = NULL;
 static volatile LONG instance_mutex_isolations = 0;
@@ -42,7 +48,6 @@ static HANDLE WINAPI private_engine_mutex(LPSECURITY_ATTRIBUTES sa, BOOL owner, 
     SetLastError(error); /* WinMain immediately tests ERROR_ALREADY_EXISTS. */
     return result;
 }
-static HANDLE log_file = INVALID_HANDLE_VALUE;
 typedef HRESULT (WINAPI *FolderW)(HWND,int,HANDLE,DWORD,LPWSTR);
 static FolderW original_folder = NULL;
 static volatile LONG folder_redirects = 0;
@@ -84,6 +89,33 @@ static int private_capture_path(const wchar_t *path,wchar_t *out,size_t size) {
     int n=_snwprintf(out,size,L"%ls\\ME3SquadCoopRuntime\\captures\\%ls",root,name);
     return n>0&&(size_t)n<size&&path_inside_test(out);
 }
+/* Observe only this authored DLC through the existing sandbox CreateFileW
+ * import guard. This is not coverage of the native file-manager cache or all
+ * file APIs. A missing row never proves that the engine did not request it. */
+static int probe_dlc_io_selected(const wchar_t *path) {
+    if(!probe_dlc_io_trace||!probe_guards_only||!path||!path_inside_test(path))return 0;
+    const wchar_t *component=L"DLC_MOD_ME3SquadCoop";size_t n=wcslen(component);
+    for(const wchar_t *p=path;*p;++p) {
+        if((*p==L'\\'||*p==L'/')&&!_wcsnicmp(p+1,component,n)&&
+           (p[n+1]==L'\\'||p[n+1]==L'/'))return 1;
+    }
+    return 0;
+}
+static void probe_dlc_io_record(const wchar_t *path,HANDLE result,DWORD error,DWORD access,DWORD creation) {
+    if(!probe_dlc_io_selected(path)||InterlockedIncrement(&probe_dlc_io_rows)>64)return;
+    char utf8[3*MAX_PATH]={0},escaped[6*MAX_PATH]={0},row[7*MAX_PATH];
+    int length=WideCharToMultiByte(CP_UTF8,0,path,-1,utf8,sizeof utf8,NULL,NULL);
+    if(length<=0)return;
+    size_t j=0;
+    for(int i=0;i<length-1&&j+7<sizeof escaped;++i) {
+        unsigned char c=(unsigned char)utf8[i];
+        if(c=='\\'||c=='"'){escaped[j++]='\\';escaped[j++]=(char)c;}
+        else if(c<32){j+=(size_t)snprintf(escaped+j,sizeof escaped-j,"\\u%04x",c);}
+        else escaped[j++]=(char)c;
+    }
+    snprintf(row,sizeof row,"{\"dlc_file_open\":true,\"api\":\"CreateFileW-import\",\"requested_path\":\"%s\",\"opened\":%s,\"win32_error\":%lu,\"error_valid\":%s,\"access\":%lu,\"creation\":%lu,\"monotonic_ms\":%lu,\"forwarded_unchanged\":true}\r\n",escaped,result!=INVALID_HANDLE_VALUE?"true":"false",error,result==INVALID_HANDLE_VALUE?"true":"false",access,creation,GetTickCount());
+    line(row);
+}
 static HANDLE WINAPI private_file(LPCWSTR path, DWORD access, DWORD share, LPSECURITY_ATTRIBUTES sa,
                                   DWORD creation, DWORD attributes, HANDLE template_file) {
     DWORD writes = GENERIC_WRITE | GENERIC_ALL | DELETE | WRITE_DAC | WRITE_OWNER |
@@ -98,7 +130,11 @@ static HANDLE WINAPI private_file(LPCWSTR path, DWORD access, DWORD share, LPSEC
     if (((access & writes) || creation != OPEN_EXISTING) && !path_inside_test(path)) {
         blocked_path(path); SetLastError(ERROR_ACCESS_DENIED); return INVALID_HANDLE_VALUE;
     }
-    return original_file(path, access, share, sa, creation, attributes, template_file);
+    HANDLE result=original_file(path, access, share, sa, creation, attributes, template_file);
+    if(probe_dlc_io_trace) {
+        DWORD error=GetLastError();probe_dlc_io_record(path,result,error,access,creation);SetLastError(error);
+    }
+    return result;
 }
 static BOOL WINAPI private_directory(LPCWSTR path, LPSECURITY_ATTRIBUTES sa) {
     if (!path_inside_test(path)) {
@@ -151,44 +187,6 @@ static int guard_file_imports(uintptr_t base) {
     return hooked_file;
 }
 
-static int read_at(uintptr_t address, void *out, SIZE_T size) {
-    SIZE_T got = 0;
-    return ReadProcessMemory(GetCurrentProcess(), (const void*)address, out, size, &got) && got == size;
-}
-static uintptr_t read_ptr(uintptr_t address) {
-    uintptr_t result = 0;
-    read_at(address, &result, sizeof result);
-    return result;
-}
-static void name_of(uintptr_t base, uint32_t index, char *out, size_t size) {
-    out[0] = 0;
-    uintptr_t pool = read_ptr(base + NAME_POOLS_RVA + (index >> 29) * 8);
-    if (!pool) return;
-    char text[96] = {0};
-    if (!read_at(pool + (index & 0x1fffffff) + 12, text, sizeof text - 1)) return;
-    text[sizeof text - 1] = 0;
-    snprintf(out, size, "%s", text);
-}
-static void object_name(uintptr_t base, uintptr_t object, char *out, size_t size) {
-    uint32_t index = 0;
-    out[0] = 0;
-    if (read_at(object + 0x48, &index, 4)) name_of(base, index, out, size);
-}
-static void line(const char *text) {
-    DWORD wrote;
-    if (log_file != INVALID_HANDLE_VALUE) WriteFile(log_file, text, (DWORD)strlen(text), &wrote, NULL);
-}
-static void json_text(const wchar_t *wide, char *out, size_t capacity) {
-    char utf8[1600] = {0}; size_t j = 0;
-    WideCharToMultiByte(CP_UTF8, 0, wide, -1, utf8, sizeof utf8, NULL, NULL);
-    for (size_t i = 0; utf8[i] && j + 2 < capacity; ++i) {
-        unsigned char c = (unsigned char)utf8[i];
-        if (c < 32) { out[j++] = ' '; continue; }
-        if (c == '\\' || c == '"') out[j++] = '\\';
-        out[j++] = (char)c;
-    }
-    out[j] = 0;
-}
 static void log_blocked_path(void) {
     char utf8[MAX_PATH * 3 + 1] = {0}, escaped[MAX_PATH * 6 + 1] = {0}, message[MAX_PATH * 6 + 100];
     AcquireSRWLockShared(&blocked_lock);
@@ -203,6 +201,7 @@ static void log_blocked_path(void) {
     }
     snprintf(message, sizeof message, "{\"blocked_write_count\":%ld,\"private_blocked_path\":\"%s\"}\r\n", blocked_writes, escaped);
     line(message);
+
 }
 static HRESULT WINAPI private_folder(HWND hwnd, int folder, HANDLE token, DWORD flags, LPWSTR out) {
     if ((folder & 0xff) == 5 && out) {
@@ -241,17 +240,16 @@ static int redirect_documents(uintptr_t base) {
 }
 static LONG WINAPI exception_observer(PEXCEPTION_POINTERS info) {
     if (info->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
-        char text[340];
+        char text[768];
         uintptr_t fault = (uintptr_t)info->ExceptionRecord->ExceptionAddress;
         MEMORY_BASIC_INFORMATION memory;
         ZeroMemory(&memory, sizeof memory);
-        VirtualQuery((void*)fault, &memory, sizeof memory);
-        snprintf(text, sizeof text,
-            "{\"exception\":\"access_violation\",\"fault\":\"0x%llx\",\"module_rva\":\"0x%llx\",\"access_kind\":%llu,\"access_address\":\"0x%llx\"}\r\n",
-            (unsigned long long)fault, (unsigned long long)(fault - (uintptr_t)memory.AllocationBase),
-            (unsigned long long)info->ExceptionRecord->ExceptionInformation[0],
-            (unsigned long long)info->ExceptionRecord->ExceptionInformation[1]);
-        line(text);
+        int queried=VirtualQuery((void*)fault,&memory,sizeof memory)==sizeof memory;
+        int parameters=info->ExceptionRecord->NumberParameters>=2;
+        if(probe_exception_format(text,sizeof text,fault,queried,(uintptr_t)memory.AllocationBase,memory.Type,
+            probe_module_base,probe_game_module_base,parameters,
+            parameters?info->ExceptionRecord->ExceptionInformation[0]:0,
+            parameters?info->ExceptionRecord->ExceptionInformation[1]:0,GetTickCount()))line(text);
     }
     return EXCEPTION_CONTINUE_SEARCH;
 }
@@ -263,26 +261,7 @@ static int has_marker(const wchar_t *folder) {
     _snwprintf(path, MAX_PATH, L"%ls\\ME3SquadCoop.probe.enabled", folder);
     return GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
 }
-static int supported_image(uintptr_t base) {
-    WORD mz; DWORD pe_at = 0; DWORD timestamp = 0;
-    unsigned char code[7];
-    const unsigned char expect[7] = {0x48,0x8d,0x15,0xe3,0xf9,0xbb,0x00};
-    if (!read_at(base, &mz, 2) || mz != 0x5a4d || !read_at(base + 0x3c, &pe_at, 4)) return 0;
-    if (!read_at(base + pe_at + 8, &timestamp, 4) || timestamp != 1622077636) return 0;
-    return read_at(base + 0x65fde6, code, sizeof code) && memcmp(code, expect, sizeof code) == 0;
-}
 
-/* Layouts checked against LExSDKv2 LE3. The packed return FString starts at
-   +0x14, not a C compiler's default +0x18. */
-#pragma pack(push, 1)
-typedef struct { wchar_t *data; int32_t count, max; } GameString;
-typedef struct { GameString command; uint32_t write_log; GameString result; } ConsoleParms;
-typedef struct { uintptr_t data; int32_t count, max; } GameArray;
-#pragma pack(pop)
-_Static_assert(sizeof(ConsoleParms) == 0x24, "ConsoleCommand ABI");
-typedef void (*EngineTick)(void*, float);
-typedef void (*ProcessEvent)(void*, void*, void*, void*);
-typedef void (*EngineProgress)(void*, int32_t, void*, void*);
 static EngineTick original_tick = NULL;
 static EngineProgress original_progress = NULL;
 static DWORD bridge_started = 0, last_state = 0;
@@ -299,13 +278,6 @@ static float initial_camera[3];
 static int host_capacity_set = 0;
 typedef int (*FindPackageFile)(void*, const wchar_t*, const void*, void*, const void*);
 static FindPackageFile original_find_package = NULL;
-static void game_string(uintptr_t address, wchar_t *out, size_t capacity) {
-    GameString value = {0}; out[0] = 0;
-    if (!read_at(address, &value, sizeof value) || !value.data || value.count <= 1 || value.count > 4096) return;
-    size_t n = (size_t)value.count < capacity ? (size_t)value.count : capacity;
-    if (!read_at((uintptr_t)value.data, out, n * sizeof(wchar_t))) out[0] = 0;
-    out[n - 1] = 0;
-}
 static void identity_snapshot(uintptr_t base, const char *phase);
 static void game_progress(void *self, int32_t kind, void *title, void *error) {
     wchar_t wide[512]; char escaped[2200], text[2350];
@@ -319,8 +291,6 @@ static void game_progress(void *self, int32_t kind, void *title, void *error) {
     }
     original_progress(self, kind, title, error);
 }
-static int is_kind_of(uintptr_t base, uintptr_t object, const char *classname);
-#include "package_identity.h"
 static int package_file_trace(void *self, const wchar_t *name, const void *guid, void *filename, const void *language) {
     uintptr_t caller = (uintptr_t)__builtin_return_address(0);
     uintptr_t base = (uintptr_t)GetModuleHandleW(NULL);
@@ -372,64 +342,6 @@ static void install_package_trace(uintptr_t base) {
     line(text);
 }
 
-static uintptr_t local_controller(uintptr_t engine) {
-    GameArray players = {0};
-    if (!read_at(engine + 0x498, &players, sizeof players) ||
-        !players.data || players.count < 1 || players.count > 4 || players.max < players.count) return 0;
-    uintptr_t player = read_ptr(players.data);
-    return player ? read_ptr(player + 0x68) : 0;
-}
-static uintptr_t function_named(uintptr_t base, const char *owner, const char *name) {
-    GameArray objects = {0};
-    if (!read_at(base + OBJECTS_RVA, &objects, sizeof objects) ||
-        !objects.data || objects.count < 1 || objects.count > 500000 || objects.max < objects.count) return 0;
-    for (int i = 0; i < objects.count; ++i) {
-        uintptr_t object = read_ptr(objects.data + (SIZE_T)i * 8);
-        if (!object) continue;
-        char text[96]; object_name(base, object, text, sizeof text);
-        if (strcmp(text, name) != 0) continue;
-        object_name(base, read_ptr(object + 0x50), text, sizeof text);
-        if (strcmp(text, "Function") != 0) continue;
-        object_name(base, read_ptr(object + 0x40), text, sizeof text);
-        if (strcmp(text, owner) == 0) return object;
-    }
-    return 0;
-}
-static int is_kind_of(uintptr_t base, uintptr_t object, const char *classname) {
-    uintptr_t cls = object ? read_ptr(object + 0x50) : 0;
-    for (int depth = 0; cls && depth < 48; ++depth) {
-        char name[96]; object_name(base, cls, name, sizeof name);
-        if (strcmp(name, classname) == 0) return 1;
-        cls = read_ptr(cls + 0x60);
-    }
-    return 0;
-}
-static int is_live(uintptr_t base, uintptr_t object) {
-    GameArray objects = {0}; int32_t index = -1;
-    if (!object || !read_at(object + 8, &index, 4) ||
-        !read_at(base + OBJECTS_RVA, &objects, sizeof objects) ||
-        index < 0 || index >= objects.count || objects.count > 500000) return 0;
-    return read_ptr(objects.data + (SIZE_T)index * 8) == object;
-}
-static int invoke(uintptr_t base, uintptr_t object, const char *owner, const char *name, void *parms) {
-    if (!is_live(base, object) || !is_kind_of(base, object, owner)) return 0;
-    uintptr_t fn = function_named(base, owner, name);
-    uintptr_t pe = read_ptr(read_ptr(object) + 0x230);
-    if (!fn || pe < base || pe >= base + 0x1300000) return 0;
-    ((ProcessEvent)pe)((void*)object, (void*)fn, parms, NULL);
-    return 1;
-}
-static int console(uintptr_t base, uintptr_t pc, wchar_t *command) {
-    ConsoleParms parms = {0};
-    parms.command.data = command;
-    parms.command.count = parms.command.max = (int32_t)wcslen(command) + 1;
-    parms.write_log = 1;
-    return invoke(base, pc, "PlayerController", "ConsoleCommand", &parms);
-}
-static double distance(const float *a, const float *b) {
-    double x = a[0] - b[0], y = a[1] - b[1], z = a[2] - b[2];
-    return sqrt(x*x + y*y + z*z);
-}
 static void input_bot(uintptr_t base, uintptr_t engine) {
     if (test_action != 3 || possession_stage != 1 || !is_live(base, saved_guest)) return;
     uintptr_t pc = local_controller(engine);
@@ -443,15 +355,6 @@ static void input_bot(uintptr_t base, uintptr_t engine) {
     SIZE_T wrote;
     WriteProcessMemory(GetCurrentProcess(), (void*)(input + 0x194), &value, 4, &wrote);
     WriteProcessMemory(GetCurrentProcess(), (void*)(input + 0x1a4), &value, 4, &wrote);
-}
-static uintptr_t mode_object(uintptr_t base, uintptr_t manager, const char *classname) {
-    GameArray modes = {0};
-    if (!read_at(manager + 0x70, &modes, sizeof modes) || modes.count < 0 || modes.count > 64) return 0;
-    for (int i = 0; i < modes.count; ++i) {
-        uintptr_t object = read_ptr(modes.data + (SIZE_T)i * 8);
-        if (is_kind_of(base, object, classname)) return object;
-    }
-    return 0;
 }
 static void possession_test(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintptr_t world,
                             uintptr_t squad, uintptr_t manager, unsigned char mode, DWORD now) {
@@ -545,32 +448,50 @@ static void possession_test(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
     snprintf(text, sizeof text, "{\"possession\":\"returned\",\"ashley_controller_match\":%s}\r\n", ok ? "true" : "false");
     line(text); possession_at = now; possession_stage = 1;
 }
+static int native_session_role(void) {return test_action;}
+#define ME3_PROTECTED_SESSION_ADMISSION_DIAGNOSTICS 1
 #include "pair_control.h"
 #include "network_actor_identity.h"
+#include "network_actor_identity_selftest.h"
 #include "actor_channel_diagnostics.h"
 #include "render_capture.h"
 #include "scene_readiness_diagnostics.h"
 #include "narrative_probe.h"
 #include "combat_context_probe.h"
+#include "native_state_reader.h"
 #include "combat_equipment_probe.h"
+#include "catchup_ground.h"
 #include "progress_probe.h"
 #include "guest_camera_adapter.h"
 #include "guest_player_context_adapter.h"
+#include "guest_collision_restore.h"
 #include "guest_cinematic_registration_adapter.h"
 #include "combat_fire_bot.h"
+#define ME3_SQUAD_COOP_PROTECTED_HIT_TRACE 1
 #include "guest_equipment_bootstrap.h"
+#include "ammo_change_trace.h"
+#include "ammo_wire_trace.h"
+#include "native_ammo_scope_selftest.h"
+#include "ammo_reconcile.h"
+#include "guest_activation_trace.h"
+#include "guest_activation_named_trace.h"
+#include "fire_rpc_trace.h"
+#include "native_fire_trace.h"
+#include "guest_hit_trace.h"
+#include "guest_hit_trace_selftest.h"
 #include "initial_actor_trace.h"
+#include "native_rpc_receive_selftest.h"
+#include "remote_appearance_qa.h"
+#define ME3_PROTECTED_GUEST_TEAM_QA 1
+static void guest_team_qa_release(uintptr_t base,DWORD now);
+#include "arena_pair_qa.h"
 #include "session_control.h"
-static void game_tick(void *self, float delta) {
-    uintptr_t base = (uintptr_t)GetModuleHandleW(NULL);
-    initial_actor_trace_install(base);
-    install_package_trace(base);
-    input_bot(base, (uintptr_t)self);
-    progress_input(base, (uintptr_t)self);
-    if (session_enabled) session_frame(base, (uintptr_t)self, 0);
-    else pair_guest_input(base, (uintptr_t)self);
-    original_tick(self, delta);
-    if (session_enabled) session_frame(base, (uintptr_t)self, 1);
+#include "guest_team_qa.h"
+#include "guest_team_qa_selftest.h"
+#include "combat_route_qa.h"
+#include "combat_aim_qa.h"
+#include "arena_auto_lifecycle_qa.h"
+static void game_tick_diagnostics(void *self,uintptr_t base) {
     DWORD now = GetTickCount();
     if (now - last_state < 1000) return;
     last_state = now;
@@ -591,6 +512,10 @@ static void game_tick(void *self, float delta) {
         "{\"game_thread\":%lu,\"elapsed_ms\":%lu,\"local_pc\":\"%s\",\"local_pawn\":\"%s\",\"pawn_class\":\"%s\",\"world\":\"%s\",\"squad_present\":%s,\"mode\":%u,\"world_time\":%.3f}\r\n",
         GetCurrentThreadId(), now - bridge_started, pc_name, pawn_name, pawn_class, world_name, squad ? "true" : "false", mode, world_time);
     line(message);
+    if(arena_pair_qa) {
+        int ready=arena_pair_world(base)&&mode==0&&is_live(base,pawn)&&is_kind_of(base,pawn,"SFXPawn_Player")&&is_live(base,squad);
+        snprintf(message,sizeof message,"{\"arena_pair_qa\":\"readiness\",\"current_spcer\":%s,\"ordinary_shepard_squad\":%s,\"mode\":%u,\"monotonic_ms\":%lu}\r\n",arena_pair_world(base)?"true":"false",ready?"true":"false",mode,now);line(message);
+    }
     if (test_action >= 4) {
         uintptr_t game = world ? read_ptr(world + 0x6b0) : 0;
         unsigned char netmode = 255;
@@ -607,7 +532,7 @@ static void game_tick(void *self, float delta) {
             line(message); max_players = 2;
         }
         char game_class[96]; object_name(base, game ? read_ptr(game + 0x50) : 0, game_class, sizeof game_class);
-        if (test_action == 6 && refresh_host_map && !host_map_attempted && netmode == 2 && pawn && squad && now - bridge_started >= 16000) {
+        if (test_action == 6 && refresh_host_map && !host_map_attempted && netmode == 2 && pawn && squad && now - bridge_started >= 16000 && (!arena_pair_qa||(arena_auto_ready_at&&now-arena_auto_ready_at>=5000))) {
             host_map_attempted = 1;
             host_map_refreshed = identity_refresh_master(base);
         }
@@ -662,19 +587,52 @@ static void game_tick(void *self, float delta) {
     wchar_t command[80];
     wcscpy(command, test_action == 4 || (test_action == 6 && !host_reload_mars) ? L"open BioP_ProMar?listen" :
                     L"open BioP_ProMar");
-    if (test_action == 5 && !client_prewarm) _snwprintf(command,80,L"open %ls:%u",direct_ip_config.peer_ipv4,(unsigned)direct_ip_config.port);
+    if(arena_pair_qa&&test_action==6)wcscpy(command,L"open BioP_SPCer?listen");
+    if(arena_pair_qa&&arena_pair_auto_qa&&arena_parallel_qa&&test_action==6)wcscpy(command,L"open BioP_SPCer");
+    if(arena_pair_qa&&arena_pair_auto_qa&&test_action==5)wcscpy(command,L"open BioP_SPCer");
+    if (test_action == 5 && !client_prewarm && !(arena_pair_qa&&arena_pair_auto_qa)) _snwprintf(command,80,L"open %ls:%u",direct_ip_config.peer_ipv4,(unsigned)direct_ip_config.port);
     ConsoleParms parms = {0};
     parms.command.data = command;
     parms.command.count = parms.command.max = (int32_t)wcslen(command) + 1;
     parms.write_log = 1;
     action_sent = 1; /* Set before dispatch; map travel may re-enter the engine. */
-    line(test_action == 5 && !client_prewarm ? "{\"action\":\"join-loopback\",\"phase\":\"dispatch\"}\r\n" : "{\"action\":\"travel-mars\",\"phase\":\"dispatch\"}\r\n");
+    line(arena_pair_qa ? (test_action==5&&arena_pair_auto_qa?"{\"action\":\"arena-client-prewarm\",\"phase\":\"dispatch\"}\r\n":"{\"action\":\"arena-host-or-manual-join\",\"phase\":\"dispatch\"}\r\n") : test_action == 5 && !client_prewarm ? "{\"action\":\"join-loopback\",\"phase\":\"dispatch\"}\r\n" : "{\"action\":\"travel-mars\",\"phase\":\"dispatch\"}\r\n");
     ((ProcessEvent)pe)((void*)pc, (void*)fn, &parms, NULL);
-    line(test_action == 5 && !client_prewarm ? "{\"action\":\"join-loopback\",\"phase\":\"returned\"}\r\n" : "{\"action\":\"travel-mars\",\"phase\":\"returned\"}\r\n");
+    line(arena_pair_qa ? (test_action==5&&arena_pair_auto_qa?"{\"action\":\"arena-client-prewarm\",\"phase\":\"returned\"}\r\n":"{\"action\":\"arena-host-or-manual-join\",\"phase\":\"returned\"}\r\n") : test_action == 5 && !client_prewarm ? "{\"action\":\"join-loopback\",\"phase\":\"returned\"}\r\n" : "{\"action\":\"travel-mars\",\"phase\":\"returned\"}\r\n");
     /* A single diagnostic call. Any engine-owned return string lives only
        until this bounded process exits; never free it with the CRT heap. */
 }
+static void game_tick(void *self,float delta) {
+    uintptr_t base=(uintptr_t)GetModuleHandleW(NULL);
+    lookup_profile_emit();unsigned long long whole=lookup_clock(),part=lookup_clock();
+    if(!collision_baseline_qa_opted()||position_receive_opted())initial_actor_trace_install(base);
+    if(!collision_baseline_qa_opted())install_package_trace(base);
+    ammo_wire_install(base);
+    activation_named_prepare(base);
+    arena_auto_lifecycle_tick(base,(uintptr_t)self,0,GetTickCount());
+    input_bot(base,(uintptr_t)self);
+    if(!arena_pair_qa&&!combat_route_qa_host_mode())progress_input(base,(uintptr_t)self);
+    combat_route_qa_tick(base,(uintptr_t)self,0,GetTickCount());
+    if(session_enabled)session_frame(base,(uintptr_t)self,0);else pair_guest_input(base,(uintptr_t)self);
+    combat_aim_qa_tick(base,(uintptr_t)self,0,GetTickCount());
+    lookup_record("Probe","PreTick",part,0,0);part=lookup_clock();
+    original_tick(self,delta);arena_auto_lifecycle_tick(base,(uintptr_t)self,1,GetTickCount());lookup_record("Engine","OriginalTick",part,0,0);part=lookup_clock();
+    combat_aim_qa_tick(base,(uintptr_t)self,1,GetTickCount());
+    if(session_enabled)session_frame(base,(uintptr_t)self,1);
+    combat_route_qa_tick(base,(uintptr_t)self,1,GetTickCount());
+    ammo_wire_prepare(base);
+    guest_activation_prepare();
+    ammo_reconcile_tick();
+    fire_rpc_trace_prepare();
+    native_fire_trace_prepare();
+    guest_hit_trace_prepare();
+    guest_team_qa_tick(base,GetTickCount());
+    lookup_record("Probe","PostTick",part,0,0);part=lookup_clock();
+    game_tick_diagnostics(self,base);lookup_record("Probe","Diagnostics",part,0,0);
+    lookup_record("Probe","TotalTick",whole,0,0);
+}
 static int install_tick_bridge(uintptr_t base) {
+    if(probe_guards_only)return 0;
     uintptr_t engine = read_ptr(base + 0x18b31d0);
     uintptr_t vt = engine ? read_ptr(engine) : 0;
     if (vt != base + 0x13983a0) return 0;
@@ -704,9 +662,11 @@ static int install_tick_bridge(uintptr_t base) {
     }
     return 1;
 }
+#include "dlc_resolve_trace.h"
 static DWORD WINAPI observe(void *unused) {
     (void)unused;
     uintptr_t base = (uintptr_t)GetModuleHandleW(NULL);
+    probe_game_module_base=base;
     if (!supported_image(base)) return 0;
     wchar_t path[MAX_PATH];
     _snwprintf(path, MAX_PATH, L"%ls\\ME3SquadCoopRuntime\\squad_probe_%lu.jsonl", root, GetCurrentProcessId());
@@ -715,10 +675,15 @@ static DWORD WINAPI observe(void *unused) {
     char header[220];
     snprintf(header, sizeof header, "{\"stage\":%d,\"pid\":%lu,\"role\":\"%s\",\"engine_state_read_only\":%s,\"observer_loaded\":true,\"private_documents\":true,\"campaign_coop\":false}\r\n", test_action, GetCurrentProcessId(), test_role, test_action ? "false" : "true");
     line(header);
+    if(collision_baseline_qa_opted())line("{\"collision_baseline_qa\":true,\"route_stop\":\"second-host-acquisition\",\"guest_synthetic_input\":true,\"guest_input_policy\":\"existing-two-second-pulse-after-reacquisition\",\"guest_firing\":false,\"synthetic_scene\":true,\"reacquisition\":true,\"combat_tested\":false}\r\n");
+    if(probe_guards_only)line("{\"guards_only_qa\":true,\"engine_bridge_disabled\":true,\"action_plan_ignored\":true,\"private_guards_ready\":true}\r\n");
+    if(probe_dlc_io_trace)line("{\"dlc_file_open_observer\":true,\"scope\":\"sandbox-authored-dlc-CreateFileW-import-only\",\"max_rows\":64,\"native_file_cache_observed\":false}\r\n");
+    dlc_resolve_install_observe(base);
     AddVectoredExceptionHandler(0, exception_observer);
     int bridge_installed = 0, pe_identity_logged = 0; LONG logged_blocks = -1, logged_isolations = 0;
     for (int tick = 0; tick < 140 && has_marker(root); ++tick) {
         Sleep(1000);
+        dlc_resolve_install_observe(base);
         if (blocked_writes != logged_blocks) { log_blocked_path(); logged_blocks = blocked_writes; }
         if (instance_mutex_isolations != logged_isolations) {
             line("{\"engine_instance_mutex_isolated\":true,\"scope\":\"verified-test-role-and-exact-callsite\",\"activation_modified\":false}\r\n");
@@ -768,7 +733,73 @@ static DWORD WINAPI observe(void *unused) {
     return 0;
 }
 
+/* Explicit protected QA mode: all original isolation gates must succeed
+ * before any orchestration decision. Isolation role still chooses private
+ * Documents/mutex names; it never forces client gameplay in guards-only mode. */
+static int probe_apply_private_guards(uintptr_t base) {
+    probe_private_guards_ready=0;
+    if(!has_marker(root)||!supported_image(base)||GetFileAttributesW(documents)==INVALID_FILE_ATTRIBUTES||
+       !redirect_documents(base)||!guard_file_imports(base))return 0;
+    probe_private_guards_ready=1;return 1;
+}
+static int probe_guards_only_environment(void) {
+    wchar_t value[2];int present=0;
+    if(!direct_ip_native_read_environment(L"ME3_SQUAD_COOP_GUARDS_ONLY_QA",value,2,&present))return -1;
+    if(!present||!wcscmp(value,L"0"))return 0;
+    return !wcscmp(value,L"1")?1:-1;
+}
+static int probe_configure_orchestration(int guards_only) {
+    if(!probe_private_guards_ready||(guards_only!=0&&guards_only!=1))return 0;
+    if(guards_only) {
+        probe_guards_only=1;test_action=0;client_prewarm=client_prewarm_joined=0;
+        host_reload_mars=host_reload_sent=0;refresh_host_map=0;
+        pair_control_enabled=session_enabled=progress_enabled=0;
+        return 1;
+    }
+    wchar_t plan[MAX_PATH];
+    _snwprintf(plan, MAX_PATH, L"%ls\\ME3SquadCoopRuntime\\test-action.txt", root);
+    HANDLE action = CreateFileW(plan, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (action != INVALID_HANDLE_VALUE) {
+        char value[64] = {0}; DWORD count = 0;
+        if (ReadFile(action, value, sizeof value - 1, &count, NULL)) {
+            if (strcmp(value, "travel-mars") == 0) test_action = 1;
+            else if (strcmp(value, "possess-ashley") == 0) test_action = 2;
+            else if (strcmp(value, "move-ashley") == 0) test_action = 3;
+            else if (strcmp(value, "host-mars") == 0) test_action = 4;
+            else if (strcmp(value, "host-pair") == 0) test_action = 6;
+        }
+        CloseHandle(action);
+    }
+    if (strcmp(test_role, "client") == 0) test_action = 5;
+    wchar_t prewarm[8] = {0};
+    client_prewarm = test_action == 5 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PREWARM_MARS", prewarm, 8) == 1 && prewarm[0] == L'1';
+    prewarm[0] = 0;
+    refresh_host_map = test_action == 6 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_REFRESH_HOST_MAP", prewarm, 8) == 1 && prewarm[0] == L'1';
+    prewarm[0] = 0;
+    host_reload_mars = test_action == 6 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_RELOAD_HOST_MARS", prewarm, 8) == 1 && prewarm[0] == L'1';
+    prewarm[0] = 0;
+    pair_control_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PAIR_CONTROL", prewarm, 8) == 1 && prewarm[0] == L'1';
+    prewarm[0] = 0;
+    session_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_SESSION_TEST", prewarm, 8) == 1 && prewarm[0] == L'1';
+    progress_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PROGRESS_TEST", prewarm, 8) == 1 && prewarm[0] == L'1';
+    prewarm[0]=0;
+    int arena=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_ARENA_PAIR_QA",prewarm,8)==1&&prewarm[0]==L'1';
+    if(arena) {
+        int manual=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_MANUAL_GUEST_QA",prewarm,8)==1&&prewarm[0]==L'1';
+        if(!arena_pair_policy(1,guards_only,test_action,progress_enabled,session_enabled,manual,refresh_host_map,host_reload_mars,client_prewarm))return 0;
+        arena_pair_qa=1;
+        prewarm[0]=0;arena_pair_auto_qa=GetEnvironmentVariableW(L"ME3_SQUAD_COOP_ARENA_AUTO_QA",prewarm,8)==1&&prewarm[0]==L'1';
+    }
+    if(!arena_join_gate_configure(arena_pair_qa,arena_pair_auto_qa))return 0;
+    return 1;
+}
+
 #ifndef ME3_SQUAD_COOP_RELEASE
+#include "probe_guards_fixture.h"
+#endif
+#ifndef ME3_SQUAD_COOP_RELEASE
+__declspec(dllexport) int SquadRuntimeIdentitySelfTest(void) {return me3_runtime_identity_selftest();}
+__declspec(dllexport) int SquadRuntimeConfigSelfTest(void) {return runtime_config_selftest();}
 __declspec(dllexport) int SquadProbeSelfTest(void) {
     int value = 0x13579, copy = 0;
     if (!read_at((uintptr_t)&value, &copy, sizeof copy) || copy != value) return 0;
@@ -777,8 +808,33 @@ __declspec(dllexport) int SquadProbeSelfTest(void) {
 }
 #endif
 __declspec(dllexport) int SquadDirectIPSelfTest(void) { return direct_ip_native_selftest(); }
+__declspec(dllexport) int SquadStateReaderSelfTest(void) { return native_state_reader_selftest(); }
+__declspec(dllexport) int SquadCatchupGroundSelfTest(void) { return catchup_ground_selftest(); }
+__declspec(dllexport) int SquadGuestTeamQASelfTest(void) { return guest_team_qa_selftest(); }
+__declspec(dllexport) int SquadCombatRouteSelfTest(void) { return combat_route_qa_selftest()&&combat_aim_selftest(); }
+__declspec(dllexport) int SquadInitialObjectTraceSelfTest(void) { return initial_object_selftest(); }
+__declspec(dllexport) int SquadCombatActionSelfTest(void) { return combat_action_qa_selftest(); }
+__declspec(dllexport) int SquadAmmoTraceSelfTest(void) { return ammo_trace_selftest(); }
+__declspec(dllexport) int SquadFunctionLookupSelfTest(void) { return function_lookup_selftest(); }
+__declspec(dllexport) int SquadNetworkActorSelfTest(void) { return network_actor_identity_selftest(); }
+__declspec(dllexport) int SquadRpcReceiveContextSelfTest(void) { return native_rpc_receive_context_selftest(); }
+__declspec(dllexport) int SquadNativeScriptSlotSelfTest(void) { return native_script_slot_selftest(); }
+__declspec(dllexport) int SquadGuestActivationSelfTest(void) { return guest_activation_selftest(); }
+__declspec(dllexport) int SquadGuestActivationNamedSelfTest(void) { return activation_named_selftest(); }
+__declspec(dllexport) int SquadAmmoWireSelfTest(void) { return ammo_wire_selftest(); }
+__declspec(dllexport) int SquadAmmoReconcileSelfTest(void) { return ammo_rpc_selftest(); }
+__declspec(dllexport) int SquadFireRpcTraceSelfTest(void) { return fire_rpc_selftest(); }
+__declspec(dllexport) int SquadNativeFireTraceSelfTest(void) { return native_fire_selftest(); }
+__declspec(dllexport) int SquadGuestHitTraceSelfTest(void) { return guest_hit_selftest(); }
+__declspec(dllexport) int SquadCombatFireRolesSelfTest(void) { return combat_fire_roles_selftest(); }
+__declspec(dllexport) int SquadGuestContextScopeSelfTest(void) { return guest_player_context_scope_selftest(); }
 __declspec(dllexport) int SquadGuestCameraSelfTest(void) { return guest_camera_adapter_selftest(); }
+__declspec(dllexport) int SquadGuestCollisionSelfTest(void) { return guest_collision_selftest(); }
 __declspec(dllexport) int SquadGuestCinematicSelfTest(void) { return guest_cinematic_registration_selftest(); }
+__declspec(dllexport) int SquadSessionGateSelfTest(void) { return session_gate_selftest(); }
+__declspec(dllexport) int SquadSessionAdmissionDiagnosticsSelfTest(void) { return session_admission_diagnostics_selftest(); }
+__declspec(dllexport) int SquadExceptionContextSelfTest(void) { return probe_exception_context_selftest(); }
+__declspec(dllexport) int SquadCollisionBaselineQASelfTest(void) { return collision_baseline_qa_selftest(); }
 __declspec(dllexport) int SquadSessionHandleSelfTest(void) {
     unsigned char fake[0x60] = {0}; int32_t index = 27; uint64_t name = 0x1234567800000021ULL;
     memcpy(fake + 8, &index, 4); memcpy(fake + 0x48, &name, 8);
@@ -812,6 +868,7 @@ __declspec(dllexport) int SquadProbeMutexTest(void) {
            scoped_mutex_name(other, 1, alias, 96) == other && scoped_mutex_name(NULL, 1, alias, 96) == NULL;
 }
 __declspec(dllexport) int SquadProbeEnabled(const wchar_t *folder) { return has_marker(folder); }
+__declspec(dllexport) int SquadArenaPairQASelfTest(void) { return arena_pair_selftest(); }
 __declspec(dllexport) int SquadProbePathTest(void) {
     wchar_t saved[MAX_PATH]; wcscpy(saved, root); wcscpy(root, L"X:\\SANDBOX");
     int ok = path_inside_test(L"X:\\SANDBOX\\private.txt") &&
@@ -854,6 +911,7 @@ __declspec(dllexport) int SquadProbeFolderTest(void) {
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved) {
     (void)reserved;
     if (reason != DLL_PROCESS_ATTACH) return TRUE;
+    probe_module_base=(uintptr_t)instance;
     DisableThreadLibraryCalls(instance);
     if (!GetModuleFileNameW(NULL, root, MAX_PATH)) return TRUE;
     wchar_t *slash = wcsrchr(root, L'\\');
@@ -872,35 +930,14 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved) {
     }
     _snwprintf(documents, MAX_PATH, L"%ls\\ME3SquadCoopRuntime\\Documents%ls%ls", root,
         strcmp(test_role, "single") ? L"-" : L"", strcmp(test_role, "single") ? role : L"");
-    if (GetFileAttributesW(documents) == INVALID_FILE_ATTRIBUTES ||
-        !redirect_documents((uintptr_t)GetModuleHandleW(NULL)) ||
-        !guard_file_imports((uintptr_t)GetModuleHandleW(NULL))) { TerminateProcess(GetCurrentProcess(), 5); return TRUE; }
-    wchar_t plan[MAX_PATH];
-    _snwprintf(plan, MAX_PATH, L"%ls\\ME3SquadCoopRuntime\\test-action.txt", root);
-    HANDLE action = CreateFileW(plan, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (action != INVALID_HANDLE_VALUE) {
-        char value[64] = {0}; DWORD count = 0;
-        if (ReadFile(action, value, sizeof value - 1, &count, NULL)) {
-            if (strcmp(value, "travel-mars") == 0) test_action = 1;
-            else if (strcmp(value, "possess-ashley") == 0) test_action = 2;
-            else if (strcmp(value, "move-ashley") == 0) test_action = 3;
-            else if (strcmp(value, "host-mars") == 0) test_action = 4;
-            else if (strcmp(value, "host-pair") == 0) test_action = 6;
-        }
-        CloseHandle(action);
+    if(!probe_apply_private_guards((uintptr_t)GetModuleHandleW(NULL))) {
+        TerminateProcess(GetCurrentProcess(),5);return TRUE;
     }
-    if (strcmp(test_role, "client") == 0) test_action = 5;
-    wchar_t prewarm[8] = {0};
-    client_prewarm = test_action == 5 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PREWARM_MARS", prewarm, 8) == 1 && prewarm[0] == L'1';
-    prewarm[0] = 0;
-    refresh_host_map = test_action == 6 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_REFRESH_HOST_MAP", prewarm, 8) == 1 && prewarm[0] == L'1';
-    prewarm[0] = 0;
-    host_reload_mars = test_action == 6 && GetEnvironmentVariableW(L"ME3_SQUAD_COOP_RELOAD_HOST_MARS", prewarm, 8) == 1 && prewarm[0] == L'1';
-    prewarm[0] = 0;
-    pair_control_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PAIR_CONTROL", prewarm, 8) == 1 && prewarm[0] == L'1';
-    prewarm[0] = 0;
-    session_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_SESSION_TEST", prewarm, 8) == 1 && prewarm[0] == L'1';
-    progress_enabled = GetEnvironmentVariableW(L"ME3_SQUAD_COOP_PROGRESS_TEST", prewarm, 8) == 1 && prewarm[0] == L'1';
+    if(!probe_configure_orchestration(probe_guards_only_environment())) {
+        TerminateProcess(GetCurrentProcess(),87);return TRUE;
+    }
+    wchar_t dlc_io_value[2]={0};
+    probe_dlc_io_trace=probe_guards_only&&GetEnvironmentVariableW(L"ME3_SQUAD_COOP_DLC_IO_TRACE",dlc_io_value,2)==1&&dlc_io_value[0]==L'1';
     HANDLE thread = CreateThread(NULL, 0, observe, NULL, 0, NULL);
     if (thread) CloseHandle(thread);
     return TRUE;
