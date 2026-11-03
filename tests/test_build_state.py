@@ -13,7 +13,8 @@ class BuildState(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         for name in ("build.py", "src/probe.c", "src/layout.h", "local/build/ME3SquadCoopProbe.asi",
-                     "local/build/ME3SquadCoop.asi", "local/build/sandbox_launch.exe"):
+                     "local/build/ME3SquadCoop.asi", "local/build/sandbox_launch.exe",
+                     "local/build/ME3PanelAtomic.dll", "local/build/MinHook-LICENSE.txt"):
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b"fixture")
