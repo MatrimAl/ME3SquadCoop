@@ -4,12 +4,16 @@ import os
 from pathlib import Path
 import sys
 import threading
+import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+HELPER = ROOT / 'local/build/ME3PanelAtomic.dll'
+if sys.platform != 'win32' or not HELPER.is_file():
+    raise unittest.SkipTest('panel atomic checks require Windows and the built native helper')
 sys.path.insert(0, str(ROOT / 'tools'))
 from session_panel import Session
 
-dll = C.WinDLL(str(ROOT / 'local/build/ME3PanelAtomic.dll'))
+dll = C.WinDLL(str(HELPER))
 dll.PanelCompareExchange.argtypes = [C.POINTER(C.c_int32), C.c_int32, C.c_int32]
 dll.PanelCompareExchange.restype = C.c_int32
 dll.PanelExchange.argtypes = [C.POINTER(C.c_int32), C.c_int32]
