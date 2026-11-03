@@ -1,6 +1,7 @@
 """DLL harness only: no game starts and no engine memory is written."""
 import ctypes
 import json
+import os
 import subprocess
 import tempfile
 import uuid
@@ -12,12 +13,60 @@ BUILD = ROOT / "local" / "build"
 probe = ctypes.CDLL(str(BUILD / "ME3SquadCoopProbe.asi"))
 probe.SquadProbeSelfTest.restype = ctypes.c_int
 assert probe.SquadProbeSelfTest() == 1, "safe memory-read positive/negative controls failed"
+probe.SquadArenaPairQASelfTest.restype = ctypes.c_int
+assert probe.SquadArenaPairQASelfTest() == 1, "arena QA admitted nonmanual, synthetic/prewarm, wrong-role or unprotected policy"
+probe.SquadRuntimeIdentitySelfTest.restype = ctypes.c_int
+assert probe.SquadRuntimeIdentitySelfTest() == 1, "shared image landmarks accepted an invalid timestamp, signature or address"
+probe.SquadRuntimeConfigSelfTest.restype = ctypes.c_int
+assert probe.SquadRuntimeConfigSelfTest() == 1, "explicit runtime configuration accepted QA defaults or invalid role/endpoints"
+probe.SquadStateReaderSelfTest.restype = ctypes.c_int
+assert probe.SquadStateReaderSelfTest() == 1, "state reader accepted missing, invalid or special native state nodes"
+probe.SquadCatchupGroundSelfTest.restype = ctypes.c_int
+assert probe.SquadCatchupGroundSelfTest() == 1, "catch-up ground checks accepted invalid surfaces or rejected world-floor readiness"
+probe.SquadGuestTeamQASelfTest.restype = ctypes.c_int
+assert probe.SquadGuestTeamQASelfTest() == 1, "stock team QA admitted changed ownership or altered dispatch parameters/return"
+probe.SquadCombatRouteSelfTest.restype = ctypes.c_int
+assert probe.SquadCombatRouteSelfTest() == 1, "combat route accepted unsafe context, invalid steering or off-corridor movement"
+probe.SquadInitialObjectTraceSelfTest.restype = ctypes.c_int
+assert probe.SquadInitialObjectTraceSelfTest() == 1, "initial-object observation changed original forwarding, output, return or LastError"
+probe.SquadCombatActionSelfTest.restype = ctypes.c_int
+assert probe.SquadCombatActionSelfTest() == 1, "normal action pulse lost forwarding, bounded release or captured input identity"
+probe.SquadAmmoTraceSelfTest.restype = ctypes.c_int
+assert probe.SquadAmmoTraceSelfTest() == 1, "ammo trace merged weapon contexts or exceeded its process-wide sample budget"
+probe.SquadFunctionLookupSelfTest.restype = ctypes.c_int
+assert probe.SquadFunctionLookupSelfTest() == 1, "function cache accepted a changed/reused function, owner, class or object-table entry"
+probe.SquadNetworkActorSelfTest.restype = ctypes.c_int
+assert probe.SquadNetworkActorSelfTest() == 1, "channel lookup accepted a stale world, duplicate peer/channel or broken reciprocal identity"
+probe.SquadAmmoWireSelfTest.restype = ctypes.c_int
+assert probe.SquadAmmoWireSelfTest() == 1, "ammo wire observer changed forwarding, nested receive scope or its record budget"
+probe.SquadAmmoReconcileSelfTest.restype = ctypes.c_int
+assert probe.SquadAmmoReconcileSelfTest() == 1, "ammo reconciliation accepted a malformed/stale reply or changed unrelated script forwarding"
+probe.SquadFireRpcTraceSelfTest.restype = ctypes.c_int
+assert probe.SquadFireRpcTraceSelfTest() == 1, "weapon script observer changed forwarding, receive classification or its record limit"
+probe.SquadNativeFireTraceSelfTest.restype = ctypes.c_int
+assert probe.SquadNativeFireTraceSelfTest() == 1, "native fire observer changed forwarding, accepted another identity/native body or exceeded its record limit"
+probe.SquadGuestHitTraceSelfTest.restype = ctypes.c_int
+assert probe.SquadGuestHitTraceSelfTest() == 1, "hit observer changed forwarding/nesting, admitted stale targets/callbacks, or exceeded its paired record budget"
 probe.SquadDirectIPSelfTest.restype = ctypes.c_int
 assert probe.SquadDirectIPSelfTest() == 1, "native endpoint validation failed"
+probe.SquadCombatFireRolesSelfTest.restype = ctypes.c_int
+assert probe.SquadCombatFireRolesSelfTest() == 1, "fire QA confused RemoteRole with native autonomous ownership or ignored the no-fire permission"
+probe.SquadGuestContextScopeSelfTest.restype = ctypes.c_int
+assert probe.SquadGuestContextScopeSelfTest() == 1, "guest context did not resume after scene/disable without a pawn ownership change"
 probe.SquadGuestCameraSelfTest.restype = ctypes.c_int
 assert probe.SquadGuestCameraSelfTest() == 1, "guest camera identity and restoration guards failed"
+probe.SquadGuestCollisionSelfTest.restype = ctypes.c_int
+assert probe.SquadGuestCollisionSelfTest() == 1, "guest collision baseline/release and masked compare-exchange guards failed"
 probe.SquadGuestCinematicSelfTest.restype = ctypes.c_int
 assert probe.SquadGuestCinematicSelfTest() == 1, "cinematic reciprocal membership transaction/rollback guards failed"
+probe.SquadSessionAdmissionDiagnosticsSelfTest.restype = ctypes.c_int
+assert probe.SquadSessionAdmissionDiagnosticsSelfTest() == 1, "session admission diagnostic exceeded its clock/cap or misclassified a rejection"
+probe.SquadExceptionContextSelfTest.restype = ctypes.c_int
+assert probe.SquadExceptionContextSelfTest() == 1, "exception observation falsely attributed an unknown/private allocation or missing parameters"
+probe.SquadCollisionBaselineQASelfTest.restype = ctypes.c_int
+assert probe.SquadCollisionBaselineQASelfTest() == 1, "focused baseline QA changed default acquisition or failed its one-lease/route-stop boundary"
+probe.SquadSessionGateSelfTest.restype = ctypes.c_int
+assert probe.SquadSessionGateSelfTest() == 1, "session gate accepted PlayersOnly, unreadable, cinematic or conversation control"
 probe.SquadSessionHandleSelfTest.restype = ctypes.c_int
 assert probe.SquadSessionHandleSelfTest() == 1, "stale/reused object identity guard failed"
 probe.SquadProbeMutexTest.restype = ctypes.c_int
@@ -26,10 +75,15 @@ probe.SquadProbeFolderTest.restype = ctypes.c_int
 assert probe.SquadProbeFolderTest() == 1, "Documents redirect changed another folder"
 probe.SquadProbePathTest.restype = ctypes.c_int
 assert probe.SquadProbePathTest() == 1, "file-write guard accepted an outside path"
+probe.SquadProbeDlcResolveSelfTest.restype=ctypes.c_int
+assert probe.SquadProbeDlcResolveSelfTest()==1, "DLC resolver observer changed forwarding, output, LastError or selector budget"
 probe.SquadProbeEnabled.argtypes = [ctypes.c_wchar_p]
 probe.SquadProbeEnabled.restype = ctypes.c_int
 with tempfile.TemporaryDirectory(dir=ROOT / "local") as tmp:
     folder = Path(tmp)
+    probe.SquadProbeDlcIoSelfTest.argtypes=[ctypes.c_wchar_p]
+    probe.SquadProbeDlcIoSelfTest.restype=ctypes.c_int
+    assert probe.SquadProbeDlcIoSelfTest(str(folder)) == 1, "DLC IO observer changed forwarding, LastError, opt-in scope or record budget"
     assert probe.SquadProbeEnabled(str(folder)) == 0
     (folder / ".me3-coop-sandbox.json").write_text("{}")
     assert probe.SquadProbeEnabled(str(folder)) == 0
@@ -37,6 +91,36 @@ with tempfile.TemporaryDirectory(dir=ROOT / "local") as tmp:
     assert probe.SquadProbeEnabled(str(folder)) == 1
     (folder / "ME3SquadCoop.probe.enabled").unlink()
     assert probe.SquadProbeEnabled(str(folder)) == 0
+probe.SquadProbeGuardsOnlySelfTest.argtypes=[ctypes.c_wchar_p]
+probe.SquadProbeGuardsOnlySelfTest.restype=ctypes.c_int
+# The default-orchestration fixture deliberately has no session environment.
+# Keep the live arena opt-in out of that fixture, then restore it for launch.
+arena_environment = {name: os.environ.pop(name) for name in (
+    "ME3_SQUAD_COOP_ARENA_PAIR_QA", "ME3_SQUAD_COOP_ARENA_PARALLEL_QA",
+    "ME3_SQUAD_COOP_ARENA_JOIN_GATE") if name in os.environ}
+try:
+    with tempfile.TemporaryDirectory(dir=ROOT / "local") as tmp:
+        folder=Path(tmp)
+        (folder / ".me3-coop-sandbox.json").write_text("{}")
+        (folder / "ME3SquadCoop.probe.enabled").write_text("stage-0")
+        runtime=folder / "ME3SquadCoopRuntime"
+        (runtime / "Documents-client").mkdir(parents=True)
+        (runtime / "test-action.txt").write_text("host-pair")
+        assert probe.SquadProbeGuardsOnlySelfTest(str(folder))==1, "guards-only skipped isolation or admitted orchestration/engine bridge"
+        (folder / "ME3SquadCoop.probe.enabled").unlink()
+        assert probe.SquadProbeGuardsOnlySelfTest(str(folder))==0, "guards-only accepted a missing private marker"
+finally:
+    os.environ.update(arena_environment)
+
+clean_environment={k:v for k,v in os.environ.items() if k!="ME3_SQUAD_COOP_GUARDS_ONLY_QA"}
+code=("import ctypes,sys; p=ctypes.CDLL(sys.argv[1]); "
+      "f=p.SquadProbeGuardsEnvironmentFixture; f.restype=ctypes.c_int; "
+      "assert f()==int(sys.argv[2])")
+for value,expected in ((None,0),("0",0),("1",1),("",-1),("true",-1),("11",-1)):
+    environment=dict(clean_environment)
+    if value is not None:environment["ME3_SQUAD_COOP_GUARDS_ONLY_QA"]=value
+    subprocess.run(["python","-c",code,str(BUILD / "ME3SquadCoopProbe.asi"),str(expected)],
+                   env=environment,check=True,timeout=15)
 print("PASS native probe memory reader and opt-in gate (no game launched)")
 
 # Controlled Windows integrity test. Only the new fixture's ACL is changed.

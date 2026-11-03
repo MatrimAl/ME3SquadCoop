@@ -25,7 +25,20 @@ def fixture():
 
 class FireStopTests(unittest.TestCase):
     def test_stable_real_counts_after_release(self):
-        self.assertTrue(fire_stop_evidence(*fixture())['fire_stop_verified'])
+        result = fire_stop_evidence(*fixture())
+        self.assertTrue(result['fire_stop_verified'])
+        self.assertTrue(result['pulses'][0]['post_release_ammo_agreement'])
+
+    def test_equal_magazine_counts_with_different_reserves_are_not_agreement(self):
+        host, guest = fixture()
+        for row in guest:
+            if 'current_spare_ammo' in row:
+                row['current_spare_ammo'] = 90
+        result = fire_stop_evidence(host, guest)
+        self.assertTrue(result['fire_stop_verified'])
+        pulse = result['pulses'][0]
+        self.assertFalse(pulse['post_release_ammo_agreement'])
+        self.assertEqual(pulse['sides']['guest-local']['post_release_spare_counts'], [90] * 4)
 
     def test_bfire_reset_with_continued_authoritative_consumption_fails(self):
         host, guest = fixture()
@@ -61,6 +74,22 @@ class FireStopTests(unittest.TestCase):
         result = fire_stop_evidence(host, guest)
         self.assertTrue(result['fire_stop_verified'])
         self.assertFalse(result['pulses'][0]['post_release_ammo_agreement'])
+
+    def test_no_shots_cannot_prove_stopping(self):
+        host,guest=fixture()
+        for row in host+guest:
+            if 'ammo_used_count' in row:row['ammo_used_count']=0
+        result=fire_stop_evidence(host,guest)
+        self.assertFalse(result['fire_stop_verified'])
+        self.assertTrue(result['pulses'][0]['post_release_counts_stable'])
+
+    def test_client_prediction_without_authoritative_shot_cannot_pass(self):
+        host,guest=fixture()
+        for row in host:
+            if 'ammo_used_count' in row:row['ammo_used_count']=0
+        result=fire_stop_evidence(host,guest)
+        self.assertFalse(result['fire_stop_verified'])
+        self.assertFalse(result['pulses'][0]['authoritative_and_guest_firing_observed'])
 
 
 if __name__ == '__main__':

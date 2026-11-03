@@ -1,10 +1,11 @@
 #ifndef ME3_GUEST_PLAYER_CONTEXT_ADAPTER_H
 #define ME3_GUEST_PLAYER_CONTEXT_ADAPTER_H
 #include <stddef.h>
+#include <limits.h>
 
-/* Opt-in experiment; game thread, pre/post Tick, including disabled contexts.
- * Include after guest_camera_adapter.h and combat_context_probe.h. enabled
- * must be the caller's PROGRESS_TEST plus private marker opt-in.
+/* Shared guest input context; game thread, pre/post Tick, including disabled
+ * contexts for cleanup. Include after camera and combat context support.
+ * Callers supply their ordinary runtime or protected-probe enable/story scope.
  *
  * Provenance: live-script-10292-player-bootstrap.json and private
  * player-bootstrap-design-research.md. Real BioPlayerSquad CDO has authored
@@ -14,6 +15,10 @@
  * the CLIENT's own actual WI, only from null, after normal actor creation.
  * No AddMember, Pawn.Squad, host, plot, permission, role or coordinate writes.
  * A successful getter is input-context evidence, never firing/damage proof.
+ * An existing native squad can instead be used in place: initialize empty
+ * local caches through the verified script, or observe already correct native
+ * caches without writes. Neither case owns actor lifetime or registration.
+ * See guest_existing_context.h.
  */
 
 #pragma pack(push,4)
@@ -56,6 +61,67 @@ static int guest_player_context_owned_last;
 static uintptr_t guest_player_context_last_pc,guest_player_context_last_pawn,guest_player_context_last_info;
 static DWORD guest_player_context_last_rejection;
 static const char *guest_player_context_reason="not-evaluated";
+static int guest_existing_context_cleanup(uintptr_t base,const char *reason,DWORD now);
+/* Wait for a continuously observed empty world squad before synthesizing one.
+ * Native replication can fill the slot shortly after local possession. */
+typedef struct GuestEmptySquadWindow {unsigned long token;uintptr_t channel,connection,driver;int index;DWORD first,last;unsigned samples;} GuestEmptySquadWindow;
+static GuestEmptySquadWindow guest_empty_squad_window;
+static int guest_empty_squad_ready(GuestEmptySquadWindow *w,unsigned long token,int empty,const NetworkActorIdentityEntry *c,DWORD now) {
+    if(!empty||!token||!c||!c->channel||!c->connection||!c->driver||c->index<=0){memset(w,0,sizeof *w);return 0;}
+    if(w->token!=token||w->channel!=c->channel||w->connection!=c->connection||w->driver!=c->driver||
+       w->index!=c->index||!w->samples||now-w->last>1000){
+        w->token=token;w->channel=c->channel;w->connection=c->connection;w->driver=c->driver;w->index=c->index;w->first=now;w->samples=1;}
+    else if(now!=w->last&&w->samples<UINT_MAX)++w->samples;
+    w->last=now;
+    return w->samples>=4&&now-w->first>=1500;
+}
+
+/* Observe the caller's ordinary control scope separately from native pawn
+ * ownership. A scene can suspend the local context without an UnPossess RPC. */
+static void guest_player_context_observe_scope(uintptr_t pc,uintptr_t pawn,uintptr_t info,
+        int owned,int ordinary_mode,int enabled) {
+    int scoped_owned=owned&&ordinary_mode&&enabled;
+    int edge=scoped_owned&&(!guest_player_context_owned_last||pc!=guest_player_context_last_pc||
+        pawn!=guest_player_context_last_pawn||info!=guest_player_context_last_info);
+    if(edge)++guest_player_context_token;
+    guest_player_context_owned_last=scoped_owned;
+    guest_player_context_last_pc=pc;guest_player_context_last_pawn=pawn;guest_player_context_last_info=info;
+}
+static int guest_player_context_scope_selftest(void) {
+    GuestEmptySquadWindow w={0};NetworkActorIdentityEntry channel={0};
+    channel.channel=11;channel.connection=12;channel.driver=13;channel.index=4;
+    if(guest_empty_squad_ready(&w,1,1,&channel,100)||guest_empty_squad_ready(&w,1,1,&channel,600)||
+       guest_empty_squad_ready(&w,1,1,&channel,1100)||!guest_empty_squad_ready(&w,1,1,&channel,1600)||
+       guest_empty_squad_ready(&w,1,0,&channel,1700)||guest_empty_squad_ready(&w,1,1,&channel,1800)||
+       guest_empty_squad_ready(&w,2,1,&channel,2300)||guest_empty_squad_ready(&w,2,1,&channel,3401))return 0;
+    channel.connection=14;
+    if(guest_empty_squad_ready(&w,2,1,&channel,3901)||w.samples!=1||w.first!=3901)return 0;
+    unsigned long token=guest_player_context_token;int owned=guest_player_context_owned_last,ok=1;
+    uintptr_t pc=guest_player_context_last_pc,pawn=guest_player_context_last_pawn,info=guest_player_context_last_info;
+    guest_player_context_token=0;guest_player_context_owned_last=0;
+    guest_player_context_last_pc=guest_player_context_last_pawn=guest_player_context_last_info=0;
+    guest_player_context_observe_scope(16,32,48,1,1,1);
+    ok=ok&&guest_player_context_token==1;
+    for(int i=0;i<10;++i)guest_player_context_observe_scope(16,32,48,1,1,1);
+    ok=ok&&guest_player_context_token==1;
+    /* Pause/scene while the same local PC still owns the same acknowledged pawn. */
+    for(int i=0;i<10;++i)guest_player_context_observe_scope(16,32,48,1,0,1);
+    ok=ok&&guest_player_context_token==1;
+    guest_player_context_observe_scope(16,32,48,1,1,1);
+    ok=ok&&guest_player_context_token==2;
+    for(int i=0;i<10;++i)guest_player_context_observe_scope(16,32,48,1,1,0);
+    ok=ok&&guest_player_context_token==2;
+    guest_player_context_observe_scope(16,32,48,1,1,1);
+    ok=ok&&guest_player_context_token==3;
+    guest_player_context_observe_scope(16,32,48,0,1,1);
+    guest_player_context_observe_scope(16,32,48,1,1,1);
+    ok=ok&&guest_player_context_token==4;
+    guest_player_context_observe_scope(16,64,48,1,1,1);
+    ok=ok&&guest_player_context_token==5;
+    guest_player_context_token=token;guest_player_context_owned_last=owned;
+    guest_player_context_last_pc=pc;guest_player_context_last_pawn=pawn;guest_player_context_last_info=info;
+    return ok;
+}
 
 static int guest_player_context_reject(const char *reason) {
     guest_player_context_reason=reason;return 0;
@@ -193,16 +259,40 @@ static int guest_player_context_dispatch(uintptr_t base,uintptr_t actor,const Gu
     if(pe!=base+0x40d450)return 0;
     ((ProcessEvent)pe)((void*)actor,(void*)method->function.pointer,parms,NULL);return 1;
 }
+#ifdef ME3_RUNTIME_LOCAL_SQUAD_SET
+#include "runtime_local_squad_set.h"
+#endif
+/* Optional diagnostic of the exact non-RPC SetPlayerPawn callspace on the
+ * current game thread. Its pinned flags do not enter either RPC branch in
+ * this build. The separate preflight result is not the later dispatch's
+ * captured result, and never changes the dispatch or actor state. */
+static void guest_player_context_callspace_preflight(uintptr_t base,uintptr_t actor,void *parms,DWORD now) {
+    wchar_t opt[4]={0};uint32_t flags=0;unsigned char role=255;uintptr_t method=guest_player_context_methods.set_pawn.function.pointer;
+    if(GetEnvironmentVariableW(L"ME3_SQUAD_COOP_CONTEXT_CALLSPACE_TRACE",opt,4)!=1||opt[0]!=L'1'||
+       !guest_player_context_methods_valid(base,1)||!guest_camera_actor_live(base,actor)||
+       !read_at(actor+0x26a,&role,1)||role!=1||!read_at(method+0xe0,&flags,4)||flags!=0x20802||
+       read_ptr(read_ptr(actor)+0x248)!=base+0x70a250)return;
+    typedef int (*Callspace)(void*,void*,void*,void*);
+    int result=((Callspace)(base+0x70a250))((void*)actor,(void*)method,parms,NULL);
+    char row[280];snprintf(row,sizeof row,"{\"guest_existing_context\":\"callspace-preflight\",\"role\":%u,\"function_flags\":%u,\"result\":%d,\"separate_preflight\":true,\"original_dispatch_unchanged\":true,\"monotonic_ms\":%lu}\r\n",(unsigned)role,flags,result,now);line(row);
+}
 static int guest_player_context_channel(uintptr_t base,uintptr_t pawn,NetworkActorIdentityEntry *out) {
     memset(out,0,sizeof *out);
     if(!network_actor_layout_matches(base))return 0;
+    for(int attempt=0;attempt<2;++attempt){
     for(unsigned int i=0;i<4;++i) {
         NetworkActorIdentityEntry *cached=&network_actor_identity_cache[i],current={0};
         if(cached->base!=base||cached->pawn!=pawn||cached->index<=0)continue;
         if(!network_actor_channel_valid(base,pawn,cached->channel,cached->driver,&current)||current.index!=cached->index||current.connection!=cached->connection)continue;
         if(out->channel&&out->channel!=current.channel)return 0;*out=current;
     }
-    return out->channel&&out->index>0;
+    if(out->channel&&out->index>0)return 1;
+    /* Other observed pawns can evict this four-entry discovery hint. A
+     * cache miss is not a lost native channel: resolve once through the
+     * existing bounded, current-world/peer-unique channel lookup. */
+    if(attempt||network_actor_channel_id(base,pawn)<=0)return 0;
+    }
+    return 0;
 }
 static int guest_player_context_basic_owned(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t info) {
     unsigned char net=255;uintptr_t player=read_ptr(pc+0x67c);
@@ -223,7 +313,7 @@ static int guest_player_context_conditions(uintptr_t base,uintptr_t pc,uintptr_t
     if(acquiring&&(!read_at(pc+0x781,&ignore,1)||ignore))return guest_player_context_reject("controller-move-input");
     if(acquiring&&(!read_at(pawn+0xc20,&action,4)||action||!read_at(pawn+0xc28,&power,4)||power))return guest_player_context_reject("pawn-action-or-power");
     if(!read_at(pawn+0xe18,&pawn_flags,4)||!(pawn_flags&8)||(acquiring&&(pawn_flags&(0x200000|0x20000000)))||
-       !read_at(pawn+0xe20,&busy,4)||(busy&0x40000))return guest_player_context_reject("pawn-combat-or-busy-state");
+       !read_at(pawn+0xe20,&busy,4)||(busy&0x40000)||(acquiring&&(busy&0x300)))return guest_player_context_reject("pawn-combat-or-busy-state");
     uintptr_t manager=read_ptr(pc+0xc38);GameArray modes={0};
     if(!narrative_probe_object(base,manager,"SFXGameModeManager")||!read_at(manager+0xa8,&current_mode,1)||current_mode!=0||
        !read_at(manager+0xa4,&disable,4)||(acquiring&&(disable&1))||!read_at(manager+0x70,&modes,sizeof modes)||!modes.data||
@@ -377,6 +467,7 @@ static int guest_player_context_destroy_owned_native(uintptr_t base,uint32_t *re
     return 1;
 }
 static int guest_player_context_cleanup(uintptr_t base,const char *reason,DWORD now) {
+    if(!guest_existing_context_cleanup(base,reason,now))return 0;
     GuestPlayerContextLease *l=&guest_player_context_lease;
     if(!l->squad.pointer){l->registered=0;l->pending_cleanup=0;return 1;}
     l->pending_cleanup=1;l->suppressed=1;
@@ -466,15 +557,17 @@ static int guest_player_context_same(uintptr_t base,uintptr_t pc,uintptr_t pawn,
         guest_camera_stamp_matches(base,&l->connection,0)&&guest_camera_stamp_matches(base,&l->driver,0)&&
         guest_player_context_current_world(base,0);
 }
+#include "guest_existing_context.h"
 static void guest_player_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t info,
         int ordinary_mode,int enabled,DWORD now) {
     GuestPlayerContextLease *l=&guest_player_context_lease;
     int owned=guest_player_context_basic_owned(base,pc,pawn,info);
-    int edge=owned&&(!guest_player_context_owned_last||pc!=guest_player_context_last_pc||pawn!=guest_player_context_last_pawn||info!=guest_player_context_last_info);
-    if(edge)++guest_player_context_token;
-    guest_player_context_owned_last=owned;guest_player_context_last_pc=pc;guest_player_context_last_pawn=pawn;guest_player_context_last_info=info;
-    NetworkActorIdentityEntry channel={0};CombatContextChain chain;
-    int eligible=guest_player_context_conditions(base,pc,pawn,info,ordinary_mode,enabled,!l->registered,&channel,&chain);
+    guest_player_context_observe_scope(pc,pawn,info,owned,ordinary_mode,enabled);
+    NetworkActorIdentityEntry channel={0};CombatContextChain chain={0};
+    int eligible=guest_player_context_conditions(base,pc,pawn,info,ordinary_mode,enabled,!l->registered&&!guest_existing_context.registered,&channel,&chain);
+    int empty_stable=guest_empty_squad_ready(&guest_empty_squad_window,guest_player_context_token,
+        eligible&&!l->tracked&&!guest_existing_context.active&&!chain.squad,&channel,now);
+    guest_existing_context_adapt(base,pc,pawn,info,eligible,&channel,&chain,now);
     if(!eligible&&owned&&(!guest_player_context_last_rejection||now-guest_player_context_last_rejection>=5000)) {
         guest_player_context_last_rejection=now;guest_player_context_log("eligibility",guest_player_context_reason,now,0);
     }
@@ -498,6 +591,7 @@ static void guest_player_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t paw
     }
     if(!eligible)return;
     if(chain.squad){guest_player_context_reason="existing-world-context-preserved";return;}
+    if(!empty_stable){guest_player_context_reason="waiting-for-native-world-squad";return;}
     if(!guest_player_context_pins(base)||!guest_player_context_resolve(base,pc,now)) {
         if(!guest_player_context_last_rejection||now-guest_player_context_last_rejection>=5000) {
             guest_player_context_last_rejection=now;guest_player_context_log("eligibility","class-function-or-native-pin-not-ready",now,0);
@@ -506,7 +600,7 @@ static void guest_player_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t paw
     }
     if(!guest_player_context_capture(base,pc,pawn,info,&channel,&chain))return;
     l->getter_before=guest_player_context_gate(base,"before-apply",now);
-    /* One spawn attempt per observed ownership lease; all later failures
+    /* One spawn attempt per observed ownership/control-scope lease; failures
      * retain this tracked/suppressed record, never a perframe respawn loop. */
     l->suppressed=1;
     GuestPlayerSpawnParms parms={0};parms.klass=guest_player_context_methods.klass.pointer;parms.owner=pc;
@@ -535,7 +629,12 @@ static void guest_player_context_adapt(uintptr_t base,uintptr_t pc,uintptr_t paw
         guest_player_context_log("apply-rejected","spawn-lifecycle-or-channel-validation",now,0);guest_player_context_cleanup(base,"spawn-validation",now);return;
     }
     uintptr_t target=pawn;
-    if(!guest_camera_stamp_matches(base,&l->pawn,1)||!guest_player_context_dispatch(base,l->squad.pointer,&guest_player_context_methods.set_pawn,&target)) {
+    NetworkActorIdentityEntry apply_channel={0};CombatContextChain apply_chain={0};
+    /* Spawn ran native script: do not reuse its pre-call action/life or
+     * transport sample when initializing the returned squad's pawn cache. */
+    if(!guest_player_context_conditions(base,pc,pawn,info,ordinary_mode,enabled,1,&apply_channel,&apply_chain)||apply_chain.squad||
+       !guest_player_context_same(base,pc,pawn,info,&apply_channel)||
+       !guest_camera_stamp_matches(base,&l->pawn,1)||!guest_player_context_dispatch(base,l->squad.pointer,&guest_player_context_methods.set_pawn,&target)) {
         guest_player_context_log("apply-rejected","ordinary-set-player-pawn-rejected",now,0);guest_player_context_cleanup(base,"set-player-pawn-rejected",now);return;
     }
     /* The script has exactly two writes. Mark ownership of their target now,

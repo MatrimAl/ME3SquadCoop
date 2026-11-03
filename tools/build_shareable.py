@@ -6,10 +6,8 @@ is fabricated here. Source spec paths never enter the portable manifest.
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 import shutil
-import struct
 import subprocess
 import sys
 import tempfile
@@ -74,295 +72,189 @@ def find_seven_zip():
     return None
 
 
-def find_zig_compiler():
-    me3_coop_root = HERE.parents[1]
-    candidates = [
-        os.environ.get("ME3_SQUAD_COOP_ZIG"),
-        Path(os.environ["RUNNER_TEMP"]) / "zig-x86_64-windows-0.15.2" / "zig.exe"
-        if os.environ.get("RUNNER_TEMP") else None,
-        me3_coop_root.parent / "toolchain" / "zig-x86_64-windows-0.15.2" / "zig.exe",
-        HERE.parents[2] / "work" / "toolchain" / "zig-x86_64-windows-0.15.2" / "zig.exe",
-        shutil.which("zig"),
-    ]
-    for c in candidates:
-        if c and Path(c).is_file():
-            return str(Path(c).resolve())
-    return None
-
-
-def compile_release_native(output_path=None):
-    """Compile the DLC-gate scaffold separately from fingerprinted gameplay outputs."""
-    me3_coop_root = HERE.parents[1]
-    if output_path is None:
-        output_path = me3_coop_root / "local" / "packaging-build" / "ME3SquadCoop.asi"
-    else:
-        output_path = Path(output_path).resolve()
-
-    src_c = me3_coop_root / "src" / "squad_coop.c"
-    if not src_c.is_file():
-        raise FileNotFoundError(f"Source file squad_coop.c not found at {src_c}")
-
-    zig_exe = find_zig_compiler()
-    if not zig_exe:
-        raise FileNotFoundError("Zig compiler not found in toolchain or system PATH")
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    metadata_path = output_path.with_suffix(".asi.build.json")
-    metadata_path.unlink(missing_ok=True)
-    version = subprocess.run([str(zig_exe), "version"], capture_output=True, text=True, check=True)
-    if version.stdout.strip() != "0.15.2":
-        raise ValueError("packaging requires the verified Zig 0.15.2 toolchain")
-    temp_dir = me3_coop_root / "local" / "compiler-tmp"
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    env = dict(
-        os.environ,
-        ZIG_GLOBAL_CACHE_DIR=str(me3_coop_root / "local" / "zig-cache"),
-        ZIG_LOCAL_CACHE_DIR=str(me3_coop_root / "local" / "zig-local-cache"),
-        TMP=str(temp_dir), TEMP=str(temp_dir),
-    )
-    cmd = [
-        str(zig_exe), "cc", "-target", "x86_64-windows-gnu", "-std=c17", "-O2", "-Wall",
-        str(src_c), "-shared", "-o", str(output_path)
-    ]
-    proc = subprocess.run(cmd, cwd=str(me3_coop_root), env=env, capture_output=True, text=True, encoding="utf-8")
-    if proc.returncode != 0:
-        raise RuntimeError(f"Failed to compile squad_coop.c:\n{proc.stdout}\n{proc.stderr}")
-    package.validate_native(output_path)
-    info = {"schema": 1, "sources": _packaging_sources(), "compiler_sha256": package.digest(zig_exe),
-            "artifact_sha256": package.digest(output_path), "artifact_size": output_path.stat().st_size}
-    metadata_path.write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
-    return output_path
-
-
-def _packaging_sources():
-    root = HERE.parents[1]
-    return {relative: package.digest(root / relative)
-            for relative in ("src/squad_coop.c", "tools/build_shareable.py")}
-
-
-def _verify_packaging_build(artifact):
-    info = json.loads(artifact.with_suffix(".asi.build.json").read_text(encoding="utf-8"))
-    if (info.get("schema") != 1 or info.get("sources") != _packaging_sources()
-            or info.get("artifact_sha256") != package.digest(artifact)
-            or info.get("artifact_size") != artifact.stat().st_size
-            or not isinstance(info.get("compiler_sha256"), str)
-            or not package.HASH.fullmatch(info["compiler_sha256"])):
-        raise ValueError("native packaging build is stale or unverified")
-    return info
-
-
 def generate_mount_dlc(priority=5100):
-    raw = bytearray(108)
-    struct.pack_into("<I", raw, 0, 1)           # Version 1
-    struct.pack_into("<I", raw, 4, 684)         # Subversion
-    struct.pack_into("<I", raw, 8, 194)         # License flags
-    struct.pack_into("<I", raw, 12, 0x0003006b) # Module flags
-    struct.pack_into("<I", raw, 16, priority)   # Mount priority (default 5100)
-    struct.pack_into("<I", raw, 20, 0)
-    struct.pack_into("<I", raw, 24, 20)
-    raw[28:36] = b"\x42\xf5\x9e\x23\x42\xf5\x9e\x23"
-    struct.pack_into("<I", raw, 36, 0x1533)
-    struct.pack_into("<I", raw, 40, 11)
-    raw[44:76] = b"\x5a\x7b\xbd\x26\xdd\x41\x7e\x49\x9c\xc6\x60\xd2\x58\x72\x78\xeb\x2e\x2c\x6a\x06\x13\x0a\xe4\x47\x83\xea\x08\xf3\x87\xa0\xe2\xda"
-    return bytes(raw)
+    return package.make_activation_mount(priority)
 
 
-def generate_dlc_pcc():
-    header = bytearray(2048)
-    struct.pack_into("<I", header, 0, 0x9E2A83C1)   # UE3 Package Tag
-    struct.pack_into("<H", header, 4, 685)          # PackageFileVersion (ME3LE)
-    struct.pack_into("<H", header, 6, 205)          # LicenseeVersion
-    struct.pack_into("<I", header, 8, 2048)         # TotalHeaderSize
-    struct.pack_into("<I", header, 12, 0)           # FolderName string len
-    struct.pack_into("<I", header, 16, 0x00080001)  # PackageFlags
-    struct.pack_into("<I", header, 20, 1)           # NameCount
-    struct.pack_into("<I", header, 24, 64)          # NameOffset
-    name_str = b"ME3SquadCoop_Startup\x00"
-    struct.pack_into("<I", header, 64, len(name_str))
-    header[68:68 + len(name_str)] = name_str
-    return bytes(header)
-
-
-def generate_moddesc_ini(cmmver="7.0", game="ME3LE", version="0.1.0"):
+def generate_moddesc_ini(cmmver="7.0", game="LE3", version="0.1.0"):
+    if cmmver != "7.0" or game != "LE3" or not isinstance(version, str) or not package.VERSION.fullmatch(version):
+        raise ValueError("activation descriptor requires cmmver=7.0, game=LE3 and a valid version")
     return (
         f"[ModManager]\n"
         f"cmmver = {cmmver}\n\n"
         f"[ModInfo]\n"
         f"game = {game}\n"
         f"modname = Mass Effect 3 Squad Co-op\n"
-        f"moddev = Teamwork\n"
-        f"moddesc = Two-player co-op campaign mod for Mass Effect 3 Legendary Edition (Host Shepard, Guest Ashley/squadmate).\n"
+        f"moddev = ME3SquadCoop contributors\n"
+        f"moddesc = Unfinished native co-op research activation DLC. Gameplay, import and disable testing remain incomplete. The ASI companion is installed separately.\n"
         f"modver = {version}\n"
-        f"updateurl = \n\n"
+        f"modsite = https://github.com/MatrimAl/ME3SquadCoop\n\n"
         f"[CUSTOMDLC]\n"
         f"sourcedirs = DLC_MOD_ME3SquadCoop\n"
         f"destdirs = DLC_MOD_ME3SquadCoop\n"
     )
 
 
-def build_deployment_archive(archive_path, channel="fixture"):
-    if channel != "fixture":
-        raise ValueError("generated DLC is an unvalidated research scaffold, never a release")
-    archive_path = Path(archive_path).resolve()
-    archive_path.parent.mkdir(parents=True, exist_ok=True)
+def verified_activation_files(receipt_path, legendary_explorer, starter_config_template, *, powershell="pwsh"):
+    """Use the existing semantic verifier; retain no private paths in bundles."""
+    if not receipt_path or not legendary_explorer or not starter_config_template:
+        raise ValueError("current activation requires explicit receipt, LegendaryExplorer and starter template")
+    receipt_path = Path(receipt_path).resolve(strict=True)
+    package.checked_root(receipt_path.parent)
+    receipt_hash = package.digest(receipt_path)
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8-sig"))
+    if receipt.get("Variant") != "mount-toc-starter-config-english-tlk":
+        raise ValueError("the current authored starter-config activation is required")
+    verifier = HERE.parent / "verify_activation_dlc.ps1"
+    command = [str(powershell), "-NoProfile", "-File", str(verifier), "-Receipt", str(receipt_path),
+               "-LegendaryExplorerPath", str(Path(legendary_explorer).resolve(strict=True)),
+               "-StarterConfigTemplate", str(Path(starter_config_template).resolve(strict=True))]
+    process = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="strict", timeout=120)
+    if process.returncode:
+        raise ValueError("activation semantic verification failed; no archive created")
+    try:
+        result = json.loads(process.stdout.lstrip("\ufeff"))
+    except ValueError as error:
+        raise ValueError("activation verifier did not return a complete receipt") from error
+    required = ("MountContractVerified", "TOCVerified", "TOCHashBucketsVerified", "ConfigVerified",
+                "EnglishMetadataVerified", "StarterConfigVerified")
+    if (result.get("Status") != "offline-verified-not-installed" or result.get("Files") != 4 or
+            result.get("Variant") != receipt["Variant"] or any(result.get(key) is not True for key in required) or
+            result.get("ReceiptSHA256", "").lower() != receipt_hash or package.digest(receipt_path) != receipt_hash):
+        raise ValueError("activation semantic verification receipt mismatch")
+    root = package.safe_path(receipt_path.parent, "DLC_MOD_ME3SquadCoop")
+    files = []
+    for relative in package.ACTIVATION_FILES:
+        matches = [row for row in receipt["Files"] if row["RelativePath"].replace("\\", "/") == relative]
+        source = package.safe_path(root, relative)
+        if (len(matches) != 1 or source.stat().st_nlink != 1 or source.stat().st_size != matches[0]["Bytes"] or
+                package.digest(source) != matches[0]["SHA256"].lower()):
+            raise ValueError("activation payload changed after semantic verification")
+        raw = source.read_bytes()
+        if len(raw) != matches[0]["Bytes"] or hashlib.sha256(raw).hexdigest() != matches[0]["SHA256"].lower():
+            raise ValueError("activation bytes changed while staging")
+        files.append((relative, raw))
+    package.verify_activation_toc(root)
+    return files
 
+
+def build_deployment_archive(archive_path, channel="candidate", *, activation_receipt=None,
+        legendary_explorer=None, starter_config_template=None, powershell="pwsh"):
+    """Bundle a separate Mod Manager DLC archive and an unfinished native payload.
+
+    The inner DLC archive contains no ASI, executable, PCC or copied assets.
+    Neither this builder nor our format readback is a Mod Manager/engine test.
+    """
+    if channel != "candidate":
+        raise ValueError("automatic archive generation is candidate-only; real release QA is required")
+    archive_path = Path(archive_path).absolute()
+    package.checked_root(archive_path.parent)
+    if archive_path.suffix.lower() != ".7z":
+        raise ValueError("deployment archive must have a .7z extension")
+    if archive_path.exists() or archive_path.is_symlink():
+        raise FileExistsError("archive destination already exists")
+    activation = verified_activation_files(activation_receipt, legendary_explorer, starter_config_template, powershell=powershell)
     me3_coop_root = HERE.parents[1]
-    asi_built = compile_release_native()
-    if not asi_built.is_file():
-        raise FileNotFoundError(f"ME3SquadCoop.asi not found at {asi_built}")
+    # Never silently compile a different entry or package a stale native DLL.
+    from build_state import verify_current
+    verify_current(me3_coop_root)
+    asi_built = package.safe_path(me3_coop_root, "local/build/ME3SquadCoop.asi")
+    if asi_built.stat().st_nlink != 1:
+        raise ValueError("shared hardlinked native binaries cannot be packaged")
     package.validate_native(asi_built)
-    build_info = _verify_packaging_build(asi_built)
-
     seven_zip = find_seven_zip()
     if not seven_zip:
         raise RuntimeError("7-Zip (7z.exe) not found on system PATH or Program Files")
 
-    scratch = me3_coop_root / "local" / "staging-7z"
+    def archive(source, destination):
+        command = [seven_zip, "a", "-t7z", "-mx9", str(destination), "."]
+        result = subprocess.run(command, cwd=source, capture_output=True, text=True,
+                                encoding="utf-8", errors="replace", timeout=120)
+        if result.returncode:
+            raise RuntimeError(f"7-Zip creation failed (exit {result.returncode})")
+        result = subprocess.run([seven_zip, "t", str(destination)], capture_output=True,
+                                text=True, encoding="utf-8", errors="replace", timeout=120)
+        if result.returncode:
+            raise RuntimeError(f"7-Zip integrity test failed (exit {result.returncode})")
+
+    scratch = me3_coop_root / "local/staging-7z"
     scratch.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=scratch) as stage_temp:
-        stage = Path(stage_temp)
+        stage_root = Path(stage_temp)
+        stage = stage_root / "bundle"
+        stage.mkdir()
+        manager = stage_root / "mod-manager"
+        dlc_dir = manager / "DLC_MOD_ME3SquadCoop"
+        for relative, raw in activation:
+            destination = dlc_dir / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(raw)
+        mount_bytes = dict(activation)["CookedPCConsole/Mount.dlc"]
+        mount_readback = package.read_activation_mount(mount_bytes, string_id=package.ACTIVATION_STRING_ID)
+        (manager / "moddesc.ini").write_text(generate_moddesc_ini(), encoding="utf-8")
+        manager_archive = "ME3SquadCoop-DLC.7z"
+        archive(manager, stage / manager_archive)
 
-        # The descriptor is an example, not an importable Mod Manager mod.
-        moddesc_content = generate_moddesc_ini(cmmver="7.0", game="ME3LE", version="0.1.0")
-        research_dir = stage / "research"
-        research_dir.mkdir()
-        (research_dir / "moddesc.example.ini").write_text(moddesc_content, encoding="utf-8")
-
-        # 2. DLC directory
-        dlc_dir = stage / "DLC_MOD_ME3SquadCoop" / "CookedPCConsole"
-        dlc_dir.mkdir(parents=True, exist_ok=True)
-        mount_bytes = generate_mount_dlc(priority=5100)
-        (dlc_dir / "Mount.dlc").write_bytes(mount_bytes)
-        pcc_bytes = generate_dlc_pcc()
-        (dlc_dir / "ME3SquadCoop_Startup.pcc").write_bytes(pcc_bytes)
-
-        # 3. native directory
-        native_dir = stage / "native"
-        native_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(asi_built, native_dir / "ME3SquadCoop.asi")
-        (native_dir / "BUILD-INFO.json").write_text(json.dumps(build_info, indent=2) + "\n", encoding="utf-8")
-        (native_dir / "README-NATIVE.md").write_text(
-            "# Native ASI Component\n\n"
-            "ME3SquadCoop.asi is the DLC-gate scaffold, not the campaign runtime.\n"
-            "It checks Mount.dlc presence; it installs no gameplay or network hooks.\n"
-            "Gate behavior under Mod Manager disable has not been verified.\n",
-            encoding="utf-8"
-        )
-
-        # 4. payload directory for package_manifest / manage.py reversible installer
-        payload_dir = stage / "payload"
-        payload_native = payload_dir / "Binaries" / "Win64" / "ASI"
-        payload_native.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(asi_built, payload_native / "ME3SquadCoop.asi")
-
-        payload_dlc = payload_dir / "BioGame" / "DLC" / "DLC_MOD_ME3SquadCoop" / "CookedPCConsole"
-        payload_dlc.mkdir(parents=True, exist_ok=True)
-        (payload_dlc / "Mount.dlc").write_bytes(mount_bytes)
-        (payload_dlc / "ME3SquadCoop_Startup.pcc").write_bytes(pcc_bytes)
-
-        # 5. manifest.json
-        native_target = "Binaries/Win64/ASI/ME3SquadCoop.asi"
-        mount_target = "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/Mount.dlc"
-        pcc_target = "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/ME3SquadCoop_Startup.pcc"
-        files = [
-            {"path": native_target, "kind": "native", "origin": "authored",
-             "size": asi_built.stat().st_size, "sha256": package.digest(asi_built)},
-            {"path": mount_target, "kind": "dlc", "origin": "authored",
-             "size": len(mount_bytes), "sha256": hashlib.sha256(mount_bytes).hexdigest()},
-            {"path": pcc_target, "kind": "dlc", "origin": "authored",
-             "size": len(pcc_bytes), "sha256": hashlib.sha256(pcc_bytes).hexdigest()},
-        ]
-        qa = dict.fromkeys(package.REQUIRED_QA, False)
-        manifest = {
-            "schema": 1,
-            "package_id": package.PACKAGE_ID,
-            "version": "0.1.0",
-            "channel": channel,
-            "release_ready": False,
-            "qa": qa,
-            "qa_evidence": {},
-            "supported_game_sha256": package.GAME_SHA256,
-            "files": files,
-        }
-        package.validate_manifest(manifest, installable=False)
+        files = []
+        payload = stage / "payload"
+        payload.mkdir()
+        for target, kind, raw in (
+                ("Binaries/Win64/ASI/ME3SquadCoop.asi", "native", asi_built.read_bytes()),
+                *((package.ACTIVATION_PREFIX + relative, "dlc", raw) for relative, raw in activation)):
+            path = package.safe_path(payload, target)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(raw)
+            files.append({"path": target, "kind": kind, "origin": "authored",
+                          "size": len(raw), "sha256": hashlib.sha256(raw).hexdigest()})
+        manifest = {"schema": 1, "package_id": package.PACKAGE_ID, "version": "0.1.0",
+                    "channel": "candidate", "release_ready": False,
+                    "qa": dict.fromkeys(package.REQUIRED_QA, False), "qa_evidence": {},
+                    "supported_game_sha256": package.GAME_SHA256, "files": files}
         package.verify_payload(stage, manifest, installable=False)
-
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         shutil.copyfile(package.__file__, stage / "package_manifest.py")
         shutil.copyfile(HERE, stage / "manage.py")
         (stage / "PACKAGE-STATUS.md").write_text(
-            "# ME3 Squad Co-op — ME3Tweaks Deployment Package\n\n"
-            "Target Game: ME3LE (Legendary Edition ME3)\n"
-            "Format: proposed ME3Tweaks descriptor + unvalidated DLC header + native gate scaffold\n"
-            "Channel: fixture (public installation blocked)\n\n"
-            "Components:\n"
-            "- DLC_MOD_ME3SquadCoop (Mount.dlc priority 5100, ME3SquadCoop_Startup.pcc)\n"
-            "- ME3SquadCoop.asi with active-DLC runtime gate\n"
-            "- Cryptographic manifest and rollback receipt support\n\n"
-            "> [!IMPORTANT]\n"
-            "> Mod Manager import, engine parsing, mount validity and disable behavior have not been verified.\n"
-            "> Generated DLC headers and the native gate are scaffolds; this archive contains no campaign runtime.\n"
-            "> Keep this archive for fixture/format research. Do not install it in a game or treat it as playable.\n",
-            encoding="utf-8"
-        )
+            "# Unfinished native co-op QA candidate\n\n"
+            "All gameplay, Radmin, Mod Manager import, engine DLC loading, and runtime disable gates remain unverified. "
+            "The mount metadata uses the reviewed LE3 layout; it is not engine validation. "
+            "The activation includes only project-authored Mount, named starter config, English metadata TLK and root TOC. "
+            "No PCC, save, game asset, loader, decompiled source or private receipt is included. "
+            "Base-game TOC setup is a separate prerequisite; installation never updates or restores an existing base TOC. "
+            "Priority 5100 is an unregistered research value, not a conflict-free allocation.\n",
+            encoding="utf-8")
         (stage / "README.md").write_text(
-            "# Mass Effect 3 Squad Co-op (v0.1.0)\n\n"
-            "Packaging research for a future campaign mod for Mass Effect 3 Legendary Edition.\n"
-            "The included native DLL is a gate scaffold and contains no campaign runtime.\n\n"
-            "## Testing Notice\n"
-            "Building an archive does not run or certify the test suite.\n"
-            "DLC parser, Mod Manager import and actual install/disable behavior remain unverified.\n"
-            "Use synthetic fixtures for lifecycle tests; do not install this scaffold in a game.\n",
-            encoding="utf-8"
-        )
-
-        # 6. Generate SHA256SUMS.txt
-        sums = []
-        for file_path in sorted(stage.rglob("*")):
-            if file_path.is_file():
-                rel = file_path.relative_to(stage).as_posix()
-                sums.append(f"{package.digest(file_path)}  {rel}")
+            "# ME3 Squad Co-op: unfinished research candidate\n\n"
+            "This is not a validated player release. Keep testing inside an independently verified game copy.\n\n"
+            "The separate ME3SquadCoop-DLC.7z contains a Mod Manager descriptor and the complete authored activation DLC. "
+            "Import that inner archive for the DLC job; this does not install the ASI companion. "
+            "Actual Mod Manager acceptance and engine behavior remain untested.\n\n"
+            "The native companion is under payload/Binaries/Win64/ASI. Mod Manager's ordinary DLC job rejects ASIs. "
+            "The portable manage.py supports verification and explicit --qa-candidate installation into verified test copies only. "
+            "Keep its manifest hash for hash-checked removal. Installation requires the game to be closed. "
+            "Before copying any components, installation requires the existing BioGame/PCConsoleTOC.bin to already index the three authored DLC content paths. "
+            "Run `python manage.py prepare-base-toc <package-root> <baseline-PCConsoleTOC.bin> <new-output.bin>` to create a separate derived artifact for review; this command never installs it or changes the baseline. "
+            "Do not mix managed/manual installation methods; the receipt only owns files it installed. "
+            "Removing or disabling the DLC is intended to close the native presence gate, with cleanup on the next game tick; "
+            "that lifecycle still needs protected live verification. A compatible ASI loader is a separate prerequisite.\n",
+            encoding="utf-8")
+        sums = [f"{package.digest(path)}  {path.relative_to(stage).as_posix()}"
+                for path in sorted(stage.rglob("*")) if path.is_file()]
         (stage / "SHA256SUMS.txt").write_text("\n".join(sums) + "\n", encoding="utf-8")
-
-        # 7. Compress with 7-Zip
-        if archive_path.exists():
-            archive_path.unlink()
-        cmd = [seven_zip, "a", "-t7z", "-mx9", str(archive_path), "."]
-        proc = subprocess.run(cmd, cwd=str(stage), capture_output=True, text=True, encoding="utf-8", errors="replace")
-        if proc.returncode != 0:
-            raise RuntimeError(f"7-Zip archive creation failed (exit code {proc.returncode}): {proc.stderr}")
-
-    verify_proc = subprocess.run([seven_zip, "l", str(archive_path)], capture_output=True, text=True, encoding="utf-8", errors="replace")
-    if verify_proc.returncode != 0:
-        raise RuntimeError(f"7-Zip archive verification failed: {verify_proc.stderr}")
-
-    archive_listing = verify_proc.stdout
-    required_in_archive = ["moddesc.example.ini", "Mount.dlc", "ME3SquadCoop.asi", "manifest.json", "SHA256SUMS.txt"]
-    for req in required_in_archive:
-        if req not in archive_listing:
-            raise ValueError(f"Archive missing required component: {req}")
-
-    archive_sha256 = package.digest(archive_path)
-    return {
-        "status": "deployment_package_built",
-        "archive": str(archive_path),
-        "size": archive_path.stat().st_size,
-        "sha256": archive_sha256,
-        "channel": channel,
-        "release_ready": manifest["release_ready"],
-        "manifest_sha256": package.manifest_hash(manifest),
-        "components": [item["path"] for item in files],
-        "archive_verified": True,
-        "installable": False,
-        "campaign_runtime_included": False,
-    }
+        archive(stage, archive_path)
+    return {"status": "candidate_archive_built", "archive": str(archive_path),
+            "size": archive_path.stat().st_size, "sha256": package.digest(archive_path),
+            "channel": "candidate", "release_ready": False,
+            "manifest_sha256": package.manifest_hash(manifest),
+            "components": [item["path"] for item in files], "mount_readback": mount_readback,
+            "mod_manager_archive": manager_archive, "archive_verified": True,
+            "mod_manager_import_verified": False, "engine_dlc_load_verified": False,
+            "native_disable_verified": False}
 
 
 def build(source_root, spec_path=None, destination=None, baseline_path=None, *, channel="candidate"):
     if spec_path is None and destination is None and baseline_path is None:
-        if channel == "release":
-            raise ValueError("generated archive is an unvalidated fixture, never a release")
-        return build_deployment_archive(source_root)
+        return build_deployment_archive(source_root, channel=channel)
 
     source_root = package.checked_root(source_root)
     spec = json.loads(Path(spec_path).read_text(encoding="utf-8"))
@@ -450,35 +342,41 @@ def main():
     p.add_argument("args", nargs="+", type=Path)
     p.add_argument("--baseline-manifest", type=Path, default=None)
     p.add_argument("--channel", choices=("candidate", "release"), default="candidate")
-    for action in ("verify", "install", "remove", "reinstall", "recover"):
+    p.add_argument("--activation-receipt", type=Path, help="explicit current authored activation preparation receipt")
+    p.add_argument("--legendary-explorer", type=Path, help="LegendaryExplorer folder for semantic verification")
+    p.add_argument("--starter-config-template", type=Path, help="explicit pinned upstream authored starter template")
+    p.add_argument("--powershell", default="pwsh", help="PowerShell 7 executable; used only while building")
+    p = sub.add_parser("prepare-base-toc", help="create a separate derived TOC artifact; never changes the baseline/game")
+    p.add_argument("package_root", type=Path)
+    p.add_argument("baseline_toc", type=Path)
+    p.add_argument("output", type=Path, help="new output file; existing destinations are refused")
+    for action in ("verify", "install", "remove"):
         p = sub.add_parser(action)
         p.add_argument("package_root", type=Path)
         if action != "verify":
             p.add_argument("test_game_root", type=Path)
-        if action in ("install", "reinstall"):
+        if action == "install":
             p.add_argument("--qa-candidate", action="store_true",
                            help="explicit unfinished candidate install into a verified independent test copy only")
-        if action == "reinstall":
-            p.add_argument("--installed-manifest-sha256", default=None,
-                           help="trusted old package hash, required when the new manifest differs")
-    p = sub.add_parser("status")
-    p.add_argument("test_game_root", type=Path)
     args = parser.parse_args()
     if args.action == "scaffold":
         result = scaffold(args.destination)
     elif args.action == "build":
         if len(args.args) == 1:
-            if args.channel == "release":
-                parser.error("generated archive is an unvalidated fixture, never a release")
-            result = build_deployment_archive(args.args[0])
+            result = build_deployment_archive(args.args[0], channel=args.channel, activation_receipt=args.activation_receipt,
+                legendary_explorer=args.legendary_explorer, starter_config_template=args.starter_config_template,
+                powershell=args.powershell)
         elif len(args.args) == 3:
+            if any((args.activation_receipt, args.legendary_explorer, args.starter_config_template)):
+                parser.error("activation options apply only to the one-argument archive build")
             if not args.baseline_manifest:
                 parser.error("--baseline-manifest is required for 3-argument build")
             result = build(args.args[0], args.args[1], args.args[2], args.baseline_manifest, channel=args.channel)
         else:
             parser.error("build requires either 1 argument (<archive.7z>) or 3 arguments (<source_root> <spec> <destination>)")
-    elif args.action == "status":
-        result = package.inspect_installation(args.test_game_root)
+    elif args.action == "prepare-base-toc":
+        manifest = json.loads((args.package_root / "manifest.json").read_text(encoding="utf-8"))
+        result = package.prepare_base_toc(args.package_root, manifest, args.baseline_toc, args.output)
     else:
         manifest = json.loads((args.package_root / "manifest.json").read_text(encoding="utf-8"))
         if args.action == "verify":
@@ -487,13 +385,6 @@ def main():
                       "manifest_sha256": package.manifest_hash(manifest)}
         elif args.action == "install":
             result = package.install(args.package_root, manifest, args.test_game_root, allow_candidate=args.qa_candidate)
-        elif args.action == "reinstall":
-            result = package.reinstall(args.package_root, manifest, args.test_game_root,
-                                       allow_candidate=args.qa_candidate,
-                                       expected_installed_manifest_sha256=args.installed_manifest_sha256)
-        elif args.action == "recover":
-            result = package.recover_reinstall(args.test_game_root,
-                                               expected_manifest_sha256=package.manifest_hash(manifest))
         else:
             result = package.remove(args.test_game_root, expected_manifest_sha256=package.manifest_hash(manifest))
     print(json.dumps(result, indent=2))

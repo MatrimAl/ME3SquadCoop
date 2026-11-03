@@ -3,6 +3,7 @@
 Read README.md and docs/VALIDATION.md before changing claims. This is a two-player LE3 research prototype with more guests planned.
 
 - Work on focused branches from dev/campaign-coop; do not modify main directly after the initial snapshot.
+- Treat dev/campaign-coop as the shared, current development baseline. Keep focused branches short-lived and integrate accepted work there; see docs/BRANCHES.md.
 - Preserve original games and saves. Launch only a verified independent copy with private profiles, original-file read locks and bounded process cleanup.
 - Never commit local/, game assets, saves, raw runtime logs, private paths or credentials.
 - Keep host story authority and native package validation intact.

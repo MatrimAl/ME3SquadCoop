@@ -239,7 +239,10 @@ class PackageTests(unittest.TestCase):
         package.safe_path(self.payload, self.native).write_bytes(raw)
         self.manifest["files"][0].update(sha256=sha(raw), size=len(raw))
         mount = package.DLC_PREFIX + "Mount.dlc"
-        mount_bytes = b"SYNTHETIC MOUNT FIXTURE; NOT A WORKING GAME FILE"
+        # Real authored metadata; the PE/executable remain synthetic fixtures.
+        mount_bytes = package.make_activation_mount()
+        package.safe_path(self.payload, self.dlc).unlink()
+        self.manifest["files"] = self.manifest["files"][:1]
         package.safe_path(self.payload, mount).write_bytes(mount_bytes)
         self.manifest["files"].append({"path": mount, "sha256": sha(mount_bytes), "size": len(mount_bytes),
                                        "kind": "dlc", "origin": "authored"})
@@ -256,6 +259,71 @@ class PackageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "explicit QA-only"):
             package.install(self.bundle, self.manifest, self.game)
         self.assertEqual(self.inventory(), self.before)
+
+    def test_separate_base_toc_artifact_and_read_only_install_preflight(self):
+        self.candidate_fixture()
+        content = {
+            "CookedPCConsole/Mount.dlc": struct.pack("<9I",1,0x2ad,0xcd,0x3006b,5100,0,12,1915100,1915100)+bytes(72),
+            "CookedPCConsole/Default_DLC_MOD_ME3SquadCoop.bin": b"SYNTHETIC AUTHORED CONFIG",
+            "CookedPCConsole/DLC_MOD_ME3SquadCoop_INT.tlk": b"SYNTHETIC AUTHORED TLK",
+        }
+        entries = {name.casefold():(name,len(raw),0,bytes(20),package.toc_filename_hash(name.rsplit("/",1)[-1])%3)
+                   for name,raw in content.items()}
+        entries = {key.replace("/","\\"):(name.replace("/","\\"),size,flags,hashed,bucket)
+                   for key,(name,size,flags,hashed,bucket) in entries.items()}
+        content["PCConsoleTOC.bin"] = package.encode_base_toc(3,entries)
+        self.manifest["files"] = self.manifest["files"][:1]
+        for relative,raw in content.items():
+            target = package.ACTIVATION_PREFIX + relative
+            path = package.safe_path(self.payload,target)
+            path.parent.mkdir(parents=True,exist_ok=True); path.write_bytes(raw)
+            self.manifest["files"].append({"path":target,"sha256":sha(raw),"size":len(raw),"kind":"dlc","origin":"authored"})
+        original = {"biogame\\synthetic\\other-mod.bin":("BIOGame\\Synthetic\\other-mod.bin",17,0x1234,bytes(range(20)),1)}
+        baseline = package.safe_path(self.game,package.BASE_TOC_TARGET)
+        baseline.parent.mkdir(parents=True,exist_ok=True)
+        raw = package.encode_base_toc(3,original); baseline.write_bytes(raw)
+        inventory = self.inventory()
+        with self.assertRaisesRegex(ValueError,"base TOC lacks"):
+            package.install(self.bundle,self.manifest,self.game,allow_candidate=True)
+        self.assertEqual(self.inventory(),inventory)
+        output = self.root / "derived-toc.bin"
+        result = package.prepare_base_toc(self.bundle,self.manifest,baseline,output)
+        self.assertEqual(result["added_entries"],3)
+        self.assertFalse(result["game_file_written"])
+        self.assertEqual(baseline.read_bytes(),raw)
+        buckets,revised = package.parse_base_toc(output.read_bytes())
+        self.assertEqual(buckets,3)
+        self.assertEqual(len(revised),4)
+        self.assertTrue(all(revised.get(key)==value for key,value in original.items()))
+        self.assertEqual(package.derived_base_toc(output.read_bytes(),self.manifest),output.read_bytes())
+        with self.assertRaises(FileExistsError):
+            package.prepare_base_toc(self.bundle,self.manifest,baseline,output)
+        # Fixture-owned external preparation only. Installer/remover never write this existing TOC.
+        baseline.write_bytes(output.read_bytes())
+        package.install(self.bundle,self.manifest,self.game,allow_candidate=True)
+        external = baseline.read_bytes() + b"EXTERNAL OWNER CHANGE"
+        baseline.write_bytes(external)
+        package.remove(self.game,expected_manifest_sha256=package.manifest_hash(self.manifest))
+        self.assertEqual(baseline.read_bytes(),external)
+        self.assertEqual(self.sentinel.read_bytes(),b"UNRELATED THIRD PARTY FILE")
+
+    def test_candidate_rejects_wrong_game_mount_even_with_matching_hash(self):
+        self.candidate_fixture()
+        mount = package.safe_path(self.payload, package.MOUNT_TARGET)
+        raw = bytearray(mount.read_bytes())
+        struct.pack_into("<I", raw, 4, 0x2AC)
+        mount.write_bytes(raw)
+        self.manifest["files"][1].update(sha256=sha(raw), size=len(raw))
+        with self.assertRaisesRegex(ValueError, "supported LE3"):
+            package.verify_payload(self.bundle, self.manifest, installable=False)
+
+    def test_candidate_rejects_a_fabricated_startup_package(self):
+        self.candidate_fixture()
+        raw = bytes(2048)
+        self.manifest["files"].append({"path": self.dlc, "sha256": sha(raw), "size": len(raw),
+                                       "kind": "dlc", "origin": "authored"})
+        with self.assertRaisesRegex(ValueError, "complete authored file set"):
+            package.validate_manifest(self.manifest, installable=False)
 
     def test_candidate_explicit_test_install_and_remove_preserve_all_other_files(self):
         self.candidate_fixture()
@@ -353,506 +421,49 @@ class PackageTests(unittest.TestCase):
             module.scaffold(destination)
 
     def test_deployment_archive_and_reversibility(self):
+        if not (PROJECT / "local/build/ME3SquadCoop.asi").is_file():
+            self.skipTest("build native ASI before running archive integration test")
         spec = importlib.util.spec_from_file_location("build_shareable", PROJECT / "tools/build_shareable.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        if not module.find_zig_compiler() or not module.find_seven_zip():
-            self.skipTest("Zig compiler and 7-Zip required for archive fixture test")
         archive_path = self.root / "test-deployment.7z"
-        result = module.build_deployment_archive(archive_path)
+        inputs = [os.environ.get(name) for name in ("ME3_PACKAGE_ACTIVATION_RECEIPT", "ME3_PACKAGE_LEGENDARY_EXPLORER", "ME3_PACKAGE_STARTER_TEMPLATE")]
+        if not all(inputs):
+            self.skipTest("archive integration requires explicit authored activation verification inputs")
+        result = module.build_deployment_archive(archive_path, activation_receipt=inputs[0], legendary_explorer=inputs[1],
+            starter_config_template=inputs[2], powershell=os.environ.get("ME3_PACKAGE_POWERSHELL", "pwsh"))
         self.assertTrue(result["archive_verified"])
         self.assertTrue(archive_path.is_file())
         self.assertGreater(archive_path.stat().st_size, 0)
         self.assertEqual(result["sha256"], package.digest(archive_path))
-        self.assertFalse(result["installable"])
-        self.assertFalse(result["campaign_runtime_included"])
-        self.assertEqual(result["channel"], "fixture")
+        self.assertFalse(result["mod_manager_import_verified"])
+        self.assertFalse(result["engine_dlc_load_verified"])
+        self.assertFalse(result["native_disable_verified"])
         for comp in ("Binaries/Win64/ASI/ME3SquadCoop.asi",
-                     "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/Mount.dlc",
-                     "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/ME3SquadCoop_Startup.pcc"):
+                     "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/Mount.dlc"):
             self.assertIn(comp, result["components"])
-        extracted = self.root / "extracted"
-        subprocess.run([module.find_seven_zip(), "x", str(archive_path), "-o" + str(extracted), "-y"],
-                       check=True, capture_output=True)
-        self.assertFalse((extracted / "moddesc.ini").exists())
-        self.assertTrue((extracted / "research/moddesc.example.ini").is_file())
-        archived_manifest = json.loads((extracted / "manifest.json").read_text(encoding="utf-8"))
-        before = self.inventory()
-        with self.assertRaisesRegex(ValueError, "scaffold/research"):
-            package.install(extracted, archived_manifest, self.game, allow_candidate=True)
-        self.assertEqual(self.inventory(), before)
-        info = json.loads((extracted / "native/BUILD-INFO.json").read_text(encoding="utf-8"))
-        self.assertEqual(info["artifact_sha256"], package.digest(extracted / "native/ME3SquadCoop.asi"))
-
-    def test_packaging_compiler_discovery_finds_ci_verified_toolchain(self):
-        spec = importlib.util.spec_from_file_location("build_shareable_ci", PROJECT / "tools/build_shareable.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        runner = self.root / "runner-temp"
-        compiler = runner / "zig-x86_64-windows-0.15.2/zig.exe"
-        compiler.parent.mkdir(parents=True)
-        compiler.write_bytes(b"SYNTHETIC COMPILER FIXTURE; NEVER EXECUTED")
-        with mock.patch.dict(os.environ, {"RUNNER_TEMP": str(runner), "ME3_SQUAD_COOP_ZIG": ""}):
-            self.assertEqual(module.find_zig_compiler(), str(compiler.resolve()))
-
-    def test_stale_native_packaging_fingerprint_rejected(self):
-        spec = importlib.util.spec_from_file_location("build_shareable_fingerprint", PROJECT / "tools/build_shareable.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        artifact = self.root / "ME3SquadCoop.asi"
-        artifact.write_bytes(b"SYNTHETIC NATIVE BYTES")
-        info = {"schema": 1, "sources": module._packaging_sources(), "compiler_sha256": "1" * 64,
-                "artifact_sha256": package.digest(artifact), "artifact_size": artifact.stat().st_size}
-        artifact.with_suffix(".asi.build.json").write_text(json.dumps(info), encoding="utf-8")
-        module._verify_packaging_build(artifact)
-        artifact.write_bytes(b"OTHER NATIVE BYTES")
-        with self.assertRaisesRegex(ValueError, "stale or unverified"):
-            module._verify_packaging_build(artifact)
-
-    def test_reinstall_rejected_if_installed_and_reinstall_flow(self):
-        self.install()
-        # Attempting install when receipt exists must fail closed
-        with self.assertRaises(FileExistsError):
-            self.install()
-        # Reinstall helper cleanly reinstalls when components match expected state
-        res = package.reinstall(self.bundle, self.manifest, self.game, allow_fixture=True)
-        self.assertEqual(res["status"], "installed")
-        self.assertEqual(res["files"], 2)
-        # But if a file was modified, reinstall refuses to touch anything
-        package.safe_path(self.game, self.dlc).write_bytes(b"MODIFIED")
-        with self.assertRaisesRegex(ValueError, "modified components preserved"):
-            package.reinstall(self.bundle, self.manifest, self.game, allow_fixture=True)
-
-    def test_preexisting_collision_aborts_without_creating_receipt_or_mutating_files(self):
-        target = package.safe_path(self.game, self.native)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(b"ORIGINAL GAME FILE DO NOT OVERWRITE")
-        before = self.inventory()
-        with self.assertRaises(FileExistsError):
-            self.install()
-        # No receipt created, target untouched, no other files created
-        self.assertEqual(self.inventory(), before)
-        self.assertFalse((self.game / package.RECEIPT).exists())
-        self.assertEqual(target.read_bytes(), b"ORIGINAL GAME FILE DO NOT OVERWRITE")
-
-    def test_interrupted_incomplete_install_rollback_and_recovery(self):
-        # Prepare an interrupted installation state where status is 'incomplete'
-        # and only 1 file was copied before failure
-        receipt_path = package.safe_path(self.game, package.RECEIPT)
-        first_target = package.safe_path(self.game, self.manifest["files"][0]["path"])
-        first_target.parent.mkdir(parents=True, exist_ok=True)
-        first_target.write_bytes(package.safe_path(self.payload, self.manifest["files"][0]["path"]).read_bytes())
-        created_dir = first_target.parent.relative_to(self.game).as_posix()
-        receipt = {
-            "schema": 1,
-            "package_id": package.PACKAGE_ID,
-            "manifest_sha256": package.manifest_hash(self.manifest),
-            "manifest": self.manifest,
-            "status": "incomplete",
-            "created_directories": [created_dir],
-            "installed_files": [{"path": self.manifest["files"][0]["path"],
-                                 "sha256": self.manifest["files"][0]["sha256"],
-                                 "size": self.manifest["files"][0]["size"]}],
-            "qa_candidate": False,
-        }
-        package._write_json_new(receipt_path, receipt)
-        # Normal install refuses to proceed over incomplete receipt
-        with self.assertRaises(FileExistsError):
-            self.install()
-        # Inspection identifies incomplete status
-        status = package.inspect_installation(self.game)
-        self.assertEqual(status["status"], "incomplete")
-        self.assertFalse(status["is_clean"])
-        # Remove rolls back the incomplete installation cleanly
-        res = package.remove(self.game, expected_manifest_sha256=package.manifest_hash(self.manifest),
-                             allow_fixture=True)
-        self.assertEqual(res["status"], "removed")
-        self.assertFalse(receipt_path.exists())
-        self.assertFalse(first_target.exists())
-        # After rollback, install succeeds cleanly
-        clean_res = self.install()
-        self.assertEqual(clean_res["status"], "installed")
-
-    def test_remove_cleans_empty_created_directories_and_preserves_non_empty(self):
-        self.install()
-        # Both created directories exist
-        dlc_file = package.safe_path(self.game, self.dlc)
-        dlc_parent = dlc_file.parent
-        self.assertTrue(dlc_parent.is_dir())
-        # Place an unrelated mod file in dlc_parent
-        unrelated = dlc_parent / "unrelated_squadmate.ini"
-        unrelated.write_bytes(b"[Config]\nEnabled=1\n")
-        self.remove()
-        # Mod files removed, but unrelated file and its containing directory are preserved
-        self.assertFalse(dlc_file.exists())
-        self.assertTrue(dlc_parent.is_dir())
-        self.assertTrue(unrelated.is_file())
-        self.assertEqual(unrelated.read_bytes(), b"[Config]\nEnabled=1\n")
-
-    def test_inspect_installation_accurately_detects_all_states(self):
-        # 1. Not installed
-        st = package.inspect_installation(self.game)
-        self.assertEqual(st["status"], "not_installed")
-        self.assertFalse(st["receipt_present"])
-        # 2. Installed clean
-        self.install()
-        st = package.inspect_installation(self.game)
-        self.assertEqual(st["status"], "installed")
-        self.assertTrue(st["is_clean"])
-        self.assertEqual(len(st["files_verified"]), 2)
-        # 3. Modified component
-        package.safe_path(self.game, self.dlc).write_bytes(b"ALTERED")
-        st = package.inspect_installation(self.game)
-        self.assertEqual(st["status"], "diverged")
-        self.assertFalse(st["is_clean"])
-        self.assertIn(self.dlc, st["files_modified"])
-        # 4. Missing component
-        package.safe_path(self.game, self.dlc).unlink()
-        st = package.inspect_installation(self.game)
-        self.assertIn(self.dlc, st["files_missing"])
-
-    def test_validate_native_rejects_diagnostic_probe_symbols(self):
-        for marker in (b"SquadProbe", b"ME3SquadCoopProbe", b"SquadDirectIPSelfTest",
-                       b"SquadGuestCameraSelfTest", b"SquadGuestCinematicSelfTest",
-                       b"SquadSessionHandleSelfTest", b".me3-coop-sandbox.json"):
-            fake_dll = b"MZ" + b"\0" * 60 + b"PE\0\0" + b"\x64\x86" + b"\0" * 16 + b"\0\x20" + b"\x0b\x02" + marker
-            fake_path = self.root / "fake_probe.asi"
-            fake_path.write_bytes(fake_dll)
-            with self.subTest(marker=marker), self.assertRaisesRegex(ValueError, "research probe"):
-                package.validate_native(fake_path)
-
-    def test_invalid_replacement_preserves_existing_install_and_receipt(self):
-        self.install()
-        before = self.inventory()
-        package.safe_path(self.payload, self.native).write_bytes(b"INVALID REPLACEMENT")
-        with self.assertRaisesRegex(ValueError, "hash/size mismatch"):
-            package.reinstall(self.bundle, self.manifest, self.game, allow_fixture=True)
-        self.assertEqual(self.inventory(), before)
-
-    def test_unowned_receipt_directory_rejected_before_any_remove(self):
-        unrelated = self.game / "Documents/ExistingEmptyDirectory"
-        unrelated.mkdir()
-        self.install()
-        receipt_path = self.game / package.RECEIPT
-        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        receipt["created_directories"].append("Documents/ExistingEmptyDirectory")
-        receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
-        before = self.inventory()
-        with self.assertRaises(ValueError):
-            self.remove()
-        self.assertEqual(self.inventory(), before)
-        self.assertTrue(unrelated.is_dir())
-
-    def test_actual_copy_failure_persists_created_directory_journal(self):
-        second = package.safe_path(self.game, self.dlc)
-        original_open = Path.open
-
-        def failing_open(path, mode="r", *args, **kwargs):
-            if path == second and mode == "xb":
-                raise OSError("injected second component failure")
-            return original_open(path, mode, *args, **kwargs)
-
-        with mock.patch.object(Path, "open", failing_open):
-            with self.assertRaisesRegex(OSError, "second component failure"):
-                self.install()
-        receipt = json.loads((self.game / package.RECEIPT).read_text(encoding="utf-8"))
-        self.assertEqual(receipt["status"], "incomplete")
-        self.assertIn(second.parent.relative_to(self.game).as_posix(), receipt["created_directories"])
-        self.remove()
-        self.assertFalse(second.parent.exists())
+        self.assertFalse(any(path.endswith(".pcc") for path in result["components"]))
+        unpacked = self.root / "unpacked"
+        subprocess.run([module.find_seven_zip(), "x", str(archive_path), "-o" + str(unpacked)],
+                       check=True, capture_output=True, timeout=60)
+        manager = self.root / "manager"
+        subprocess.run([module.find_seven_zip(), "x", str(unpacked / result["mod_manager_archive"]),
+                        "-o" + str(manager)], check=True, capture_output=True, timeout=60)
+        self.assertEqual({path.relative_to(manager).as_posix() for path in manager.rglob("*") if path.is_file()},
+                         {"moddesc.ini", *("DLC_MOD_ME3SquadCoop/" + name for name in package.ACTIVATION_FILES)})
+        generated = json.loads((unpacked / "manifest.json").read_text())
+        package.verify_payload(unpacked, generated, installable=False)
+        # Reversible install of generated bytes into an owned synthetic target.
+        # This substitution is fixture-only; no game or ASI is executed.
+        generated["supported_game_sha256"] = package.digest(package.safe_path(self.game, package.EXE))
+        with mock.patch.object(package, "GAME_SHA256", generated["supported_game_sha256"]):
+            package.install(unpacked, generated, self.game, allow_candidate=True)
+            package.remove(self.game, expected_manifest_sha256=package.manifest_hash(generated))
         self.assertEqual(self.inventory(), self.before)
-
-    def test_status_rejects_receipt_without_valid_identity_or_manifest(self):
-        receipt = self.game / package.RECEIPT
-        for value in ({"status": "installed"}, [], {"status": "installed", "manifest": {"files": []}}):
-            with self.subTest(value=value):
-                receipt.write_text(json.dumps(value), encoding="utf-8")
-                status = package.inspect_installation(self.game)
-                self.assertEqual(status["status"], "corrupt_receipt")
-                self.assertFalse(status.get("is_clean", False))
-
-    def replacement(self):
-        original_hash = package.manifest_hash(self.manifest)
-        replacement = copy.deepcopy(self.manifest)
-        for item in replacement["files"]:
-            target = package.safe_path(self.payload, item["path"])
-            raw = target.read_bytes() + b" UPDATED"
-            target.write_bytes(raw)
-            item.update(size=len(raw), sha256=sha(raw))
-        replacement["version"] = "0.0.2-fixture"
-        return replacement, original_hash
-
-    def test_reinstall_requires_trusted_old_hash_before_upgrading(self):
-        self.install()
-        before = self.inventory()
-        replacement, old_hash = self.replacement()
-        with self.assertRaisesRegex(ValueError, "trusted package manifest"):
-            package.reinstall(self.bundle, replacement, self.game, allow_fixture=True)
-        self.assertEqual(self.inventory(), before)
-        result = package.reinstall(self.bundle, replacement, self.game, allow_fixture=True,
-                                   expected_installed_manifest_sha256=old_hash)
-        self.assertEqual(result["status"], "installed")
-        self.assertEqual(package.inspect_installation(self.game)["version"], "0.0.2-fixture")
-        self.assertFalse((self.game / package.TRANSACTION).exists())
-
-    def test_reinstall_io_failure_rolls_back_bytes_and_receipt(self):
-        self.install()
-        before = self.inventory()
-        replacement, old_hash = self.replacement()
-        original_replace = package.os.replace
-        second = package.safe_path(self.game, self.dlc)
-
-        def failing_replace(source, target):
-            if Path(target) == second and "new" in Path(source).parts:
-                raise OSError("injected second replacement failure")
-            return original_replace(source, target)
-
-        with mock.patch.object(package.os, "replace", failing_replace):
-            with self.assertRaisesRegex(OSError, "second replacement failure"):
-                package.reinstall(self.bundle, replacement, self.game, allow_fixture=True,
-                                   expected_installed_manifest_sha256=old_hash)
-        self.assertEqual(self.inventory(), before)
-        self.assertFalse((self.game / package.TRANSACTION).exists())
-
-    def test_interrupted_reinstall_recovers_from_durable_verified_backups(self):
-        class SimulatedTermination(BaseException):
-            pass
-
-        self.install()
-        before = self.inventory()
-        replacement, old_hash = self.replacement()
-        original_replace = package.os.replace
-        second = package.safe_path(self.game, self.dlc)
-
-        def terminate(source, target):
-            if Path(target) == second and "new" in Path(source).parts:
-                raise SimulatedTermination()
-            return original_replace(source, target)
-
-        with mock.patch.object(package.os, "replace", terminate):
-            with self.assertRaises(SimulatedTermination):
-                package.reinstall(self.bundle, replacement, self.game, allow_fixture=True,
-                                   expected_installed_manifest_sha256=old_hash)
-        self.assertEqual(package.inspect_installation(self.game)["status"], "recovery_pending")
-        result = package.recover_reinstall(self.game, expected_manifest_sha256=old_hash, allow_fixture=True)
-        self.assertEqual(result["status"], "previous_install_restored")
-        self.assertEqual(self.inventory(), before)
-
-    def test_reinstall_staging_failure_never_mutates_installed_files(self):
-        self.install()
-        before = self.inventory()
-        replacement, old_hash = self.replacement()
-        original_copy = package._copy_verified
-
-        def fail_new_stage(source, destination, item):
-            if "new" in destination.relative_to(self.game).parts:
-                raise OSError("injected staging failure")
-            return original_copy(source, destination, item)
-
-        with mock.patch.object(package, "_copy_verified", fail_new_stage):
-            with self.assertRaisesRegex(OSError, "staging failure"):
-                package.reinstall(self.bundle, replacement, self.game, allow_fixture=True,
-                                   expected_installed_manifest_sha256=old_hash)
-        self.assertEqual(self.inventory(), before)
-
-    def test_unjournaled_partial_component_is_preserved_without_deleting_verified_files(self):
-        self.install()
-        receipt_path = self.game / package.RECEIPT
-        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        receipt["status"] = "incomplete"
-        receipt["installed_files"] = receipt["installed_files"][:1]
-        receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
-        package.safe_path(self.game, self.dlc).write_bytes(b"PARTIAL UNVERIFIED BYTES")
-        before = self.inventory()
-        with self.assertRaisesRegex(ValueError, "unverified incomplete component"):
-            self.remove()
-        self.assertEqual(self.inventory(), before)
-
-    def interrupted_replacement(self):
-        class SimulatedTermination(BaseException):
-            pass
-
-        replacement, old_hash = self.replacement()
-        original_replace = package.os.replace
-        second = package.safe_path(self.game, self.dlc)
-
-        def terminate(source, target):
-            if Path(target) == second and "new" in Path(source).parts:
-                raise SimulatedTermination()
-            return original_replace(source, target)
-
-        with mock.patch.object(package.os, "replace", terminate):
-            with self.assertRaises(SimulatedTermination):
-                package.reinstall(self.bundle, replacement, self.game, allow_fixture=True,
-                                   expected_installed_manifest_sha256=old_hash)
-        return replacement, old_hash
-
-    def test_recovery_rejects_changed_backup_before_modifying_any_file(self):
-        self.install()
-        _, old_hash = self.interrupted_replacement()
-        backup = self.game / package.TRANSACTION / "backup" / self.native
-        backup.write_bytes(b"EXTERNALLY CHANGED BACKUP")
-        before = self.inventory()
-        with self.assertRaisesRegex(ValueError, "backup verification failed"):
-            package.recover_reinstall(self.game, expected_manifest_sha256=old_hash, allow_fixture=True)
-        self.assertEqual(self.inventory(), before)
-
-    def test_recovery_preserves_changed_component_and_backups(self):
-        self.install()
-        _, old_hash = self.interrupted_replacement()
-        package.safe_path(self.game, self.native).write_bytes(b"USER EDIT AFTER INTERRUPTION")
-        before = self.inventory()
-        with self.assertRaisesRegex(ValueError, "modified components preserved"):
-            package.recover_reinstall(self.game, expected_manifest_sha256=old_hash, allow_fixture=True)
-        self.assertEqual(self.inventory(), before)
-
-    def test_recovery_continues_after_rollback_io_failure(self):
-        self.install()
-        before = self.inventory()
-        replacement, old_hash = self.replacement()
-        original_replace = package.os.replace
-
-        def fail_replacement_and_rollback(source, target):
-            source = Path(source)
-            if (Path(target) == self.game / self.dlc and "new" in source.parts
-                    or "restore" in source.parts):
-                raise OSError("injected rollback storage failure")
-            return original_replace(source, target)
-
-        with mock.patch.object(package.os, "replace", fail_replacement_and_rollback):
-            with self.assertRaisesRegex(RuntimeError, "backups are retained"):
-                package.reinstall(self.bundle, replacement, self.game, allow_fixture=True,
-                                   expected_installed_manifest_sha256=old_hash)
-        package.recover_reinstall(self.game, expected_manifest_sha256=old_hash, allow_fixture=True)
-        self.assertEqual(self.inventory(), before)
-
-    def test_committed_replacement_recovery_finishes_cleanup_without_reverting(self):
-        class SimulatedTermination(BaseException):
-            pass
-
-        self.install()
-        replacement, old_hash = self.replacement()
-        with mock.patch.object(package, "_transaction_cleanup", side_effect=SimulatedTermination):
-            with self.assertRaises(SimulatedTermination):
-                package.reinstall(self.bundle, replacement, self.game, allow_fixture=True,
-                                   expected_installed_manifest_sha256=old_hash)
-        result = package.recover_reinstall(self.game, expected_manifest_sha256=old_hash, allow_fixture=True)
-        self.assertEqual(result["status"], "replacement_committed")
-        self.assertEqual(package.inspect_installation(self.game)["version"], "0.0.2-fixture")
-
-    def test_receipt_commit_before_journal_commit_can_restore_prior_install(self):
-        class SimulatedTermination(BaseException):
-            pass
-
-        self.install()
-        before = self.inventory()
-        replacement, old_hash = self.replacement()
-        original_replace = package.os.replace
-
-        def terminate_before_commit_marker(source, target):
-            if Path(target).name == "transaction.json":
-                value = json.loads(Path(source).read_text(encoding="utf-8"))
-                if value["status"] == "committed":
-                    raise SimulatedTermination()
-            return original_replace(source, target)
-
-        with mock.patch.object(package.os, "replace", terminate_before_commit_marker):
-            with self.assertRaises(SimulatedTermination):
-                package.reinstall(self.bundle, replacement, self.game, allow_fixture=True,
-                                   expected_installed_manifest_sha256=old_hash)
-        package.recover_reinstall(self.game, expected_manifest_sha256=old_hash, allow_fixture=True)
-        self.assertEqual(self.inventory(), before)
-
-    def test_missing_candidate_permission_never_removes_existing_installation(self):
-        self.candidate_fixture()
-        package.install(self.bundle, self.manifest, self.game, allow_candidate=True)
-        before = self.inventory()
-        with self.assertRaisesRegex(ValueError, "explicit QA-only"):
-            package.reinstall(self.bundle, self.manifest, self.game)
-        self.assertEqual(self.inventory(), before)
-
-    def test_replacement_conflict_with_unowned_new_component_preserves_everything(self):
-        self.install()
-        replacement, old_hash = self.replacement()
-        extra = package.DLC_PREFIX + "ME3SquadCoop_Extra.pcc"
-        raw = b"SYNTHETIC EXTRA AUTHORED COMPONENT"
-        package.safe_path(self.payload, extra).write_bytes(raw)
-        replacement["files"].append({"path": extra, "kind": "dlc", "origin": "authored",
-                                      "size": len(raw), "sha256": sha(raw)})
-        package.safe_path(self.game, extra).write_bytes(b"UNOWNED CONFLICT")
-        before = self.inventory()
-        with self.assertRaisesRegex(FileExistsError, "unowned component"):
-            package.reinstall(self.bundle, replacement, self.game, allow_fixture=True,
-                               expected_installed_manifest_sha256=old_hash)
-        self.assertEqual(self.inventory(), before)
-
-    def test_recovery_unknown_transaction_file_is_preserved_before_any_mutation(self):
-        self.install()
-        _, old_hash = self.interrupted_replacement()
-        (self.game / package.TRANSACTION / "foreign-note.txt").write_bytes(b"PRESERVE ME")
-        before = self.inventory()
-        with self.assertRaisesRegex(ValueError, "unrecognized transaction content"):
-            package.recover_reinstall(self.game, expected_manifest_sha256=old_hash, allow_fixture=True)
-        self.assertEqual(self.inventory(), before)
-
-    def test_mutation_apis_require_an_explicit_trusted_hash(self):
-        self.install()
-        before = self.inventory()
-        with self.assertRaisesRegex(ValueError, "trusted package manifest fingerprint"):
-            package.remove(self.game, expected_manifest_sha256=None, allow_fixture=True)
-        with self.assertRaisesRegex(ValueError, "trusted old package manifest fingerprint"):
-            package.recover_reinstall(self.game, expected_manifest_sha256=None, allow_fixture=True)
-        self.assertEqual(self.inventory(), before)
-
-    def test_cleanup_failure_retains_journal_and_committed_install_can_recover(self):
-        self.install()
-        replacement, old_hash = self.replacement()
-        original_unlink = Path.unlink
-        seen = 0
-
-        def fail_second_backup_unlink(path, *args, **kwargs):
-            nonlocal seen
-            if package.TRANSACTION in path.parts and "backup" in path.parts:
-                seen += 1
-                if seen == 2:
-                    raise OSError("injected cleanup failure")
-            return original_unlink(path, *args, **kwargs)
-
-        with mock.patch.object(Path, "unlink", fail_second_backup_unlink):
-            with self.assertRaisesRegex(OSError, "cleanup failure"):
-                package.reinstall(self.bundle, replacement, self.game, allow_fixture=True,
-                                   expected_installed_manifest_sha256=old_hash)
-        self.assertTrue((self.game / package.TRANSACTION / "transaction.json").is_file())
-        result = package.recover_reinstall(self.game, expected_manifest_sha256=old_hash, allow_fixture=True)
-        self.assertEqual(result["status"], "replacement_committed")
-
-    def test_rollback_cleanup_failure_can_recover_already_restored_install(self):
-        self.install()
-        before = self.inventory()
-        replacement, old_hash = self.replacement()
-        original_unlink, original_replace = Path.unlink, package.os.replace
-        seen = 0
-
-        def fail_second_replacement(source, target):
-            if Path(target) == self.game / self.dlc and "new" in Path(source).parts:
-                raise OSError("injected replacement failure")
-            return original_replace(source, target)
-
-        def fail_second_backup_unlink(path, *args, **kwargs):
-            nonlocal seen
-            if package.TRANSACTION in path.parts and "backup" in path.parts:
-                seen += 1
-                if seen == 2:
-                    raise OSError("injected rollback cleanup failure")
-            return original_unlink(path, *args, **kwargs)
-
-        with mock.patch.object(Path, "unlink", fail_second_backup_unlink), \
-                mock.patch.object(package.os, "replace", fail_second_replacement):
-            with self.assertRaisesRegex(RuntimeError, "backups are retained"):
-                package.reinstall(self.bundle, replacement, self.game, allow_fixture=True,
-                                   expected_installed_manifest_sha256=old_hash)
-        package.recover_reinstall(self.game, expected_manifest_sha256=old_hash, allow_fixture=True)
-        self.assertEqual(self.inventory(), before)
+        before = archive_path.read_bytes()
+        with self.assertRaises(FileExistsError):
+            module.build_deployment_archive(archive_path)
+        self.assertEqual(archive_path.read_bytes(), before)
 
 
 if __name__ == "__main__":

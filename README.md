@@ -8,6 +8,245 @@ Play toward a shared campaign where the host controls Shepard and guests control
 
 **Status: research prototype. A complete playable campaign and a validated player installation are not available yet.** This repository publishes source and test tooling so the work can continue openly, with clear limits on what has actually been demonstrated.
 
+**Current development: [`dev/campaign-coop`](https://github.com/MatrimAl/ME3SquadCoop/tree/dev/campaign-coop).**
+Use this default branch for the latest source and as the base for contributions.
+`main` is reserved for reviewed snapshots; older feature branches are archived
+as tags. See [branch layout](docs/BRANCHES.md) and [contributing](CONTRIBUTING.md).
+
+An earlier owner test confirmed guest melee and some host scene camera angles.
+The latest paired test confirmed guest combat after dialogue, while guest
+cinematic/dialogue presentation still differed and Liara was not visible to
+the guest. The host also stopped progressing during subsequent combat. These
+remain open defects, along with dialogue-choice presentation. The next
+camera correction retains the guest shoulder scale through the exact native
+Melee camera requested by the stock actions; its rendered result needs checking.
+The conditional [weapon-return candidate](docs/GUEST-SCENE-WEAPON.md) can resume
+the native replicated selection only when a real null selection still matches
+the same existing inventory weapon. It does not establish complete scene recovery.
+The [dialogue advice candidate](docs/DIALOGUE-ADVICE.md) mirrors the real six
+native options and sends a guest preference, marked on the host's wheel without
+selecting it. Native panel input and scene-exit restoration remain gameplay
+checks; cinematic character animation parity remains incomplete.
+
+Guest quickslot painting can recover from a retired icon lease while Shift
+retains its existing native wheel context. Assignment callbacks in that gap
+preserve the guest map and saved Shepard definitions. Repeated slot dragging
+and casting from the new key still require a gameplay check.
+
+The [settled ammunition candidate](docs/SETTLED-AMMUNITION.md) requests actual
+host counts after firing has stopped and both peers are idle. Pending replies
+are cancelled by new activity. This carries a protected-route mechanism into
+ordinary co-op; ordinary gameplay and the rapid-fire counter rebound remain
+unverified.
+
+The [scene boundary observer](docs/SCENE_ACTOR_BOUNDARY_OBSERVER.md) captures
+weapon and gesture state around real native animation-control events. Its
+bounded read-only records distinguish failed reads from null selection; it
+does not claim to repair the reported scene defects.
+
+The scene spectator adds automatic guest viewing of the host camera during full
+dialogue and cinematic intervals, including released companion possession.
+Scene exit, timeout and connection/world changes yield to the native camera.
+Actual later Mars/Liara visibility, audio and control recovery remain owner
+checks; see [scene spectator](docs/GUEST-SCENE-SPECTATOR.md).
+
+The [Liara native scene candidate](docs/LIARA-NATIVE-SCENES.md) enables normal
+Matinee transport for selected authored client-only scenes after the guest's
+resident story-output guard is ready. Native activation is preserved. Complete
+body/face animation, audio, subtitles and effects remain gameplay checks;
+camera parity alone does not establish them.
+
+The [cinematic Player binding candidate](docs/CINEMATIC-PLAYER-BINDING.md)
+uses the host's authenticated existing Shepard actor for native Player track
+and group queries. It avoids selecting Ashley through the guest squad context
+and retains the normal native initialization and content-validation sequence.
+
+Melee preparation can also follow a mesh animation set's existing, verified
+global source to find a missing clip, then use the stock temporary-animation
+registration. Guest rifle-family recovery remains a runtime check; see
+[melee preparation](docs/GUEST-MELEE.md).
+
+The current implementation corrects the melee adapter's UObject PowerManager dispatch
+and adds a narrow native synchronous movie path for the observed guest Bink
+worker failure. The protected `790d685` run published native melee families,
+but did not prove attacks or rendered movie recovery and ended with a different
+guest access violation whose module remains unresolved. See [melee](docs/GUEST-MELEE.md) and
+[movie recovery](docs/BINK-MOVIE-RECOVERY.md).
+
+The guest power bridge also completes the stock own-pawn order sequence with
+`ApplyTacticalOrders` after a newly accepted, still-current power order.
+Previously it stopped at the native queue acceptance. Fresh ownership/catalog
+and pending-order checks prevent replaying a consumed or replaced order.
+Actual casting and host effect visibility remain gameplay checks; see
+[power order continuation](docs/GUEST-POWER-ORDER-APPLY.md).
+
+Power keys may also reach the stock `UsePower` event during a verified native
+reload. This lets the normal game path cancel reload before checking and
+starting the power. Other busy actions remain restricted. Actual interruption,
+ammunition, camera and host effects require a gameplay check; see
+[reload power input](docs/GUEST-RELOAD-POWER.md).
+
+The same native input route can retain a power press during one of the four
+owned player evades, allowing the stock blocking-action/queue policy to decide
+its outcome. It does not cancel the evade or clear input-ignore state. Queued
+casting and host effects still need a gameplay check; see
+[evade power input](docs/GUEST-EVADE-POWER.md).
+
+The ordinary guest now has a bounded ammo receive observer to investigate the
+remaining clip rebound. It orders the selected weapon's native integer decode
+and completed receive storage against local native firing, without changing
+ammunition or transport. It is enabled by default;
+`ME3_SQUAD_COOP_AMMO_RECEIVE_AUDIT=0` disables it. Native fixtures passed;
+no gameplay fix or per-shot acknowledgement is claimed; see
+[ammo observation](docs/AMMO-REPLICATION.md).
+
+A narrow Mars airlock guard keeps the authored transition's temporary player
+lists ordered with the host Shepard first if a native two-player list puts the
+guest first. It preserves the graph and actor transforms. This possible source
+of the reported later pushback still needs an owner check; see
+[airlock primary player](docs/MARS-AIRLOCK-PLAYER.md).
+
+The next offline candidate also supplies the owned guest's native incoming
+weapon-hit direction queue from an actual actor-channel impact notification.
+It preserves native damage/reactions and filters initial, duplicate and stale
+ownership state. Rendered direction feedback still needs an owner gameplay
+check; see [hit direction](docs/GUEST-HIT-DIRECTION.md).
+
+The owned guest also has a narrow dropped-ammo admission adapter for the
+companion's disabled pickup flag. It keeps the general flag unchanged and
+uses the stock capacity, quantity and host-authoritative pickup lifecycle.
+Actual reserve gain and shared pickup behavior remain owner checks; see
+[dropped ammo](docs/GUEST-AMMO-PICKUP.md).
+
+An offline supply timing candidate also requests the three-second shared
+respawn found in selected LEMP maps for qualifying native campaign containers.
+The stock visibility lifecycle remains in place. A separate quantity candidate
+supplies LEMP's 0.5 award fraction for verified stock campaign difficulty
+ordinals zero through two, preserving other/custom values and stock weapon
+capacity handling. Timing fixtures passed; quantity fixtures and all live
+replenishment checks are pending. See [shared ammo supply](docs/MP-AMMO-SUPPLY.md).
+
+The current ordinary build adds Shepard-only admission for classified story
+entries, guest entry warnings and a Mars shuttle close rule that waits for all
+human players to leave the cabin. Native fixtures cover the adapter contracts;
+live discovery, movement boundaries and animation remain owner checks. See
+[story trigger authority](docs/STORY-TRIGGER-AUTHORITY.md) for scope and test steps.
+
+It also registers an unassigned guest in the existing native host team and
+retains human companion control during proven camera-free ambient lines.
+In the protected manual `dbd7265` session, native team registration and ambient
+control retention were observed. The owner confirmed damage in both directions
+and that the small Ashley interaction no longer forcibly moves her. See
+[team registration](docs/GUEST-TEAM-REGISTRATION.md) and
+[ambient control](docs/AMBIENT-COMPANION-CONTROL.md).
+
+In the protected manual `af2880c` session, the owner confirmed that reload/
+power actions keep the guest shoulder distance and the early movement fence
+opens after Shepard passes. Both peers admitted the owned weapon's human
+damage multiplier. A possible one-round clip rebound was reported during
+rapid fire/reload; the cause and visible HUD result remain under review.
+In the later `b515e98` session, the owner reported good directional evades
+and normal low-shield/break feedback. The evade camera still differed, X
+weapon swapping failed, and powers stopped after weapon/slot changes.
+The next candidate retains the shoulder scale through verified evades,
+bridges owned guest swap input to stock NextWeapon, and resolves native named
+slot moves through the guest power map. A refused drop no longer disables
+the whole valid wheel. A measured reflected-layout cache and timing counters
+address repeated metadata work; a frame-rate improvement is not yet proven.
+These additions need gameplay checks; complete movement, animation and
+weapon parity remain unproven. See [control changes](docs/GUEST-CONTROL-REFRESH.md),
+[weapon and presentation scope](docs/GUEST-WEAPON-PRESENTATION.md) and
+[movement scope](docs/GUEST-MOVEMENT-CONTEXT.md).
+
+The owner subsequently confirmed X and power use after weapon switching in
+`4ff0a2d`, with smoother play. Slot moves still failed, a rare power-camera
+close-up remained and the ammunition rebound continued. The next correction
+handles owned slot requests before their native destination clear and treats
+the actual DoingDrag bit as the key-input blocker. An existing shoulder scale
+survives a verified unpaused Command/PowerWheel menu. A bounded native firing
+observer will correlate the remaining ammo issue; it does not repair counters.
+
+In `5374e7c`, the owner confirmed the Shift-to-power camera correction but
+could not move a power. The follow-up admits the separate native drag-end
+assignment path and completes the stock local FullAuto stop on a real release.
+The same candidate prepares normal guest melee combos and an Ashley-owned
+damage passive. The follow-up adds guarded Soldier heavy/storm actions, normal
+melee shoulder retention and retryable native cleanup. Guest heavy actions
+cannot issue their specific campaign cosmetic write through the guarded path;
+Shepard's native setter path is preserved. These new controls still need
+gameplay validation. Cover grab and left/right normal/heavy edge actions are
+also prepared from the loaded player's native classes, with independent asset
+checks and temporary animation cleanup. Complete multiplayer mechanics and
+campaign parity remain unfinished. See
+[guest melee scope](docs/GUEST-MELEE.md) and [ammo evidence](docs/AMMO-REPLICATION.md).
+
+A separate traversal lease also prepares the loaded player's mantle, four
+cover-slip and ladder actions. Real inputs and the native geometry, animation,
+physics and network routes perform these moves. Existing evades remain under
+their previous lease. The new traversal and camera outcomes still need owner
+gameplay checks; see [movement scope](docs/GUEST-MOVEMENT-CONTEXT.md).
+
+The local FullAuto release adapter also cancels the exact named stock deferred
+start during port-arms preparation, before completing the ordinary pawn stop.
+It supports an as-yet-empty native inventory pending entry and rechecks the
+owned scope after the native timer call. This follows the same multiplayer-like
+press/hold/release target; it is not a gameplay-confirmed ammo fix.
+
+The offline movement extension also separates running and standing gap jumps
+and supplies the four native 90-degree cover corner actions missing from
+Ashley's table. It uses the loaded player's classes and the engine's real
+input, geometry and replication paths, with independent clip and ownership
+checks. These additions are prepared for a later owner gameplay test.
+
+The next owned reaction lease also prepares the player's light-hit and
+shield-breach animation family. The six standard entries are changed together,
+including the two absent player alternates, while the shield reaction remains
+independent. Native damage and reaction selection are preserved. No game has
+run these additions; see [guest hit reactions](docs/GUEST-HIT-REACTIONS.md).
+
+The same reaction lease now also prepares the player's incoming melee/stagger
+family, including its absent alternate, and keeps the native HitReaction
+camera. It preserves each action's normal interruption and root-motion rules.
+These offline additions still need owner gameplay checks.
+
+A separate owned selector guard now applies the player's existing in-cover
+knockback refusal to human Ashley. It executes the stock false-return branch
+without changing damage or candidate arrays; ordinary stagger fallback remains.
+The rule is prepared offline and needs a later owner gameplay check.
+
+The next native reaction pair also supplies the player's missing on-fire
+actions. The exact numbered animation name is preserved and must already be
+on the current mesh. Native fire damage, cooldown and timeline rules remain
+unchanged. Actual fire-hit presentation and recovery still need owner testing.
+
+The current build binds the guest's existing native Shepard HUD player panel
+to owned Ashley, with the previous health/shield display retained as fallback.
+Native keyboard power slots/icons remain enabled. Shift Command mode now retains
+co-op ownership/context. Native appearance and power effects await owner testing;
+see [guest player controls](docs/GUEST-PLAYER-HUD.md).
+The same scoped controller preparation now also covers the host's authoritative
+Ashley power instances; live power effects and AI recovery remain owner checks.
+Both peers also receive a teammate health/shield readout with native downed/dead
+status: Ashley on the host and Shepard on the guest. Replica readings can remain
+unknown; visual appearance and update behavior await owner testing.
+It also includes a scoped fix for a queued fire start surviving a real guest
+fire release during weapon preparation. Live cancellation and a fresh press
+afterward remain owner checks; see [firing scope](docs/NATIVE-FIRE-OBSERVATION.md).
+The revive candidate now prepares both players on both peers and opens the
+normal interaction path after a native connection-scoped agreement. It needs
+the separately prepared private owner-derived addon on both peers; the public
+archive does not contain game animation assets. In-game revival remains an
+owner check. See [revive integration](docs/REVIVE-NATIVE-BRIDGE.md).
+
+The ordinary runtime now connects the local host/guest pair and retains guest
+Ashley control. Remote Shepard weapon/mask presentation is corrected, authored
+shuttle actors survive guest loading, and the measured scene-return collision
+variants are admitted. The normal guest now also includes the previously
+protected [owned movement-payload correction](docs/OWNED-OPTIMIZED-RECEIVE.md).
+This latest integration passed native fixtures; gameplay confirmation is
+pending owner testing. A completed shuttle-door gesture still differs on the
+guest. See [current validation](docs/VALIDATION.md) for the remaining scope.
+
 ## The goal
 
 - Keep the host authoritative over story choices, world state and saves.
@@ -17,31 +256,48 @@ Play toward a shared campaign where the host controls Shepard and guests control
 - Deliver a shareable, reversible mod with ME3Tweaks Mod Manager support.
 - Later, extend session ownership and squad assignment to more than one guest.
 
+Guest control should feel like official ME3 multiplayer through normal movement,
+camera, weapon and power inputs. The campaign remains host-authoritative. The
+external panel and optional power shortcuts are supporting tools; completion
+requires normal gameplay controls. See the [player experience criteria](docs/CAMPAIGN-PLAYER-EXPERIENCE.md).
+
 ## What has been demonstrated
 
-These observations come from bounded tests with **two real game processes on one Windows PC**. They do not establish full campaign support.
+These observations come from bounded tests with real game processes on one Windows PC. They do not establish full campaign support.
 
 | Area | Observed result | Limit |
 | --- | --- | --- |
 | Native connection | Host and guest connected through LE3's UE3 networking | Cross-PC play untested |
-| Squad control | Guest Ashley possession and short replicated movement | Sustained mission progression unverified |
+| Ordinary startup | Separate runtime opened a native listener and connected the local guest in the current Mars world | Full campaign and cross-PC behavior remain unverified |
+| Squad control | Guest Ashley possession; one protected run admitted a21-second shared walking interval and retained133 seconds of control in one epoch | Route-wide synchronization and mission progression unverified |
 | Player context | Guest-local squad context initialization and cleanup | Equipment readiness still inconsistent |
 | Cameras | Shoulder-camera adaptation and actual intro Matinee camera motion/cleanup | Full conversations unverified |
 | Session lifecycle | Synthetic scene release/reacquire and ordinary disconnect restored native AI | Synthetic scene gates are not real dialogue tests |
 | Weapon input | Earlier runs consumed authoritative ammunition after guest firing input | Stop-firing reliability and ammo agreement failed in some runs |
 | Isolation | Independent game copy, original-file read locks and private profile routing used | These protections must be established again for every test |
 
-The later equipment audit produced no eligible fire pulses. It does not supersede earlier firing observations or prove the weapon problem solved. Recent completed audit runs recorded no native exceptions or original-profile changes.
+Earlier equipment runs produced mixed firing, stopping and ammunition results. In the later protected manual `dbd7265` session, the owner confirmed enemy damage in both directions. That bounded result does not establish weapon parity or sustained combat across the campaign. Recent experiments also include native crashes; successful isolation checks must not be mistaken for gameplay success. See [progress notes](docs/PROGRESS.md).
 
 ## Current work
 
-1. Make equipment initialization repeatable, including inventory links and action-state readiness.
-2. Verify both firing and stopping, with matching host/guest ammunition observations.
+Gameplay is the priority. The current blocker is usable squadmate control after a scene: actual landing release/reacquisition has been observed, but Ashley can retain incomplete collision and fall or move out of sync. The latest walking evaluator rejected shared progression despite passing ownership handoffs. One protected run exercised the exact-shape collision repair and retained ground contact, but guest movement still failed. A later run captured a large position discontinuity inside the unchanged native receive call, followed by falling; the exact replicated field or codec remains unproven. See [collision restoration](docs/COLLISION-RESTORATION.md). Recent local-pair tests also exposed a custom focus-loss pause before possession; a guarded candidate now has protected live getter and mode-0 landing-scene observations; movement and full dialogue remain unverified. See [background focus](docs/BACKGROUND-FOCUS.md).
+
+Combat is also incomplete. Earlier runs exposed authoritative fire deferral while the port-arms animation flag remained set. The owner later confirmed bidirectional enemy damage in `dbd7265`; powers, full weapon parity and sustained mission progression still require gameplay evidence. The new weapon, camera, shield-feedback and passage changes have passed native checks but have not been tested in a game.
+
+The separate ordinary runtime now connects the same-PC guest without reloading
+the host's current Mars mission. The current authored activation resolves its
+config and TLK in the protected copy; earlier activation failures remain
+documented. A validated player installation and cross-PC Radmin behavior are
+still pending. See [runtime integration](docs/RUNTIME-INTEGRATION.md) and
+[activation packaging](docs/DLC-PACKAGING.md).
+
+1. Verify scene return with healthy collision and sustained, synchronized walking.
+2. Make equipment/animation readiness repeatable; verify firing and stopping on both sides.
 3. Test a real full conversation while the guest owns a squadmate, then verify camera/control restoration.
-4. Verify enemy damage, powers, sustained progression and mission transitions.
+4. Extend the confirmed bidirectional damage result to sustained combat; verify powers, progression and mission transitions.
 5. Test two physical PCs over Radmin.
 6. Validate installation, disable/uninstall and rollback before releasing a gameplay package.
-7. Expand beyond two participants: per-guest squad assignment, independent ownership leases, disconnect handling and capacity/replication tests.
+7. Expand beyond two participants with per-guest squad assignment and capacity tests.
 
 There is no promised completion date. See [validation notes](docs/VALIDATION.md) for the evidence boundaries.
 
@@ -63,6 +319,11 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `src/squad_probe.c` | Native research ASI and bounded experiment hooks |
 | `src/session_control.h` | Guest possession leases, handoff and disconnect restoration |
 | `src/guest_*` | Player-context, camera, cinematic and equipment adapters |
+| `src/ammo_change_trace.h` | Opt-in read-only ammunition changes, channel identities and sampled update state |
+| `src/ammo_wire_trace.h`, `src/ammo_wire_verification.py` | Opt-in native field encoding/decoding observations and conservative evidence summaries |
+| `src/ammo_reconcile.h`, `src/ammo_reconcile_protocol.h`, `src/ammo_reconcile_verification.py` | Default-off owner-controller snapshot requests, guarded guest counter correction and separate roundtrip evidence |
+| `src/fire_rpc_trace.h` | Default-off native script-entry observations for class/state weapon methods; internal VM calls may bypass these entries |
+| `src/function_lookup_cache.h`, `src/lookup_profile.h` | Live-validated discovery cache and opt-in CPU-path wall-clock measurements |
 | `src/combat_*` | Equipment observations and opt-in firing test input |
 | `src/*verification.py` | Evidence evaluators; labels alone do not count as proof |
 | `src/safe_workspace.py`, `src/share_guard.py` | Independent-copy verification and original-file locks |
@@ -71,7 +332,7 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `tools/` | Configuration and packaging tooling |
 | `tests/` | Synthetic Python tests and separate Windows native harness |
 
-`src/squad_coop.c` is an experimental DLC-gate scaffold. The current build script builds both ASI variants from `squad_probe.c`; the release-named output is not evidence of release readiness.
+`src/squad_coop.c` is a separate experimental ordinary runtime entry, sharing ownership/cleanup and camera/context adapters with the protected probe. It attaches to an existing native host/client world by default and has explicit one-shot guest join and in-place host Listen requests. Native interface selection requires a matching process `-MULTIHOME` argument, and actual driver endpoints are checked. Protected actual-entry host startup and local binding have been observed; ordinary guest startup and control remain unverified. `build.py` compiles each ASI from its own entry. See [runtime integration](docs/RUNTIME-INTEGRATION.md); an output filename does not establish release readiness.
 
 ## Build from source
 
@@ -102,21 +363,6 @@ python tests/native_probe_harness.py
 ```
 
 The harness exercises DLL guards and temporary fixtures. Neither command establishes in-game campaign support.
-
-## Packaging and reversible installation
-
-Packaging tools support authored-component manifests, reversible fixture installation, and staged replacement with rollback/recovery. A generated `.7z` is a **non-installable format fixture** containing unvalidated DLC headers and the native gate scaffold; it contains no campaign runtime.
-
-- Build format fixture: `python tools/build_shareable.py build outputs/ME3SquadCoop-format-fixture.7z`
-- Check installation status: `python tools/build_shareable.py status <test_game_root>`
-- Safe install into test copy: `python tools/build_shareable.py install <package_root> <test_game_root> --qa-candidate`
-- Safe reinstall: `python tools/build_shareable.py reinstall <package_root> <test_game_root> --qa-candidate`
-- Clean remove: `python tools/build_shareable.py remove <package_root> <test_game_root>`
-- Recover interrupted replacement: `python tools/build_shareable.py recover <old_package_root> <test_game_root>`
-
-The install/reinstall/remove commands apply to actual authored components packaged through the specification-based builder. Generated fixtures are blocked from public installation. See [docs/PACKAGING.md](docs/PACKAGING.md) for ownership checks, trusted hashes, staging and recovery limits.
-
-ME3Tweaks import, engine parsing, real installation/disable behavior and a playable campaign package remain unverified.
 
 ## Running research experiments
 

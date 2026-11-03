@@ -1,0 +1,204 @@
+# Guest collision restoration candidate
+
+This scoped candidate addresses an actual release/reacquire failure. A
+paired read-only recorder observed guest Ashley losing world and actor collision
+when control was released. Those settings stayed disabled when control returned;
+the guest fell, and authoritative movement later fell too. An inventory loss was
+not required. The implementation still needs a protected positive game test.
+
+The ordinary entry now enables it by default; explicit
+`ME3_SQUAD_COOP_COLLISION_RESTORE=0` disables it. The protected probe retains
+its explicit `=1` opt-in. The same implementation is shared by both entries. It first
+requires healthy, acknowledged guest ownership of Ashley on the actual native
+channel. It captures complete pawn, controller, world, channel/connection/driver,
+class-default and collision-cylinder/template identities. The observed healthy
+physical shape must equal the actual supported class/template defaults.
+
+The Actor blocking mask covers only reflected `bBlockActors` (0x1); its
+neighboring flag is neither part of the collision contract nor restored. A
+measured return can retain world collision while actor collision is absent,
+with the healthy cylinder response and type0. The blocking bit may be absent
+or retained: both exact states were observed with reciprocal ownership. These
+partial shapes are also eligible for the existing release/reacquire policy. Native type6 keeps
+an existing world-collision flag; the compare-exchange enables it only if absent.
+
+While that same pawn is unowned, two matching disabled snapshots record the
+released state. Repair requires a later registered ownership token, reciprocal
+local possession, the same native channel lifetime and objects, ordinary game
+control, a living initialized pawn, no pause/conversation, and an unchanged
+released snapshot. Missing or changed context never authorizes a write. A
+generation receives at most one attempt, with no continuous reassertion.
+
+During the protected presentation run from `f0fc0c7`, the owner confirmed the
+weapon/mask issue solved, then reported Ashley falling. That run measured
+equipment but did not sample the relevant position/physics/collision fields;
+it cannot distinguish ordinary descent, collision loss or the previously
+observed receive-time position failure. Its original-file/profile audit and
+cleanup passed. The next observer includes both Ashley replicas' movement and
+collision fields. Default activation does not broaden any repair predicate,
+and is not a claim that this newly reported fall has been diagnosed or fixed.
+
+The next ordinary pair (`9d4679a`) captured a concrete missing release shape.
+Guest collision began healthy with actor/world mask 0x60000000, block 1,
+cylinder 0xaa and type 6. During the actual scene release it changed to
+0x20000000, block 1, cylinder 0xaa and type/replicated type 0/0. This persisted
+across several unowned samples and after the second registration token, while
+the authoritative Ashley retained healthy collision. The old predicate refused
+that exact combination, so default activation alone could not repair it.
+The predicate now admits only this additional measured shape through the same
+two-sample release/new-lease/identity guards. Repair still uses native type 6
+and the captured world-collision bit; no coordinate, velocity or role write
+was added. The lifecycle fixture checks this variant, adjacent-bit preservation,
+one-attempt behavior and rejection of nearby unmeasured variants.
+
+The following `ef11491` run admitted that release shape and captured two
+matching disabled snapshots. Its actual reacquired pawn remained local Role2,
+but RemoteRole became 1, which the old ordinary predicate rejected. The
+read-only samples retained the same pawn identity and reciprocal local
+possession while collision remained disabled. The retained-baseline branch
+now admits RemoteRole 1 as well as 0; initial-baseline admission still refuses
+both, and local Role2, native current channel, new lease, life and scene gates
+remain required. The fixture exercises repair without changing either role
+byte and rejects simulated/authority local roles. This latest correction still
+needs a real scene-return observation; the prior run is not a repair success.
+
+The ordinary runtime keeps the session-lifetime gate separate from permission
+to write on a particular frame. A scene or `bPlayersOnly` interval suspends
+repair while preserving the healthy baseline and released-state observations.
+An actual runtime disable or loss of the native session scope retires them.
+
+The repair dispatches the actual reflected native `Actor.SetCollisionType` with
+the captured healthy type, `COLLIDE_BlockAllButWeapons` (6). It verifies the
+supported native entry, callsite and one-byte parameter ABI. This engine method
+updates actor/component collision and attachment state even when the type was
+already 6. All component-array members and their identities are checked around
+the call. The method does not restore `bCollideWorld`: a writable, exact-value
+compare-exchange restores only that captured bit, preserving unrelated bits.
+Post-call verification requires the captured healthy physical shape and the
+native method's corresponding replicated-type value. A logged healthy shape
+does not establish floor contact, synchronized movement, firing or combat.
+
+Disabling or retiring the candidate stops observation/repair. It does not
+deliberately put a still-controlled pawn back into the invalid collision state.
+Normal engine scene/release behavior remains responsible for later changes;
+the adapter never forces collision while unowned or in a scene. Game exit
+removes all runtime effects. No game, configuration or save file is written.
+
+The native fixture covers captured healthy/disabled shapes, altered component
+responses, stale compare-exchange expectations and preservation of unrelated
+bits. These are offline checks. Real release/reacquire, movement, disconnect,
+actual conversations and ordinary-entry integration still require game evidence.
+
+The separate lifecycle fixture exercises the actual adapter against temporary
+objects, with explicit stand-ins for engine discovery and native dispatch. It
+covers retained observation through a scene/PlayersOnly interval, two released
+samples, a later ownership token, one repair attempt, true disable, changed
+identities/channel/template/released state, and ABI refusal. Run it without
+launching a game:
+
+```powershell
+python tests/native_collision_lifecycle.py C:\Tools\zig-0.15.2\zig.exe
+```
+
+## Scoped receive diagnostic
+
+The protected probe supports `ME3_SQUAD_COOP_POSITION_RECEIVE_TRACE=1`
+(default off). It uses the existing pinned ActorChannel receive hook to compare
+current-world guest Ashley before/after the unchanged original native call.
+Only large position changes or ownership/base/role transitions are logged,
+with a64-record limit. Packet bytes and pawn state are not written. It also
+runs during collision-baseline QA when explicitly enabled; package-map tracing
+stays disabled in that mode. The ordinary player ASI does not include this code.
+
+`python tests/native_position_receive.py <zig>` exercises the actual forwarding
+wrapper on authored memory. Passing it establishes diagnostic forwarding and
+filter behavior, not movement, dialogue or combat correctness in the game.
+# Measured real-scene retained-block case
+
+A protected real-scene return reproduced falling without inventory loss or an
+out-of-range collision enum. The guest reacquired with both Actor collision
+bits disabled, block latch1, cylinder response0xaa and type/replicated type0.
+The first measured fall began five seconds after reacquisition. The existing
+release-shape predicate rejected this stable combination, clearing its pending
+repair state. The later scheduled disconnect did not cause this fall.
+
+The protected adapter now admits only that exact additional shape. All existing
+healthy-baseline, two-sample release, new-lease, identity, ordinary-scene and
+component checks remain. Repair uses the existing native collision-type call
+and masked world-collision restoration; no position, physics or role write is
+added. The lifecycle fixture checks one repair after reacquisition, preserves
+adjacent flags and rejects other component/type/block combinations. This is a
+candidate fix with offline evidence; prevention of falling still requires a
+new protected real-client run.
+
+The next protected pair exercised this exact release shape and dispatched the
+existing native repair after real-scene reacquisition. Both peers then retained
+ground contact, with the guest's healthy collision shape and no unsafe-motion
+verdict. This is one live preventive-repair result. The guest nevertheless
+remained stationary despite recorded movement input and cleared input-ignore
+flags. Therefore this run establishes collision restoration and retained ground
+contact, not successful post-scene movement or campaign progression. The cause
+of that separate movement refusal remains unverified.
+
+## Later receive-time position discontinuity
+
+A subsequent protected pair reproduced a different falling sequence. The
+read-only before/after observer bracketed the guest position changing from
+approximately (-22031, 49555, 225) to (-16367, -16281, -16384) inside the
+unchanged native ActorChannel receive call. The next receive moved it near
+(153, 123, -101). Inventory and weapon pointers remained unchanged across
+these observations. No probe position write or packet modification occurred.
+The guest later fell; no collision-repair attempt was exercised in this run.
+
+All 1,073 valid guest paired snapshots reported the independently reflected
+controller position lock as false. A separate identity-checked read found
+the current default mode allowed movement. That later permission sample does
+not prove permission at every earlier frame. The exact received property,
+sender value and codec responsible for the discontinuity remain unknown;
+this evidence does not justify suppressing arbitrary updates or restoring
+coordinates. The earlier single positive collision-repair result remains
+limited to its measured release shape. Stable movement, combat damage and
+full conversations are still unverified.
+
+The next diagnostic is `vector_decode_trace.h`, enabled only by the existing
+protected position-receive opt-in. It observes the stock StructProperty
+serializer for the exact Actor location, velocity and relative-location fields
+inside the existing guest Ashley receive frame. The bounded records distinguish
+decoded scratch values from final application. The original serializer still
+runs once with unchanged arguments; no archive read/seek, packet mutation or
+position correction is added. Its actual-header native fixture and optimized
+negative canary pass. No game has exercised this additional field observer yet.
+
+Offline analysis identified the actual three-component vector codec. A private
+controlled replay of its pinned native body round-tripped three coordinate
+sets and reproduced the observed bad coordinates when supplied width13 and
+bounded component values17,103,0. This executes only the codec against authored
+scalar callbacks in an analysis process; it starts no game and decodes no
+real packet. It proves the arithmetic can produce those values, not which
+field or sender caused the live discontinuity.
+
+The field observer now reuses the existing scalar-read hook to record the
+width and three component values at the codec's four exact return sites.
+Archive identity, field scope, thread, order and scalar bounds are checked;
+nested unrelated fields mask the outer scope. Zero or partial scalar counts
+remain incomplete evidence. No additional archive hook or read/seek is added.
+Actual-header vector, inventory-reference and27-case receive fixtures pass.
+This extension has not been exercised in a game.
+
+## Ownership return independent of presentation
+
+An owner-controlled session captured stable released collision with world
+collision absent, followed by real control return without UI re-registration.
+The old repair required the presentation context and its new registration token,
+so it never attempted the physical repair. The adapter now uses its own actual
+ownership-return generation and checks native life/action/input/game-mode state
+directly. Camera reciprocity and UI registration no longer gate physics recovery.
+The captured healthy shape, two stable released samples, same object/component/
+class-template/channel identities, exact ABI, native SetCollisionType call and
+post-call physical readbacks remain required. No coordinates or roles are written.
+
+Focused ordinary/protected lifecycle fixtures pass, including repair while the
+UI is absent and camera mismatched, and refusal during native physical/scene
+locks. The same live session also had a large guest-first XY discontinuity and
+a later game access violation. This change does not establish that their root
+causes or sustained scene-return movement are fixed; owner gameplay is pending.

@@ -22,16 +22,7 @@
 static DWORD scene_readiness_last_sample = 0;
 
 static const char *scene_readiness_bool(int value) { return value ? "true" : "false"; }
-static int scene_readiness_array(uintptr_t at, GameArray *a, int limit) {
-    return read_at(at,a,sizeof *a) && a->count>=0 && a->count<=limit &&
-        a->max>=a->count && a->max<=4096 && (!a->count || a->data);
-}
-static int scene_readiness_actor(uintptr_t base, uintptr_t actor) {
-    uint32_t a=0,b=0;
-    return is_live(base,actor) && is_kind_of(base,actor,"Actor") &&
-        read_at(actor+0x25c,&a,4) && read_at(actor+0x260,&b,4) &&
-        !(a&8) && !(b&0x800000);
-}
+#include "squad_context_support.h"
 static void scene_readiness_path(uintptr_t base, uintptr_t object, char *out, size_t cap) {
     char raw[600]={0}; out[0]=0;
     if(is_live(base,object)) identity_path(base,object,raw,sizeof raw);

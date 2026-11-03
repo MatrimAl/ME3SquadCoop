@@ -8,13 +8,11 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
 import stat
 import struct
 
 PACKAGE_ID = "ME3SquadCoop"
 RECEIPT = "ME3SquadCoop.install.json"
-TRANSACTION = "ME3SquadCoop.reinstall"
 SANDBOX_MARKER = ".me3-coop-sandbox.json"
 EXE = "Binaries/Win64/MassEffect3.exe"
 GAME_SHA256 = "b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001"
@@ -27,8 +25,243 @@ FIXED_TARGETS = {
     "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/Mount.dlc": "dlc",
 }
 DLC_PREFIX = "BioGame/DLC/DLC_MOD_ME3SquadCoop/CookedPCConsole/"
+MOUNT_TARGET = DLC_PREFIX + "Mount.dlc"
+ACTIVATION_PREFIX = "BioGame/DLC/DLC_MOD_ME3SquadCoop/"
+ACTIVATION_FILES = (
+    "PCConsoleTOC.bin", "CookedPCConsole/Mount.dlc",
+    "CookedPCConsole/Default_DLC_MOD_ME3SquadCoop.bin",
+    "CookedPCConsole/DLC_MOD_ME3SquadCoop_INT.tlk",
+)
+ACTIVATION_TARGETS = frozenset(ACTIVATION_PREFIX + name for name in ACTIVATION_FILES)
+ACTIVATION_STRING_ID = 1915100
+FIXED_TARGETS.update(dict.fromkeys(ACTIVATION_TARGETS, "dlc"))
+BASE_TOC_TARGET = "BioGame/PCConsoleTOC.bin"
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?\Z")
+
+
+def make_activation_mount(priority=5100):
+    """Author our native-only activation container's LE3 mount metadata.
+
+    Binary layout provenance: docs/DLC-PACKAGING.md. There are no startup
+    packages, config changes, copied GUIDs or game assets in this container.
+    Readback validates the authored format; it does not prove engine loading.
+    """
+    if type(priority) is not int or not 1 <= priority <= 65535:
+        raise ValueError("LE3 mount priority must be an integer from 1 to 65535")
+    raw = struct.pack("<9I", 1, 0x2AD, 0xCD, 0x3006B, priority, 0, 0x0C, 0, 0) + bytes(0x48)
+    read_activation_mount(raw)
+    return raw
+
+
+def read_activation_mount(raw, *, string_id=0):
+    """Strict bounded readback for this project's asset-free activation DLC."""
+    if not isinstance(raw, bytes) or len(raw) != 0x6C:
+        raise ValueError("activation Mount.dlc must contain exactly 108 bytes")
+    version, package, licensee, cooked, priority, build, flags, content, name = struct.unpack_from("<9I", raw)
+    if (version, package, licensee, cooked) != (1, 0x2AD, 0xCD, 0x3006B):
+        raise ValueError("Mount.dlc is not the supported LE3 mount format")
+    if not 1 <= priority <= 65535:
+        raise ValueError("invalid LE3 mount priority")
+    if string_id not in (0, ACTIVATION_STRING_ID) or type(string_id) is not int:
+        raise ValueError("unsupported authored activation string identity")
+    if build or flags != 0x0C or content != string_id or name != string_id or any(raw[0x24:]):
+        raise ValueError("unexpected activation mount flags, TLK IDs or reserved build/GUID bytes")
+    return {"game": "LE3", "mount_priority": priority, "loads_in_singleplayer": True,
+            "loads_in_multiplayer": True, "save_dependency": False, "tlk_id": string_id}
+
+
+def verify_activation_toc(root):
+    """Bounded readback of the three-file authored LE3 activation TOC.
+
+    TOCBinFile stores relative bucket offsets and variable-size entries. The
+    last entry's size is zero. No arbitrary package filename is admitted.
+    """
+    root = checked_root(root)
+    raw = safe_path(root, "PCConsoleTOC.bin").read_bytes()
+    if len(raw) < 36 or len(raw) > 4096 or struct.unpack_from("<3I", raw) != (0x3AB70C13, 0, 3):
+        raise ValueError("unsupported activation TOC header")
+    expected = {name.replace("/", "\\"): safe_path(root, name).stat().st_size
+                for name in ACTIVATION_FILES if name != "PCConsoleTOC.bin"}
+    table = []
+    for index in range(256):
+        crc = index << 24
+        for _ in range(8):
+            crc = ((crc << 1) ^ (0x04C11DB7 if crc & 0x80000000 else 0)) & 0xffffffff
+        table.append(crc)
+    found, ranges = {}, []
+    for bucket in range(3):
+        start = 12 + bucket * 8
+        relative, count = struct.unpack_from("<2I", raw, start)
+        if count > 3 or (count == 0) != (relative == 0):
+            raise ValueError("invalid activation TOC bucket")
+        at = start + relative
+        for entry in range(count):
+            if at < 36 or at + 29 > len(raw):
+                raise ValueError("activation TOC entry outside payload")
+            length, flags, size = struct.unpack_from("<HHI", raw, at)
+            end = at + length if length else len(raw)
+            if end > len(raw) or end < at + 29 or flags or any(raw[at+8:at+28]):
+                raise ValueError("invalid authored activation TOC entry")
+            nul = raw.find(b"\0", at + 28, end)
+            if nul < 0 or any(raw[nul+1:end]):
+                raise ValueError("invalid activation TOC filename termination")
+            try:
+                name = raw[at+28:nul].decode("ascii")
+            except UnicodeDecodeError as error:
+                raise ValueError("ASCII activation TOC filename required") from error
+            if name not in expected or name in found or size != expected[name]:
+                raise ValueError("activation TOC filename/size differs from payload")
+            hashed = 0
+            for value in name.rsplit("\\", 1)[-1].upper().encode("ascii"):
+                hashed = (hashed >> 8) ^ table[(hashed ^ value) & 255]
+                hashed = (hashed >> 8) ^ table[hashed & 255]
+            if hashed % 3 != bucket:
+                raise ValueError("activation TOC filename hash bucket mismatch")
+            if not length and entry + 1 != count:
+                raise ValueError("early terminal activation TOC entry")
+            found[name] = size
+            ranges.append((at, end))
+            at = end
+    ordered = sorted(ranges)
+    if set(found) != set(expected) or not ordered or ordered[0][0] != 36 or ordered[-1][1] != len(raw):
+        raise ValueError("incomplete activation TOC")
+    if any(a[1] != b[0] for a,b in zip(ordered,ordered[1:])):
+        raise ValueError("overlapping or unaccounted activation TOC bytes")
+    return found
+
+
+def parse_base_toc(raw):
+    """Read both native bucket and linear walks without changing a game file."""
+    if len(raw) < 20 or len(raw) > 64 * 1024 * 1024:
+        raise ValueError("base TOC size outside bounds")
+    magic, media, buckets = struct.unpack_from("<III", raw)
+    if magic != 0x3ab70c13 or media or not 0 < buckets <= 100000:
+        raise ValueError("unsupported base TOC header")
+    start = 12 + buckets * 8
+    if start >= len(raw):
+        raise ValueError("truncated base TOC buckets")
+    entries, visited = {}, set()
+    for bucket in range(buckets):
+        table = 12 + bucket * 8
+        offset, count = struct.unpack_from("<ii", raw, table)
+        if not 0 <= count <= 100000 or (count == 0 and offset):
+            raise ValueError("invalid base TOC bucket")
+        at = table + offset
+        for index in range(count):
+            if at < start or at + 29 > len(raw) or at in visited:
+                raise ValueError("overlapping base TOC entry")
+            visited.add(at)
+            step, flags, size = struct.unpack_from("<hHi", raw, at)
+            end = raw.find(b"\0", at + 28, min(len(raw), at + 4096))
+            if end < 0 or size < 0 or (step and (step < end+1-at or step % 4)):
+                raise ValueError("invalid base TOC entry fields")
+            try:
+                name = raw[at+28:end].decode("ascii")
+            except UnicodeDecodeError as error:
+                raise ValueError("ASCII base TOC filenames required") from error
+            key = name.casefold()
+            if not name or key in entries or (index+1 < count and step <= 0):
+                raise ValueError("duplicate or early terminal base TOC entry")
+            entries[key] = (name, size, flags, raw[at+8:at+28], bucket)
+            at += step
+    at, linear = start, set()
+    while at in visited and at not in linear:
+        linear.add(at)
+        step = struct.unpack_from("<h", raw, at)[0]
+        if not step:
+            break
+        at += step
+    if not linear or linear != visited or at not in visited or struct.unpack_from("<h", raw, at)[0]:
+        raise ValueError("base TOC linear walk differs from buckets")
+    return buckets, entries
+
+
+def toc_filename_hash(name):
+    table = []
+    for index in range(256):
+        crc = index << 24
+        for _ in range(8):
+            crc = ((crc << 1) ^ (0x04c11db7 if crc & 0x80000000 else 0)) & 0xffffffff
+        table.append(crc)
+    value = 0
+    for char in name.upper().encode("ascii"):
+        value = (value >> 8) ^ table[(value ^ char) & 255]
+        value = (value >> 8) ^ table[value & 255]
+    return value
+
+
+def encode_base_toc(buckets, entries):
+    """Return derived bytes only; retain every supplied entry's native bucket."""
+    table = bytearray(struct.pack("<III", 0x3ab70c13, 0, buckets) + bytes(buckets*8))
+    records = []
+    groups = {}
+    for entry in entries.values():
+        groups.setdefault(entry[4], []).append(entry)
+    for bucket in range(buckets):
+        group = groups.get(bucket, [])
+        if group:
+            struct.pack_into("<ii", table, 12+bucket*8, len(table)-(12+bucket*8), len(group))
+        for name, size, flags, hashed, _ in group:
+            encoded = name.encode("ascii") + b"\0"
+            length = (28 + len(encoded) + 3) & ~3
+            if length > 32767:
+                raise ValueError("base TOC filename stride outside bounds")
+            records.append(len(table))
+            table += struct.pack("<HHi", length, flags, size) + hashed + encoded
+            table += bytes(length - 28 - len(encoded))
+    if not records:
+        raise ValueError("empty base TOC")
+    struct.pack_into("<H", table, records[-1], 0)
+    return bytes(table)
+
+
+def derived_base_toc(before, manifest):
+    buckets, original = parse_base_toc(before)
+    expected = {}
+    if {item["path"] for item in manifest["files"] if item["kind"] == "dlc"} != ACTIVATION_TARGETS:
+        raise ValueError("complete authored activation required for base TOC preparation")
+    for item in manifest["files"]:
+        if item["kind"] != "dlc" or item["path"].endswith("/PCConsoleTOC.bin"):
+            continue
+        name = "BIOGame\\DLC\\DLC_MOD_ME3SquadCoop\\" + item["path"][len(ACTIVATION_PREFIX):].replace("/", "\\")
+        expected[name.casefold()] = (name, item["size"], 0, bytes(20), toc_filename_hash(name.rsplit("\\",1)[-1]) % buckets)
+    if len(expected) != 3:
+        raise ValueError("exactly three authored content additions required")
+    existing = {key:value for key,value in original.items() if key.startswith("biogame\\dlc\\dlc_mod_me3squadcoop\\")}
+    if existing:
+        if existing != expected:
+            raise ValueError("existing co-op base TOC entries conflict or are incomplete")
+        return before
+    revised = dict(original)
+    revised.update(expected)
+    after = encode_base_toc(buckets, revised)
+    new_buckets, checked = parse_base_toc(after)
+    if buckets != new_buckets or checked != revised or any(checked.get(key) != value for key,value in original.items()):
+        raise ValueError("derived TOC changed an existing entry")
+    return after
+
+
+def prepare_base_toc(package_root, manifest, baseline_path, output_path):
+    """Create a new derived artifact. Never install, replace or restore a TOC."""
+    verify_payload(package_root, manifest, installable=False)
+    baseline = Path(baseline_path).absolute()
+    safe_path(baseline.parent, baseline.name)
+    output = Path(output_path).absolute()
+    safe_path(output.parent, output.name)
+    if os.path.lexists(output):
+        raise FileExistsError("derived TOC output already exists")
+    before = baseline.read_bytes()
+    after = derived_base_toc(before, manifest)
+    if baseline.read_bytes() != before:
+        raise ValueError("baseline TOC changed during preparation")
+    with output.open("xb") as stream:
+        stream.write(after); stream.flush(); os.fsync(stream.fileno())
+    if baseline.read_bytes() != before or output.read_bytes() != after:
+        raise ValueError("TOC artifact readback failed; baseline was never written")
+    return {"status":"derived-toc-prepared-not-installed", "baseline_sha256":hashlib.sha256(before).hexdigest(),
+            "output_sha256":hashlib.sha256(after).hexdigest(), "added_entries":0 if before == after else 3,
+            "game_file_written":False}
 
 
 def digest(path):
@@ -149,10 +382,15 @@ def validate_manifest(manifest, *, allow_fixture=False, allow_candidate=False, i
             raise ValueError("invalid authored file size/hash")
     if not fixture:
         kinds = {item["kind"] for item in files}
-        if kinds != {"native", "dlc"} or not any(item["path"].endswith(".pcc") for item in files):
+        if kinds != {"native", "dlc"}:
             raise ValueError("release requires real authored DLC and a release native companion")
-        if not any(item["path"].endswith("/Mount.dlc") for item in files):
+        if not any(item["path"] == MOUNT_TARGET for item in files):
             raise ValueError("authored DLC mount is missing")
+        dlc_targets = {item["path"] for item in files if item["kind"] == "dlc"}
+        # Preserve hash-checked inspection/removal of old Mount-only receipts.
+        # New automatic bundles require the complete authored activation set.
+        if dlc_targets not in ({MOUNT_TARGET}, ACTIVATION_TARGETS):
+            raise ValueError("activation DLC requires its complete authored file set; no PCC/assets")
     return manifest
 
 
@@ -162,12 +400,7 @@ def manifest_hash(manifest):
 
 def validate_native(path, *, fixture=False):
     raw = Path(path).read_bytes()
-    probe_markers = (
-        b"SquadProbe", b"ME3SquadCoopProbe", b"SquadDirectIPSelfTest",
-        b"SquadGuestCameraSelfTest", b"SquadGuestCinematicSelfTest",
-        b"SquadSessionHandleSelfTest", b".me3-coop-sandbox.json",
-    )
-    if any(marker in raw for marker in probe_markers):
+    if b"SquadProbe" in raw or b"ME3SquadCoopProbe" in raw:
         raise ValueError("research probe is not a release native component")
     if fixture:
         return
@@ -201,6 +434,11 @@ def verify_payload(package_root, manifest, *, allow_fixture=False, allow_candida
         if item["kind"] == "native":
             # Source-name checks alone are insufficient: reject the actual diagnostic binary marker too.
             validate_native(path, fixture=manifest.get("channel") == "fixture")
+        elif manifest.get("channel") != "fixture" and item["path"] == MOUNT_TARGET:
+            modern = {entry["path"] for entry in manifest["files"] if entry["kind"] == "dlc"} == ACTIVATION_TARGETS
+            read_activation_mount(path.read_bytes(), string_id=ACTIVATION_STRING_ID if modern else 0)
+    if manifest.get("channel") != "fixture" and any(entry["path"] == ACTIVATION_PREFIX + "PCConsoleTOC.bin" for entry in manifest["files"]):
+        verify_activation_toc(safe_path(root, ACTIVATION_PREFIX.rstrip("/")))
     return root
 
 
@@ -266,78 +504,6 @@ def _write_json_new(path, value):
         os.fsync(stream.fileno())
 
 
-def _replace_json(path, value):
-    """Replace an already-owned journal without truncating its recoverable version."""
-    temporary = safe_path(path.parent, path.name + ".committed.tmp")
-    created = False
-    try:
-        with temporary.open("x", encoding="utf-8", newline="\n") as stream:
-            created = True
-            json.dump(value, stream, indent=2)
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, path)
-    except BaseException:
-        if created:
-            temporary.unlink(missing_ok=True)
-        raise
-
-
-def _component_directories(manifest):
-    # The executable proves Binaries and Win64 predate every permitted installation.
-    protected = {EXE.rsplit("/", 1)[0], EXE.split("/")[0]}
-    result = set()
-    for item in manifest["files"]:
-        parts = item["path"].split("/")
-        result.update("/".join(parts[:end]) for end in range(1, len(parts)))
-    return result - protected
-
-
-def _validated_receipt(receipt, *, expected_manifest_sha256=None, allow_fixture=False):
-    if not isinstance(receipt, dict):
-        raise ValueError("invalid installation receipt")
-    manifest = receipt.get("manifest")
-    validate_manifest(manifest, allow_fixture=allow_fixture,
-                      allow_candidate=receipt.get("qa_candidate") is True)
-    actual_hash = manifest_hash(manifest)
-    if (receipt.get("schema") != 1 or receipt.get("package_id") != PACKAGE_ID
-            or receipt.get("status") not in ("installed", "incomplete")
-            or receipt.get("manifest_sha256") != actual_hash
-            or (expected_manifest_sha256 is not None and actual_hash != expected_manifest_sha256)
-            or type(receipt.get("qa_candidate")) is not bool
-            or receipt["qa_candidate"] != (manifest["channel"] == "candidate")):
-        raise ValueError("receipt does not match the trusted package manifest")
-    directories = receipt.get("created_directories")
-    if (not isinstance(directories, list) or any(not isinstance(value, str) for value in directories)
-            or len(directories) != len(set(directories))
-            or not set(directories).issubset(_component_directories(manifest))):
-        raise ValueError("receipt directory is not an owned component ancestor")
-    planned = [{key: item[key] for key in ("path", "sha256", "size")} for item in manifest["files"]]
-    installed = receipt.get("installed_files")
-    if installed is None and receipt["status"] == "installed":
-        installed = planned  # Completed receipts from the preceding source version.
-    if (not isinstance(installed, list) or len(installed) > len(planned)
-            or installed != planned[:len(installed)]
-            or (receipt["status"] == "installed" and installed != planned)):
-        raise ValueError("invalid installed-file ownership ledger")
-    return manifest, installed
-
-
-def _remove_empty_directories(root, directories):
-    removed = 0
-    for relative in sorted(directories, key=lambda value: value.count("/"), reverse=True):
-        path = safe_path(root, relative)
-        if path.is_dir():
-            try:
-                path.rmdir()
-                removed += 1
-            except OSError as error:
-                if error.errno not in (39, 66) and getattr(error, "winerror", None) != 145:
-                    raise
-    return removed
-
-
 def install(package_root, manifest, game_root, *, allow_fixture=False, allow_candidate=False):
     """Preflight every conflict; copy only new allowlisted files. No game launch."""
     payload = verify_payload(package_root, manifest, allow_fixture=allow_fixture, allow_candidate=allow_candidate)
@@ -346,10 +512,6 @@ def install(package_root, manifest, game_root, *, allow_fixture=False, allow_can
     receipt_path = safe_path(root, RECEIPT)
     if os.path.lexists(receipt_path):
         raise FileExistsError("installation receipt already exists; inspect/remove that installation first")
-    if os.path.lexists(safe_path(root, TRANSACTION)):
-        raise FileExistsError("reinstall recovery is pending")
-    if os.path.lexists(safe_path(root, RECEIPT + ".committed.tmp")):
-        raise FileExistsError("receipt temporary file requires inspection")
     targets = [(item, safe_path(root, item["path"])) for item in manifest["files"]]
     for item, target in targets:
         if os.path.lexists(target):
@@ -359,9 +521,15 @@ def install(package_root, manifest, game_root, *, allow_fixture=False, allow_can
                 break
             if ancestor.exists() and not ancestor.is_dir():
                 raise FileExistsError("target ancestor is not a directory")
+    if {item["path"] for item in manifest["files"] if item["kind"] == "dlc"} == ACTIVATION_TARGETS:
+        base_toc = safe_path(root, BASE_TOC_TARGET)
+        if not base_toc.is_file():
+            raise ValueError("base TOC is missing; no components installed")
+        current = base_toc.read_bytes()
+        if derived_base_toc(current, manifest) != current or base_toc.read_bytes() != current:
+            raise ValueError("base TOC lacks current authored entries; prepare-base-toc creates a separate artifact only; no components installed")
     receipt = {"schema": 1, "package_id": PACKAGE_ID, "manifest_sha256": manifest_hash(manifest),
                "manifest": manifest, "status": "incomplete", "created_directories": [],
-               "installed_files": [],
                "qa_candidate": manifest.get("channel") == "candidate"}
     # Durable ownership journal before copying; an interrupted copy is never represented as installed.
     _write_json_new(receipt_path, receipt)
@@ -375,7 +543,6 @@ def install(package_root, manifest, game_root, *, allow_fixture=False, allow_can
             for directory in reversed(missing):
                 directory.mkdir()
                 receipt["created_directories"].append(directory.relative_to(root).as_posix())
-                _replace_json(receipt_path, receipt)
             with safe_path(payload, item["path"]).open("rb") as source, target.open("xb") as output:
                 for data in iter(lambda: source.read(1024 * 1024), b""):
                     output.write(data)
@@ -383,11 +550,11 @@ def install(package_root, manifest, game_root, *, allow_fixture=False, allow_can
                 os.fsync(output.fileno())
             if digest(target) != item["sha256"]:
                 raise ValueError("new file failed post-copy hash verification")
-            receipt["installed_files"].append({key: item[key] for key in ("path", "sha256", "size")})
-            _replace_json(receipt_path, receipt)
         receipt["status"] = "installed"
         # Receipt is our newly created file and remains a recovery journal on failure.
-        _replace_json(receipt_path, receipt)
+        committed = safe_path(root, RECEIPT + ".committed.tmp")
+        _write_json_new(committed, receipt)
+        os.replace(committed, receipt_path)
     except Exception:
         # Keep the incomplete journal and any partial file; removal refuses changed/unverified bytes.
         raise
@@ -399,317 +566,29 @@ def remove(game_root, *, expected_manifest_sha256, allow_fixture=False):
     """Remove only receipt-listed files matching the caller's trusted manifest hash.
 
     All hashes are checked before any deletion; modified components are preserved.
-    Empty directories created during installation are cleaned up, while directories containing
-    other files or existing game files are preserved.
+    Empty directories are intentionally retained to avoid touching another mod's directories.
     """
-    if not isinstance(expected_manifest_sha256, str) or not HASH.fullmatch(expected_manifest_sha256):
-        raise ValueError("trusted package manifest fingerprint required")
     root = checked_root(game_root)
     path = safe_path(root, RECEIPT)
     receipt = json.loads(path.read_text(encoding="utf-8"))
-    manifest, installed = _validated_receipt(receipt, expected_manifest_sha256=expected_manifest_sha256,
-                                             allow_fixture=allow_fixture)
-    if os.path.lexists(safe_path(root, TRANSACTION)):
-        raise ValueError("recover interrupted reinstall before removing components")
+    manifest = receipt.get("manifest")
+    # A candidate's hash-checked removal must remain available after its explicit QA install.
+    validate_manifest(manifest, allow_fixture=allow_fixture, allow_candidate=receipt.get("qa_candidate") is True)
+    if (receipt.get("package_id") != PACKAGE_ID or receipt.get("status") not in ("installed", "incomplete")
+            or manifest_hash(manifest) != expected_manifest_sha256
+            or receipt.get("manifest_sha256") != expected_manifest_sha256):
+        raise ValueError("receipt does not match the trusted package manifest")
     _sandbox(root, manifest, allow_fixture)
     ensure_game_closed()
     existing = []
-    owned = {item["path"] for item in installed}
-    for value in receipt["created_directories"]:
-        safe_path(root, value)  # Validate every directory before deleting any component.
     for item in manifest["files"]:
         target = safe_path(root, item["path"])
         if not os.path.lexists(target):
             continue
-        if item["path"] not in owned:
-            raise ValueError(f"unverified incomplete component preserved: {item['path']}")
         if not target.is_file() or digest(target) != item["sha256"]:
             raise ValueError(f"changed component preserved: {item['path']}")
         existing.append(target)
     for target in existing:
         target.unlink()
-    removed_dirs = _remove_empty_directories(root, receipt["created_directories"])
     path.unlink()
-    return {"status": "removed", "files": len(existing), "removed_directories": removed_dirs}
-
-
-def inspect_installation(game_root):
-    """Inspect installation status and component integrity in game_root without mutating anything."""
-    root = checked_root(game_root)
-    receipt_path = safe_path(root, RECEIPT)
-    if not receipt_path.is_file():
-        return {"status": "not_installed", "receipt_present": False}
-    try:
-        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        manifest, _ = _validated_receipt(receipt, allow_fixture=True)
-    except Exception as err:
-        return {"status": "corrupt_receipt", "receipt_present": True, "error": str(err)}
-
-    files = manifest["files"]
-    verified, modified, missing = [], [], []
-    for item in files:
-        target = safe_path(root, item["path"])
-        if not os.path.lexists(target):
-            missing.append(item["path"])
-        elif not target.is_file():
-            modified.append(item["path"])
-        else:
-            if digest(target) == item["sha256"]:
-                verified.append(item["path"])
-            else:
-                modified.append(item["path"])
-
-    receipt_status = receipt.get("status", "unknown")
-    recovery_pending = os.path.lexists(safe_path(root, TRANSACTION))
-    is_healthy = (receipt_status == "installed" and len(verified) == len(files)
-                  and not modified and not missing and not recovery_pending)
-    return {
-        "status": "recovery_pending" if recovery_pending else ("installed" if is_healthy else
-                  ("incomplete" if receipt_status == "incomplete" else "diverged")),
-        "receipt_present": True,
-        "receipt_status": receipt_status,
-        "package_id": receipt.get("package_id"),
-        "manifest_sha256": receipt.get("manifest_sha256"),
-        "channel": manifest.get("channel"),
-        "version": manifest.get("version"),
-        "total_files": len(files),
-        "files_verified": verified,
-        "files_modified": modified,
-        "files_missing": missing,
-        "is_clean": is_healthy,
-    }
-
-
-def _matches(path, item):
-    return path.is_file() and path.stat().st_size == item["size"] and digest(path) == item["sha256"]
-
-
-def _copy_verified(source, destination, item):
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with source.open("rb") as incoming, destination.open("xb") as outgoing:
-        shutil.copyfileobj(incoming, outgoing, 1024 * 1024)
-        outgoing.flush()
-        os.fsync(outgoing.fileno())
-    if not _matches(destination, item):
-        raise ValueError("staged component hash/size mismatch")
-
-
-def _transaction_contents(transaction, old_manifest, new_manifest):
-    """Preflight every staging path before touching a recovery target or backup."""
-    allowed = {"transaction.json", "transaction.json.committed.tmp", "commit-receipt.json",
-               "restore-receipt.json"}
-    for category, manifest in (("backup", old_manifest), ("restore", old_manifest), ("new", new_manifest)):
-        allowed.update(category + "/" + item["path"] for item in manifest["files"])
-    allowed_directories = set()
-    for relative in allowed:
-        parts = relative.split("/")
-        allowed_directories.update("/".join(parts[:end]) for end in range(1, len(parts)))
-    files, directories = [], []
-    for folder, dirs, names in os.walk(checked_root(transaction), followlinks=False):
-        for name in dirs + names:
-            child = Path(folder, name)
-            relative = child.relative_to(transaction).as_posix()
-            safe_path(transaction, relative)
-            if relative not in (allowed_directories if name in dirs else allowed):
-                raise ValueError("unrecognized transaction content preserved")
-            (directories if name in dirs else files).append(child)
-    return files, directories
-
-
-def _transaction_cleanup(transaction, old_manifest, new_manifest):
-    """Delete only this transaction's fixed control files and declared staging files."""
-    files, directories = _transaction_contents(transaction, old_manifest, new_manifest)
-    journal = transaction / "transaction.json"
-    for child in files:
-        if child != journal:
-            child.unlink()
-    for child in sorted(directories, key=lambda path: len(path.parts), reverse=True):
-        child.rmdir()
-    journal.unlink()
-    transaction.rmdir()
-
-
-def recover_reinstall(game_root, *, expected_manifest_sha256, allow_fixture=False):
-    """Restore a prepared replacement's verified backups; finish committed cleanup.
-
-    The caller supplies the old package's trusted manifest fingerprint. A changed
-    component, receipt, backup or unknown staging file is preserved for inspection.
-    """
-    if not isinstance(expected_manifest_sha256, str) or not HASH.fullmatch(expected_manifest_sha256):
-        raise ValueError("trusted old package manifest fingerprint required")
-    root = checked_root(game_root)
-    transaction = safe_path(root, TRANSACTION)
-    journal = json.loads(safe_path(transaction, "transaction.json").read_text(encoding="utf-8"))
-    if (not isinstance(journal, dict) or journal.get("schema") != 1
-            or journal.get("package_id") != PACKAGE_ID
-            or journal.get("status") not in ("staging", "prepared", "committed")):
-        raise ValueError("invalid reinstall recovery journal; backups preserved")
-    old_receipt, new_receipt = journal.get("old_receipt"), journal.get("new_receipt")
-    old, _ = _validated_receipt(old_receipt, expected_manifest_sha256=expected_manifest_sha256,
-                               allow_fixture=allow_fixture)
-    new, _ = _validated_receipt(new_receipt, allow_fixture=allow_fixture)
-    old_text = journal.get("old_receipt_text")
-    if not isinstance(old_text, str) or json.loads(old_text) != old_receipt:
-        raise ValueError("invalid original receipt backup")
-    old_bytes = old_text.encode("utf-8")
-    new_bytes = (json.dumps(new_receipt, indent=2) + "\n").encode("utf-8")
-    _transaction_contents(transaction, old, new)
-    _sandbox(root, old, allow_fixture)
-    ensure_game_closed()
-    receipt_path = safe_path(root, RECEIPT)
-    if receipt_path.read_bytes() not in (old_bytes, new_bytes):
-        raise ValueError("changed installation receipt preserved; backups retained")
-    old_files = {item["path"]: item for item in old["files"]}
-    new_files = {item["path"]: item for item in new["files"]}
-    committed = journal["status"] == "committed"
-    if journal["status"] != "staging":
-        for category, manifest in (("backup", old), ("restore", old), ("new", new)):
-            for item in manifest["files"]:
-                staged = safe_path(transaction, category + "/" + item["path"])
-                if staged.exists() and not _matches(staged, item):
-                    raise ValueError("backup verification failed or changed staging file preserved")
-    for relative in old_files.keys() | new_files.keys():
-        target = safe_path(root, relative)
-        if committed:
-            if relative in new_files and not _matches(target, new_files[relative]):
-                raise ValueError("changed committed replacement preserved; backups retained")
-            if relative not in new_files and os.path.lexists(target):
-                raise ValueError("unexpected old component preserved; backups retained")
-        elif os.path.lexists(target):
-            staged = safe_path(transaction, "new/" + relative) if relative in new_files else None
-            # A still-staged file proves this transaction has not installed it.
-            if staged is not None and staged.exists() and (relative not in old_files
-                    or not _matches(target, old_files[relative])):
-                raise ValueError("unowned or modified components preserved; backups retained")
-            if not any(_matches(target, item) for item in
-                       (old_files.get(relative), new_files.get(relative)) if item):
-                raise ValueError("modified components preserved; backups retained")
-    if committed:
-        if receipt_path.read_bytes() != new_bytes:
-            raise ValueError("committed replacement receipt mismatch")
-    elif journal["status"] == "staging":
-        if receipt_path.read_bytes() != old_bytes or any(
-                not _matches(safe_path(root, relative), item) for relative, item in old_files.items()):
-            raise ValueError("original changed during staging; backups retained")
-    else:
-        # Validate every backup before changing any installed file.
-        already_restored = (receipt_path.read_bytes() == old_bytes and all(
-            _matches(safe_path(root, relative), item) for relative, item in old_files.items())
-            and not any(os.path.lexists(safe_path(root, relative))
-                        for relative in new_files.keys() - old_files.keys()))
-        for relative, item in old_files.items():
-            if not already_restored and not _matches(safe_path(transaction, "backup/" + relative), item):
-                raise ValueError("backup verification failed; recovery made no changes")
-        for relative, item in old_files.items():
-            target = safe_path(root, relative)
-            if not _matches(target, item):
-                staged = safe_path(transaction, "restore/" + relative)
-                if staged.exists():
-                    if not _matches(staged, item):
-                        raise ValueError("changed recovery scratch file preserved")
-                else:
-                    _copy_verified(safe_path(transaction, "backup/" + relative), staged, item)
-                os.replace(staged, target)
-        for relative in new_files.keys() - old_files.keys():
-            target = safe_path(root, relative)
-            if os.path.lexists(target):
-                target.unlink()
-        if receipt_path.read_bytes() != old_bytes:
-            restored = safe_path(transaction, "restore-receipt.json")
-            if restored.exists():
-                if restored.read_bytes() != old_bytes:
-                    raise ValueError("changed recovery receipt scratch file preserved")
-            else:
-                with restored.open("xb") as stream:
-                    stream.write(old_bytes)
-                    stream.flush()
-                    os.fsync(stream.fileno())
-            os.replace(restored, receipt_path)
-    _transaction_cleanup(transaction, old, new)
-    return {"status": "replacement_committed" if committed else "previous_install_restored"}
-
-
-def reinstall(package_root, manifest, game_root, *, allow_fixture=False, allow_candidate=False,
-              expected_installed_manifest_sha256=None):
-    """Stage verified old/new files before replacement; retain backups until commit.
-
-    Refreshing the same package trusts the caller's supplied manifest. Upgrading to
-    a different manifest additionally requires the old package's trusted hash.
-    """
-    payload = verify_payload(package_root, manifest, allow_fixture=allow_fixture,
-                             allow_candidate=allow_candidate)
-    root = _sandbox(game_root, manifest, allow_fixture)
-    ensure_game_closed()
-    receipt_path = safe_path(root, RECEIPT)
-    if not receipt_path.exists():
-        return install(package_root, manifest, root, allow_fixture=allow_fixture, allow_candidate=allow_candidate)
-    old_text = receipt_path.read_bytes().decode("utf-8")
-    old_receipt = json.loads(old_text)
-    trusted = expected_installed_manifest_sha256 or manifest_hash(manifest)
-    old, _ = _validated_receipt(old_receipt, expected_manifest_sha256=trusted, allow_fixture=allow_fixture)
-    if old_receipt["status"] != "installed":
-        raise ValueError("remove incomplete installation before replacement")
-    transaction = safe_path(root, TRANSACTION)
-    if os.path.lexists(transaction):
-        raise ValueError("recover interrupted reinstall before starting another replacement")
-    old_files = {item["path"]: item for item in old["files"]}
-    new_files = {item["path"]: item for item in manifest["files"]}
-    for relative in old_files.keys() | new_files.keys():
-        target = safe_path(root, relative)
-        if relative in old_files:
-            if not _matches(target, old_files[relative]):
-                raise ValueError("modified components preserved; replacement rejected")
-        elif os.path.lexists(target):
-            raise FileExistsError("replacement would overwrite an unowned component")
-        if not target.parent.is_dir():
-            # All real manifests share the fixed ASI and CookedPCConsole parents.
-            raise ValueError("replacement component parent is missing")
-    new_receipt = {"schema": 1, "package_id": PACKAGE_ID, "manifest_sha256": manifest_hash(manifest),
-                   "manifest": manifest, "status": "installed",
-                   "created_directories": [value for value in old_receipt["created_directories"]
-                                           if value in _component_directories(manifest)],
-                   "installed_files": [{key: item[key] for key in ("path", "sha256", "size")}
-                                       for item in manifest["files"]],
-                   "qa_candidate": manifest["channel"] == "candidate"}
-    journal = {"schema": 1, "package_id": PACKAGE_ID, "status": "staging",
-               "old_receipt": old_receipt, "old_receipt_text": old_text, "new_receipt": new_receipt}
-    transaction.mkdir()
-    journal_path = safe_path(transaction, "transaction.json")
-    _write_json_new(journal_path, journal)
-    try:
-        for relative, item in old_files.items():
-            _copy_verified(safe_path(root, relative), safe_path(transaction, "backup/" + relative), item)
-        for relative, item in new_files.items():
-            _copy_verified(safe_path(payload, relative), safe_path(transaction, "new/" + relative), item)
-        _write_json_new(safe_path(transaction, "commit-receipt.json"), new_receipt)
-        ensure_game_closed()
-        if receipt_path.read_bytes() != old_text.encode("utf-8"):
-            raise ValueError("installation receipt changed during staging")
-        for relative, item in old_files.items():
-            if not _matches(safe_path(root, relative), item):
-                raise ValueError("modified components preserved; replacement rejected")
-        journal["status"] = "prepared"
-        _replace_json(journal_path, journal)
-        for relative, item in new_files.items():
-            target = safe_path(root, relative)
-            if relative not in old_files and os.path.lexists(target):
-                raise FileExistsError("replacement target appeared during staging")
-            staged = safe_path(transaction, "new/" + relative)
-            if not _matches(staged, item):
-                raise ValueError("staged replacement changed; backups retained")
-            os.replace(staged, target)
-        for relative in old_files.keys() - new_files.keys():
-            safe_path(root, relative).unlink()
-        os.replace(safe_path(transaction, "commit-receipt.json"), receipt_path)
-        journal["status"] = "committed"
-        _replace_json(journal_path, journal)
-    except Exception as error:
-        try:
-            recover_reinstall(root, expected_manifest_sha256=trusted, allow_fixture=allow_fixture)
-        except Exception as recovery_error:
-            raise RuntimeError("replacement failed; recovery is pending and backups are retained: "
-                               + str(recovery_error)) from error
-        raise
-    _transaction_cleanup(transaction, old, manifest)
-    return {"status": "installed", "channel": manifest["channel"], "release_ready": manifest["release_ready"],
-            "files": len(new_files), "manifest_sha256": manifest_hash(manifest)}
+    return {"status": "removed", "files": len(existing)}

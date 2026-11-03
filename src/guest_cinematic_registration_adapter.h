@@ -342,7 +342,7 @@ static void guest_cinematic_registration_adapt(uintptr_t base,uintptr_t engine,u
             l->logged_at=now;guest_cinematic_log(l,"held","ordinary-current-playing-binding",1,now,ca,ac,0,0);
         }
     }
-    if(!enabled||!context||guest_cinematic_suppressed||test_action!=5||
+    if(!enabled||!context||guest_cinematic_suppressed||native_session_role()!=5||
        (guest_cinematic_last_scan&&now-guest_cinematic_last_scan<100))return;
     guest_cinematic_last_scan=now;
     if(!guest_cinematic_allocator_pins(base)||!network_actor_layout_matches(base)||

@@ -16,15 +16,22 @@ typedef struct CombatFireMethods {
     GuestPlayerContextMethod fire,stop;
 } CombatFireMethods;
 typedef struct CombatFirePulse {
-    unsigned long token,attempted_token;
+    unsigned long token,attempted_token;unsigned attempts;
     DWORD stable_at,gate_at,pressed_at,report_at,release_at;
     int active,positive_getter,ticks,release_attempts;
-    GuestCameraStamp pc,pawn,world,mode,weapon;
+    GuestCameraStamp pc,pawn,world,mode,weapon,squad;
     uintptr_t channel;
-    int channel_index;
+    int channel_index,existing_context;
 } CombatFirePulse;
 static CombatFireMethods combat_fire_methods;
 static CombatFirePulse combat_fire_pulse;
+static const char *combat_fire_resolution_reason="not-resolved";
+static int combat_fire_repeat_opted(void) {
+    wchar_t value[8]={0};return GetEnvironmentVariableW(L"ME3_SQUAD_COOP_DELAYED_FIRE_CANCEL_QA",value,8)==1&&value[0]==L'1';
+}
+static int combat_fire_attempt_ready(unsigned long attempted,unsigned long token,unsigned attempts,int repeat,DWORD since_release) {
+    return attempted!=token||(repeat==1&&attempts==1&&since_release>=1000);
+}
 
 static int combat_fire_property(uintptr_t base,uintptr_t property,const char *kind,
                                 const char *path,int offset,uint64_t flags) {
@@ -90,8 +97,11 @@ static int combat_fire_resolve(uintptr_t base,uintptr_t mode,DWORD now) {
     m->discovery_at=now;m->ready=0;
     uintptr_t f=guest_player_context_find_method(base,klass,"SFXGameModeBase","FireWeapon");
     uintptr_t s=guest_player_context_find_method(base,klass,"SFXGameModeBase","StopFiringWeapon");
-    if(!guest_player_context_method_stamp(base,f,&m->fire)||!guest_player_context_method_stamp(base,s,&m->stop)||
-       !combat_fire_method_valid(base,&m->fire,1)||!combat_fire_method_valid(base,&m->stop,0))return 0;
+    if(!guest_player_context_method_stamp(base,f,&m->fire)){combat_fire_resolution_reason="fire-method-identity";return 0;}
+    if(!guest_player_context_method_stamp(base,s,&m->stop)){combat_fire_resolution_reason="stop-method-identity";return 0;}
+    if(!combat_fire_method_valid(base,&m->fire,1)){combat_fire_resolution_reason="fire-method-abi-or-body";return 0;}
+    if(!combat_fire_method_valid(base,&m->stop,0)){combat_fire_resolution_reason="stop-method-abi-or-body";return 0;}
+    combat_fire_resolution_reason="resolved";
     m->base=base;m->mode_class=klass;m->ready=1;return 1;
 }
 static int combat_fire_dispatch(uintptr_t base,uintptr_t mode,int firing) {
@@ -137,21 +147,72 @@ static void combat_fire_stop(uintptr_t base,const char *reason,DWORD now) {
     if(safe){br=read_at(p->pc.pointer+0x480,&before,1);called=combat_fire_dispatch(base,p->mode.pointer,0);
         ar=read_at(p->pc.pointer+0x480,&after,1);}
     combat_fire_log(base,called&&ar&&after==0?"released":"release-unverified",reason,now,br,before,ar,after,called);
-    /* No repeat pulse. Failed cleanup retains ownership for bounded retries
+    /* Cleanup never starts another pulse. Failed cleanup retains ownership for bounded retries
      * while the exact old identity remains safe; stale objects are untouched.
      */
     if((called&&ar&&after==0)||!safe||p->release_attempts>=3)p->active=0;
 }
+/* Pure QA permission gate. Native local Role determines autonomous control;
+ * RemoteRole describes the counterpart and is not a substitute for the
+ * separately validated owned/acknowledged pawn, native channel and context.
+ * Retained scene-return remote0/local2 is admitted to the ordinary FireWeapon
+ * input path. Exact owned FireWeapon/Pawn.StartFire/Weapon.StartFire scripts
+ * do not require pawn RemoteRole2/3. Engine guards still decide actual fire. */
+static int combat_fire_roles_valid(const unsigned char pawn[2],const unsigned char weapon[2],uint32_t nofire) {
+    return (pawn[0]==0||pawn[0]==2||pawn[0]==3)&&pawn[1]==2&&weapon[0]==3&&weapon[1]>=1&&weapon[1]<=2&&!(nofire&0x10000);
+}
+static int combat_fire_roles_selftest(void) {
+    if(!combat_fire_attempt_ready(1,2,2,0,0)||combat_fire_attempt_ready(1,1,1,0,2000)||
+       combat_fire_attempt_ready(1,1,1,1,999)||!combat_fire_attempt_ready(1,1,1,1,1000)||
+       combat_fire_attempt_ready(1,1,2,1,1000)||combat_fire_attempt_ready(1,1,0,1,1000))return 0;
+    unsigned char pawn[2]={3,2},weapon[2]={3,1};
+    if(!combat_fire_roles_valid(pawn,weapon,0))return 0;
+    /* Actual retained scene-return tuple: autonomous pawn, simulated weapon. */
+    pawn[0]=2;if(!combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[0]=0;if(!combat_fire_roles_valid(pawn,weapon,0))return 0;
+    if(combat_fire_roles_valid(pawn,weapon,0x10000))return 0;
+    pawn[0]=3;
+    if(combat_fire_roles_valid(pawn,weapon,0x10000))return 0;
+    pawn[1]=1;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[1]=0;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[1]=3;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[1]=2;weapon[1]=3;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    weapon[1]=0;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    weapon[1]=1;pawn[0]=255;if(combat_fire_roles_valid(pawn,weapon,0))return 0;
+    pawn[0]=3;weapon[0]=255;
+    return !combat_fire_roles_valid(pawn,weapon,0);
+}
+/* Resolve either of the two validated native squad leases. Never fabricate a
+ * created-squad lease when the game already owns the local squad. */
+typedef struct CombatFireContext {unsigned long token;uintptr_t squad,channel;int channel_index,existing;} CombatFireContext;
+static int combat_fire_context(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,
+                               const NetworkActorIdentityEntry *channel,const CombatContextChain *chain,
+                               CombatFireContext *out) {
+    GuestPlayerContextLease *l=&guest_player_context_lease;GuestExistingContextLease *e=&guest_existing_context;
+    memset(out,0,sizeof *out);
+    if(e->registered&&e->active&&guest_existing_context_same(base,pc,pawn,world,channel,chain)&&
+       read_ptr(chain->squad+0x2a8)==pawn&&read_ptr(chain->squad+0x2cc)==pawn&&guest_existing_context_gate(base,pc)) {
+        out->token=e->token;out->squad=chain->squad;out->channel=channel->channel;out->channel_index=channel->index;out->existing=1;return 1;
+    }
+    if(l->registered&&!l->pending_cleanup&&!l->suppressed&&l->getter_after==1&&
+       guest_player_context_same(base,pc,pawn,world,channel)&&guest_player_context_squad_shape(base,pawn)&&
+       chain->squad==l->squad.pointer&&chain->cached==pawn&&combat_context_derived(chain,combat_context_layout(base),1)==1) {
+        out->token=l->token;out->squad=l->squad.pointer;out->channel=l->channel.pointer;out->channel_index=l->channel_index;return 1;
+    }
+    return 0;
+}
 static int combat_fire_conditions(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,int ordinary,
-                                  int enabled,uintptr_t *mode_out,uintptr_t *weapon_out,const char **reason) {
-    *reason="eligible";GuestPlayerContextLease *l=&guest_player_context_lease;
+                                  int enabled,uintptr_t *mode_out,uintptr_t *weapon_out,CombatFireContext *context,const char **reason) {
+    *reason="eligible";memset(context,0,sizeof *context);
+#ifdef ME3_ORDINARY_FIRE_QA
+    if(!enabled||!ordinary_fire_qa_allowed()){*reason="disabled";return 0;}
+#else
     if(!enabled||!progress_enabled||!has_marker(root)||test_action!=5||strcmp(test_role,"client")){*reason="disabled";return 0;}
+#endif
     NetworkActorIdentityEntry channel={0};CombatContextChain chain;
     if(!ordinary||!guest_player_context_conditions(base,pc,pawn,world,ordinary,enabled,1,&channel,&chain)){
         *reason=!ordinary?"scene":guest_player_context_reason;return 0;}
-    if(!l->registered||l->pending_cleanup||l->suppressed||l->getter_after!=1||
-       !guest_player_context_same(base,pc,pawn,world,&channel)||!guest_player_context_squad_shape(base,pawn)||
-       chain.squad!=l->squad.pointer||chain.cached!=pawn||combat_context_derived(&chain,combat_context_layout(base),1)!=1){*reason="registered-native-context";return 0;}
+    if(!combat_fire_context(base,pc,pawn,world,&channel,&chain,context)){*reason="registered-native-context";return 0;}
     uintptr_t manager=read_ptr(pc+0xc38);GameArray modes={0};
     if(!read_at(manager+0x70,&modes,sizeof modes)||!modes.data||modes.count<1||modes.count>64||modes.max<modes.count||modes.max>128){*reason="mode-array";return 0;}
     uintptr_t mode=read_ptr(modes.data);
@@ -165,53 +226,85 @@ static int combat_fire_conditions(uintptr_t base,uintptr_t pc,uintptr_t pawn,uin
        !guest_camera_actor_live(base,inventory)||!is_kind_of(base,inventory,"InventoryManager")||
        read_ptr(weapon+0x2b0)!=inventory){*reason="weapon-owner-instigator-inventory-chain";return 0;}
     if(!read_at(pawn+0x269,pawn_roles,2)||!read_at(weapon+0x269,weapon_roles,2)||
-       pawn_roles[0]!=3||pawn_roles[1]<1||pawn_roles[1]>2||weapon_roles[0]!=3||weapon_roles[1]<1||weapon_roles[1]>2||
-       !read_at(pawn+0x578,&nofire,4)||(nofire&0x10000)){*reason="weapon-or-pawn-role-fire-permission";return 0;}
+       !read_at(pawn+0x578,&nofire,4)||!combat_fire_roles_valid(pawn_roles,weapon_roles,nofire)){*reason="weapon-or-pawn-role-fire-permission";return 0;}
     return 1;
 }
 static void combat_fire_bot_tick(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,
                                 int ordinary,int enabled,int after,DWORD now) {
-    CombatFirePulse *p=&combat_fire_pulse;GuestPlayerContextLease *l=&guest_player_context_lease;
+    CombatFirePulse *p=&combat_fire_pulse;CombatFireContext context={0};
     uintptr_t mode=0,weapon=0;const char *reason=NULL;
-    int eligible=combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&reason);
-    int same=p->token&&p->token==l->token&&p->pc.pointer==pc&&p->pawn.pointer==pawn&&p->world.pointer==world&&
+    int eligible=combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&context,&reason);
+    int same=p->token&&p->token==context.token&&p->pc.pointer==pc&&p->pawn.pointer==pawn&&p->world.pointer==world&&
+        p->squad.pointer==context.squad&&p->existing_context==context.existing&&guest_camera_stamp_matches(base,&p->squad,0)&&
         p->mode.pointer==mode&&p->weapon.pointer==weapon&&guest_camera_stamp_matches(base,&p->pc,0)&&
         guest_camera_stamp_matches(base,&p->pawn,0)&&guest_camera_stamp_matches(base,&p->mode,0)&&
-        guest_camera_stamp_matches(base,&p->weapon,0)&&l->channel.pointer==p->channel&&l->channel_index==p->channel_index;
+        guest_camera_stamp_matches(base,&p->weapon,0)&&context.channel==p->channel&&context.channel_index==p->channel_index;
     if(p->active){
+#ifdef ME3_ORDINARY_FIRE_QA
+        /* This QA path presses before the original engine Tick. Count that
+         * completed Tick before checking elapsed time, even if it was slow. */
+        if(after)++p->ticks;
+#endif
         if(!eligible||!same||now-p->pressed_at>=250){combat_fire_stop(base,!eligible?reason:!same?"ownership-or-weapon-change":"250ms-timeout",now);return;}
+#ifndef ME3_ORDINARY_FIRE_QA
         if(after)++p->ticks;return;
+#else
+        return;
+#endif
     }
     if(!eligible){
         p->stable_at=0;p->positive_getter=0;
-        if(enabled&&progress_enabled&&test_action==5&&l->registered&&(!p->report_at||now-p->report_at>=5000)){
+        if(enabled&&
+#ifndef ME3_ORDINARY_FIRE_QA
+           progress_enabled&&test_action==5&&
+#endif
+           guest_player_context_registered_for(pc,pawn)&&(!p->report_at||now-p->report_at>=5000)){
             p->report_at=now;guest_camera_stamp_read(base,pc,&p->pc,1);guest_camera_stamp_read(base,pawn,&p->pawn,1);
-            memset(&p->weapon,0,sizeof p->weapon);if(weapon)guest_camera_stamp_read(base,weapon,&p->weapon,1);p->token=l->token;
+            memset(&p->weapon,0,sizeof p->weapon);if(weapon)guest_camera_stamp_read(base,weapon,&p->weapon,1);p->token=guest_player_context_registration_token();
             combat_fire_log(base,"eligibility",reason,now,0,0,0,0,0);}
         return;
     }
-    if(p->attempted_token==l->token)return;
+    if(!combat_fire_attempt_ready(p->attempted_token,context.token,p->attempts,combat_fire_repeat_opted(),now-p->release_at))return;
     if(!same){
-        unsigned long attempted=p->attempted_token;DWORD report=p->report_at;memset(p,0,sizeof *p);
-        p->attempted_token=attempted;p->report_at=report;p->token=l->token;p->channel=l->channel.pointer;p->channel_index=l->channel_index;
+        unsigned long attempted=p->attempted_token;unsigned attempts=p->attempts;
+        DWORD report=p->report_at,released=p->release_at;memset(p,0,sizeof *p);
+        p->attempts=attempts;p->release_at=released;
+        p->attempted_token=attempted;p->report_at=report;p->token=context.token;p->channel=context.channel;p->channel_index=context.channel_index;p->existing_context=context.existing;
         if(!guest_camera_stamp_read(base,pc,&p->pc,1)||!guest_camera_stamp_read(base,pawn,&p->pawn,1)||
            !guest_camera_stamp_read(base,world,&p->world,1)||!guest_camera_stamp_read(base,mode,&p->mode,1)||
-           !guest_camera_stamp_read(base,weapon,&p->weapon,1))return;
+           !guest_camera_stamp_read(base,weapon,&p->weapon,1)||!guest_camera_stamp_read(base,context.squad,&p->squad,1))return;
         p->stable_at=now;
     }
     unsigned char before=255;
     if(!read_at(pc+0x480,&before,1)||before){p->stable_at=0;p->positive_getter=0;return;}
     if(!p->stable_at)p->stable_at=now;
-    if(!p->gate_at||now-p->gate_at>=1000){p->gate_at=now;p->positive_getter=guest_player_context_gate(base,"fire-bot-baseline",now)==1;
+    if(!p->gate_at||now-p->gate_at>=1000){p->gate_at=now;p->positive_getter=context.existing?
+        guest_existing_context_gate(base,pc):guest_player_context_gate(base,"fire-bot-baseline",now)==1;
         if(!p->positive_getter)p->stable_at=0;}
-    if(!after||!p->positive_getter||!p->stable_at||now-p->stable_at<8000||!combat_fire_resolve(base,mode,now))return;
-    p->attempted_token=p->token; /* One attempt per real context/ownership lease. */
-    if(guest_player_context_gate(base,"fire-bot-pre-dispatch",now)!=1||
-       !combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&reason)||
+    /* Observe normal input during the retained valid ownership window. The
+     * eight-second QA delay outlasted the measured inventory loss (~six s).
+     * Native permission, continuous identity/chain checks and release stay. */
+    DWORD baseline=combat_fire_repeat_opted()?250:2000;
+#ifdef ME3_ORDINARY_FIRE_QA
+    if(after||!p->positive_getter||!p->stable_at||now-p->stable_at<baseline)return;
+#else
+    if(!after||!p->positive_getter||!p->stable_at||now-p->stable_at<baseline)return;
+#endif
+    if(!combat_fire_resolve(base,mode,now)){
+        if(!p->report_at||now-p->report_at>=5000){p->report_at=now;
+            combat_fire_log(base,"method-unavailable",combat_fire_resolution_reason,now,1,before,0,0,0);}
+        return;
+    }
+    if(p->attempted_token!=p->token)p->attempts=0;
+    ++p->attempts;p->attempted_token=p->token; /* Default one; explicit cancellation QA permits one re-press. */
+    if(!(context.existing?guest_existing_context_gate(base,pc):guest_player_context_gate(base,"fire-bot-pre-dispatch",now)==1)||
+       !combat_fire_conditions(base,pc,pawn,world,ordinary,enabled,&mode,&weapon,&context,&reason)||context.token!=p->token||
+       context.channel!=p->channel||context.channel_index!=p->channel_index||context.squad!=p->squad.pointer||
+       context.existing!=p->existing_context||!guest_camera_stamp_matches(base,&p->squad,1)||
        mode!=p->mode.pointer||weapon!=p->weapon.pointer||!guest_camera_stamp_matches(base,&p->pc,1)||
        !guest_camera_stamp_matches(base,&p->pawn,1)||!guest_camera_stamp_matches(base,&p->mode,1)||
        !guest_camera_stamp_matches(base,&p->weapon,1)||!read_at(pc+0x480,&before,1)||before)return;
-    p->active=1;p->pressed_at=now;p->ticks=0;
+    p->active=1;p->pressed_at=now;p->ticks=0;p->release_attempts=0;
     int called=combat_fire_dispatch(base,mode,1);unsigned char result=255;int read=read_at(pc+0x480,&result,1);
     combat_fire_log(base,called&&read&&result==1?"pressed":"press-unverified","ordinary-FireWeapon",now,1,before,read,result,called);
     if(!called||!read||result!=1)combat_fire_stop(base,"press-not-verified",now);

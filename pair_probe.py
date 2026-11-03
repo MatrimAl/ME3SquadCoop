@@ -21,6 +21,8 @@ from direct_ip_config import DirectIPConfig, validate_port
 from progress_verification import progress_evidence
 from guest_context_verification import guest_context_evidence
 from cinematic_verification import cinematic_motion_evidence
+from fire_stop_verification import fire_stop_evidence
+from real_dialogue_verification import real_dialogue_evidence
 
 PRIVATE = ROOT.parent / "coop-anything" / "local" / "me3-le"
 SANDBOX = PRIVATE / "test-install" / "ME3"
@@ -202,8 +204,11 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
     guest_config = DirectIPConfig("client", bind_ipv4, port, peer_ipv4=bind_ipv4, loopback_qa=loopback_qa)
     progress_test = os.environ.get("ME3_SQUAD_COOP_PROGRESS_TEST") == "1"
     extended_qa = progress_test and os.environ.get("ME3_SQUAD_COOP_EXTENDED_QA") == "1"
-    host_seconds = 480 if extended_qa else 360 if progress_test else 240 if session_test else 210 if pair_control else 180
-    client_seconds = 360 if extended_qa else 240 if progress_test else 120 if session_test else 90 if pair_control else 60 if prewarm_mars else CLIENT_SECONDS
+    route_qa = progress_test and os.environ.get("ME3_SQUAD_COOP_COMBAT_ROUTE_QA") == "1"
+    # Keep the same 110-second host readiness allowance while reducing the
+    # unused tail after the two bounded ownership epochs in route experiments.
+    host_seconds = 480 if extended_qa else 300 if route_qa else 360 if progress_test else 240 if session_test else 210 if pair_control else 180
+    client_seconds = 360 if extended_qa else 180 if route_qa else 240 if progress_test else 120 if session_test else 90 if pair_control else 60 if prewarm_mars else CLIENT_SECONDS
     report = {"stage": "two-real-client-connection-observation",
               "campaign_coop_verified": False, "connection_states_verified": False,
               "join_patches_enabled": False,
@@ -213,6 +218,7 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
               "host_reload_mars": reload_host_mars,
               "pair_control_requested": pair_control,
               "session_lifecycle_requested": session_test,
+              "combat_route_qa_requested": route_qa,
               "transport_configuration": host_config.to_dict(),
               "two_computer_radmin_verified": False,
               "protection_method": "OS read-sharing locks held across both launchers",
@@ -271,6 +277,7 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
                 env["ME3_SQUAD_COOP_SESSION_TEST"] = "1" if session_test else "0"
                 host_started_ns = time.time_ns()
                 host_started = time.monotonic()
+                print(f"Starting protected host (native limit {host_seconds}s)", flush=True)
                 host = subprocess.Popen([sys.executable, str(ROOT / "boot_probe.py"),
                                          "--action", "host-pair", "--seconds", str(host_seconds)],
                                         cwd=ROOT, env=env, stdout=host_stream, stderr=subprocess.STDOUT)
@@ -283,11 +290,13 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
                                              for log in logs for row in log["rows"]):
                         ready = True
                         report["host_ready_after_seconds"] = round(time.monotonic() - host_started, 3)
+                        print(f"Host listen readiness observed after {report['host_ready_after_seconds']}s", flush=True)
                         break
                     if host.poll() is not None:
                         break
                     time.sleep(0.25)
                 if not ready:
+                    print("Host readiness failed; waiting for protected host cleanup", flush=True)
                     raise RuntimeError(f"host did not report a two-player listen server within {READY_SECONDS} seconds")
                 for name in ("Documents-host", "Documents-client"):
                     directory = RUNTIME / name
@@ -296,6 +305,7 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
                 # Budget from host script start (before native launch) and keep
                 # ten seconds for guest job closure before the host's limit.
                 if time.monotonic() - host_started > host_seconds - client_seconds - 10:
+                    print("Guest not started: insufficient bounded host lifetime remains", flush=True)
                     raise RuntimeError("not enough host lifetime remains for bounded guest")
                 guest_started_ns = time.time_ns()
                 guest_started = time.monotonic()
@@ -304,10 +314,12 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
                 env["ME3_SQUAD_COOP_PREWARM_MARS"] = "1" if prewarm_mars else "0"
                 env["ME3_SQUAD_COOP_PAIR_CONTROL"] = "1" if pair_control else "0"
                 env["ME3_SQUAD_COOP_SESSION_TEST"] = "1" if session_test else "0"
+                print(f"Starting protected guest (native limit {client_seconds}s)", flush=True)
                 guest = subprocess.Popen([str(BUILD / "sandbox_launch.exe"), "--boot-probe-sharelock",
                                           str(SANDBOX), str(proof), str(client_seconds)],
                                          cwd=ROOT, env=env, stdout=guest_stream, stderr=subprocess.STDOUT)
                 report["client_launcher_exit"] = await_exit(guest, guest_started + client_seconds + 15)
+                print(f"Guest launcher ended ({report['client_launcher_exit']}); waiting for host cleanup", flush=True)
                 report["host_launcher_exit"] = await_exit(host, host_started + host_seconds + 45)
             finally:
                 # Guest job closes first. Host boot script gets its full cleanup
@@ -333,6 +345,8 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
                 report["progress_evidence"] = progress_evidence(host_raw, guest_raw)
                 report["guest_context_evidence"] = guest_context_evidence(host_raw, guest_raw)
                 report["cinematic_motion_evidence"] = cinematic_motion_evidence(host_raw, guest_raw)
+                report["fire_stop_evidence"] = fire_stop_evidence(host_raw, guest_raw)
+                report["real_dialogue_evidence"] = real_dialogue_evidence(host_raw, guest_raw)
                 report["native_exception_count"] = sum("exception" in row for row in host_raw + guest_raw)
                 # The parent retains locks while the before/after snapshot is read.
                 report["original_profile_unchanged"] = before == profile_snapshot(profile)
@@ -355,6 +369,10 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
         guest_pids = set(report["client"].get("native_pids", []))
         report["distinct_native_processes"] = bool(host_pids and guest_pids and host_pids.isdisjoint(guest_pids))
         report["probe_disabled_after_run"] = not (SANDBOX / "ME3SquadCoop.probe.enabled").exists()
+        # Historical observation, not an active-at-end or lifecycle verdict.
+        report["sustained_connection_observed"] = bool(
+            report["host_listen_verified"] and report["distinct_native_processes"]
+            and report["client"].get("connection_evidence", {}).get("sustained_client_mode_observed"))
         report["connection_states_verified"] = bool(
             failed is None and report["host_listen_verified"] and report["guest_client_mode_verified"]
             and report["client"].get("connection_evidence", {}).get("persistent_client_mode_verified")
@@ -369,11 +387,18 @@ def run(prewarm_mars=False, refresh_host_map=False, reload_host_mars=False, pair
             and report.get("host_launcher_exit") == 0 and report.get("original_profile_unchanged")
             and report.get("native_exception_count") == 0 and not report.get("forced_sandbox_game_cleanup_pids")
             and report["probe_disabled_after_run"])
+        # Lifecycle success is not gameplay continuity: a possessed pawn can
+        # still fall out of the world. Expose the existing movement verdict in
+        # the concise summary instead of requiring readers to open nested data.
+        progress = report.get("progress_evidence", {})
+        report["guest_can_progress_with_host"] = progress.get("guest_can_progress_with_host") is True
+        report["unsafe_guest_motion_observed"] = progress.get("unsafe_guest_motion_observed") is True
         (PRIVATE / "pair-probe-result.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         (PRIVATE / ("pair-probe-result-" + uuid.uuid4().hex[:12] + ".json")).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print(json.dumps({key: report[key] for key in (
             "host_listen_verified", "guest_client_mode_verified", "distinct_native_processes",
-            "connection_states_verified", "session_lifecycle_verified", "campaign_coop_verified", "probe_disabled_after_run")}, indent=2))
+            "sustained_connection_observed", "connection_states_verified", "session_lifecycle_verified",
+            "guest_can_progress_with_host", "unsafe_guest_motion_observed", "campaign_coop_verified", "probe_disabled_after_run")}, indent=2))
         if failed is not None:
             print("Pair probe stopped: " + type(failed).__name__ + "; inspect private result.", file=sys.stderr)
     return 0 if (report["session_lifecycle_verified"] if session_test else report["connection_states_verified"]) else 1

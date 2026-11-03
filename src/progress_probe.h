@@ -44,27 +44,7 @@ static void progress_dump_script(uintptr_t base,const char *owner,const char *na
         snprintf(row,sizeof row,"{\"progress\":\"script-reference\",\"owner\":\"%s\",\"function\":\"%s\",\"index\":%d,\"path\":\"%s\",\"class\":\"%s\",\"property_offset\":%d}\r\n",owner,name,i,escaped,kind,offset);line(row);
     }
 }
-static void progress_state_name(uintptr_t base, uintptr_t object, char *out, size_t size) {
-    uint32_t result[2] = {0}; out[0] = 0;
-    if (object && invoke(base, object, "Object", "GetStateName", result)) name_of(base, result[0], out, size);
-}
-static int progress_pawn_ready(uintptr_t base, uintptr_t pawn, uintptr_t ai) {
-    int32_t action = -1, power = -1; uint32_t a = 0, b = 0, c = 0, attach = 0;
-    unsigned char physics = 0; uint32_t actor_flags = 0;
-    if (!is_live(base, pawn) || !read_at(pawn + 0xc20, &action, 4) || !read_at(pawn + 0xc28, &power, 4) ||
-        !read_at(pawn + 0xe18, &a, 4) || !read_at(pawn + 0xe1c, &b, 4) || !read_at(pawn + 0xe20, &c, 4) ||
-        !read_at(pawn + 0x25c, &actor_flags, 4) || !read_at(pawn + 0x260, &attach, 4) || !read_at(pawn + 0x268, &physics, 1)) return 0;
-    char state[96]; progress_state_name(base, ai, state, sizeof state);
-    if (is_kind_of(base,ai,"AIController") && (read_ptr(ai+0x484) || read_ptr(ai+0x48c))) return 0;
-    return action == 0 && power == 0 && (a & 0x40) && !(a & (0x200000 | 0x20000000)) &&
-           !(b & 0x10000000) && !(c & 0x40000) && !(attach & 0x400) && !(actor_flags & 2) && physics == 1 &&
-           !strstr(state, "Script") && !strstr(state, "Cinematic");
-}
-static int progress_companion_near(uintptr_t host, uintptr_t companion) {
-    float a[3],b[3];
-    return read_at(host+0x108,a,sizeof a) && read_at(companion+0x108,b,sizeof b) &&
-           isfinite(a[0]) && isfinite(a[1]) && isfinite(a[2]) && isfinite(b[0]) && isfinite(b[1]) && isfinite(b[2]) && distance(a,b) <= 2000.0f;
-}
+#include "squad_pawn_readiness.h"
 static void progress_follow(uintptr_t base, uintptr_t pc, uintptr_t pawn) {
     if (progress_follow_sent) return;
     progress_follow_sent=1;
@@ -82,9 +62,9 @@ static void progress_native_catchup(uintptr_t base,uintptr_t pc,uintptr_t pawn,u
     float health=-1,velocity[3]={0},floor[3]={0};
     if (!is_live(base,leader) || !progress_pawn_ready(base,leader,pc) || read_ptr(squad+0x2cc)!=leader ||
         read_ptr(pawn+0xba8)!=squad || read_ptr(pawn+0x198)!=world ||
-        !invoke(base,leader,"BioPawn","GetHealthPct",&health) || !isfinite(health) || health<=0 ||
-        !read_at(leader+0x138,velocity,sizeof velocity) || !isfinite(velocity[2]) || fabsf(velocity[2])>20 ||
-        !read_at(leader+0x2fc,floor,sizeof floor) || !isfinite(floor[2]) || floor[2]<0.5f || !read_ptr(leader+0x188)) return;
+        !invoke(base,leader,"BioPawn","GetHealthPct",&health) ||
+        !read_at(leader+0x138,velocity,sizeof velocity) || !read_at(leader+0x2fc,floor,sizeof floor) ||
+        !catchup_ground_allowed(health,velocity,floor)) return;
     progress_catchup_attempted=1;
     uint32_t result=0; int dispatched=invoke(base,ai,"SFXAI_Henchman","TeleportNearLeader",&result);
     char row[400];snprintf(row,sizeof row,"{\"progress\":\"native-companion-catchup\",\"function\":\"SFXAI_Henchman.TeleportNearLeader\",\"dispatched\":%s,\"engine_return\":%s,\"near_host_after_call\":%s,\"direct_position_writes\":false,\"monotonic_ms\":%lu}\r\n",dispatched?"true":"false",result&1?"true":"false",progress_companion_near(leader,pawn)?"true":"false",GetTickCount());line(row);
@@ -142,6 +122,10 @@ static void progress_input(uintptr_t base, uintptr_t engine) {
 }
 static uintptr_t progress_guest_leader=0;
 static DWORD progress_guest_scan_at=0;
+static int combat_action_opted(void);
+static int combat_lower_opted(void);
+static int combat_guest_road_target(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t world,const float position[3],float target[3],DWORD now);
+static DWORD progress_guest_follow_limit(int action) {return action==1?145000u:36000u;}
 static void progress_guest_follow_input(uintptr_t base,uintptr_t pc,uintptr_t pawn,uintptr_t input,DWORD elapsed) {
     if (!progress_enabled) return;
     uintptr_t world=read_ptr(pc+0x198);DWORD now=GetTickCount();
@@ -157,19 +141,23 @@ static void progress_guest_follow_input(uintptr_t base,uintptr_t pc,uintptr_t pa
         if(candidates!=1)progress_guest_leader=0;
     }
     float forward=0,strafe=0,leader[3],position[3];int32_t rotation[3];
-    if(elapsed>=4000&&elapsed<36000&&is_live(base,progress_guest_leader)&&
+    DWORD follow_limit=progress_guest_follow_limit(combat_action_opted());
+    if(combat_action_opted()&&combat_lower_opted())follow_limit+=60000;
+    if(elapsed>=4000&&elapsed<follow_limit&&is_live(base,progress_guest_leader)&&
         read_at(progress_guest_leader+0x108,leader,sizeof leader)&&read_at(pawn+0x108,position,sizeof position)&&read_at(pc+0x114,rotation,sizeof rotation)) {
+        int road=combat_guest_road_target(base,pc,pawn,world,position,leader,now);
+        float deadzone=road==1?5.0f:125.0f;
         float dx=leader[0]-position[0],dy=leader[1]-position[1],length=sqrtf(dx*dx+dy*dy);
-        if(isfinite(length)&&length>125&&length<2000) {
+        if(road>=0&&isfinite(length)&&length>deadzone&&length<2000) {
             float yaw=(float)rotation[1]*0.00009587379924285f;
-            float gain=fminf(0.35f,(length-125.0f)*0.005f);
+            float gain=fminf(0.35f,(length-deadzone)*0.005f);
             forward=gain*(dx*cosf(yaw)+dy*sinf(yaw))/length;
             strafe=gain*(-dx*sinf(yaw)+dy*cosf(yaw))/length;
         }
     }
     /* Keep the short, independent forward-input check even if following has
        no unambiguous replicated leader. This is a test bot, not host steering. */
-    if(elapsed>=2000&&elapsed<4000) { forward=1.0f;strafe=0.0f; }
+    if(elapsed>=2000&&elapsed<4000&&!(combat_action_opted()&&combat_lower_opted())) { forward=1.0f;strafe=0.0f; }
     if(elapsed>=5000&&!progress_guest_shot) {
         progress_guest_shot=1;render_capture(base,read_ptr(base+0x18b31d0),L"guest-progress");
     }
@@ -233,7 +221,7 @@ static void progress_sample(uintptr_t base, uintptr_t pc, uintptr_t pawn, uintpt
     int effective_known=invoke(base,pc,"PlayerController","IsMoveInputIgnored",&effective);
     if(is_kind_of(base,input,"BioPlayerInput")) { read_at(input+0x398,&disabled,4);read_at(input+0x2c4,&overrides,sizeof overrides); }
     read_at(input+0x194,&axes[0],4);read_at(input+0x1a4,&axes[1],4);read_at(input+0x1ac,&axes[2],4);
-    char input_row[500];snprintf(input_row,sizeof input_row,"{\"progress\":\"input-state\",\"role\":\"%s\",\"ignore_move\":%u,\"ignore_look\":%u,\"effective_ignore_known\":%s,\"effective_ignore_move\":%s,\"key_input_disabled\":%d,\"override_count\":%d,\"post_tick_axes\":[%.4f,%.4f,%.4f],\"monotonic_ms\":%lu}\r\n",test_action==5?"guest":"host",ignore_move,ignore_look,effective_known?"true":"false",effective&1?"true":"false",disabled,overrides.count,axes[0],axes[1],axes[2],now);line(input_row);
+    char input_row[700];snprintf(input_row,sizeof input_row,"{\"progress\":\"input-state\",\"sample_phase\":\"before-session-input-and-engine-tick\",\"role\":\"%s\",\"ignore_move\":%u,\"ignore_look\":%u,\"effective_ignore_known\":%s,\"effective_ignore_move\":%s,\"key_input_disabled\":%d,\"override_count\":%d,\"pre_tick_axes\":[%.4f,%.4f,%.4f],\"monotonic_ms\":%lu}\r\n",test_action==5?"guest":"host",ignore_move,ignore_look,effective_known?"true":"false",effective&1?"true":"false",disabled,overrides.count,axes[0],axes[1],axes[2],now);line(input_row);
     if (test_action != 6) return;
     if (progress_walk_at && !progress_scripts_dumped) {
         progress_scripts_dumped=1;
