@@ -31,12 +31,36 @@ if (Test-Path -LiteralPath $asiRoot) {
     })
 }
 $versionInfo = (Get-Item -LiteralPath $exe).VersionInfo
+# Whether the native pins describe THIS executable, decided offline. Reported as its own field rather than
+# as a pass/fail, because "different build" and "the mod is wrong" have different owners.
+$supportedSha = 'b453871eb6eacff0c646490ffbc588f743399a829b1f9e31cd7775dc95da8001'
+$exeSha = ($files | Where-Object { $_.file -eq 'Binaries\Win64\MassEffect3.exe' }).sha256
+$pinCheck = python -I (Join-Path (Split-Path -Parent $PSScriptRoot) 'tools\check_pins.py') --exe $exe 2>&1
+# The checker's outcome is the RESULT/UNREADABLE line, not the last line of a multi-line message.
+$pinSummary = ($pinCheck | Where-Object { $_ -match '^(RESULT|UNREADABLE|SUPPORT)\b' } | Select-Object -First 1)
+if (-not $pinSummary) { $pinSummary = ($pinCheck | Select-Object -Last 1) }
+$pinReport = [ordered]@{
+    supportedExecutableSha256 = $supportedSha
+    executableMatchesSupported = ($exeSha -eq $supportedSha)
+    exitCode = $LASTEXITCODE
+    # Exit 2 means the code sections are not plaintext, so no pin comparison is possible - it is a skip,
+    # not a pass and not a mod defect. Spelled out so a 2 is never read as a failure of the mod.
+    exitCodeMeaning = switch ($LASTEXITCODE) {
+        0 { "all recognized pins match" }
+        1 { "a pin does not match the supported build - the mod is wrong for its target" }
+        2 { "the executable's code sections are not plaintext (or it is missing) - no pin comparison possible" }
+        3 { "pins do not match, but this is not the supported build - about the build, not the mod" }
+        default { "see tools/check_pins.py" }
+    }
+    summary = ($pinSummary -replace '^\s+', '').Trim()
+}
 $report = [ordered]@{
     schema=1
     game='ME3 Legendary Edition'
     fileVersion=$versionInfo.FileVersion
     fixedFileVersion=('{0}.{1}.{2}.{3}' -f $versionInfo.FileMajorPart,$versionInfo.FileMinorPart,$versionInfo.FileBuildPart,$versionInfo.FilePrivatePart)
     files=$files
+    nativePins=$pinReport
     activeCustomDLC=$dlcs
     activeASI=$asis
     campaignCoopAvailable=$false

@@ -301,6 +301,31 @@ still pending. See [runtime integration](docs/RUNTIME-INTEGRATION.md) and
 
 There is no promised completion date. See [validation notes](docs/VALIDATION.md) for the evidence boundaries.
 
+## Offline evidence about the campaign
+
+Some of the questions above can be narrowed from the shipped packages without launching the game.
+`tools/melepkg/` reads the `.pcc` files directly; [campaign invariants](docs/CAMPAIGN-INVARIANTS.md)
+records what that established and [offline package reader](docs/OFFLINE-PACKAGE-READER.md) says how to
+run it and what it cannot read. These are file facts, not gameplay results, and they are labelled as
+such.
+
+Two of them change how items 4 and 7 above read:
+
+- **No build enables seamless travel.** `bUseSeamlessTravel` is declared on `Engine.GameInfo` and set by
+  **0 of the 6,685** class default objects that close exactly, and `SeamlessTravelTo` is overridden on
+  no player-controller class. So `GetSeamlessTravelActorList` is never called, a level change destroys
+  the guest's possessed pawn, and a mutator installed in one world is absent from the next. "Sustained
+  mission travel" is therefore re-creating and re-possessing the guest in the new world, not making an
+  existing hook fire.
+- **LE3 clamps capacity to one** on its campaign game class: `Default__SFXGame` serialises
+  `MaxPlayersAllowed=1` while the base `Default__GameInfo` allows 32, and LE1/LE2 set neither. That is
+  the exact field pair the `MaxPlayers`/`MaxAllowed` lease raises, and it is why the clamp is LE3-only.
+
+Also recorded there: the squad roster is `TArray<MemberData>` on LE1/LE2 but `TArray<Object>` on LE3
+with `MemberData` absent, the campaign's own recruitment action runs through a `Bio2DA` table on LE2/LE3
+and not LE1, and possession plus dialogue selection are the only squad-plan surfaces that are genuinely
+shared across builds.
+
 ## Supported research identity
 
 The native code contains offsets and function signatures for one observed build:
@@ -328,6 +353,7 @@ Other builds require fresh identification and validation. Do not reuse offsets b
 | `src/*verification.py` | Evidence evaluators; labels alone do not count as proof |
 | `src/safe_workspace.py`, `src/share_guard.py` | Independent-copy verification and original-file locks |
 | `src/sandbox_launch.c` | Bounded native launcher |
+| `tools/melepkg/` | Offline `.pcc` reader: container, tables, signatures, class default objects - see [offline package reader](docs/OFFLINE-PACKAGE-READER.md) |
 | `boot_probe.py`, `pair_probe.py` | Private-workspace research orchestration |
 | `tools/` | Configuration and packaging tooling |
 | `tests/` | Synthetic Python tests and separate Windows native harness |
