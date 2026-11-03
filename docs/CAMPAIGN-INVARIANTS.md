@@ -219,16 +219,32 @@ subclasses:
 
 `Default__SFXMutator_DifficultySpeed` sets exactly one property, `GroupNames`, whose single element decodes to
 the UTF-16 string **`DifficultySpeed`** — and **`GameInfo.AddMutator` reads `Mutator.GroupNames`** (verified by
-locating the property's dword inside its 619-byte body). So the whole chain is demonstrated by shipped content:
+locating the property's dword inside its 619-byte body). What that establishes is narrower than it was first
+written, and the correction matters:
+
+* **`GroupNames` is not a URL class alias.** Stock UE3 `AddMutator` resolves the `?Mutator=` value by class
+  name — `mutClass = class<Mutator>(DynamicLoadObject(mutname, class'Class'))` — and reads `GroupNames` only
+  afterwards, to refuse a second mutator in the same group and to refuse the same class twice
+  (`GameInfo.uc`, `AddMutator`). So the field is a conflict-detection field, and the class-name resolution is
+  native, outside these packages. The shipped template therefore proves a `Mutator` subclass can be cooked in
+  and that `AddMutator` reads the conflict field; it does **not** prove that a group name routes a travel URL,
+  and that routing claim is removed.
+* The diagram below is the stock chain with the native resolution step named as native, not as something these
+  packages show:
 
 ```
-?Mutator=DifficultySpeed
+?Mutator=<class name>
   -> InitGame parses the 'Mutator' option
-  -> AddMutator resolves the name via Mutator.GroupNames
+  -> AddMutator resolves the class BY NAME (native DynamicLoadObject; not in these packages)
   -> MutatorIsAllowed (!WorldInfo.IsDemoBuild()) permits it
   -> InitMutator runs, after the MaxPlayers clamp
   -> ModifyLogin / ModifyPlayer / NotifyLogin fire
 ```
+
+**Scope of the template claim:** it is a fact about `SFXGame.pcc` on LE3 — two cooked subclasses and a CDO
+that sets `GroupNames`. Whether a mod's own mutator class can be cooked in, whether `?Mutator=` survives the
+campaign's own travel URLs, and whether a mutator's effect replicates, are the three unknowns stated above
+and are not closed by this template.
 
 That means the class *can* be cooked and the name *is* resolved — by the same code path a mod would use.
 What is still unmeasured is only whether the campaign's own travel URLs carry the option forward.
@@ -965,8 +981,10 @@ not the observation. Consequences, in order of how much they change:
    supported SHA-256 `b453871e…` describes a build the owner has in a form this machine does not — or the pins
    were taken from a decrypted image the repository does not record how it obtained.
 3. **The in-process guard is the only check that can work.** `supported_image()` reads memory after the game
-   has decrypted itself, so its timestamp and 7-byte check operate on real code. The launcher's SHA-256 gate
-   plus the in-process guard together are therefore the design, and neither alone is sufficient.
+   has decrypted itself, so its timestamp and 7-byte check operate on real code. That is the design's
+   intent — the launcher's SHA-256 gate plus the in-process guard together, neither alone sufficient. The
+   guard itself was not exercised here: it runs inside the game, and this is an offline review, so "the
+   in-process guard is sufficient" is a hypothesis about the design, not a measurement.
 
 The classifier that decides "encrypted" is tested, because its failure mode is silently wrong in both
 directions: a section below 64 KiB is *unknown* not encrypted, a uniform byte ramp has entropy 8.0 but is

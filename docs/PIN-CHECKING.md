@@ -173,8 +173,13 @@ Controls on the same machine: `notepad.exe` `.text` 6.24, `kernel32.dll` 6.26, w
 `48 83 ec 28` prologues. The installed LE3 `.text` has **zero** `48 83 ec 28` in 17 MB, **zero** duplicated
 32-byte windows in 4 MB, and 38.3% printable bytes — which is the random baseline (95/256 = 37.1%), not text.
 
-**So the file on disk is not the code the game runs.** It decrypts in memory, either through an exe wrapper or
-through the EA App's licence path. Three consequences, in order of how much they change:
+**So the file on disk is not the code the game runs.** It decrypts in memory — **the mechanism is a
+hypothesis**, and the measurement is scoped to the one executable inspected here: `.text` and `.data`
+measure 8.0000/7.9996 bits/byte with no repeated 32-byte window and no `48 83 ec 28` prologue, while
+`.rdata` is plaintext and still holds Bioware source paths. That is a measurement about this file, not a
+claim about every LE3 install. The PE header narrows the hypothesis — the entry point is in `.ooa`, not
+`.text`, and the image imports exactly one DLL, `Core/Activation64.dll` — but no wrapper code was read and
+the decryption itself was not observed. Three consequences, in order of how much they change:
 
 1. **No offline byte comparison of this executable can validate anything about the mod.** "9 pins mismatch"
    against this file is a statement about the file, not about the build. `check_pins.py` now detects this and
